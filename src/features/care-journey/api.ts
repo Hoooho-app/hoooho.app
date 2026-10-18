@@ -17,6 +17,8 @@ export interface CareAchievement {
     achievedAt: string | null;
 }
 export interface CareOwned {
+    kind?: string;
+    expiresAt?: string;
     productId: string;
     id?: string;
     title?: string;

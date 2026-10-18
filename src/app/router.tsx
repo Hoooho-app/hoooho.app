@@ -49,6 +49,7 @@ export const router = createBrowserRouter([
       { path: '/health-profile/vaccination/plan', lazy: lazyPage(() => import('../features/vaccine-plan/VaccinePlanPage'), 'VaccinePlanPage') },
       { path: '/allergy-knowledge', lazy: lazyPage(() => import('../pages/AllergyKnowledge'), 'AllergyKnowledgePage') },
       { path: '/allergy-knowledge/:articleId', lazy: lazyPage(() => import('../pages/AllergyKnowledge'), 'AllergyKnowledgePage') },
+      { path: '/food-observations', lazy: lazyPage(() => import('../features/food-observations/FoodObservationsPage'), 'FoodObservationsPage') },
       { path: '/food-label', lazy: lazyPage(() => import('../pages/FoodLabel'), 'FoodLabelPage') },
       { path: '/care-tools/food-comparison', lazy: lazyPage(() => import('../features/care-tools'), 'FoodComparisonPage') },
       { path: '/care-tools/handoff', lazy: lazyPage(() => import('../features/care-tools'), 'DietaryHandoffPage') },

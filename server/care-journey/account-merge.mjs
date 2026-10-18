@@ -88,7 +88,7 @@ export async function mergeCareJourneyAccounts(dataDirectory, guestAccountId, ac
       target.wallet = Math.max(0, sum);
       target.lifetime = ledger.filter(x => x.kind === 'reward').reduce((n, r) => n + Math.max(0, r.amount), 0);
       target.achievements = unique([...(guest.achievements ?? []), ...(target.achievements ?? [])], x => x.id);
-      target.owned = unique([...(guest.owned ?? []), ...(target.owned ?? [])], x => x.productId);
+      target.owned = unique([...(guest.owned ?? []), ...(target.owned ?? [])], x => x.kind === 'term' ? x.id : x.productId);
       for (const key of ['vouchers', 'redemptions', 'snapshots']) target[key] = unique([...(guest[key] ?? []), ...(target[key] ?? [])], x => x.id);
       target.reservations = unique([...(guest.reservations ?? []), ...(target.reservations ?? [])], x => x.id).map(r => r.status === 'reserved' ? {
         ...r,

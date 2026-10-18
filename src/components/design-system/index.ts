@@ -20,3 +20,5 @@ export * from './DialogueComposer'
 
 export * from './HoldToTalkButton'
 export * from './SproutEntry'
+
+export * from './HohoProgress'

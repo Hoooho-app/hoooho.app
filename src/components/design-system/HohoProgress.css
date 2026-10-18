@@ -1,0 +1,8 @@
+.hoho-progress {--hoho-progress-fill:rgb(var(--hoho-color-primary));display:block;width:100%;height:var(--hoho-space-2);appearance:none;border:0;border-radius:var(--hoho-radius-pill);overflow:hidden;background:rgb(var(--hoho-color-border));color:var(--hoho-progress-fill);}
+.hoho-progress[data-tone='sprout'] {--hoho-progress-fill:rgb(var(--hoho-color-sprout-text));}
+.hoho-progress::-webkit-progress-bar {background:rgb(var(--hoho-color-border));}
+.hoho-progress::-webkit-progress-value {background:var(--hoho-progress-fill);border-radius:var(--hoho-radius-pill);}
+.hoho-progress::-moz-progress-bar {background:var(--hoho-progress-fill);border-radius:var(--hoho-radius-pill);}
+.hoho-progress--segments {display:flex;gap:var(--hoho-space-1);background:transparent;border-radius:0;}
+.hoho-progress--segments>span {flex:1;overflow:hidden;border-radius:var(--hoho-radius-small);background:rgb(var(--hoho-color-border));}
+.hoho-progress--segments>span>span {display:block;height:100%;background:var(--hoho-progress-fill);}
