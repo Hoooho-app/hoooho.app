@@ -1,0 +1,70 @@
+{
+  "date": "2026-10-18",
+  "runtimeCommit": "3a8d3cd181a73087e406e43657594492960f6685",
+  "runtimeTree": "619441f3f31d24b05988b98aa1258602e9b112e9",
+  "sourcePullRequest": "https://github.com/Hoooho-app/hoooho.app/pull/481",
+  "stagingDeployment": {
+    "id": "26d11d29-bb8c-4717-b7e6-4f6d2950246c",
+    "status": "SUCCESS"
+  },
+  "productionDeployment": {
+    "id": "30c4b083-fdc8-4af2-bd56-0a82dfc1028f",
+    "status": "SUCCESS"
+  },
+  "acceptance": {
+    "local": {
+      "target": "local",
+      "checks": [
+        "Existing child-profile layout and all five old categories retained; exactly three new entries; original growth page opens; 320/390/430px",
+        "Birth fields and original persist after reload, legacy records/evidence retained, file-reading save lock, canonical blood type, source-only patch safety, member editor returns correctly",
+        "Checkup and screening records/arrangements persist separately; server rejects future completed facts; stale revision refuses overwrite and retains draft",
+        "Vaccination dose/date/save/reload and isolated draft; blank date stays unknown; planned vaccinations never become completed facts; camera and existing targeted source links retained",
+        "Owned-child section isolation; foreign member writes rejected; second child has no copied archive"
+      ],
+      "errors": [],
+      "physicalIPhone": "NOT_VERIFIED",
+      "status": "PASS"
+    },
+    "staging": {
+      "target": "staging",
+      "expectedCommit": "3a8d3cd181a73087e406e43657594492960f6685",
+      "checks": [
+        "Existing child-profile layout and all five old categories retained; exactly three new entries; original growth page opens; 320/390/430px",
+        "Birth fields and original persist after reload, legacy records/evidence retained, file-reading save lock, canonical blood type, source-only patch safety, member editor returns correctly",
+        "Checkup and screening records/arrangements persist separately; server rejects future completed facts; stale revision refuses overwrite and retains draft",
+        "Vaccination dose/date/save/reload and isolated draft; blank date stays unknown; planned vaccinations never become completed facts; camera and existing targeted source links retained",
+        "Owned-child section isolation; foreign member writes rejected; second child has no copied archive"
+      ],
+      "errors": [],
+      "physicalIPhone": "NOT_VERIFIED",
+      "status": "PASS"
+    },
+    "production": {
+      "target": "production",
+      "expectedCommit": "3a8d3cd181a73087e406e43657594492960f6685",
+      "checks": [
+        "Existing child-profile layout and all five old categories retained; exactly three new entries; original growth page opens; 320/390/430px",
+        "Birth fields and original persist after reload, legacy records/evidence retained, file-reading save lock, canonical blood type, source-only patch safety, member editor returns correctly",
+        "Checkup and screening records/arrangements persist separately; server rejects future completed facts; stale revision refuses overwrite and retains draft",
+        "Vaccination dose/date/save/reload and isolated draft; blank date stays unknown; planned vaccinations never become completed facts; camera and existing targeted source links retained",
+        "Owned-child section isolation; foreign member writes rejected; second child has no copied archive"
+      ],
+      "errors": [],
+      "physicalIPhone": "NOT_VERIFIED",
+      "status": "PASS"
+    }
+  },
+  "recordingFeedback": "Compact standalone and composer plus expanded smart-record feedback passed hold/release, early release, slide cancellation, pointer cancellation, keyboard, blur, denied permission, timer, halo callback and above-finger bounds at 320/390/430px. Transcription remains after release.",
+  "localChecks": {
+    "profileListAndApprovedProfile": 11,
+    "profileSynchronization": 9,
+    "members": 3,
+    "growth": 2,
+    "memberEditorContracts": 5,
+    "productionBuild": "PASS"
+  },
+  "cleanup": "Synthetic children and their health data were removed after each local/staging/production browser run.",
+  "physicalDeviceAcceptance": "NOT_VERIFIED: physical iPhone/Safari, microphone, vibration and operating-system camera. Browser emulation and capture attributes do not prove hardware behavior.",
+  "productOwnerVisualAcceptance": "Pending review of the implemented pages; automated review is supporting evidence.",
+  "followupScope": "Authenticated version-check order and this release evidence only; no application/runtime changes after the verified release."
+}
