@@ -20,7 +20,10 @@ export function observedFoods(record) {
   const diet = record.journal?.diet;
   if (!record.journal?.categories?.includes('diet') || !['feeding', 'complementary', 'meal', 'snack'].includes(diet?.kind) || !Array.isArray(diet.foods)) return [];
   if (diet.kind === 'feeding' && ['breast', 'expressed', 'mixed'].includes(diet.feedingMethod)) return [];
-  const original = String(record.sourceText ?? record.rawText ?? record.content ?? '');
+  // The existing revision trail distinguishes a confirmed content correction
+  // from an AI projection of unchanged original text. Preserve the original.
+  const revisedContent = (record.revisions ?? []).some(revision => typeof revision.after?.content === 'string' && revision.after.content === record.content);
+  const original = String(revisedContent ? record.content : record.sourceText ?? record.rawText ?? record.content ?? '');
   const clauses = (original.match(/[^。！？!?；;，,\n]+[。！？!?；;，,\n]?/g) ?? []).map(x => x.trim()).filter(Boolean);
   return [...new Set(diet.foods.filter(value => typeof value === 'string' && value.trim() && value.length <= 40))].filter(name => {
     const relevant = clauses.filter(clause => clause.includes(name));
@@ -46,7 +49,7 @@ export class FoodObservationService {
   async entitlement(accountId, account) {
     const grant = activeCareOwnership(account, 'food-observation', this.now());
     const included = Boolean(await this.care.isIncluded(accountId, 'food-observation'));
-    return { active: this.care.enabled.has('food-observation') && Boolean(grant || included), included, expiresAt: included ? null : grant?.expiresAt ?? null, balance: account.wallet - account.reservations.filter(r => r.status === 'reserved').reduce((n, r) => n + r.cost, 0), cost: 30, durationDays: 30, available: this.care.enabled.has('food-observation') };
+    return { active: this.care.enabled.has('food-observation') && Boolean(grant || included), included, startsAt: included ? null : grant?.createdAt ?? null, expiresAt: included ? null : grant?.expiresAt ?? null, balance: account.wallet - account.reservations.filter(r => r.status === 'reserved').reduce((n, r) => n + r.cost, 0), cost: 30, durationDays: 30, available: this.care.enabled.has('food-observation') };
   }
   async cautions(accountId, memberId) {
     const sections = (await this.profile.read()).sections.filter(s => s.accountId === accountId && s.memberId === memberId);
@@ -90,7 +93,7 @@ export class FoodObservationService {
     if (preference?.enabled && access.active) {
       const known = new Set(data.observations.filter(o => o.accountId === accountId && o.memberId === memberId).map(o => o.foodKey));
       for (const food of [...context.foods].sort((a, b) => Date.parse(a.record.createdAt) - Date.parse(b.record.createdAt))) {
-        if (known.has(food.key) || preference.baseline.includes(food.key) || Date.parse(food.record.createdAt) < Date.parse(preference.enabledAt)) continue;
+        if (known.has(food.key) || preference.baseline.includes(food.key) || Date.parse(food.record.createdAt) < Math.max(Date.parse(preference.enabledAt), Date.parse(access.startsAt) || 0)) continue;
         if (context.cautionNames.some(n => familyKey(n) === familyKey(food.name))) { preference.baseline.push(food.key); continue; }
         data.observations.push({ ...this.newItem(accountId, memberId, food.name, 7, preference.enabledAt, 'automatic'), activationDeadline: access.expiresAt });
         known.add(food.key);

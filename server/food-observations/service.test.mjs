@@ -181,3 +181,20 @@ test('explicit child milk/formula intake may be observed by product name without
   assert.deepEqual(observedFoods(record('妈妈吃了鸡蛋后喂母乳', ['鸡蛋'], 'breast')), []);
   assert.deepEqual(observedFoods(record('喝了母乳', ['母乳'], 'expressed')), []);
 });
+
+test('confirmed source edits recalculate foods from current revision while keeping original text and evidence', async t => {
+  const f = await setup(t); await f.unlock(); await f.s.automatic('owner', { memberId: f.member.id, enabled: true }); f.tick();
+  const record = await f.food('南瓜', { sourceText: '吃了南瓜' }); assert.equal((await f.list()).items[0].name, '南瓜'); f.tick();
+  await f.s.quick.records.update('owner', record.id, { content: '吃了胡萝卜', journal: { categories: ['diet'], timePrecision: 'exact', diet: { kind: 'complementary', foods: ['胡萝卜'] } } }, f.now());
+  const state = await f.list(); assert.equal(state.items.find(item => item.name === '南瓜').status, 'waiting');
+  assert.equal(state.items.find(item => item.name === '胡萝卜').sources[0].id, record.id);
+  assert.equal((await f.care.records.findById(record.id)).sourceText, '吃了南瓜');
+});
+
+test('renewal resumes automatic observation from the new grant without batching records from expired time', async t => {
+  const f = await setup(t); await f.unlock(); await f.s.automatic('owner', { memberId: f.member.id, enabled: true }); f.next(31);
+  await f.food('苹果'); assert.equal((await f.list()).items.length, 0); f.tick();
+  await f.care.redeem('owner', { productId: 'food-observation', requestId: 'renewal-grant-001' });
+  assert.equal((await f.list()).items.length, 0); f.tick(); await f.food('南瓜');
+  assert.deepEqual((await f.list()).items.map(item => item.name), ['南瓜']);
+});
