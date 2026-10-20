@@ -54,6 +54,10 @@ Hoooho V2 is quiet, trustworthy and information-first. Its product-owner-approve
 - Form errors use `aria-invalid`, `aria-describedby`, live regions and alert roles.
 - Motion is reduced to near-instant feedback when the user requests reduced motion.
 
+### Category colors for arrangement views
+
+`--hoho-color-category-*` identifies the nine family workspace categories. These opt-in tokens are shared by month cells, month-only arrangement entries and grouped arrangement trees. Keep the category name and text summary alongside color, and preserve the existing monochrome family workspace controls and all unrelated product themes.
+
 ## Brand naming
 
 Visible product copy and generated share images use `Hoooho`. Persistence keys and protocol identifiers keep their existing spelling because changing them would be a data or API migration rather than a visual change.

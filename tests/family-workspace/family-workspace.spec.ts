@@ -101,6 +101,7 @@ test('login-state network failure stays closed and can be retried', async ({ pag
 
 
 test('nine modules, independent secondary menus, global search and remembered page work at desktop and phone widths', async ({ page }) => {
+  await page.route(`**${FAMILY_WORKSPACE_PATH}/api/arrangements`, route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ revision: 0, updatedAt: null, plans: [] }) }))
   await page.route(`**${FAMILY_WORKSPACE_PATH}/api/policies/*`, route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(initialPolicy(route.request().url().split('/').pop() as PolicyModuleId)) }))
   await page.route(`**${FAMILY_WORKSPACE_PATH}/api/finance`, route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ revision: 0, updatedAt: null, updatedBy: '', data: emptyFinanceData() }) }))
   const errors: string[] = []
@@ -306,6 +307,7 @@ test('finance admin records survive reload, calculations update, and phone membe
 })
 
 test('shared third-level navigation merges the finance landing and preserves deep links, history and mobile layout', async ({ page }) => {
+  await page.route(`**${FAMILY_WORKSPACE_PATH}/api/arrangements`, route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ revision: 0, updatedAt: null, plans: [] }) }))
   const errors: string[] = []
   page.on('pageerror', error => errors.push(error.message))
   await page.route(`**${FAMILY_WORKSPACE_PATH}/api/session`, route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ authenticated: true, role: 'member', name: '家人', expiresAt: Date.now() + 3600_000 }) }))

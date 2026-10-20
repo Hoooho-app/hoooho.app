@@ -4,6 +4,7 @@ import { createServer } from 'node:http'
 import { mkdtemp, rm } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
+import { randomUUID } from 'node:crypto'
 import { AuthService } from '../auth/auth-service.mjs'
 import { FamilyWorkspaceService } from './service.mjs'
 import { createFamilyWorkspaceApi, familyCookie } from './api.mjs'
@@ -65,12 +66,23 @@ test('HTTP family login enforces origin, role, cookie settings, revocation and e
   const financeResponse = await request('/finance', undefined, memberCookie)
   assert.match(financeResponse.headers.get('cache-control'), /no-store/)
   assert.equal((await financeResponse.json()).revision, 1)
+  assert.equal((await request('/arrangements')).status, 401)
+  assert.equal((await request('/arrangements', undefined, memberCookie)).status, 200)
+  const arrangement = { action: 'save', revision: 0, plan: { id: randomUUID(), module: 'schedule', page: 'tasks', title: '家庭安排', month: '2026-10', startDate: '', endDate: '', status: 'pending', owner: '', note: '' } }
+  assert.equal((await request('/arrangements', arrangement, memberCookie)).status, 403)
+  assert.equal((await request('/arrangements', arrangement, ownerCookie, { Origin: 'https://evil.example' })).status, 403)
+  assert.equal((await request('/arrangements', arrangement, ownerCookie)).status, 200)
+  assert.equal((await request('/arrangements', arrangement, ownerCookie)).status, 409)
+  const arrangementsResponse = await request('/arrangements', undefined, memberCookie)
+  assert.match(arrangementsResponse.headers.get('cache-control'), /no-store/)
+  assert.equal((await arrangementsResponse.json()).plans.length, 1)
   assert.equal((await request('/codes', undefined, memberCookie)).status, 403)
   assert.equal((await request('/codes', { label: '越权' }, memberCookie)).status, 403)
   assert.deepEqual(await (await request('/session', undefined, `${ownerCookie}; ${memberCookie}`)).json(), { authenticated: false })
   assert.equal((await request(`/codes/${code.id}/revoke`, {}, ownerCookie)).status, 200)
   assert.deepEqual(await (await request('/session', undefined, memberCookie)).json(), { authenticated: false })
   assert.equal((await request('/finance', undefined, memberCookie)).status, 401)
+  assert.equal((await request('/arrangements', undefined, memberCookie)).status, 401)
   const code2 = await (await request('/codes', { label: '爸爸' }, ownerCookie)).json()
   now += 29 * 24 * 60 * 60 * 1000
   const remembered = await request('/member/login', { code: code2.loginCode, remember: true })
