@@ -78,7 +78,7 @@ export default defineConfig({
         clientsClaim: true,
         skipWaiting: true,
         navigateFallback: 'index.html',
-        navigateFallbackDenylist: [/^\/api\//]
+        navigateFallbackDenylist: [/^\/api\//, /^\/family-ray-home-life-workspace(?:\/|$)/, /^\/_internal\//]
       },
       manifest: {
         name: 'Hoooho',

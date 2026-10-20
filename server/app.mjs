@@ -70,6 +70,8 @@ import { handoffRoute, handoffResult, HANDOFF_BODY_LIMIT } from './care-handoff/
 import { FamilyWorkspaceService } from './family-workspace/service.mjs'
 import { createFamilyWorkspaceApi } from './family-workspace/api.mjs'
 import { FAMILY_WORKSPACE_PATH } from '../shared/family-workspace.mjs'
+import { createFamilyMigrationBridge } from './family-project/bridge.mjs'
+import { createFamilyGateway } from './family-project/gateway.mjs'
 
 const rootDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 assertAuthRuntimeConfig()
@@ -88,6 +90,9 @@ const sharedOptions = {
 
 const auth = new AuthService(sharedOptions)
 const familyWorkspace = new FamilyWorkspaceService({ ...sharedOptions, auth })
+const familyMigration = createFamilyMigrationBridge({ ...sharedOptions, migrationToken: process.env.FAMILY_MIGRATION_TOKEN, upstreamActive: () => Boolean(process.env.FAMILY_UPSTREAM_URL) })
+familyMigration.protect(familyWorkspace)
+const familyGateway = createFamilyGateway({ upstream: process.env.FAMILY_UPSTREAM_URL, token: process.env.FAMILY_GATEWAY_TOKEN })
 const handleFamilyWorkspace = createFamilyWorkspaceApi(familyWorkspace, { readJson, sendJson })
 const browserSessions = new BrowserSessionService(auth)
 const account = new AccountService({ ...sharedOptions, auth, users: auth.users, data: auth.accountData })
@@ -1100,9 +1105,12 @@ async function handleRequest(request, response) {
     }
     const url = new URL(request.url ?? '/', 'http://localhost')
     const pathname = url.pathname
+    if (await familyMigration.handle(request, response, pathname, url.searchParams, { readJson, sendJson })) return
     if (pathname === FAMILY_WORKSPACE_PATH || pathname.startsWith(`${FAMILY_WORKSPACE_PATH}/`)) {
       response.setHeader('Referrer-Policy', 'no-referrer')
       response.setHeader('X-Robots-Tag', 'noindex, nofollow')
+      if (familyGateway) { await familyGateway(request, response); return }
+      if (request.method !== 'GET' && request.method !== 'HEAD') await familyMigration.assertWritable()
       if (await handleFamilyWorkspace(request, response, pathname)) return
     }
     if (pathname.startsWith('/care-handoff/shared/')) response.setHeader('Referrer-Policy', 'no-referrer')
