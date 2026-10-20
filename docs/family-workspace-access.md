@@ -29,4 +29,12 @@
 
 浏览器测试使用独立进程/数据目录与模拟邮件 provider，没有生产验证码后门。真实邮箱收取/验证和实体 iPhone/Safari 尚未验收；不能用模拟邮件或移动端 Chromium 模拟替代。
 
-Staging 与 Production 部署记录待补。正式发布前按项目规则完成 Staging 真实管理员邮箱登录。
+Staging 已部署成功：`746990c9-9d99-485f-872a-11808ece5040`，正式主分支运行源码 `42291e1c438e65d255e3913e1964f3c0e428ffcf`，对应已验证 tree `7d980af854b391e148783c2635213ad953c83313`。
+
+测试入口：<https://hooohoapp-staging.up.railway.app/family-ray-home-life-workspace>。HTTPS 在线检查 8/8：主服务健康；匿名会话不返回保护数据；匿名登录码列表拒绝；无效登录码拒绝；未授权邮箱不能成为管理员；跨源写入拒绝；公开登录文档与入口资源可访问。线上浏览器导航因执行环境代理 CA 限制未验收；本地 375/390/1280px Chromium 浏览器流程已通过。
+
+`staging.hoooho.com` 的既有自定义域名尚未完成 DNS 所有权验证/路由，未修改 DNS，使用平台已配置的 Staging 服务域名进行验证。
+
+当前交付状态：BLOCKED 于真实 Ray 邮箱收取验证码并登录的验收步骤。用户可自行在测试入口完成管理员登录。Production 尚未发布这个功能，继续保持原部署 `30c4b083-fdc8-4af2-bd56-0a82dfc1028f`。正式目标仍为 <https://hoooho.com/family-ray-home-life-workspace>；完成 Staging 真实邮箱验收后继续部署并验证 Production。测试站登录码不用于正式环境。
+
+本次说明文件更新不改变运行源码，不需要重新部署相同应用。
