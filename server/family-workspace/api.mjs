@@ -29,6 +29,18 @@ export function createFamilyWorkspaceApi(service, { readJson, sendJson }) {
     response.setHeader('X-Robots-Tag', 'noindex, nofollow')
     const route = pathname.slice(apiPrefix.length)
     const raw = readCookie(request)
+    const assetFiles = /^\/finance\/assets\/([a-f0-9-]{36})\/attachments(?:\/([a-f0-9-]{36})\/(preview|original|download|text|parse|remove))?$/.exec(route)
+    if (assetFiles && request.method === 'GET' && ['preview', 'original', 'download', 'text'].includes(assetFiles[3])) {
+      const file = await service.finance.attachments.read(raw, assetFiles[1], assetFiles[2], assetFiles[3])
+      response.setHeader('Content-Type', file.mimeType)
+      response.setHeader('Content-Length', file.buffer.length)
+      response.setHeader('X-Content-Type-Options', 'nosniff')
+      response.setHeader('Content-Security-Policy', "default-src 'none'; sandbox")
+      response.setHeader('Content-Disposition', `${['download', 'text'].includes(assetFiles[3]) ? 'attachment' : 'inline'}; filename*=UTF-8''${encodeURIComponent(file.name)}`)
+      response.writeHead(200)
+      response.end(file.buffer)
+      return true
+    }
     if (route === '/session' && request.method === 'GET') {
       const session = await service.current(raw)
       if (!session && raw) response.setHeader('Set-Cookie', familyCookie(request, '', 0))
@@ -45,6 +57,18 @@ export function createFamilyWorkspaceApi(service, { readJson, sendJson }) {
     }
     if (request.method !== 'POST') throw new AuthError('请求方法不支持。', 405, 'METHOD_NOT_ALLOWED')
     assertMutation(request)
+    if (assetFiles) {
+      const [, assetId, attachmentId, action] = assetFiles
+      await service.finance.authorize(raw, action !== 'parse')
+      if (!attachmentId) {
+        const input = await readJson(request, 14_100_000)
+        sendJson(response, 201, await service.finance.attachments.upload(raw, assetId, input))
+      } else if (action === 'parse' || action === 'remove') {
+        await readJson(request, 4096)
+        sendJson(response, 200, await service.finance.attachments[action](raw, assetId, attachmentId))
+      } else throw new AuthError('请求方法不支持。', 405, 'METHOD_NOT_ALLOWED')
+      return true
+    }
     const input = await readJson(request, route === '/finance' ? 1_048_576 : 4096)
     const client = String(request.headers['x-forwarded-for'] ?? request.socket?.remoteAddress ?? '').split(',')[0].trim().slice(0, 100)
     if (route === '/finance') sendJson(response, 200, await service.finance.save(raw, input))

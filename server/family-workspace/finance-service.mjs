@@ -3,6 +3,7 @@ import { AuthError } from '../auth/auth-service.mjs'
 import { JsonStore } from '../auth/storage/json-store.mjs'
 import { withStorageLock } from '../auth/storage/transaction.mjs'
 import { assetCategories, debtCategories, flowKinds, flowPatterns, policyCategories, premiumPeriods, goalCategories, emptyFinanceData, availableAsset } from '../../shared/family-finance.mjs'
+import { FamilyAssetAttachmentService } from './asset-attachment-service.mjs'
 
 const invalid = message => new AuthError(message, 400, 'FAMILY_FINANCE_INVALID')
 const text = (value, label, required = false, max = 120) => {
@@ -40,6 +41,20 @@ function normalize(input) {
     const result = { ...base(row), category: choice(row.category, assetCategories, '资产类别'), amount: money(row.amount, '资产金额'), valuedAt: date(row.valuedAt, '估值日期', false), available: flag(row.available, '随时可取标记'), emergency: flag(row.emergency, '应急储备标记') }
     if (result.available && !['cash', 'deposit'].includes(result.category)) throw invalid('仅现金和存款可标记为随时可取。')
     if (result.emergency && !availableAsset(result)) throw invalid('应急储备必须是随时可取的现金或存款。')
+    // Optional fields keep older records compatible, including saves by older clients.
+    if (['startDate', 'endDate', 'endDatePrecision', 'remindDays'].some(key => Object.hasOwn(row, key))) {
+      result.startDate = date(row.startDate ?? '', '起始日期')
+      result.endDatePrecision = choice(row.endDatePrecision ?? 'day', { day: 1, month: 1 }, '到期日期精度')
+      if (result.endDatePrecision === 'month') {
+        const endDate = row.endDate ?? ''
+        if (typeof endDate !== 'string' || (endDate !== '' && !/^20\d{2}-(0[1-9]|1[0-2])$/.test(endDate))) throw invalid('有效期须为有效月份（2000–2099）。')
+        result.endDate = endDate
+      } else result.endDate = date(row.endDate ?? '', '有效期或到期日')
+      result.remindDays = row.remindDays ?? 30
+      if (!Number.isInteger(result.remindDays) || result.remindDays < 0 || result.remindDays > 365) throw invalid('提前提示天数须为 0–365 的整数。')
+      const end = result.endDatePrecision === 'month' && result.endDate ? new Date(Date.UTC(Number(result.endDate.slice(0, 4)), Number(result.endDate.slice(5, 7)), 0)).toISOString().slice(0, 10) : result.endDate
+      if (result.startDate && end && end < result.startDate) throw invalid('到期日期不能早于起始日期。')
+    }
     return result
   })
   const debts = list('debts', row => ({ ...base(row), category: choice(row.category, debtCategories, '负债类别'), balance: money(row.balance, '剩余欠款'), apr: money(row.apr, '年化利率', true, 100), monthlyPayment: money(row.monthlyPayment, '每期应还', true), creditLimit: money(row.creditLimit, '授信额度', true), dueDate: date(row.dueDate, '下次还款日') }))
@@ -64,6 +79,7 @@ export class FamilyFinanceService {
   constructor(workspace) {
     this.workspace = workspace
     this.store = new JsonStore(path.join(workspace.dataDirectory, 'family-workspace-finance.json'), { revision: 0, updatedAt: null, updatedBy: '', data: emptyFinanceData() })
+    this.attachments = new FamilyAssetAttachmentService(this)
   }
   async authorize(raw, write = false) {
     const session = await this.workspace.current(raw)
@@ -77,10 +93,19 @@ export class FamilyFinanceService {
       const session = await this.authorize(raw, true)
       if (!input || !Number.isSafeInteger(input.revision) || input.revision < 0) throw invalid('资料版本无效，请重新载入。')
       const data = normalize(input.data)
-      return this.store.update(previous => {
+      let removed = []
+      const saved = await this.store.update(previous => {
         if (previous.revision !== input.revision) throw new AuthError('资料已在另一窗口更新。请保留当前内容，关闭编辑后重新载入，再进行修改。', 409, 'FAMILY_FINANCE_CONFLICT')
-        return { revision: previous.revision + 1, updatedAt: this.workspace.now(), updatedBy: session.name, data }
+        for (const asset of data.assets) {
+          const old = previous.data.assets.find(item => item.id === asset.id)
+          if (old && !Object.hasOwn(asset, 'endDatePrecision')) for (const key of ['startDate', 'endDate', 'endDatePrecision', 'remindDays']) if (Object.hasOwn(old, key)) asset[key] = old[key]
+        }
+        const ids = new Set(data.assets.map(asset => asset.id))
+        removed = (previous.attachments ?? []).filter(item => !ids.has(item.assetId))
+        return { ...previous, revision: previous.revision + 1, updatedAt: this.workspace.now(), updatedBy: session.name, data, ...(previous.attachments ? { attachments: previous.attachments.filter(item => ids.has(item.assetId)) } : {}) }
       })
+      await Promise.allSettled(removed.map(item => this.attachments.removeFile(item)))
+      return saved
     })
   }
 }

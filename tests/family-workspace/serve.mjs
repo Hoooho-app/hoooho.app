@@ -13,6 +13,16 @@ process.env.RESEND_API_KEY = 'isolated-test-provider'
 process.env.AUTH_EMAIL_FROM = 'Hoooho <noreply@example.test>'
 process.env.AI_PROVIDER = 'local-fact'
 const originalFetch = globalThis.fetch
+// Only this isolated browser-test server supplies synthetic OCR; production never imports it.
+const { BusinessModel } = await import('../../server/ai/business/model.mjs')
+const originalStructured = BusinessModel.prototype.structured
+let assetRecognitionCalls = 0
+BusinessModel.prototype.structured = async function (request) {
+  if (!request.instructions.startsWith('逐行转录资产附件中的可读文字')) return originalStructured.call(this, request)
+  assetRecognitionCalls++
+  await writeFile(path.join(directory, 'asset-parse-calls.json'), JSON.stringify({ calls: assetRecognitionCalls }))
+  return { value: { text: 'BROWSER TEST CARD\n有效期 10/28\n测试资料，不是真实银行卡', status: 'readable' } }
+}
 globalThis.fetch = async (url, options) => {
   if (String(url) === 'https://api.resend.com/emails') {
     const payload = JSON.parse(options.body)
