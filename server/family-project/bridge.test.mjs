@@ -2,10 +2,10 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { mkdtemp, readFile, writeFile, mkdir, rm } from 'node:fs/promises'
 import { createServer } from 'node:http'
-import { randomUUID } from 'node:crypto'
+import { randomUUID, createHmac } from 'node:crypto'
 import os from 'node:os'
 import path from 'node:path'
-import { FamilyWorkspaceService } from '../family-workspace/service.mjs'
+import { JsonStore } from '../auth/storage/json-store.mjs'
 import { createFamilyMigrationBridge, FAMILY_DATA_FILES } from './bridge.mjs'
 
 async function fixture(t) {
@@ -14,11 +14,19 @@ async function fixture(t) {
   let now = Date.UTC(2026, 9, 20), upstream = false
   const migrationToken = 'isolated-family-migration-bridge-token-32plus'
   const options = { dataDirectory, tokenSecret: 'existing-health-secret-never-exported', auth: { opsOwnerEmail: () => 'ray@example.test' }, now: () => now }
-  const workspace = new FamilyWorkspaceService(options)
+  const store = (name, value) => new JsonStore(path.join(dataDirectory, name), value)
+  const workspace = {
+    store: store(FAMILY_DATA_FILES[0], { codes: [], sessions: [], rates: [] }),
+    finance: { store: store(FAMILY_DATA_FILES[1], { revision: 0, data: { assets: [] }, attachments: [] }) },
+    policies: { store: store(FAMILY_DATA_FILES[2], { records: {} }) },
+    arrangements: { store: store(FAMILY_DATA_FILES[3], { revision: 0, plans: [] }) },
+    normalizeCode: value => value
+  }
   const bridge = createFamilyMigrationBridge({ ...options, migrationToken, upstreamActive: () => upstream })
   bridge.protect(workspace)
-  const admin = await workspace.createSession({ role: 'admin', name: 'Ray', email: 'ray@example.test' }, true)
-  const code = await workspace.createCode(admin.raw, '家人')
+  const hash = (kind, value) => createHmac('sha256', options.tokenSecret).update(`Hoooho family ${kind} v1\0`).update(value).digest('hex')
+  const admin = { raw: 'A'.repeat(43) }, code = { id: randomUUID(), loginCode: 'A'.repeat(20) }
+  await workspace.store.update(state => ({ ...state, codes: [{ id: code.id, hash: hash('code', code.loginCode), expiresAt: now + 86400_000 }], sessions: [{ id: hash('session', admin.raw), expiresAt: now + 86400_000 }] }))
   await writeFile(path.join(dataDirectory, 'users.json'), JSON.stringify({ medical: 'must never migrate' }))
   const server = createServer(async (request, response) => {
     const url = new URL(request.url, 'http://localhost')
@@ -63,7 +71,7 @@ test('legacy oracle reveals only an identifier, expires after 30 days, and commi
   const result = await (await f.call('verify-legacy', { body: { kind: 'code', value: f.workspace.normalizeCode(f.code.loginCode) } })).json()
   assert.deepEqual(result, { id: f.code.id })
   assert.equal((await f.call('verify-legacy', { body: { kind: 'session', value: f.admin.raw } })).status, 200)
-  assert.equal((await f.call('verify-legacy', { body: { kind: 'code', value: 'AAAAAAAAAAAAAAAAAAAA' } })).status, 401)
+  assert.equal((await f.call('verify-legacy', { body: { kind: 'code', value: 'BBBBBBBBBBBBBBBBBBBB' } })).status, 401)
   assert.equal((await f.call('commit', { body: { id: manifest.id, digest: manifest.digest } })).status, 200)
   assert.equal((await f.call('release', { body: { id: manifest.id, digest: manifest.digest } })).status, 409)
   f.advance(30 * 24 * 3600_000)
