@@ -56,6 +56,10 @@ export function createFamilyWorkspaceApi(service, { readJson, sendJson }) {
       sendJson(response, 200, await service.finance.read(raw))
       return true
     }
+    if (route === '/arrangements' && request.method === 'GET') {
+      sendJson(response, 200, await service.arrangements.read(raw))
+      return true
+    }
     if (route === '/codes' && request.method === 'GET') {
       sendJson(response, 200, await service.listCodes(raw))
       return true
@@ -74,10 +78,11 @@ export function createFamilyWorkspaceApi(service, { readJson, sendJson }) {
       } else throw new AuthError('请求方法不支持。', 405, 'METHOD_NOT_ALLOWED')
       return true
     }
-    const input = await readJson(request, route === '/finance' ? 1_048_576 : policyRoute ? 262144 : 4096)
+    const input = await readJson(request, route === '/finance' ? 1_048_576 : route === '/arrangements' ? 16_384 : policyRoute ? 262144 : 4096)
     const client = String(request.headers['x-forwarded-for'] ?? request.socket?.remoteAddress ?? '').split(',')[0].trim().slice(0, 100)
     if (policyRoute) sendJson(response, 200, await service.policies.save(raw, policyRoute[1], input))
     else if (route === '/finance') sendJson(response, 200, await service.finance.save(raw, input))
+    else if (route === '/arrangements') sendJson(response, 200, await service.arrangements.save(raw, input))
     else if (route === '/admin/send-code') sendJson(response, 200, await service.sendAdminCode(input.email, client))
     else if (route === '/admin/login' || route === '/member/login') {
       const result = route === '/admin/login'

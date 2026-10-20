@@ -4,6 +4,7 @@ import { AuthError } from '../auth/auth-service.mjs'
 import { JsonStore } from '../auth/storage/json-store.mjs'
 import { withStorageLock } from '../auth/storage/transaction.mjs'
 import { FamilyFinanceService } from './finance-service.mjs'
+import { FamilyArrangementService } from './arrangement-service.mjs'
 import { FamilyPolicyService } from './policy-service.mjs'
 import { FAMILY_ACCESS_TTL_MS } from '../../shared/family-workspace.mjs'
 
@@ -19,6 +20,7 @@ export class FamilyWorkspaceService {
     this.secret = tokenSecret
     this.now = now
     this.finance = new FamilyFinanceService(this)
+    this.arrangements = new FamilyArrangementService(this)
     this.policies = new FamilyPolicyService(this)
     this.store = new JsonStore(path.join(dataDirectory, 'family-workspace-access.json'), { codes: [], sessions: [], rates: [] })
   }

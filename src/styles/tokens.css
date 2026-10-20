@@ -42,6 +42,16 @@
   --hoho-color-calendar-material: 114 82 143;
   --hoho-color-calendar-material-surface: 243 237 250;
   --hoho-color-disabled: 153 166 169;
+  /* Category identifiers shared by monthly calendars and grouped arrangement lists. */
+  --hoho-color-category-finances: 33 112 83;
+  --hoho-color-category-assets: 48 103 152;
+  --hoho-color-category-legal: 114 82 143;
+  --hoho-color-category-schedule: 158 81 26;
+  --hoho-color-category-home: 130 102 43;
+  --hoho-color-category-health: 166 62 67;
+  --hoho-color-category-education: 43 114 122;
+  --hoho-color-category-safety: 138 72 110;
+  --hoho-color-category-governance: 87 96 139;
 
   --hoho-font-family: "Hoooho Paper Sans", -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", "Noto Sans SC", "Segoe UI", sans-serif;
   --hoho-font-family-heading: "Hoooho Paper Serif", "Songti SC", "Noto Serif CJK SC", serif;
