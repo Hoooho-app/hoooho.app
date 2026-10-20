@@ -1,5 +1,5 @@
 export type ModuleId = 'finances' | 'assets' | 'legal' | 'schedule' | 'home' | 'health' | 'education' | 'safety' | 'governance'
-export type WorkspaceLocation = { module: ModuleId | 'overview' | 'access'; page: string }
+export type WorkspaceLocation = { module: ModuleId | 'overview' | 'access'; page: string; section?: string }
 export type WorkspacePage = { id: string; title: string; description: string; columns: string[]; keywords: string }
 export type WorkspaceModule = { id: ModuleId; title: string; description: string; pages: WorkspacePage[] }
 
@@ -10,7 +10,6 @@ export const workspaceModules: WorkspaceModule[] = [
   {
     id: 'finances', title: '家庭收支与预算', description: '记录钱的流入与流出，安排预算、账单和现金流。',
     pages: [
-      page('overview', '收支总览', '按月汇总收入、支出、结余与预算执行情况。', ['统计周期', '收入合计', '支出合计', '收支结余', '预算使用']),
       page('perspective', '财务透视表', '统一查看家底、月度预算与实际、现金储备、保险和资金目标。管理员可编辑保存。', ['家庭净资产', '月度结余', '应急储备', '预算差额'], '财务透视 Excel 资产负债 收支储蓄 现金流 保险 保障 目标 编辑'),
       page('transactions', '收支明细', '逐笔整理收入与支出，区分分类、支付账户和经办人。', ['发生日期', '收支类型', '分类', '金额', '支付账户', '经办人'], '记账 流水 买菜 餐饮 工资 消费'),
       page('budget', '预算管理', '按家庭、成员和开支类别设置预算，跟踪计划与实际差额。', ['预算项目', '预算周期', '计划金额', '实际支出', '剩余额度'], '月度 年度 超支 限额'),
@@ -121,25 +120,56 @@ export const workspaceModules: WorkspaceModule[] = [
   }
 ]
 
+export type FinanceView = 'overview' | 'balance' | 'monthly' | 'reserve' | 'insurance' | 'goals'
+export type WorkspaceSection = { id: FinanceView; title: string; description: string; keywords: string }
+
+export const financeSections: WorkspaceSection[] = [
+  { id: 'overview', title: '财务总览', description: '查看家庭净资产、收支结余与应急储备。', keywords: '收支总览 汇总 统计' },
+  { id: 'balance', title: '资产负债', description: '维护资产估值、剩余欠款和还款安排。', keywords: '资产负债表 负债表 资产表 净资产' },
+  { id: 'monthly', title: '月度预算与实际', description: '区分固定、浮动和一次性项目，核对计划与实际。', keywords: '月度预算 预算差额 收入 支出 储蓄' },
+  { id: 'reserve', title: '现金储备', description: '维护现金账户、应急储备和必要开支基线。', keywords: '应急金 备用金 银行余额 支持月数' },
+  { id: 'insurance', title: '保险保障', description: '按被保人维护保单、保费、续费和保障。', keywords: '医疗险 保费 被保人 年度保费 保单' },
+  { id: 'goals', title: '资金目标', description: '跟踪目标金额、已备金额和进度。', keywords: '教育金 养老 资金计划 储蓄目标' }
+]
+
+const financePageDefaults: Record<string, FinanceView> = {
+  'finances/perspective': 'overview', 'finances/budget': 'monthly', 'finances/cashflow': 'monthly', 'finances/accounts': 'reserve',
+  'assets/overview': 'balance', 'assets/cash': 'reserve', 'assets/holdings': 'balance', 'assets/property': 'balance', 'assets/equity': 'balance', 'assets/liabilities': 'balance', 'assets/allocation': 'goals',
+  'safety/insurance': 'insurance'
+}
+export function financeDefaultView(module: string, pageId: string): FinanceView | undefined { return financePageDefaults[`${module}/${pageId}`] }
+export function pageSections(module: string, pageId: string): WorkspaceSection[] { return financeDefaultView(module, pageId) ? financeSections : [] }
+
 export const defaultLocation: WorkspaceLocation = { module: 'overview', page: 'overview' }
-export const locationHash = (location: WorkspaceLocation) => `#${location.module}/${location.page}`
+export const locationHash = (location: WorkspaceLocation) => `#${location.module}/${location.page}${location.section ? `/${location.section}` : ''}`
 
 export function resolveLocation(hash: string, admin: boolean): WorkspaceLocation {
-  const [module, pageId] = hash.replace(/^#/, '').split('/')
+  const [module, requestedPage, section] = hash.replace(/^#/, '').split('/')
   if (module === 'access') return admin ? { module: 'access', page: 'overview' } : defaultLocation
   const match = workspaceModules.find(item => item.id === module)
   if (!match) return defaultLocation
-  return { module: match.id, page: match.pages.some(item => item.id === pageId) ? pageId : 'overview' }
+  const pageId = module === 'finances' && requestedPage === 'overview' ? 'perspective' : requestedPage
+  const item = match.pages.find(item => item.id === pageId) ?? match.pages[0]
+  const sections = pageSections(match.id, item.id)
+  return { module: match.id, page: item.id, ...(sections.length ? { section: sections.some(item => item.id === section) ? section : financeDefaultView(match.id, item.id) } : {}) }
 }
 
 export function searchWorkspace(query: string) {
   const words = query.normalize('NFKC').trim().toLocaleLowerCase('zh-CN').split(/\s+/).filter(Boolean)
   if (!words.length) return []
-  return workspaceModules.flatMap(module => module.pages.map(item => {
-    const title = item.title.toLocaleLowerCase('zh-CN')
+  const destinations = workspaceModules.flatMap(module => module.pages.flatMap(item => {
+    const pageResult = { module, page: item, section: undefined as WorkspaceSection | undefined }
+    // Shared finance views are indexed once at the canonical finance perspective.
+    // All contextual routes still use the same global section directory.
+    return [pageResult, ...(module.id === 'finances' && item.id === 'perspective' ? pageSections(module.id, item.id).map(section => ({ module, page: item, section })) : [])]
+  }))
+  return destinations.map(result => {
+    const { module, page: item, section } = result
+    const title = (section?.title ?? item.title).toLocaleLowerCase('zh-CN')
     const moduleTitle = module.title.toLocaleLowerCase('zh-CN')
-    const text = `${moduleTitle} ${title} ${item.description} ${item.keywords} ${item.columns.join(' ')}`.normalize('NFKC').toLocaleLowerCase('zh-CN')
-    const score = words.every(word => text.includes(word)) ? words.reduce((total, word) => total + (title === word ? 100 : title.includes(word) ? 60 : item.keywords.toLocaleLowerCase('zh-CN').includes(word) ? 40 : moduleTitle.includes(word) ? 20 : 10), 0) : 0
-    return { module, page: item, score }
-  })).filter(result => result.score > 0).sort((a, b) => b.score - a.score)
+    const keywords = `${item.keywords} ${section?.keywords ?? ''}`.normalize('NFKC').toLocaleLowerCase('zh-CN')
+    const text = `${moduleTitle} ${item.title} ${title} ${item.description} ${section?.description ?? ''} ${keywords} ${item.columns.join(' ')}`.normalize('NFKC').toLocaleLowerCase('zh-CN')
+    const score = words.every(word => text.includes(word)) ? words.reduce((total, word) => total + (title === word ? 100 : title.includes(word) ? 60 : keywords.includes(word) ? 40 : moduleTitle.includes(word) ? 20 : 10), 0) : 0
+    return { ...result, score }
+  }).filter(result => result.score > 0).sort((a, b) => b.score - a.score)
 }

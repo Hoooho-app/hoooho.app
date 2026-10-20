@@ -112,6 +112,7 @@
 .family-access-link { width: 100%; }
 .family-main { display: grid; grid-template-columns: minmax(0,1fr); grid-template-rows: auto minmax(0,1fr); height: 100dvh; overflow: hidden; min-width: 0; }
 .family-main.has-secondary { grid-template-columns: 216px minmax(0,1fr); }
+.family-main.has-tertiary { grid-template-columns: 192px 176px minmax(0,1fr); }
 .family-topbar { grid-column: 1/-1; position: relative; z-index: 20; display: flex; gap: var(--hoho-space-4); align-items: center; min-height: 76px; padding: var(--hoho-space-4) var(--hoho-space-8); background: rgb(var(--hoho-color-surface)); border-bottom: 1px solid rgb(var(--hoho-color-border)); }
 .family-topbar-state { display: inline-flex; align-items: center; gap: var(--hoho-space-1); white-space: nowrap; color: rgb(var(--hoho-color-text-weak)); font-size: var(--hoho-font-size-caption); }
 .family-content { display: flex; flex-direction: column; width: 100%; min-width: 0; min-height: 0; max-width: none; overflow-y: auto; overscroll-behavior: contain; padding: 0 var(--hoho-space-8); margin: 0; }
@@ -211,9 +212,15 @@
 .family-calendar th { font-weight: 500; color: rgb(var(--hoho-color-text-secondary)); background: rgb(var(--hoho-color-surface-subtle)); }
 .family-calendar td[aria-current='date'] { background: rgb(var(--hoho-color-primary)); color: rgb(var(--hoho-color-surface)); font-weight: 600; }
 
+@media (min-width: 801px) and (max-width: 1400px) {
+  .has-tertiary .family-finance-metrics { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .has-tertiary .family-finance-two-col { grid-template-columns: minmax(0,1fr); }
+}
+
 @media (max-width: 1100px) {
   .family-workspace { grid-template-columns: 200px minmax(0,1fr); }
   .family-main.has-secondary { grid-template-columns: 192px minmax(0,1fr); }
+  .family-main.has-tertiary { grid-template-columns: 176px 160px minmax(0,1fr); }
   .family-content { padding-inline: var(--hoho-space-6); }
   .family-topbar { padding-inline: var(--hoho-space-6); }
   .family-search kbd, .family-topbar-state { display: none; }

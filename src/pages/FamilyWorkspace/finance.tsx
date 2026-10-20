@@ -9,14 +9,14 @@ import { useDialogFocus } from '../../hooks/useDialogFocus'
 import { usePageScrollLock } from '../../hooks/usePageScrollLock'
 import { api, FamilyApiError, messageOf } from './api'
 import { assetCategories, debtCategories, flowKinds, flowPatterns, policyCategories, premiumPeriods, goalCategories, financeSummary, availableAsset, activePolicy, annualPremium, chinaDate, type FinanceSnapshot, type FinanceData } from '../../../shared/family-finance.mjs'
+import type { FinanceView } from './navigation'
 import './finance.css'
 
 type Collection = 'assets' | 'debts' | 'flows' | 'policies' | 'goals'
-type View = 'overview' | 'balance' | 'monthly' | 'reserve' | 'insurance' | 'goals'
 type Row = Record<string, string | number | boolean | null>
 type Field = { key: string; label: string; type?: 'text' | 'money' | 'date' | 'month' | 'check' | 'note' | 'number'; options?: Record<string, string>; required?: boolean; hint?: string }
 type Editor = { collection: Collection | 'settings'; row: Row; existing: boolean }
-const views: { id: View; label: string }[] = [{ id: 'overview', label: '财务总览' }, { id: 'balance', label: '资产负债' }, { id: 'monthly', label: '月度预算与实际' }, { id: 'reserve', label: '现金储备' }, { id: 'insurance', label: '保险保障' }, { id: 'goals', label: '资金目标' }]
+
 const names: Record<Collection | 'settings', string> = { assets: '资产', debts: '负债', flows: '月度项目', policies: '保单', goals: '资金目标', settings: '储备设置' }
 const ownerField: Field = { key: 'owner', label: '归属成员', required: true, hint: '可填写家人称呼或“家庭共同”。' }
 const noteField: Field = { key: 'note', label: '备注', type: 'note' }
@@ -42,9 +42,8 @@ function newRow(collection: Collection, month: string): Row {
   return { ...common, category: 'education', target: null, funded: 0, dueDate: '' }
 }
 
-export function FamilyFinance({ admin, onUnauthorized, initialView = 'overview', assetCategory, debtOnly = false }: { admin: boolean; onUnauthorized: () => void; initialView?: View; assetCategory?: string; debtOnly?: boolean }) {
+export function FamilyFinance({ admin, onUnauthorized, view = 'overview', assetCategory, debtOnly = false }: { admin: boolean; onUnauthorized: () => void; view?: FinanceView; assetCategory?: string; debtOnly?: boolean }) {
   const [snapshot, setSnapshot] = useState<FinanceSnapshot>()
-  const [view, setView] = useState<View>(initialView)
   const [month, setMonth] = useState(chinaDate().slice(0, 7))
   const [owner, setOwner] = useState('')
   const [loading, setLoading] = useState(true)
@@ -57,7 +56,7 @@ export function FamilyFinance({ admin, onUnauthorized, initialView = 'overview',
   const pending = useRef(false)
   const mounted = useRef(true)
   const unauthorized = useRef(onUnauthorized); unauthorized.current = onUnauthorized
-  useEffect(() => { setView(initialView) }, [initialView, assetCategory, debtOnly])
+  useEffect(() => { setNotice('') }, [view])
   const fail = (cause: unknown) => { if (cause instanceof FamilyApiError && cause.status === 401) unauthorized.current(); return messageOf(cause) }
   const load = async (signal?: AbortSignal) => {
     setLoading(true); setError('')
@@ -121,7 +120,6 @@ export function FamilyFinance({ admin, onUnauthorized, initialView = 'overview',
     <div className="family-section-heading"><div><h2 className="hoho-text-section-title">财务透视表</h2><p className="hoho-text-caption">{admin ? '管理员可编辑' : '家人只读'} · 人民币 / 元 · {snapshot.updatedAt ? `${updated(snapshot.updatedAt)} 由 ${snapshot.updatedBy} 保存` : '从当前家庭情况开始录入'}</p></div><div className="family-finance-tools"><HohoButton variant="ghost" size="small" disabled={loading || busy} onClick={() => { setNotice(''); void load() }}><RefreshCw size={15}/>{loading ? '载入中' : '重新载入'}</HohoButton>{admin && <HohoButton variant="secondary" size="small" onClick={exportBackup}><Download size={15}/>导出备份</HohoButton>}</div></div>
     {error && <StatusNotice tone="error" title="载入失败">{error} 当前仍显示上次成功载入的资料。</StatusNotice>}
     {notice && <p className="family-finance-saved" role="status">{notice}</p>}
-    <nav className="family-finance-views" aria-label="财务透视表视图">{views.map(item => <button type="button" key={item.id} aria-current={view === item.id ? 'page' : undefined} onClick={() => { setView(item.id); setNotice('') }}>{item.label}</button>)}</nav>
     <div className="family-finance-filters"><label className="hoho-field"><span className="hoho-text-label">统计月份</span><input className="hoho-input" type="month" min="2000-01" max="2099-12" value={month} onChange={event => { if (/^20\d{2}-(0[1-9]|1[0-2])$/.test(event.target.value)) setMonth(event.target.value) }}/></label><label className="hoho-field"><span className="hoho-text-label">成员范围</span><select className="hoho-input" value={owner} onChange={event => setOwner(event.target.value)}><option value="">全家汇总</option>{all.owners.map(name => <option key={name}>{name}</option>)}</select></label><p className="hoho-text-caption">收支按所选月份统计；资产为各项最近估值。{owner && '保险按被保人筛选。'}</p></div>
     {view === 'overview' && <>
       {stateEmpty && <div className="family-finance-start"><div><h3 className="hoho-text-section-title">先看清家底，再安排每个月。</h3><p>还没有财务资料。可先登记账户余额与欠款，再填写月度计划和实际金额。</p></div>{admin && <HohoButton onClick={() => open('assets')}><Plus size={16}/>登记第一项资产</HohoButton>}</div>}
