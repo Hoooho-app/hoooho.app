@@ -1,5 +1,13 @@
 # Hoooho execution and design standards
 
+## Family project separation — owner instruction 2026-10-21
+
+- 家庭统筹会是独立项目，唯一家庭代码仓库为 `https://github.com/Hoooho-app/hoooho-family.git`（私有），正式分支 `main`。今后的家庭功能开发、测试、构建和发布进入该仓库，不继续写回本健康仓库。
+- 本仓库只拥有 Hoooho 健康产品。`src/pages/FamilyWorkspace`、`server/family-workspace` 等暂时保留用于迁移兼容，待独立服务/数据和正式路径核验后移除；不要把这段过渡状态当成最终拆分完成。
+- 两项目各有独立 Railway Production 服务和持久卷。家庭正式地址继续是 `https://hoooho.com/family-ray-home-life-workspace`，本健康服务只保留该路径的受限转发和有期限迁移桥。
+- 先读取 `docs/family-project-separation.md` 和独立仓库的 `docs/project-separation.md` / `docs/release-status.md`。新服务未健康、家庭数据未校验时禁止切换；不得复制健康用户、医疗资料或 AUTH_TOKEN_SECRET 到家庭项目。
+- Railway 当前暂停部署，独立基础设施创建返回平台错误。必须标记 BLOCKED；不要为绕过故障新建 Staging、丢弃源数据或直接切到空服务。
+
 ## Hoho delivery chain: one production environment
 
 - The canonical application repository is `https://github.com/Hoooho-app/hoooho.app.git`; its formal deploy branch is `main`.
