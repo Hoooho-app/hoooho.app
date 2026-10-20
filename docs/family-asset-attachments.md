@@ -22,3 +22,12 @@
 - 1280px 桌面、390px 管理员与 375px 家人阅读；日期列与操作不重叠，页面无水平溢出，无 JavaScript 错误；截图已检查。
 - 浏览器测试使用隔离数据、模拟邮件与模拟图片解析。未向生产写入测试资产或照片，未发送生产验证码，未使用真实银行卡。现有 AI 供应商实图识别效果与实体 iPhone/Safari 尚未验收。
 - 原图存入既有 DATA_DIRECTORY 下 family-asset-files，元数据及文字随既有财务版本原子保存；每项最多 20 张、每张 10 MB，资产附件合计 200 MB。无新增依赖、密钥或通知服务。
+
+## Production 发布状态：BLOCKED
+
+- PR #487 已合入 main：https://github.com/Hoooho-app/hoooho.app/pull/487 。待发布源码 `524936544a557e333c3f0b38b5143e612da12fd7`；云端与本地已验证 tree 均为 `f203ec4f02237885e3ebc1dfaa6574ab3aa1fd49`。
+- 已通过 Railway 提交 production 的唯一源码版本变更：`7bad9909cba2aebd53a7a9b59a19414ee1ebc568` → `524936544a557e333c3f0b38b5143e612da12fd7`。补丁 `0fe68638-e4e6-4b45-b3c4-4cd0e9aa6d80` 已提交；回读 source.commitSha 正确，无其他配置、密钥、数据卷或访问设置改动。
+- UTC 2026-10-20 17:03（北京时间 10-21 01:03），Railway 官方公告暂停多数工作区的新构建，状态 Investigating / Major Outage，涉及所有构建区域。公告说明期间触发的构建会排队，恢复后再启动；已运行的服务不受影响。
+- 已登录的 Railway 服务控制台同时显示“New builds are temporarily paused. We're investigating.”及“Deploys have been paused temporarily”。官方状态页：https://status.railway.com/incident/JUA1PC5H 。2026-10-21 01:10 北京时间仍在排查。
+- 最后复核：Production 现有部署 `91396f82-e36d-48ab-aa4f-3887a5aa976e`（三级导航版）仍 SUCCESS、1/1 副本在线；未产生新版部署记录，因此本功能未标记上线或生产验收通过。唯一正式网址返回 HTTP 200。
+- 后续：平台恢复后跟踪此次排队构建；若无新部署再从已固定源码触发一次正式构建，等待 terminal SUCCESS，检查源码、前端资产与受保护附件端点。不要重建环境、操作旧数据或把旧部署的 SUCCESS 当成新版完成。
