@@ -1,5 +1,12 @@
 # 家庭统筹会：九大模块与黑白灰导航
 
+## 当前访问与发布约定（2026-10-20 更新）
+
+唯一正式地址：<https://hoooho.com/family-ray-home-life-workspace>。用户已明确要求只使用生产环境；以后直接发布 Production，不再安排测试站。下方 Staging 地址与验收内容仅为历史证据，不再是使用入口或未来发布前置条件。
+
+两项测试服务的停用变更已准备，保留原数据卷，当前仍需在 Railway 网页完成双重验证后才能生效。具体状态见 [单生产环境约定](production-only-policy.md)。
+
+
 基线：`c39115457177539267bb926e4aeaf2745bb3952d`，当前 `origin/main`。实现分支 `feat/family-console-navigation-20261020`，独立工作树，起始无未提交修改。
 
 ## 用户确认范围与实现清单（实现不等于浏览器验收）
@@ -25,12 +32,12 @@
 - 已更新 Playwright 用例与九模块搜索流程，测试发现清单可正常解析。当前 Sites 托管执行规范在缺少 control-browser 时要求跳过浏览器 QA；本轮未运行浏览器流程，未做手机实机验收。不得把上一轮浏览器结果写成本轮验收结果。
 - 通过线上既有部署 `746990c9-9d99-485f-872a-11808ece5040` 的管理员成功登录日志确认真实邮箱验收（UTC 2026-10-20T14:00:29.755569067Z）；本轮未代收验证码、未发送验收邮件。
 
-## Staging 发布证据
+## 历史 Staging 发布证据
 
 - PR：<https://github.com/Hoooho-app/hoooho.app/pull/484>，已合入 `main`。
 - 已验证源码提交：`e6d531a829adc88131563945ad3eab772f72921c`；远端与本地已验证树完全一致：`7decaf7c4d3c58fe4d469bc078b17e1cf72b032c`。
 - 部署：`ceafff44-297c-439f-bdd5-444094fff691`，状态 `SUCCESS`。
-- 入口：<https://hooohoapp-staging.up.railway.app/family-ray-home-life-workspace>。
+- 历史入口（停止作为交付地址）：`hooohoapp-staging.up.railway.app/family-ray-home-life-workspace`。
 - 线上 HTTP 与资源检查 6/6 通过：服务健康、公开登录文档、匿名会话不返回保护数据、匿名登录码管理拒绝、九模块/二级菜单/搜索资源存在、局部黑白灰样式存在。浏览器交互与实体 iPhone/Safari 未验收。
 - Production 必需的邮件与会话配置名称均存在，未读取或改变密钥与发件人配置。
 

@@ -1,15 +1,18 @@
 # Hoooho execution and design standards
 
-## Hoho mandatory delivery chain
+## Hoho delivery chain: one production environment
 
 - The canonical application repository is `https://github.com/Hoooho-app/hoooho.app.git`; its formal deploy branch is `main`.
-- Every requested application source, runtime configuration, or deployment configuration change defaults to the complete delivery chain: development -> tests -> commit -> push -> integration into `main` -> Railway Staging deploy -> Staging verification -> Railway Production deploy -> Production verification. Only an explicit user scope restriction or a genuine blocker may stop this chain.
-- A feature Worktree or Branch that lacks Railway, Staging, or Production configuration is not exempt from deployment. Locate the canonical repository and deploy branch, then transfer only the verified change by cherry-pick, a clean branch, or another minimal safe integration method.
+- Owner instruction, 2026-10-20: keep one running environment, Railway Production only. This explicitly supersedes the earlier mandatory Staging rules throughout this repository. Do not create, restart, redeploy or require Staging unless the owner explicitly asks to restore it.
+- The single official family-workspace address is `https://hoooho.com/family-ray-home-life-workspace`. Use it in user handoffs; do not present a test or Railway platform URL as an additional official address.
+- Requested runtime changes follow: development -> appropriate local verification -> commit -> push -> integration into `main` -> Railway Production deploy -> Production verification. No Staging deployment or Staging acceptance is required.
+- A feature Worktree or Branch that lacks Railway or Production configuration is not exempt from deployment. Locate the canonical repository and deploy branch, then transfer only the verified change by cherry-pick, a clean branch, or another minimal safe integration method.
 - Do not report Deployment as `N/A` merely because the current Worktree cannot deploy. Report that it must be transferred to the deployment repository, and continue there.
-- `DONE` is forbidden while any applicable test, commit, push, `main` integration, Staging deploy/verification, or Production deploy/verification remains incomplete. “Ready to deploy”, “waiting for deployment confirmation”, and “current Worktree has no deployment configuration” are not completion states.
+- `DONE` is forbidden while any applicable verification, commit, push, `main` integration, or Production deploy/verification remains incomplete. “Ready to deploy”, “waiting for deployment confirmation”, and “current Worktree has no deployment configuration” are not completion states.
 - If credentials, permissions, branch protection, provider failure, or a required high-risk approval prevents completion, preserve the evidence and report `BLOCKED`, not `DONE` or `N/A`.
 - This delivery authorization does not permit destructive data operations, force-push, secret disclosure, bypassing security controls, or unrelated business changes.
-- Pure instruction or documentation changes do not require redeploying an unchanged application version unless they alter runtime, build, or release behavior or the user explicitly asks for deployment.
+- Documentation, release-policy and CI-verification-target changes do not require redeploying an unchanged application binary; verify the affected configuration and current Production access. Runtime/build behavior changes still require a Production deployment.
+- Staging service retirement is already authorized by the owner. Preserve the detached Staging data volume. Railway requires dashboard two-factor verification to apply the prepared retirement patch; report that exact provider gate rather than attempting to bypass it or claiming retirement before it is applied. See `docs/production-only-policy.md`.
 
 ### Existing Codex Thread rule refresh
 
@@ -85,10 +88,10 @@ Impeccable 默认只能用于：
 
 ## Email verification authentication release strategy
 
-- Email verification authentication follows the same mandatory release gate as all other application changes: automated verification -> commit -> push -> integration into `main` -> isolated Railway Staging -> real-email acceptance -> Railway Production -> online acceptance.
+- Email verification authentication follows the production-only delivery chain: automated verification -> commit -> push -> integration into `main` -> Railway Production -> online acceptance, including real-email acceptance when authentication behavior changes. Do not require a separate test environment.
 - Before a Production deployment, `RESEND_API_KEY`, `AUTH_EMAIL_FROM`, and `AUTH_TOKEN_SECRET` must be configured as Production environment-scoped secrets and must never be committed or printed in logs.
 - `AUTH_EMAIL_FROM` must be an actual sender allowed by the configured Resend account. Do not guess or deploy an unverified sender.
-- Keep the Railway Staging environment available and verified; Staging is not optional during internal-use or external-user phases.
+- The 2026-10-20 production-only instruction applies to internal/family use and future updates. Do not restore the former mandatory Staging gate from historical release notes.
 
 ## Hoooho global interaction optimization boundary
 

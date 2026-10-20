@@ -44,9 +44,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium
-      - name: Verify Staging
-        run: node tests/dialogue/knowledge-live.mjs https://hooohoapp-staging.up.railway.app
-      - name: Verify Production after Staging
+      - name: Verify Production (single environment)
         run: node tests/dialogue/knowledge-live.mjs https://hoooho.com
       - uses: actions/upload-artifact@v4
         if: always()

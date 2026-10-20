@@ -1,5 +1,12 @@
 # Ray 家庭统筹会：访问与交付
 
+## 当前访问与发布约定（2026-10-20 更新）
+
+唯一正式地址：<https://hoooho.com/family-ray-home-life-workspace>。用户已明确要求只使用生产环境；以后直接发布 Production，不再安排测试站。下方 Staging 地址与验收内容仅为历史证据，不再是使用入口或未来发布前置条件。
+
+两项测试服务的停用变更已准备，保留原数据卷，当前仍需在 Railway 网页完成双重验证后才能生效。具体状态见 [单生产环境约定](production-only-policy.md)。
+
+
 基线：`e7478daac0a8d8be26a024d77187c1018c55356a`，来自当前 `origin/main`。实现分支 `feat/family-workspace-long-path-20261020`，开始时工作区干净。
 
 ## 本次验收范围
@@ -31,7 +38,7 @@
 
 首次 Staging 已部署成功：`746990c9-9d99-485f-872a-11808ece5040`，正式主分支运行源码 `42291e1c438e65d255e3913e1964f3c0e428ffcf`，对应已验证 tree `7d980af854b391e148783c2635213ad953c83313`。
 
-测试入口：<https://hooohoapp-staging.up.railway.app/family-ray-home-life-workspace>。HTTPS 在线检查 8/8：主服务健康；匿名会话不返回保护数据；匿名登录码列表拒绝；无效登录码拒绝；未授权邮箱不能成为管理员；跨源写入拒绝；公开登录文档与入口资源可访问。线上浏览器导航因执行环境代理 CA 限制未验收；本地 375/390/1280px Chromium 浏览器流程已通过。
+历史测试入口（不再提供使用）：`hooohoapp-staging.up.railway.app/family-ray-home-life-workspace`。HTTPS 在线检查 8/8：主服务健康；匿名会话不返回保护数据；匿名登录码列表拒绝；无效登录码拒绝；未授权邮箱不能成为管理员；跨源写入拒绝；公开登录文档与入口资源可访问。线上浏览器导航因执行环境代理 CA 限制未验收；本地 375/390/1280px Chromium 浏览器流程已通过。
 
 `staging.hoooho.com` 的既有自定义域名尚未完成 DNS 所有权验证/路由，未修改 DNS，使用平台已配置的 Staging 服务域名进行验证。
 
