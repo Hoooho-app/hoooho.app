@@ -13,7 +13,7 @@
 - [x] 月度计划与实际分开；内部转账不计收支，偿还本金和储蓄配置单列，保险保费不重复自动计入实际支出。
 - [x] 保险按被保人/险种展示保额，不跨险种求总保额；目标已备金额不重复计为资产。
 - [x] 验证计算、持久化、权限与错误恢复，生产构建；桌面/手机浏览器验收单独记录。
-- [ ] 提交、推送、main 集成、Railway Production 发布和核验。唯一正式地址 https://hoooho.com/family-ray-home-life-workspace 。
+- [x] 提交、推送、main 集成、Railway Production 发布和核验。唯一正式地址 https://hoooho.com/family-ray-home-life-workspace 。
 
 冻结：护护原健康页面、原账号认证、家人登录码机制、AI、密钥、历史数据和其他模块。本轮新增财务 API/文件是持久化编辑的直接依赖。
 
@@ -28,3 +28,15 @@
 - 测试使用独立数据目录与模拟邮件供应商；未发送生产验证码或向生产录入测试金额。
 - 持久化文件为既有 DATA_DIRECTORY 下的独立 family-workspace-finance.json；现有家庭授权与护护健康记录文件不改动。
 - 不新增依赖，不涉及 AI 或密钥配置；发布只更新 Production 的源码版本。
+
+
+## Production 发布证据
+
+- PR #485：https://github.com/Hoooho-app/hoooho.app/pull/485，已合入 main。
+- 已验证源码提交：ab3a5bc97214831b2382e767913e5a78ab835428；远端与本地已验证源码 tree 均为 c5860c06ef371e558b7fa420a7482f7838975989。
+- 生产部署：6dbf5b24-3a7a-41c5-b9c2-24d9716e6105；北京时间 2026-10-20 23:56:12 状态 SUCCESS。
+- Railway 复核：Production 1/1 副本在线，0 错误、无待执行配置变更；源码固定为上述已验证 main 提交。
+- 启动日志确认服务监听 8080、静态目录 /app/dist、数据目录 /data；原数据卷和正式 hoooho.com 域名均保留。
+- 唯一正式入口：https://hoooho.com/family-ray-home-life-workspace#finances/perspective 。
+- 当前执行环境访问正式页面、health 和 finance API 均被站点边缘规则返回 403 / error code 1010，故未标记直接 HTTP/生产浏览器复核通过；此项不冒充应用鉴权的 401。上线状态由 Railway 部署、在线副本和启动日志确认。
+- 证据补记只修改文档，不重新部署已验证且未变更的应用二进制。
