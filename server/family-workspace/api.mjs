@@ -29,6 +29,11 @@ export function createFamilyWorkspaceApi(service, { readJson, sendJson }) {
     response.setHeader('X-Robots-Tag', 'noindex, nofollow')
     const route = pathname.slice(apiPrefix.length)
     const raw = readCookie(request)
+    const policyRoute = /^\/policies\/([a-z]+)$/.exec(route)
+    if (policyRoute && request.method === 'GET') {
+      sendJson(response, 200, await service.policies.read(raw, policyRoute[1]))
+      return true
+    }
     const assetFiles = /^\/finance\/assets\/([a-f0-9-]{36})\/attachments(?:\/([a-f0-9-]{36})\/(preview|original|download|text|parse|remove))?$/.exec(route)
     if (assetFiles && request.method === 'GET' && ['preview', 'original', 'download', 'text'].includes(assetFiles[3])) {
       const file = await service.finance.attachments.read(raw, assetFiles[1], assetFiles[2], assetFiles[3])
@@ -69,9 +74,10 @@ export function createFamilyWorkspaceApi(service, { readJson, sendJson }) {
       } else throw new AuthError('请求方法不支持。', 405, 'METHOD_NOT_ALLOWED')
       return true
     }
-    const input = await readJson(request, route === '/finance' ? 1_048_576 : 4096)
+    const input = await readJson(request, route === '/finance' ? 1_048_576 : policyRoute ? 262144 : 4096)
     const client = String(request.headers['x-forwarded-for'] ?? request.socket?.remoteAddress ?? '').split(',')[0].trim().slice(0, 100)
-    if (route === '/finance') sendJson(response, 200, await service.finance.save(raw, input))
+    if (policyRoute) sendJson(response, 200, await service.policies.save(raw, policyRoute[1], input))
+    else if (route === '/finance') sendJson(response, 200, await service.finance.save(raw, input))
     else if (route === '/admin/send-code') sendJson(response, 200, await service.sendAdminCode(input.email, client))
     else if (route === '/admin/login' || route === '/member/login') {
       const result = route === '/admin/login'

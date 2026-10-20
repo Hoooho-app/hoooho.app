@@ -6,7 +6,7 @@ export type WorkspaceModule = { id: ModuleId; title: string; description: string
 const page = (id: string, title: string, description: string, columns: string[], keywords = ''): WorkspacePage => ({ id, title, description, columns, keywords })
 
 // Page directory only; household finance records use the protected finance API.
-export const workspaceModules: WorkspaceModule[] = [
+const modules: WorkspaceModule[] = [
   {
     id: 'finances', title: '家庭收支与预算', description: '记录钱的流入与流出，安排预算、账单和现金流。',
     pages: [
@@ -121,9 +121,11 @@ export const workspaceModules: WorkspaceModule[] = [
 ]
 
 export type FinanceView = 'overview' | 'balance' | 'monthly' | 'reserve' | 'insurance' | 'goals'
-export type WorkspaceSection = { id: FinanceView; title: string; description: string; keywords: string }
+export type PolicyView = 'text' | 'flow' | 'mindmap' | 'checks'
+export type WorkspaceSectionId = FinanceView | PolicyView
+export type WorkspaceSection = { id: WorkspaceSectionId; title: string; description: string; keywords: string }
 
-export const financeSections: WorkspaceSection[] = [
+export const financeSections: (WorkspaceSection & { id: FinanceView })[] = [
   { id: 'overview', title: '财务总览', description: '查看家庭净资产、收支结余与应急储备。', keywords: '收支总览 汇总 统计' },
   { id: 'balance', title: '资产负债', description: '维护资产估值、剩余欠款和还款安排。', keywords: '资产负债表 负债表 资产表 净资产' },
   { id: 'monthly', title: '月度预算与实际', description: '区分固定、浮动和一次性项目，核对计划与实际。', keywords: '月度预算 预算差额 收入 支出 储蓄' },
@@ -132,13 +134,24 @@ export const financeSections: WorkspaceSection[] = [
   { id: 'goals', title: '资金目标', description: '跟踪目标金额、已备金额和进度。', keywords: '教育金 养老 资金计划 储蓄目标' }
 ]
 
+export const policySections: (WorkspaceSection & { id: PolicyView })[] = [
+  { id: 'text', title: '制度正文', description: '阅读本类制度目标、原则与具体条款。', keywords: '制度 规则 家规 正文' },
+  { id: 'flow', title: '执行流程', description: '用带决策分支的流程图明确办理与复盘步骤。', keywords: '流程图 执行 决策 步骤' },
+  { id: 'mindmap', title: '制度脑图', description: '从制度章节到条款查看整体关系，并定位正文。', keywords: '脑图 思维导图 结构' },
+  { id: 'checks', title: '分工与检查', description: '查看负责人、替补人、完成标准和执行频率图表。', keywords: '分工 检查 图表 频率 责任' }
+]
+
 const financePageDefaults: Record<string, FinanceView> = {
   'finances/perspective': 'overview', 'finances/budget': 'monthly', 'finances/cashflow': 'monthly', 'finances/accounts': 'reserve',
   'assets/overview': 'balance', 'assets/cash': 'reserve', 'assets/holdings': 'balance', 'assets/property': 'balance', 'assets/equity': 'balance', 'assets/liabilities': 'balance', 'assets/allocation': 'goals',
   'safety/insurance': 'insurance'
 }
 export function financeDefaultView(module: string, pageId: string): FinanceView | undefined { return financePageDefaults[`${module}/${pageId}`] }
-export function pageSections(module: string, pageId: string): WorkspaceSection[] { return financeDefaultView(module, pageId) ? financeSections : [] }
+export function pageSections(module: string, pageId: string): WorkspaceSection[] { return pageId === 'policy' ? policySections : financeDefaultView(module, pageId) ? financeSections : [] }
+export const workspaceModules: WorkspaceModule[] = modules.map(module => ({ ...module, pages: [
+  page('policy', `${module.title.replace(/^家庭/, '')}制度`, '本类目的家庭制度：原则、分工、执行流程和定期复盘。建议初稿，可逐步修改完善。', [], '制度 家规 规则 约定 流程图 脑图 分工 检查'),
+  ...module.pages
+] }))
 
 export const defaultLocation: WorkspaceLocation = { module: 'overview', page: 'overview' }
 export const locationHash = (location: WorkspaceLocation) => `#${location.module}/${location.page}${location.section ? `/${location.section}` : ''}`
@@ -151,7 +164,7 @@ export function resolveLocation(hash: string, admin: boolean): WorkspaceLocation
   const pageId = module === 'finances' && requestedPage === 'overview' ? 'perspective' : requestedPage
   const item = match.pages.find(item => item.id === pageId) ?? match.pages[0]
   const sections = pageSections(match.id, item.id)
-  return { module: match.id, page: item.id, ...(sections.length ? { section: sections.some(item => item.id === section) ? section : financeDefaultView(match.id, item.id) } : {}) }
+  return { module: match.id, page: item.id, ...(sections.length ? { section: sections.some(item => item.id === section) ? section : financeDefaultView(match.id, item.id) ?? sections[0].id } : {}) }
 }
 
 export function searchWorkspace(query: string) {
@@ -161,7 +174,7 @@ export function searchWorkspace(query: string) {
     const pageResult = { module, page: item, section: undefined as WorkspaceSection | undefined }
     // Shared finance views are indexed once at the canonical finance perspective.
     // All contextual routes still use the same global section directory.
-    return [pageResult, ...(module.id === 'finances' && item.id === 'perspective' ? pageSections(module.id, item.id).map(section => ({ module, page: item, section })) : [])]
+    return [pageResult, ...(item.id === 'policy' || module.id === 'finances' && item.id === 'perspective' ? pageSections(module.id, item.id).map(section => ({ module, page: item, section })) : [])]
   }))
   return destinations.map(result => {
     const { module, page: item, section } = result

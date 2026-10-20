@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { emptyFinanceData } from '../../shared/family-finance.mjs'
+import { initialPolicy, type PolicyModuleId } from '../../shared/family-policies.mjs'
 import { FAMILY_WORKSPACE_PATH } from '../../shared/family-workspace.mjs'
 
 test('administrator and family complete separate real browser sessions at desktop and phone widths', async ({ page, context, browser }) => {
@@ -100,6 +101,7 @@ test('login-state network failure stays closed and can be retried', async ({ pag
 
 
 test('nine modules, independent secondary menus, global search and remembered page work at desktop and phone widths', async ({ page }) => {
+  await page.route(`**${FAMILY_WORKSPACE_PATH}/api/policies/*`, route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(initialPolicy(route.request().url().split('/').pop() as PolicyModuleId)) }))
   await page.route(`**${FAMILY_WORKSPACE_PATH}/api/finance`, route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ revision: 0, updatedAt: null, updatedBy: '', data: emptyFinanceData() }) }))
   const errors: string[] = []
   page.on('pageerror', error => errors.push(error.message))

@@ -48,6 +48,13 @@ test('HTTP family login enforces origin, role, cookie settings, revocation and e
   assert.equal((await memberResponse.json()).role, 'member')
   assert.doesNotMatch(memberResponse.headers.get('set-cookie'), /Max-Age/)
   const memberCookie = memberResponse.headers.get('set-cookie').split(';')[0]
+  assert.equal((await request('/policies/finances')).status, 401)
+  const initialPolicy = await (await request('/policies/finances', undefined, memberCookie)).json()
+  assert.equal(initialPolicy.document.status, 'draft')
+  assert.equal((await request('/policies/finances', initialPolicy, memberCookie)).status, 403)
+  assert.equal((await request('/policies/finances', initialPolicy, ownerCookie, { Origin: 'https://evil.example' })).status, 403)
+  assert.equal((await request('/policies/finances', initialPolicy, ownerCookie)).status, 200)
+  assert.equal((await request('/policies/finances', initialPolicy, ownerCookie)).status, 409)
   assert.equal((await request('/finance')).status, 401)
   assert.equal((await request('/finance', undefined, memberCookie)).status, 200)
   const finance = { revision: 0, data: emptyFinanceData() }

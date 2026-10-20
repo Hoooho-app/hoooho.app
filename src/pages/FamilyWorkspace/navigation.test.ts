@@ -4,11 +4,11 @@ import { workspaceModules, resolveLocation, locationHash, pageSections, financeD
 
 test('finance has one landing page and old overview links resolve to the perspective', () => {
   const finance = workspaceModules.find(module => module.id === 'finances')!
-  assert.equal(finance.pages[0].id, 'perspective')
+  assert.equal(finance.pages[0].id, 'policy')
   assert.equal(finance.pages.some(page => page.id === 'overview' || page.title === '收支总览'), false)
   assert.deepEqual(resolveLocation('#finances/overview', false), { module: 'finances', page: 'perspective', section: 'overview' })
   assert.deepEqual(resolveLocation('#finances/overview/reserve', false), { module: 'finances', page: 'perspective', section: 'reserve' })
-  assert.equal(locationHash(resolveLocation('#finances', false)), '#finances/perspective/overview')
+  assert.equal(locationHash(resolveLocation('#finances', false)), '#finances/policy/text')
 })
 
 test('all page and section destinations round-trip, with safe defaults and admin access boundaries', () => {
@@ -19,15 +19,15 @@ test('all page and section destinations round-trip, with safe defaults and admin
     const sections = pageSections(module.id, page.id)
     if (sections.length) {
       sectionContexts++
-      assert.equal(resolved.section, financeDefaultView(module.id, page.id))
+      assert.equal(resolved.section, financeDefaultView(module.id, page.id) ?? sections[0].id)
       for (const section of sections) {
         const location = { module: module.id, page: page.id, section: section.id }
         assert.deepEqual(resolveLocation(locationHash(location), false), location)
       }
-      assert.equal(resolveLocation(`#${module.id}/${page.id}/unknown`, false).section, financeDefaultView(module.id, page.id))
+      assert.equal(resolveLocation(`#${module.id}/${page.id}/unknown`, false).section, financeDefaultView(module.id, page.id) ?? sections[0].id)
     } else assert.equal(resolved.section, undefined)
   }
-  assert.equal(sectionContexts, 12)
+  assert.equal(sectionContexts, 21)
   assert.deepEqual(resolveLocation('#schedule/calendar/reserve', false), { module: 'schedule', page: 'calendar' })
   assert.deepEqual(resolveLocation('#access/overview/reserve', false), { module: 'overview', page: 'overview' })
   assert.deepEqual(resolveLocation('#access/overview/reserve', true), { module: 'access', page: 'overview' })
@@ -43,4 +43,13 @@ test('global search can enter exact third-level views without duplicate shared-v
   assert.equal(searchWorkspace('预算管理')[0].page.id, 'budget')
   assert.deepEqual(searchWorkspace('   '), [])
   assert.deepEqual(searchWorkspace('确定不存在的目的地'), [])
+})
+
+test('all nine modules pin a policy first, preserve old pages and expose policy search', () => {
+  for (const module of workspaceModules) {
+    assert.equal(module.pages[0].id, 'policy')
+    assert.equal(resolveLocation(`#${module.id}`, false).page, 'policy')
+    assert.equal(module.pages.filter(page => page.id === 'policy').length, 1)
+  }
+  assert.equal(searchWorkspace('制度').filter(result => result.page.id === 'policy' && !result.section).length, 9)
 })
