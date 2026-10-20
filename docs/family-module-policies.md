@@ -10,7 +10,9 @@
 - [x] 管理员可以修改、保存本类制度；家人只读；刷新/服务重启保留，跨窗口冲突不覆盖。
 - [x] 沿用家庭空间黑白主题和 V2 组件；桌面/手机可读，无页面级横向溢出，编辑有取消与错误恢复。
 - [x] 构建、家庭权限/API/持久化回归和真实 Chromium 操作通过；注明实体 iPhone/Safari 与生产访问的验证边界。
-- [ ] 提交、推送、合入 main、Railway Production 发布并验证终态 SUCCESS。
+- [x] 提交、推送并合入 main。
+- [x] 向既有 Railway Production 提交本次源码版本发布请求。
+- [ ] 本次新版部署达到终态 SUCCESS，并完成生产验证（平台暂停构建，当前 BLOCKED）。
 
 范围：仅家庭工作台制度入口、资料与图文呈现，以及保存所直接依赖的受保护 API 和独立数据文件。原健康产品、认证、AI、已有财务资料、其他正在实施的资产附件与三级导航不在本轮修改范围。
 
@@ -38,3 +40,16 @@
 - 用户已在同一会话明确回复“允许部署”，授权前一条确认所述的公开仓库 Hoooho-app/hoooho.app 推送与既有 main → Railway Production 正式发布。目的地和源码范围保持不变。
 - 已同步主线新增的资产发布记录；仅合入文档，不改变此前通过本地验证的运行代码。
 - 当前继续执行推送、main 集成、Production 发布与终态验证。正式地址仍为 https://hoooho.com/family-ray-home-life-workspace；本段不表示已经上线。
+
+## 最新发布状态：BLOCKED（Railway 暂停新构建）
+
+- 用户的公开源码推送与正式部署授权已记录，不再缺少用户确认。PR [#488](https://github.com/Hoooho-app/hoooho.app/pull/488) 已成功合入 main，运行源码提交 `ba75b6c461eac3a91db3ac252602d1f80f907d1d`。
+- 已验证 GitHub、合并后的 main 和本地源码 tree 均为 `00e3b8ec663b6dacbaef2026727746a742523cd3`。相对之前通过构建和浏览器回归的运行代码无变化，只补充授权与发布文档。
+- 已提交 production 的唯一源码变更：`524936544a557e333c3f0b38b5143e612da12fd7` → `ba75b6c461eac3a91db3ac252602d1f80f907d1d`。补丁 `5e9bfd9b-093a-4054-87d4-c5a8b06689f6` 先经回读核实仅含此项，再经 accept-deploy 提交；返回 `committed: true`、`deploymentStatus: triggered`。
+- 发布工作流：`commitChanges/68b9b73f-1401-4658-a315-6d333ec31728/5e9bfd9b-093a-4054-87d4-c5a8b06689f6`。回读 source.commitSha 正确，production 无未提交配置变更；没有改动密钥、数据卷、域名、访问权限或其他环境。
+- Railway 官方故障页 <https://status.railway.com/incident/JUA1PC5H> 的实时读取仍显示 “New builds are temporarily paused / Investigating / Major Outage”；公告说明多数工作区的新构建暂缓，已运行服务不受影响。通用状态首页的搜索快照显示 Operational，与实时故障页不一致，因此未据此宣布平台恢复。
+- UTC 2026-10-20 17:20（北京时间 10-21 01:20）最后复核仍没有本次新部署记录；现有 `91396f82-e36d-48ab-aa4f-3887a5aa976e` 是旧三级导航版，保持 SUCCESS、1/1 副本在线。它不代表本次制度或待发布的资产功能已上线。
+- 生产页面及匿名 API 的直接 HTTP 复核未完成，执行环境报告 network approval was cancelled；未请求生产验证码、未写生产测试资料，也未将本地浏览器回归计作本次生产验收。
+- 恢复后先检查上述 production 服务是否产生提交 `ba75b6c4` 的新部署，跟踪该新部署达到 SUCCESS 后再核对制度资源和受保护 API。若平台未恢复，不反复触发发布、不重建环境、不通过重启旧部署冒充上线；若恢复后未产生新部署，再从已固定源码发起一次正式构建。
+
+正式入口保持 <https://hoooho.com/family-ray-home-life-workspace>。本轮已完成代码公开推送、main 集成和发布请求，尚未完成新版上线与生产验收。
