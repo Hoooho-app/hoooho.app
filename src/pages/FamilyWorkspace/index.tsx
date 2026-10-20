@@ -9,19 +9,13 @@ import { ConfirmDialog } from '../../components/design-system/ConfirmDialog'
 import { FAMILY_WORKSPACE_PATH } from '../../../shared/family-workspace.mjs'
 import { useDialogFocus } from '../../hooks/useDialogFocus'
 import { defaultLocation, locationHash, resolveLocation, searchWorkspace, workspaceModules, type WorkspaceLocation, type WorkspaceModule } from './navigation'
+import { api, FamilyApiError, messageOf } from './api'
+import { FamilyFinance } from './finance'
 import './family-workspace.css'
 
 type Session = { authenticated: false } | { authenticated: true; role: 'admin' | 'member'; name: string; expiresAt: number }
 type AccessCode = { id: string; label: string; createdAt: number; expiresAt: number; lastUsedAt: number | null; status: 'active' | 'expired' | 'revoked' }
 type GeneratedCode = AccessCode & { loginCode: string }
-class FamilyApiError extends Error { constructor(message: string, public status: number) { super(message) } }
-async function api<T>(route: string, input?: unknown, signal?: AbortSignal): Promise<T> {
-  const response = await fetch(`${FAMILY_WORKSPACE_PATH}/api${route}`, { method: input === undefined ? 'GET' : 'POST', credentials: 'same-origin', cache: 'no-store', headers: input === undefined ? undefined : { 'Content-Type': 'application/json', 'X-Hoooho-Family': '1' }, body: input === undefined ? undefined : JSON.stringify(input), signal })
-  const body = await response.json()
-  if (!response.ok) throw new FamilyApiError(body.error?.message || '操作未完成，请稍后再试。', response.status)
-  return body as T
-}
-const messageOf = (error: unknown) => error instanceof Error ? error.message : '连接暂时不可用，请稍后再试。'
 const dateTime = (time: number) => new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia/Shanghai', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(time)
 const moduleIcons = { finances: Wallet, assets: Landmark, legal: Scale, schedule: CalendarDays, home: Building2, health: HeartPulse, education: GraduationCap, safety: ShieldCheck, governance: Users }
 
@@ -165,8 +159,8 @@ function FamilyHome({ session, onLogout }: { session: Extract<Session, { authent
       <main className="family-content" ref={mainRef}>
         <div className="family-topline"><span>我的空间{module && <> / {module.title} / {subpage?.title}</>}{current.module === 'access' && ' / 家人访问管理'}</span><span>{date}</span></div>
         {error && <StatusNotice tone="error" title="操作未完成">{error}</StatusNotice>}
-        <div className="family-page-body">{current.module === 'access' && admin ? <AccessManager onUnauthorized={onLogout}/> : module && subpage ? <ModuleContent module={module} pageId={subpage.id} choose={choose}/> : <WorkspaceOverview name={session.name} admin={admin} choose={choose}/>}</div>
-        <footer className="family-page-footer"><span>家庭统筹会 / Ray 家庭空间</span><span>记录功能逐步接入 · AI 尚未开启</span></footer>
+        <div className="family-page-body">{current.module === 'access' && admin ? <AccessManager onUnauthorized={onLogout}/> : module && subpage ? <ModuleContent module={module} pageId={subpage.id} choose={choose} admin={admin} onUnauthorized={onLogout}/> : <WorkspaceOverview name={session.name} admin={admin} choose={choose}/>}</div>
+        <footer className="family-page-footer"><span>家庭统筹会 / Ray 家庭空间</span><span>财务透视表已开启 · AI 尚未开启</span></footer>
       </main>
     </div>
     {chatOpen && <div className="family-assistant-layer"><button className="family-assistant-backdrop" type="button" aria-label="关闭生活助手" onClick={() => setChatOpen(false)}/><aside ref={chatRef} className="family-assistant" role="dialog" aria-modal="true" aria-labelledby="family-assistant-title" tabIndex={-1}>
@@ -226,7 +220,7 @@ function WorkspaceOverview({ name, admin, choose }: { name: string; admin: boole
     <section className="family-summary" aria-label="家庭概览">{[['本月收入','尚未录入'],['本月支出','尚未录入'],['家庭净资产','尚未录入'],['近期安排','尚未录入']].map(([title, hint]) => <div key={title}><span>{title}</span><strong>—</strong><small>{hint}</small></div>)}</section>
     <div className="family-section-heading"><h2 className="hoho-text-section-title">家庭管理目录</h2><span>09 个模块 / {workspaceModules.reduce((total, item) => total + item.pages.length, 0)} 个二级页面</span></div>
     <div className="family-module-directory">{workspaceModules.map((module, index) => <button key={module.id} type="button" onClick={() => choose({ module: module.id, page: 'overview' }, true)}><span className="family-directory-number">{String(index + 1).padStart(2, '0')}</span><span><strong>{module.title}</strong><small>{module.description}</small></span><span className="family-directory-count">{module.pages.length} 个页面</span><ChevronRight size={17} aria-hidden="true"/></button>)}</div>
-    <p className="family-section-note">当前已建立分类、导航与搜索。记录、编辑和统计功能后续逐项接入。</p>
+    <p className="family-section-note">财务透视表已支持管理员录入、编辑与统计。其他家庭功能继续逐项接入。</p>
   </>
 }
 
@@ -239,9 +233,11 @@ function ModuleNavigation({ module, pageId, choose }: { module: WorkspaceModule;
   </aside>
 }
 
-function ModuleContent({ module, pageId, choose }: { module: WorkspaceModule; pageId: string; choose: (location: WorkspaceLocation) => void }) {
+function ModuleContent({ module, pageId, choose, admin, onUnauthorized }: { module: WorkspaceModule; pageId: string; choose: (location: WorkspaceLocation) => void; admin: boolean; onUnauthorized: () => void }) {
   const current = module.pages.find(item => item.id === pageId) ?? module.pages[0]
   const index = workspaceModules.findIndex(item => item.id === module.id) + 1
+  const financeView = module.id === 'finances' ? ({ overview: 'overview', perspective: 'overview', budget: 'monthly', cashflow: 'monthly', accounts: 'reserve' } as const)[pageId as 'overview' | 'perspective' | 'budget' | 'cashflow' | 'accounts'] : module.id === 'assets' ? ({ overview: 'balance', cash: 'reserve', holdings: 'balance', property: 'balance', equity: 'balance', liabilities: 'balance', allocation: 'goals' } as const)[pageId as 'overview' | 'cash' | 'holdings' | 'property' | 'equity' | 'liabilities' | 'allocation'] : module.id === 'safety' && pageId === 'insurance' ? 'insurance' : undefined
+  if (financeView) return <><header className="family-page-heading"><div><p className="hoho-text-caption">FAMILY MANAGEMENT / {String(index).padStart(2, '0')}</p><h1 id="family-page-title" tabIndex={-1} className="hoho-text-display">{module.title}</h1><p>{current.description}</p></div></header><FamilyFinance admin={admin} onUnauthorized={onUnauthorized} initialView={financeView} assetCategory={module.id === 'assets' ? ({ holdings: 'investment', equity: 'equity' } as Record<string,string>)[pageId] : undefined} debtOnly={module.id === 'assets' && pageId === 'liabilities'}/></>
   const metrics = module.id === 'finances' ? ['本月收入', '本月支出', '收支结余', '预算使用'] : module.id === 'assets' ? ['资产总额', '负债总额', '家庭净资产', '可用流动资金'] : []
   return <><header className="family-page-heading"><div><p className="hoho-text-caption">FAMILY MANAGEMENT / {String(index).padStart(2, '0')}</p><h1 id="family-page-title" tabIndex={-1} className="hoho-text-display">{module.title}</h1><p>{module.description}</p></div></header>
     <section className="family-page-section" aria-labelledby="family-subpage-title"><div className="family-section-heading"><h2 id="family-subpage-title" className="hoho-text-section-title">{current.title}</h2><span>页面框架</span></div><p className="family-subpage-description">{current.description}</p>

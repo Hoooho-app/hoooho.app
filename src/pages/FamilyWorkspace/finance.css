@@ -1,0 +1,42 @@
+.family-finance { min-width: 0; }
+.family-finance > .family-section-heading { align-items: flex-start; gap: var(--hoho-space-4); flex-wrap: wrap; }
+.family-finance > .family-section-heading p { margin-top: var(--hoho-space-2); color: rgb(var(--hoho-color-text-secondary)); }
+.family-finance-tools, .family-finance-row-actions { display: flex; align-items: center; gap: var(--hoho-space-2); }
+.family-finance-saved { margin-bottom: var(--hoho-space-4)!important; font-size: var(--hoho-font-size-caption); }
+.family-finance-views { display: flex; overflow-x: auto; border-bottom: 1px solid rgb(var(--hoho-color-border)); margin-bottom: var(--hoho-space-5); }
+.family-finance-views button { min-height: 48px; padding: var(--hoho-space-3) var(--hoho-space-4); border-bottom: 2px solid transparent; white-space: nowrap; color: rgb(var(--hoho-color-text-secondary)); }
+.family-finance-views button[aria-current='page'] { border-bottom-color: rgb(var(--hoho-color-primary)); font-weight: 600; color: rgb(var(--hoho-color-text-primary)); }
+.family-finance-filters { display: flex; align-items: flex-end; gap: var(--hoho-space-4); flex-wrap: wrap; margin-bottom: var(--hoho-space-6); }
+.family-finance-filters > label { width: 180px; max-width: 100%; }
+.family-finance-filters > p { flex: 1 1 180px; color: rgb(var(--hoho-color-text-secondary)); padding-bottom: var(--hoho-space-3); }
+.family-finance-start, .family-finance-setting { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--hoho-space-4); padding: var(--hoho-space-5) 0; margin-bottom: var(--hoho-space-6); border-block: 1px solid rgb(var(--hoho-color-border)); }
+.family-finance-start p, .family-finance-setting p { margin-top: var(--hoho-space-2); color: rgb(var(--hoho-color-text-secondary)); }
+.family-finance-metrics strong { font-size: var(--hoho-font-size-section-title); overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.family-finance-two-col { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: var(--hoho-space-8); }
+.family-finance-section { margin-top: var(--hoho-space-8); }
+.family-finance-facts > div { display: flex; justify-content: space-between; gap: var(--hoho-space-4); padding: var(--hoho-space-3) 0; border-bottom: 1px solid rgb(var(--hoho-color-border)); }
+.family-finance-facts dt { color: rgb(var(--hoho-color-text-secondary)); }
+.family-finance-facts dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+.family-finance-month-totals { max-width: 560px; margin-top: var(--hoho-space-5); }
+.family-finance-upcoming li { display: flex; justify-content: space-between; align-items: center; gap: var(--hoho-space-4); padding: var(--hoho-space-3) 0; border-bottom: 1px solid rgb(var(--hoho-color-border)); }
+.family-finance-upcoming strong { font-weight: 500; }
+.family-finance-upcoming small { display: block; color: rgb(var(--hoho-color-text-secondary)); margin-top: var(--hoho-space-1); }
+.family-finance-table th { font-weight: 500; }
+.family-finance-table td { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.family-finance-table th:first-child { min-width: 140px; white-space: normal; overflow-wrap: anywhere; max-width: 320px; }
+.family-finance-table small { display: block; font-weight: 400; font-size: var(--hoho-font-size-caption); color: rgb(var(--hoho-color-text-secondary)); margin-top: var(--hoho-space-1); white-space: normal; }
+.family-finance-table .family-finance-row-actions .hoho-button { min-height: 44px; }
+.family-finance-table progress { accent-color: rgb(var(--hoho-color-primary)); width: 100px; height: var(--hoho-space-2); }
+.family-finance-definitions { margin-top: var(--hoho-space-8); padding: var(--hoho-space-4) 0; border-block: 1px solid rgb(var(--hoho-color-border)); }
+.family-finance-definitions summary { cursor: pointer; min-height: 44px; display: list-item; align-content: center; }
+.family-finance-definitions li { margin: var(--hoho-space-2) 0; color: rgb(var(--hoho-color-text-secondary)); }
+.family-finance-editor-layer { position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; padding: var(--hoho-space-4); }
+.family-finance-editor { position: relative; width: min(680px,100%); max-height: calc(100dvh - var(--hoho-space-8)); overflow-y: auto; padding: var(--hoho-space-6); }
+.family-finance-editor form > header, .family-finance-editor form > footer { display: flex; justify-content: space-between; align-items: center; gap: var(--hoho-space-4); }
+.family-finance-editor form > header { padding-bottom: var(--hoho-space-4); border-bottom: 1px solid rgb(var(--hoho-color-border)); }
+.family-finance-editor form > footer { position: sticky; bottom: calc(-1 * var(--hoho-space-6)); padding: var(--hoho-space-4) 0; margin-top: var(--hoho-space-4); background: rgb(var(--hoho-color-surface)); border-top: 1px solid rgb(var(--hoho-color-border)); justify-content: flex-end; }
+.family-finance-editor-fields { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: var(--hoho-space-4); margin-block: var(--hoho-space-5); }
+.family-finance-wide { grid-column: 1/-1; }
+.family-finance-delete-error { position: fixed; z-index: 80; bottom: var(--hoho-space-6); left: var(--hoho-space-4); right: var(--hoho-space-4); padding: var(--hoho-space-4); background: rgb(var(--hoho-color-surface)); border: 1px solid rgb(var(--hoho-color-border-strong)); }
+@media (max-width: 1100px) { .family-finance-two-col { grid-template-columns: minmax(0,1fr); } .family-finance-metrics { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media (max-width: 600px) { .family-finance-filters { gap: var(--hoho-space-3); } .family-finance-filters > label { flex: 1 1 120px; width: auto; } .family-finance-editor-fields { grid-template-columns: minmax(0,1fr); } .family-finance-editor { padding: var(--hoho-space-4); } .family-finance-editor-layer { padding: var(--hoho-space-2); } .family-finance-editor form > footer { bottom: calc(-1 * var(--hoho-space-4)); } }

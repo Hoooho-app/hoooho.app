@@ -3,6 +3,7 @@ import path from 'node:path'
 import { AuthError } from '../auth/auth-service.mjs'
 import { JsonStore } from '../auth/storage/json-store.mjs'
 import { withStorageLock } from '../auth/storage/transaction.mjs'
+import { FamilyFinanceService } from './finance-service.mjs'
 import { FAMILY_ACCESS_TTL_MS } from '../../shared/family-workspace.mjs'
 
 const SESSION_TTL_MS = 8 * 60 * 60 * 1000
@@ -16,6 +17,7 @@ export class FamilyWorkspaceService {
     this.dataDirectory = dataDirectory
     this.secret = tokenSecret
     this.now = now
+    this.finance = new FamilyFinanceService(this)
     this.store = new JsonStore(path.join(dataDirectory, 'family-workspace-access.json'), { codes: [], sessions: [], rates: [] })
   }
 

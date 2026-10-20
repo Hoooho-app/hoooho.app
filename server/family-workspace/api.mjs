@@ -35,15 +35,20 @@ export function createFamilyWorkspaceApi(service, { readJson, sendJson }) {
       sendJson(response, 200, session ? service.publicSession(session) : { authenticated: false })
       return true
     }
+    if (route === '/finance' && request.method === 'GET') {
+      sendJson(response, 200, await service.finance.read(raw))
+      return true
+    }
     if (route === '/codes' && request.method === 'GET') {
       sendJson(response, 200, await service.listCodes(raw))
       return true
     }
     if (request.method !== 'POST') throw new AuthError('请求方法不支持。', 405, 'METHOD_NOT_ALLOWED')
     assertMutation(request)
-    const input = await readJson(request, 4096)
+    const input = await readJson(request, route === '/finance' ? 1_048_576 : 4096)
     const client = String(request.headers['x-forwarded-for'] ?? request.socket?.remoteAddress ?? '').split(',')[0].trim().slice(0, 100)
-    if (route === '/admin/send-code') sendJson(response, 200, await service.sendAdminCode(input.email, client))
+    if (route === '/finance') sendJson(response, 200, await service.finance.save(raw, input))
+    else if (route === '/admin/send-code') sendJson(response, 200, await service.sendAdminCode(input.email, client))
     else if (route === '/admin/login' || route === '/member/login') {
       const result = route === '/admin/login'
         ? await service.adminLogin(input.email, input.code, input.remember === true, client)
