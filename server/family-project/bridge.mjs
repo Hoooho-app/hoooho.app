@@ -42,36 +42,44 @@ export function createFamilyMigrationBridge({ dataDirectory, tokenSecret, migrat
     if (!metadata.isFile() || metadata.isSymbolicLink() || metadata.size > 10 * 1024 * 1024) throw fail('Family export file rejected')
     return readFile(absolute)
   }
-  async function prepare() {
-    return withStorageLock(async () => {
-      let state = await readState()
-      if (state?.manifest) return state.manifest
-      state ??= { id: randomUUID(), preparedAt: now(), legacyUntil: now() + 30 * 24 * 3600_000, status: 'preparing' }
-      await atomicJson(marker, state)
-      const entries = []
-      const metadataDirectory = path.join(dataDirectory, '.family-export', state.id)
-      await mkdir(metadataDirectory, { recursive: true, mode: 0o700 })
-      let finance
-      for (const [index, name] of FAMILY_DATA_FILES.entries()) {
-        let buffer
-        try { buffer = await readAllowed(name) } catch (error) { if (error.code !== 'ENOENT') throw error; buffer = Buffer.from(JSON.stringify(defaults[index])) }
-        const value = JSON.parse(buffer.toString('utf8'))
-        if (name === 'family-workspace-finance.json') finance = value
-        await writeFile(path.join(metadataDirectory, name), buffer, { mode: 0o600 })
-        entries.push({ path: name, size: buffer.length, sha256: sha(buffer) })
-      }
-      for (const item of finance.attachments ?? []) {
-        if (!/^[a-f0-9-]{36}$/i.test(item.id) || !Object.hasOwn(extensions, item.mimeType)) throw fail('Family attachment metadata rejected')
-        const name = `family-asset-files/${item.id}.${extensions[item.mimeType]}`
-        const buffer = await readAllowed(name)
-        if (buffer.length !== item.size) throw fail('Family attachment length mismatch')
-        entries.push({ path: name, size: buffer.length, sha256: sha(buffer) })
-      }
-      if (entries.reduce((n, item) => n + item.size, 0) > 250 * 1024 * 1024) throw fail('Family export size limit')
-      const manifest = { version: 1, id: state.id, preparedAt: state.preparedAt, legacyUntil: state.legacyUntil, entries, digest: sha(JSON.stringify(entries)) }
-      await atomicJson(marker, { ...state, status: 'prepared', manifest })
-      return manifest
+  let pendingPreparation = null
+  async function buildSnapshot() {
+    const state = await withStorageLock(async () => {
+      let current = await readState()
+      if (current?.manifest) return current
+      current ??= { id: randomUUID(), preparedAt: now(), legacyUntil: now() + 30 * 24 * 3600_000, status: 'preparing' }
+      await atomicJson(marker, current)
+      return current
     })
+    if (state.manifest) return state.manifest
+    // Family writes are now frozen. Bulk reads/hash work must not hold the health storage barrier.
+    const entries = []
+    const metadataDirectory = path.join(dataDirectory, '.family-export', state.id)
+    await mkdir(metadataDirectory, { recursive: true, mode: 0o700 })
+    let finance
+    for (const [index, name] of FAMILY_DATA_FILES.entries()) {
+      let buffer
+      try { buffer = await readAllowed(name) } catch (error) { if (error.code !== 'ENOENT') throw error; buffer = Buffer.from(JSON.stringify(defaults[index])) }
+      const value = JSON.parse(buffer.toString('utf8'))
+      if (name === 'family-workspace-finance.json') finance = value
+      await writeFile(path.join(metadataDirectory, name), buffer, { mode: 0o600 })
+      entries.push({ path: name, size: buffer.length, sha256: sha(buffer) })
+    }
+    for (const item of finance.attachments ?? []) {
+      if (!/^[a-f0-9-]{36}$/i.test(item.id) || !Object.hasOwn(extensions, item.mimeType)) throw fail('Family attachment metadata rejected')
+      const name = `family-asset-files/${item.id}.${extensions[item.mimeType]}`
+      const buffer = await readAllowed(name)
+      if (buffer.length !== item.size) throw fail('Family attachment length mismatch')
+      entries.push({ path: name, size: buffer.length, sha256: sha(buffer) })
+    }
+    if (entries.reduce((n, item) => n + item.size, 0) > 250 * 1024 * 1024) throw fail('Family export size limit')
+    const manifest = { version: 1, id: state.id, preparedAt: state.preparedAt, legacyUntil: state.legacyUntil, entries, digest: sha(JSON.stringify(entries)) }
+    await withStorageLock(() => atomicJson(marker, { ...state, status: 'prepared', manifest }))
+    return manifest
+  }
+  function prepare() {
+    if (!pendingPreparation) pendingPreparation = buildSnapshot().finally(() => { pendingPreparation = null })
+    return pendingPreparation
   }
   async function handle(request, response, pathname, searchParams, { readJson, sendJson }) {
     if (pathname !== FAMILY_MIGRATION_PATH && !pathname.startsWith(`${FAMILY_MIGRATION_PATH}/`)) return false
@@ -108,9 +116,9 @@ export function createFamilyMigrationBridge({ dataDirectory, tokenSecret, migrat
       const { id, digest } = await readJson(request, 1024)
       await withStorageLock(async () => {
         const state = await readState()
-        if (!state || state.id !== id || state.manifest?.digest !== digest) throw fail('Family migration identity mismatch')
+        if (!state || state.id !== id || (state.manifest?.digest ?? null) !== digest || (route === '/commit' && !state.manifest)) throw fail('Family migration identity mismatch')
         if (route === '/release') {
-          if (upstreamActive() || state.status === 'committed') throw fail('Cannot release a committed migration')
+          if (pendingPreparation || upstreamActive() || state.status === 'committed') throw fail('Cannot release a committed migration')
           const { unlink } = await import('node:fs/promises'); await unlink(marker)
         } else await atomicJson(marker, { ...state, status: 'committed' })
       })
