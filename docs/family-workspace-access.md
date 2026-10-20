@@ -4,7 +4,7 @@
 
 ## 本次验收范围
 
-- [ ] `https://hoooho.com/family-ray-home-life-workspace` 可匿名打开登录页，无需 ChatGPT 账号。
+- [x] `https://hoooho.com/family-ray-home-life-workspace` 可匿名打开登录页，无需 ChatGPT 账号。
 - [x] 只有服务端 `OPS_OWNER_EMAIL` 所配置的 Ray 邮箱可用邮箱验证码登录管理员。沿用已配置的邮件服务，不公开管理员配置。
 - [x] 默认使用本次浏览器会话；可勾选记住登录，最多 30 天。
 - [x] 管理员按家人称呼生成登录码，代码只在生成后显示一次，供管理员自行分发。
@@ -13,7 +13,7 @@
 - [x] 登录码和会话仅持久化 HMAC 摘要；会话使用 HttpOnly、SameSite=Strict、HTTPS Secure 的限定路径 Cookie。写操作校验同源与自定义请求头；登录限流。
 - [x] 家庭页面保留开支、计划、日程、备忘、AI 界面；具体管理功能和 AI 回复不在本次范围。
 - [x] 单元/HTTP 安全回归、生产构建、375px 手机与桌面浏览器流程。
-- [ ] 提交、推送、main 集成、Staging 部署与验证、Production 部署与验证。
+- [x] 提交、推送、main 集成、Staging / Production 部署与 HTTPS 权限、资源验证；本轮浏览器验收单独记录。
 
 冻结：原护护健康功能、既有登录流程、AI 模型和密钥、历史家庭健康数据、其他页面。此空间单独鉴权，不能使用护护账号令牌或家人登录码访问另一侧数据。
 
@@ -29,12 +29,14 @@
 
 浏览器测试使用独立进程/数据目录与模拟邮件 provider，没有生产验证码后门。真实邮箱收取/验证和实体 iPhone/Safari 尚未验收；不能用模拟邮件或移动端 Chromium 模拟替代。
 
-Staging 已部署成功：`746990c9-9d99-485f-872a-11808ece5040`，正式主分支运行源码 `42291e1c438e65d255e3913e1964f3c0e428ffcf`，对应已验证 tree `7d980af854b391e148783c2635213ad953c83313`。
+首次 Staging 已部署成功：`746990c9-9d99-485f-872a-11808ece5040`，正式主分支运行源码 `42291e1c438e65d255e3913e1964f3c0e428ffcf`，对应已验证 tree `7d980af854b391e148783c2635213ad953c83313`。
 
 测试入口：<https://hooohoapp-staging.up.railway.app/family-ray-home-life-workspace>。HTTPS 在线检查 8/8：主服务健康；匿名会话不返回保护数据；匿名登录码列表拒绝；无效登录码拒绝；未授权邮箱不能成为管理员；跨源写入拒绝；公开登录文档与入口资源可访问。线上浏览器导航因执行环境代理 CA 限制未验收；本地 375/390/1280px Chromium 浏览器流程已通过。
 
 `staging.hoooho.com` 的既有自定义域名尚未完成 DNS 所有权验证/路由，未修改 DNS，使用平台已配置的 Staging 服务域名进行验证。
 
-当前交付状态：BLOCKED 于真实 Ray 邮箱收取验证码并登录的验收步骤。用户可自行在测试入口完成管理员登录。Production 尚未发布这个功能，继续保持原部署 `30c4b083-fdc8-4af2-bd56-0a82dfc1028f`。正式目标仍为 <https://hoooho.com/family-ray-home-life-workspace>；完成 Staging 真实邮箱验收后继续部署并验证 Production。测试站登录码不用于正式环境。
+当前发布状态：已通过线上日志确认真实邮箱验收。Staging 原部署在北京时间 2026-10-20 22:00:29 记录了管理员邮箱验证码登录成功，且该日志仅在服务端完成 `adminLogin` 后产生，无需用户重复确认。
 
-本次说明文件更新不改变运行源码，不需要重新部署相同应用。
+九大模块界面已随 PR #484 合入主仓库，源码 `e6d531a829adc88131563945ad3eab772f72921c`。Staging 部署 `ceafff44-297c-439f-bdd5-444094fff691` 与 Production 部署 `5983d45f-a90b-43d4-b418-cae358bdee62` 均为 `SUCCESS`，两环境的公开登录、匿名会话隔离、登录码管理拒绝和页面资源检查均通过。正式入口为 <https://hoooho.com/family-ray-home-life-workspace>。
+
+首版访问控制的浏览器验证记录保留为历史证据；本轮九模块界面未运行浏览器/实体手机验收。新界面范围、分类和发布证据见 [九大模块与黑白灰导航](family-console-navigation.md)。测试站登录码不用于正式环境。
