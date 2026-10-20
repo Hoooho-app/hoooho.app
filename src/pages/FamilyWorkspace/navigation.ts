@@ -5,17 +5,18 @@ export type WorkspaceModule = { id: ModuleId; title: string; description: string
 
 const page = (id: string, title: string, description: string, columns: string[], keywords = ''): WorkspacePage => ({ id, title, description, columns, keywords })
 
-// This is a page directory, not household data. Record entry remains a later phase.
+// Page directory only; household finance records use the protected finance API.
 export const workspaceModules: WorkspaceModule[] = [
   {
     id: 'finances', title: '家庭收支与预算', description: '记录钱的流入与流出，安排预算、账单和现金流。',
     pages: [
       page('overview', '收支总览', '按月汇总收入、支出、结余与预算执行情况。', ['统计周期', '收入合计', '支出合计', '收支结余', '预算使用']),
+      page('perspective', '财务透视表', '统一查看家底、月度预算与实际、现金储备、保险和资金目标。管理员可编辑保存。', ['家庭净资产', '月度结余', '应急储备', '预算差额'], '财务透视 Excel 资产负债 收支储蓄 现金流 保险 保障 目标 编辑'),
       page('transactions', '收支明细', '逐笔整理收入与支出，区分分类、支付账户和经办人。', ['发生日期', '收支类型', '分类', '金额', '支付账户', '经办人'], '记账 流水 买菜 餐饮 工资 消费'),
       page('budget', '预算管理', '按家庭、成员和开支类别设置预算，跟踪计划与实际差额。', ['预算项目', '预算周期', '计划金额', '实际支出', '剩余额度'], '月度 年度 超支 限额'),
       page('bills', '固定账单', '集中管理房贷、房租、水电、通信、保险和订阅等周期账单。', ['账单名称', '扣款周期', '预计金额', '下次到期', '负责人'], '缴费 续费 自动扣款 物业 宽带'),
       page('cashflow', '现金流计划', '把预计收入、大额开支和到期付款放到同一条时间线上。', ['计划日期', '预计收入', '预计支出', '预计结余', '关联事项'], '未来 资金 缺口 备用金'),
-      page('accounts', '支付账户', '整理日常支付渠道、账户归属和使用范围。余额与估值统一归入资产模块。', ['账户名称', '归属成员', '支付渠道', '使用范围', '备注'], '银行卡 微信 支付宝 信用卡'),
+      page('accounts', '支付账户', '整理日常支付渠道、账户归属和使用范围。余额与估值与资产模块共用，避免重复登记。', ['账户名称', '归属成员', '支付渠道', '使用范围', '备注'], '银行卡 微信 支付宝 信用卡'),
       page('sharing', '报销与分摊', '整理家庭垫付款、共同支出和待结算金额。', ['关联支出', '垫付人', '分摊成员', '待结算金额', '结算状态'], 'AA 报销 垫付 退款'),
       page('reports', '收支报表', '按月份、类别和家庭成员查看收支结构与预算差异。', ['统计期间', '统计维度', '收入', '支出', '结余'], '月报 年报 统计 趋势 导出')
     ]
