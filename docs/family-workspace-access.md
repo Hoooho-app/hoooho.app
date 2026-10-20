@@ -4,7 +4,7 @@
 
 唯一正式地址：<https://hoooho.com/family-ray-home-life-workspace>。用户已明确要求只使用生产环境；以后直接发布 Production，不再安排测试站。下方 Staging 地址与验收内容仅为历史证据，不再是使用入口或未来发布前置条件。
 
-两项测试服务的停用变更已准备，保留原数据卷，当前仍需在 Railway 网页完成双重验证后才能生效。具体状态见 [单生产环境约定](production-only-policy.md)。
+两项 Staging 测试服务已于北京时间 2026-10-20 23:23 经 Railway 网页停用；复核为零服务，原数据卷已解除挂载并保留为离线备份。仅 Production 运行。具体证据见 [单生产环境约定](production-only-policy.md)。
 
 
 基线：`e7478daac0a8d8be26a024d77187c1018c55356a`，来自当前 `origin/main`。实现分支 `feat/family-workspace-long-path-20261020`，开始时工作区干净。

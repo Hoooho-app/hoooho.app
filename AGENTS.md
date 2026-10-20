@@ -12,7 +12,7 @@
 - If credentials, permissions, branch protection, provider failure, or a required high-risk approval prevents completion, preserve the evidence and report `BLOCKED`, not `DONE` or `N/A`.
 - This delivery authorization does not permit destructive data operations, force-push, secret disclosure, bypassing security controls, or unrelated business changes.
 - Documentation, release-policy and CI-verification-target changes do not require redeploying an unchanged application binary; verify the affected configuration and current Production access. Runtime/build behavior changes still require a Production deployment.
-- Staging service retirement is already authorized by the owner. Preserve the detached Staging data volume. Railway requires dashboard two-factor verification to apply the prepared retirement patch; report that exact provider gate rather than attempting to bypass it or claiming retirement before it is applied. See `docs/production-only-policy.md`.
+- Both Staging services were retired through the authenticated Railway dashboard on 2026-10-20. The Staging environment has zero services and one detached data volume retained as an offline backup; do not delete it or recreate test services. Production is the only running environment. See `docs/production-only-policy.md` for verified evidence.
 
 ### Existing Codex Thread rule refresh
 
