@@ -27,3 +27,12 @@
 
 - 已保留资产照片附件与分类置顶制度，集成运行时代码基线 `ba75b6c461eac3a91db3ac252602d1f80f907d1d`。制度页面不加入安排编辑区，也不作为新增安排的目标。
 - 合并后完整构建通过；家庭服务端 29/29、日期与导航 7/7、月历 Chromium 流程 1/1、既有家庭/附件 Chromium 流程 6/6 通过。
+
+## Production 发布状态：BLOCKED
+
+- PR #489 已合入 main：https://github.com/Hoooho-app/hoooho.app/pull/489 。发布源码为 `dc76e0b128878d032fd5924b5b64e47af3be1195`；正式主线 tree 为 `30f7d3d7c0f4a3fcea14f0cda4176da9a0c33fa2`。相对本地已验源码仅保留前一任务追加的制度发布记录，运行时代码一致。
+- 制度完整浏览器流程额外通过 1/1（四种视图、编辑保存、家人只读和过期版本冲突）。最终浏览器共 8/8。
+- Railway production 已提交并应用唯一源码变更：`ba75b6c461eac3a91db3ac252602d1f80f907d1d` → `dc76e0b128878d032fd5924b5b64e47af3be1195`，补丁 `4f958fdc-747f-49db-9c10-3f4c889c78cb`。平台返回 committed=true / triggered；回读配置确认 commitSha 正确且无未提交变更。
+- 官方事件 https://status.railway.com/incident/JUA1PC5H ：UTC 2026-10-20 17:18 更新为 Identified / Major Outage，暂停所有工作区新构建，恢复后处理队列；运行中的服务不受影响。已直接回读事件页面。
+- 仍未产生新版部署记录，实际在线仍为旧三级导航部署 `91396f82-e36d-48ab-aa4f-3887a5aa976e`（`7bad9909cba2aebd53a7a9b59a19414ee1ebc568`）。因此不能标记新版上线或生产验收通过。
+- 正式入口始终为 https://hoooho.com/family-ray-home-life-workspace 。平台恢复后跟踪本次请求，确认新版 terminal SUCCESS 后再验月历资源和受保护安排端点；不要把旧部署 SUCCESS 当成月历版上线，不恢复测试环境、不修改原数据。
