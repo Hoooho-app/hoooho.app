@@ -1,10 +1,12 @@
-export type Asset = { id: string; name: string; category: string; owner: string; amount: number; valuedAt: string; available: boolean; emergency: boolean; note: string }
+export type Asset = { id: string; name: string; category: string; owner: string; amount: number; valuedAt: string; available: boolean; emergency: boolean; note: string; startDate?: string; endDate?: string; endDatePrecision?: 'day' | 'month'; remindDays?: number }
+export type AssetAttachment = { id: string; assetId: string; name: string; mimeType: string; size: number; createdAt: number; analysis?: { text: string; status: 'readable' | 'uncertain' | 'blank'; parsedAt: number } }
 export type Debt = { id: string; name: string; category: string; owner: string; balance: number; apr: number | null; monthlyPayment: number | null; creditLimit: number | null; dueDate: string; note: string }
 export type Flow = { id: string; name: string; kind: string; pattern?: string; category: string; owner: string; month: string; budget: number | null; actual: number | null; essential: boolean; note: string }
 export type Policy = { id: string; name: string; category: string; insured: string; owner: string; insurer: string; premium: number; frequency: string; coverage: number | null; dueDate: string; endDate: string; status: string; policyNumber: string; note: string }
 export type Goal = { id: string; name: string; category: string; owner: string; target: number; funded: number; dueDate: string; note: string }
 export type FinanceData = { assets: Asset[]; debts: Debt[]; flows: Flow[]; policies: Policy[]; goals: Goal[]; settings: { reserveMonths: number; essentialMonthly: number | null } }
-export type FinanceSnapshot = { revision: number; updatedAt: number | null; updatedBy: string; data: FinanceData }
+export type FinanceSnapshot = { revision: number; updatedAt: number | null; updatedBy: string; data: FinanceData; attachments?: AssetAttachment[] }
+export function assetExpiry(asset: Asset, today?: string): { date: string; days: number; state: 'expired' | 'soon' | 'valid'; label: string } | null
 export const assetCategories: Record<string, string>
 export const debtCategories: Record<string, string>
 export const flowKinds: Record<string, string>

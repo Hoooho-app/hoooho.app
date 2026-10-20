@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { Fragment, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { Plus, Pencil, Trash2, X, RefreshCw, Download } from 'lucide-react'
 import { HohoButton } from '../../components/design-system/HohoButton'
 import { HohoInput } from '../../components/design-system/HohoInput'
@@ -8,8 +8,9 @@ import { ConfirmDialog } from '../../components/design-system/ConfirmDialog'
 import { useDialogFocus } from '../../hooks/useDialogFocus'
 import { usePageScrollLock } from '../../hooks/usePageScrollLock'
 import { api, FamilyApiError, messageOf } from './api'
-import { assetCategories, debtCategories, flowKinds, flowPatterns, policyCategories, premiumPeriods, goalCategories, financeSummary, availableAsset, activePolicy, annualPremium, chinaDate, type FinanceSnapshot, type FinanceData } from '../../../shared/family-finance.mjs'
+import { assetCategories, debtCategories, flowKinds, flowPatterns, policyCategories, premiumPeriods, goalCategories, assetExpiry, financeSummary, availableAsset, activePolicy, annualPremium, chinaDate, type Asset, type FinanceSnapshot, type FinanceData } from '../../../shared/family-finance.mjs'
 import type { FinanceView } from './navigation'
+import { AssetAttachments } from './asset-attachments'
 import './finance.css'
 
 type Collection = 'assets' | 'debts' | 'flows' | 'policies' | 'goals'
@@ -21,7 +22,7 @@ const names: Record<Collection | 'settings', string> = { assets: '资产', debts
 const ownerField: Field = { key: 'owner', label: '归属成员', required: true, hint: '可填写家人称呼或“家庭共同”。' }
 const noteField: Field = { key: 'note', label: '备注', type: 'note' }
 const fields: Record<Collection | 'settings', Field[]> = {
-  assets: [{ key: 'name', label: '资产名称', required: true }, { key: 'category', label: '资产类别', options: assetCategories }, ownerField, { key: 'amount', label: '当前余额或估值（元）', type: 'money', required: true }, { key: 'valuedAt', label: '估值日期', type: 'date', required: true }, { key: 'available', label: '随时可取的现金或存款', type: 'check', hint: '未到期、冻结、有限制的存款请勿勾选。' }, { key: 'emergency', label: '已指定用于家庭应急储备', type: 'check', hint: '仅统计上面勾选随时可取的现金或存款。' }, noteField],
+  assets: [{ key: 'name', label: '资产名称', required: true }, { key: 'category', label: '资产类别', options: assetCategories }, ownerField, { key: 'amount', label: '当前余额或估值（元）', type: 'money', required: true }, { key: 'valuedAt', label: '估值日期', type: 'date', required: true }, { key: 'startDate', label: '取得 / 开卡日期', type: 'date' }, { key: 'endDatePrecision', label: '有效期精度', options: { day: '具体日期', month: '月份（银行卡月/年）' } }, { key: 'endDate', label: '有效期 / 到期日', type: 'date' }, { key: 'remindDays', label: '提前提示天数', type: 'number', hint: '在页面显示到期提示，0 表示只在到期当天提示。' }, { key: 'available', label: '随时可取的现金或存款', type: 'check', hint: '未到期、冻结、有限制的存款请勿勾选。' }, { key: 'emergency', label: '已指定用于家庭应急储备', type: 'check', hint: '仅统计上面勾选随时可取的现金或存款。' }, noteField],
   debts: [{ key: 'name', label: '负债名称', required: true }, { key: 'category', label: '负债类别', options: debtCategories }, ownerField, { key: 'balance', label: '剩余欠款（元）', type: 'money', required: true }, { key: 'apr', label: '年化利率（%）', type: 'money' }, { key: 'monthlyPayment', label: '每期应还金额（元）', type: 'money', hint: '可含本金与利息；仅作为还款信息，不自动记入收支。' }, { key: 'creditLimit', label: '授信额度（元，可不填）', type: 'money', hint: '仅供参考，不计入资产或现金储备。' }, { key: 'dueDate', label: '下次还款日', type: 'date' }, noteField],
   flows: [{ key: 'name', label: '项目名称', required: true }, { key: 'month', label: '所属月份', type: 'month', required: true }, { key: 'kind', label: '项目类型', options: flowKinds }, { key: 'pattern', label: '发生性质', options: flowPatterns }, { key: 'category', label: '收支分类', required: true, hint: '例如工资、居住、餐饮、交通、保险、借款利息。' }, ownerField, { key: 'budget', label: '计划金额（元）', type: 'money', hint: '留空表示尚未制定计划；0 表示计划为零。' }, { key: 'actual', label: '实际金额（元）', type: 'money', hint: '填当月累计实际金额；留空表示尚未核对。' }, { key: 'essential', label: '属于必要生活开支', type: 'check' }, noteField],
   policies: [{ key: 'name', label: '保单名称', required: true }, { key: 'category', label: '保险类型', options: policyCategories }, { key: 'insured', label: '被保人', required: true }, { ...ownerField, label: '缴费人' }, { key: 'insurer', label: '保险公司' }, { key: 'premium', label: '每期保费（元）', type: 'money', required: true }, { key: 'frequency', label: '缴费周期', options: premiumPeriods }, { key: 'coverage', label: '主保障保额（元）', type: 'money', hint: '不同责任、日津贴等请写在保障说明中，不相加。' }, { key: 'dueDate', label: '下次续费日', type: 'date' }, { key: 'endDate', label: '保障到期日', type: 'date' }, { key: 'status', label: '保单状态', options: { active: '有效', expired: '已到期', cancelled: '已终止' } }, { key: 'policyNumber', label: '保单编号（可选）' }, { ...noteField, label: '保障说明与备注', hint: '可记录保障责任、免赔额、理赔联系方式和资料位置。' }],
@@ -35,7 +36,7 @@ const hasData = (data: FinanceData) => [data.assets, data.debts, data.flows, dat
 
 function newRow(collection: Collection, month: string): Row {
   const common = { id: crypto.randomUUID(), name: '', owner: '家庭共同', note: '' }
-  if (collection === 'assets') return { ...common, category: 'cash', amount: null, valuedAt: chinaDate(), available: true, emergency: false }
+  if (collection === 'assets') return { ...common, category: 'cash', amount: null, valuedAt: chinaDate(), startDate: '', endDate: '', endDatePrecision: 'day', remindDays: 30, available: true, emergency: false }
   if (collection === 'debts') return { ...common, category: 'mortgage', balance: null, apr: null, monthlyPayment: null, creditLimit: null, dueDate: '' }
   if (collection === 'flows') return { ...common, month, kind: 'expense', pattern: 'variable', category: '', budget: null, actual: null, essential: false }
   if (collection === 'policies') return { ...common, category: 'medical', insured: '', insurer: '', premium: null, frequency: 'annual', coverage: null, dueDate: '', endDate: '', status: 'active', policyNumber: '' }
@@ -74,7 +75,7 @@ export function FamilyFinance({ admin, onUnauthorized, view = 'overview', assetC
     } catch (cause) { if (mounted.current) setMutationError(fail(cause)) }
     finally { pending.current = false; if (mounted.current) setBusy(false) }
   }
-  const open = (collection: Collection, row?: Row) => { setMutationError(''); setEditor({ collection, row: row ? { ...row } : newRow(collection, month), existing: Boolean(row) }) }
+  const open = (collection: Collection, row?: Row) => { setMutationError(''); setEditor({ collection, row: row ? { ...(collection === 'assets' ? { startDate: '', endDate: '', endDatePrecision: 'day', remindDays: 30 } : {}), ...row } : newRow(collection, month), existing: Boolean(row) }) }
   const saveRow = (row: Row) => {
     if (!editor || !snapshot) return
     const next = structuredClone(snapshot.data)
@@ -102,7 +103,8 @@ export function FamilyFinance({ admin, onUnauthorized, view = 'overview', assetC
     const row = item as Row
     return admin ? <div className="family-finance-row-actions"><HohoButton variant="text" size="small" aria-label={`编辑${row.name}`} onClick={() => open(collection, row)}><Pencil size={14}/>编辑</HohoButton><HohoButton variant="text" size="small" aria-label={`删除${row.name}`} onClick={() => { setMutationError(''); setRemoving({ collection, row }) }}><Trash2 size={14}/><span className="sr-only">删除</span></HohoButton></div> : null
   }
-  const table = (label: string, headers: string[], rows: ReactNode[], empty: string) => <div className="family-table-scroll" tabIndex={0} role="region" aria-label={label}><table className="family-record-table family-finance-table"><caption className="sr-only">{label}</caption><thead><tr>{headers.map(header => <th scope="col" key={header}>{header}</th>)}{admin && <th scope="col">操作</th>}</tr></thead><tbody>{rows.length ? rows : <tr><td colSpan={headers.length + Number(admin)}><div className="family-table-empty"><strong>{empty}</strong><span>{admin ? '点击右上方新增，填写当前资料。' : '管理员录入后会在这里显示。'}</span></div></td></tr>}</tbody></table></div>
+  const table = (label: string, headers: string[], rows: ReactNode[], empty: string) => <div className="family-table-scroll" tabIndex={0} role="region" aria-label={label}><table className={`family-record-table family-finance-table${['资产明细', '现金与存款账户'].includes(label) ? ' family-asset-table' : ''}`}><caption className="sr-only">{label}</caption><thead><tr>{headers.map(header => <th scope="col" key={header}>{header}</th>)}{admin && <th scope="col">操作</th>}</tr></thead><tbody>{rows.length ? rows : <tr><td colSpan={headers.length + Number(admin)}><div className="family-table-empty"><strong>{empty}</strong><span>{admin ? '点击右上方新增，填写当前资料。' : '管理员录入后会在这里显示。'}</span></div></td></tr>}</tbody></table></div>
+  const attachmentRow = (asset: Asset) => <tr className="family-asset-attachment-row"><td colSpan={6 + Number(admin)}><AssetAttachments assetId={asset.id} assetName={asset.name} files={(snapshot?.attachments ?? []).filter(file => file.assetId === asset.id)} admin={admin} disabled={busy} onChange={next => setSnapshot(previous => !previous || next.revision >= previous.revision ? next : previous)} onUnauthorized={() => unauthorized.current()}/></td></tr>
   const sectionHeading = (title: string, collection?: Collection) => <div className="family-section-heading"><h3 className="hoho-text-section-title">{title}</h3>{admin && collection && <HohoButton variant="secondary" size="small" onClick={() => open(collection)}><Plus size={16}/>新增{names[collection]}</HohoButton>}</div>
   const metrics = (items: [string, string, string][], label: string) => <section className="family-summary family-finance-metrics" aria-label={label}>{items.map(([title, value, hint]) => <div key={title}><span>{title}</span><strong>{value}</strong><small>{hint}</small></div>)}</section>
   if (!snapshot) return <section className="family-page-section"><h2 className="hoho-text-section-title">财务透视表</h2>{loading ? <p role="status">正在载入家庭财务资料…</p> : <StatusNotice tone="error" title="财务资料载入失败" action={<HohoButton variant="secondary" onClick={() => void load()}>重试</HohoButton>}>{error}</StatusNotice>}</section>
@@ -129,7 +131,7 @@ export function FamilyFinance({ admin, onUnauthorized, view = 'overview', assetC
     </>}
     {view === 'balance' && <>
       {metrics([['资产总额', summary.assetCount ? money(summary.totalAssets) : '—', '各项最近余额或估值'], ['剩余负债', summary.debtCount ? money(summary.totalDebts) : '—', '实际欠款，不含未使用额度'], ['家庭净资产', summary.assetCount || summary.debtCount ? money(summary.netAssets) : '—', '资产总额 − 剩余负债'], ['负债率', percent(summary.debtRatio), '剩余负债 ÷ 资产总额']], '资产负债汇总')}
-      {!debtOnly && <section className="family-finance-section">{sectionHeading(assetCategory ? assetCategories[assetCategory] : '资产明细', 'assets')}{table('资产明细', ['名称 / 类别', '归属成员', '余额或估值', '占总资产', '估值日期', '流动性'], assets.map(row => <tr key={row.id}><th scope="row">{row.name}<small>{assetCategories[row.category]}{row.note && ` · ${row.note}`}</small></th><td>{row.owner}</td><td>{money(row.amount)}</td><td>{summary.totalAssets > 0 ? percent(row.amount / summary.totalAssets) : '—'}</td><td>{row.valuedAt}</td><td>{availableAsset(row) ? row.emergency ? '随时可取 / 应急' : '随时可取' : '非随时可取'}</td>{admin && <td>{actions('assets', row)}</td>}</tr>), '尚未登记资产')}</section>}
+      {!debtOnly && <section className="family-finance-section">{sectionHeading(assetCategory ? assetCategories[assetCategory] : '资产明细', 'assets')}{table('资产明细', ['名称 / 类别', '归属成员', '余额或估值', '占总资产', '日期管理', '流动性'], assets.map(row => <Fragment key={row.id}><tr><th scope="row">{row.name}<small>{assetCategories[row.category]}{row.note && ` · ${row.note}`}</small></th><td>{row.owner}</td><td>{money(row.amount)}</td><td>{summary.totalAssets > 0 ? percent(row.amount / summary.totalAssets) : '—'}</td><td><AssetDates asset={row}/></td><td>{availableAsset(row) ? row.emergency ? '随时可取 / 应急' : '随时可取' : '非随时可取'}</td>{admin && <td>{actions('assets', row)}</td>}</tr>{attachmentRow(row)}</Fragment>), '尚未登记资产')}</section>}
       {!assetCategory && <section className="family-finance-section">{sectionHeading('负债与还款', 'debts')}{table('负债与还款', ['名称 / 类别', '归属成员', '剩余欠款', '年化利率', '每期应还', '下次还款'], debts.map(row => <tr key={row.id}><th scope="row">{row.name}<small>{debtCategories[row.category]}{row.creditLimit !== null && ` · 额度 ${money(row.creditLimit)}（不计资产）`}{row.note && ` · ${row.note}`}</small></th><td>{row.owner}</td><td>{money(row.balance)}</td><td>{row.apr === null ? '—' : `${row.apr}%`}</td><td>{money(row.monthlyPayment)}</td><td>{row.dueDate || '—'}</td>{admin && <td>{actions('debts', row)}</td>}</tr>), '尚未登记负债')}</section>}
       <p className="family-section-note">资产占比使用资产总额作分母。房产与对应房贷分别登记，净资产统一计算；每期应还不会自动修改月度收支。</p>
     </>}
@@ -144,7 +146,7 @@ export function FamilyFinance({ admin, onUnauthorized, view = 'overview', assetC
     {view === 'reserve' && <>
       {metrics([['可随时动用资金', summary.assetCount ? money(summary.liquid) : '—', '勾选随时可取的现金与存款'], ['已指定应急储备', summary.assetCount ? money(summary.reserve) : '—', '可动用资金中已指定用途的部分'], ['全家储备目标', money(all.reserveTarget), `必要月开支 × ${data.settings.reserveMonths} 个月`], ['全家储备可支持', all.coverageMonths === null ? '—' : `${all.coverageMonths.toFixed(1)} 个月`, '全家应急储备 ÷ 必要月开支']], '现金与应急储备')}
       <div className="family-finance-setting"><div><h3 className="hoho-text-section-title">家庭储备基线</h3><p>每月必要开支 {money(data.settings.essentialMonthly)} · 目标 {data.settings.reserveMonths} 个月{all.reserveTarget !== null && ` · 距目标还差 ${money(Math.max(0, (Math.round(all.reserveTarget * 100) - Math.round(all.reserve * 100)) / 100))}`}</p></div>{admin && <HohoButton variant="secondary" onClick={() => { setMutationError(''); setEditor({ collection: 'settings', row: { ...data.settings }, existing: true }) }}>编辑储备设置</HohoButton>}</div>
-      {sectionHeading('现金与存款账户（与资产明细共用）', 'assets')}{table('现金与存款账户', ['账户名称', '归属成员', '余额', '随时可取', '已指定应急', '余额日期'], assets.filter(row => ['cash', 'deposit'].includes(row.category)).map(row => <tr key={row.id}><th scope="row">{row.name}<small>{assetCategories[row.category]}{row.note && ` · ${row.note}`}</small></th><td>{row.owner}</td><td>{money(row.amount)}</td><td>{availableAsset(row) ? '是' : '否'}</td><td>{row.emergency ? '是' : '否'}</td><td>{row.valuedAt}</td>{admin && <td>{actions('assets', row)}</td>}</tr>), '尚未登记现金或存款账户')}
+      {sectionHeading('现金与存款账户（与资产明细共用）', 'assets')}{table('现金与存款账户', ['账户名称', '归属成员', '余额', '随时可取', '已指定应急', '日期管理'], assets.filter(row => ['cash', 'deposit'].includes(row.category)).map(row => <Fragment key={row.id}><tr><th scope="row">{row.name}<small>{assetCategories[row.category]}{row.note && ` · ${row.note}`}</small></th><td>{row.owner}</td><td>{money(row.amount)}</td><td>{availableAsset(row) ? '是' : '否'}</td><td>{row.emergency ? '是' : '否'}</td><td><AssetDates asset={row}/></td>{admin && <td>{actions('assets', row)}</td>}</tr>{attachmentRow(row)}</Fragment>), '尚未登记现金或存款账户')}
       <p className="family-section-note">余额只登记一次，此处编辑会同步资产明细。信用卡额度、投资市值和应收款均不计入应急现金；全家储备目标不受成员筛选影响。</p>
     </>}
     {view === 'insurance' && <>
@@ -175,6 +177,7 @@ function FinanceEditor({ editor, busy, error, onClose, onSave }: { editor: Edito
     const next = { ...previous, [key]: value }
     if (editor.collection === 'assets') {
       if (key === 'category' && !['cash', 'deposit'].includes(String(value))) { next.available = false; next.emergency = false }
+      if (key === 'endDatePrecision') next.endDate = value === 'month' ? String(previous.endDate ?? '').slice(0, 7) : ''
       if (key === 'available' && !value) next.emergency = false
     }
     return next
@@ -190,6 +193,7 @@ function FinanceEditor({ editor, busy, error, onClose, onSave }: { editor: Edito
   return <div className="family-finance-editor-layer"><button type="button" className="family-assistant-backdrop" aria-label={`关闭${title}`} onClick={() => { if (!busy) onClose() }}/><ModalSurface className="family-finance-editor" label={title} ref={ref} tabIndex={-1}>
     <form onSubmit={submit}><header><h2 className="hoho-text-section-title">{title}</h2><HohoButton variant="ghost" size="icon" aria-label="关闭编辑" disabled={busy} onClick={onClose}><X size={18}/></HohoButton></header>
       <div className="family-finance-editor-fields">{fields[editor.collection].map(field => {
+        if (editor.collection === 'assets' && field.key === 'endDate') field = { ...field, type: row.endDatePrecision === 'month' ? 'month' : 'date', hint: row.endDatePrecision === 'month' ? '按卡面月/年选择；有效至该月最后一天。' : '按资料填写完整日期，可留空。' }
         const value = row[field.key], id = `family-finance-${field.key}`
         if (field.type === 'check') {
           const disabled = editor.collection === 'assets' && (!['cash', 'deposit'].includes(String(row.category)) || (field.key === 'emergency' && !row.available))
@@ -198,9 +202,14 @@ function FinanceEditor({ editor, busy, error, onClose, onSave }: { editor: Edito
         if (field.options) return <label className="hoho-field" key={field.key} htmlFor={id}><span className="hoho-text-label">{field.label}</span><select id={id} className="hoho-input" value={String(value ?? '')} disabled={busy} onChange={event => change(field.key, event.target.value)}>{Object.entries(field.options).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
         if (field.type === 'note') return <label className="hoho-field family-finance-wide" key={field.key} htmlFor={id}><span className="hoho-text-label">{field.label}</span><textarea className="hoho-input" id={id} rows={3} maxLength={2000} disabled={busy} value={String(value ?? '')} onChange={event => change(field.key, event.target.value)}/>{field.hint && <span className="hoho-field__message">{field.hint}</span>}</label>
         const numeric = field.type === 'money' || field.type === 'number'
-        return <HohoInput key={field.key} label={field.label} aria-label={field.label} id={id} hint={field.hint} type={numeric ? 'number' : field.type === 'month' ? 'month' : field.type === 'date' ? 'date' : 'text'} inputMode={numeric ? 'decimal' : undefined} min={numeric ? (field.type === 'number' ? 1 : 0) : field.type === 'date' ? '2000-01-01' : field.type === 'month' ? '2000-01' : undefined} max={numeric ? (field.type === 'number' ? 120 : field.key === 'apr' ? 100 : 1e10) : field.type === 'date' ? '2099-12-31' : field.type === 'month' ? '2099-12' : undefined} step={numeric ? field.type === 'number' ? 1 : '0.01' : undefined} maxLength={field.key === 'owner' || field.key === 'insured' ? 40 : field.key === 'category' ? 60 : field.key === 'policyNumber' ? 100 : 120} required={field.required} disabled={busy} value={value == null ? '' : String(value)} onChange={event => change(field.key, numeric ? event.target.value === '' ? null : Number(event.target.value) : event.target.value)}/>
+        return <HohoInput key={field.key} label={field.label} aria-label={field.label} id={id} hint={field.hint} type={numeric ? 'number' : field.type === 'month' ? 'month' : field.type === 'date' ? 'date' : 'text'} inputMode={numeric ? 'decimal' : undefined} min={numeric ? (field.type === 'number' && field.key !== 'remindDays' ? 1 : 0) : field.type === 'date' ? '2000-01-01' : field.type === 'month' ? '2000-01' : undefined} max={numeric ? (field.type === 'number' ? field.key === 'remindDays' ? 365 : 120 : field.key === 'apr' ? 100 : 1e10) : field.type === 'date' ? '2099-12-31' : field.type === 'month' ? '2099-12' : undefined} step={numeric ? field.type === 'number' ? 1 : '0.01' : undefined} maxLength={field.key === 'owner' || field.key === 'insured' ? 40 : field.key === 'category' ? 60 : field.key === 'policyNumber' ? 100 : 120} required={field.required} disabled={busy} value={value == null ? '' : String(value)} onChange={event => change(field.key, numeric ? event.target.value === '' ? null : Number(event.target.value) : event.target.value)}/>
       })}</div>
       {(localError || error) && <StatusNotice tone="error" title="未保存，填写内容已保留">{localError || error}</StatusNotice>}
       <footer><HohoButton variant="secondary" disabled={busy} onClick={onClose}>取消</HohoButton><HohoButton type="submit" loading={busy}>保存{editor.collection === 'settings' ? '设置' : '记录'}</HohoButton></footer>
     </form></ModalSurface></div>
+}
+
+function AssetDates({ asset }: { asset: Asset }) {
+  const expiry = assetExpiry(asset)
+  return <div className="family-asset-dates"><span>估值：{asset.valuedAt}</span>{asset.startDate && <small>取得 / 开卡：{asset.startDate}</small>}{expiry ? <><small>有效期至：{asset.endDate}{asset.endDatePrecision === 'month' ? ' 月底' : ''}</small><small data-state={expiry.state}>{expiry.label}</small></> : <small>未设置有效期</small>}</div>
 }

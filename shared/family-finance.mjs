@@ -7,6 +7,13 @@ export const premiumPeriods = { monthly: '月缴', quarterly: '季缴', annual: 
 export const goalCategories = { emergency: '应急储备', education: '孩子教育', retirement: '养老安排', purchase: '大额购置', other: '其他目标' }
 export const emptyFinanceData = () => ({ assets: [], debts: [], flows: [], policies: [], goals: [], settings: { reserveMonths: 6, essentialMonthly: null } })
 export const chinaDate = (now = Date.now()) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now)
+export function assetExpiry(asset, today = chinaDate()) {
+  if (!asset.endDate) return null
+  const date = asset.endDatePrecision === 'month' ? new Date(Date.UTC(Number(asset.endDate.slice(0, 4)), Number(asset.endDate.slice(5, 7)), 0)).toISOString().slice(0, 10) : asset.endDate
+  const days = Math.round((Date.parse(`${date}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86400000)
+  const state = days < 0 ? 'expired' : days <= (asset.remindDays ?? 30) ? 'soon' : 'valid'
+  return { date, days, state, label: days < 0 ? `已到期 ${-days} 天` : days === 0 ? '今天到期' : `${state === 'soon' ? '即将到期 · ' : ''}剩余 ${days} 天` }
+}
 const cents = value => Math.round((value ?? 0) * 100)
 const sum = (rows, field) => rows.reduce((total, row) => total + cents(row[field]), 0) / 100
 export const availableAsset = asset => (asset.category === 'cash' || asset.category === 'deposit') && asset.available
