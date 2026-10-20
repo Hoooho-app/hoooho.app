@@ -1,10 +1,11 @@
 // Isolated browser-test process only. Production never imports this fixture.
 import { mkdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-const directory = path.resolve('.codex-tmp/family-workspace-browser')
+const port = process.env.FAMILY_TEST_PORT || '4197'
+const directory = path.resolve(`.codex-tmp/family-workspace-browser${port === '4197' ? '' : `-${port}`}`)
 await mkdir(directory, { recursive: true })
 process.env.DATA_DIRECTORY = path.join(directory, `data-${Date.now()}`)
-process.env.PORT = '4197'
+process.env.PORT = port
 process.env.HOST = '127.0.0.1'
 process.env.NODE_ENV = 'production'
 process.env.AUTH_TOKEN_SECRET = 'isolated-family-browser-test-secret'

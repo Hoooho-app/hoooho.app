@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
-import { ArrowUpRight, Building2, CalendarDays, Check, ChevronRight, Clipboard, GraduationCap, HeartPulse, Home, Landmark, LockKeyhole, LogOut, Menu, PanelRight, Scale, Search, ShieldCheck, Users, Wallet, X } from 'lucide-react'
+import { ArrowUpRight, Building2, CalendarDays, Check, ChevronRight, Clipboard, GraduationCap, HeartPulse, Home, Landmark, LockKeyhole, LogOut, Menu, PanelRight, Pin, Scale, Search, ShieldCheck, Users, Wallet, X } from 'lucide-react'
 import { HohoButton } from '../../components/design-system/HohoButton'
 import { HohoInput } from '../../components/design-system/HohoInput'
 import { HealthCard } from '../../components/design-system/HealthCard'
@@ -8,9 +8,10 @@ import { StatusNotice } from '../../components/design-system/StatusNotice'
 import { ConfirmDialog } from '../../components/design-system/ConfirmDialog'
 import { FAMILY_WORKSPACE_PATH } from '../../../shared/family-workspace.mjs'
 import { useDialogFocus } from '../../hooks/useDialogFocus'
-import { defaultLocation, locationHash, resolveLocation, searchWorkspace, workspaceModules, pageSections, financeDefaultView, type FinanceView, type WorkspaceLocation, type WorkspaceModule } from './navigation'
+import { defaultLocation, locationHash, resolveLocation, searchWorkspace, workspaceModules, pageSections, financeDefaultView, type FinanceView, type PolicyView, type WorkspaceSectionId, type WorkspaceLocation, type WorkspaceModule } from './navigation'
 import { api, FamilyApiError, messageOf } from './api'
 import { FamilyFinance } from './finance'
+import { FamilyPolicy } from './policies'
 import './family-workspace.css'
 
 type Session = { authenticated: false } | { authenticated: true; role: 'admin' | 'member'; name: string; expiresAt: number }
@@ -237,19 +238,20 @@ function DirectoryNavigation({ level, title, items, activeId, choose }: { level:
   const levelLabel = level === 2 ? '二级' : '三级'
   return <aside className={`family-secondary-sidebar${level === 3 ? ' family-tertiary-sidebar' : ''}`} aria-label={`${levelLabel}目录`}>
     <div className="family-secondary-heading"><p className="hoho-text-caption">{levelLabel}目录</p><p className="hoho-text-label">{title}</p></div>
-    <nav className="family-subnav" aria-label={`${title}${levelLabel}菜单`}>{items.map(item => <a key={item.id} ref={item.id === activeId ? activeLink : undefined} href={locationHash(item.location)} aria-current={item.id === activeId ? 'page' : undefined} onClick={event => { event.preventDefault(); choose(item.location, true) }}>{item.title}</a>)}</nav>
+    <nav className="family-subnav" aria-label={`${title}${levelLabel}菜单`}>{items.map(item => <a key={item.id} className={level === 2 && item.id === 'policy' ? 'family-policy-link' : undefined} ref={item.id === activeId ? activeLink : undefined} href={locationHash(item.location)} aria-current={item.id === activeId ? 'page' : undefined} onClick={event => { event.preventDefault(); choose(item.location, true) }}>{level === 2 && item.id === 'policy' && <Pin size={13} aria-hidden="true"/>}<span>{item.title}</span>{level === 2 && item.id === 'policy' && <small>置顶</small>}</a>)}</nav>
   </aside>
 }
 
-function ModuleContent({ module, pageId, sectionId, choose, admin, onUnauthorized }: { module: WorkspaceModule; pageId: string; sectionId?: FinanceView; choose: (location: WorkspaceLocation) => void; admin: boolean; onUnauthorized: () => void }) {
+function ModuleContent({ module, pageId, sectionId, choose, admin, onUnauthorized }: { module: WorkspaceModule; pageId: string; sectionId?: WorkspaceSectionId; choose: (location: WorkspaceLocation) => void; admin: boolean; onUnauthorized: () => void }) {
   const current = module.pages.find(item => item.id === pageId) ?? module.pages[0]
   const index = workspaceModules.findIndex(item => item.id === module.id) + 1
-  const financeView = sectionId ?? financeDefaultView(module.id, pageId)
+  if (pageId === 'policy') return <FamilyPolicy key={module.id} module={module} admin={admin} view={sectionId as PolicyView ?? 'text'} onViewChange={section => choose({ module: module.id, page: 'policy', section })} onUnauthorized={onUnauthorized}/>
+  const financeView = sectionId as FinanceView | undefined ?? financeDefaultView(module.id, pageId)
   if (financeView) return <><header className="family-page-heading"><div><p className="hoho-text-caption">FAMILY MANAGEMENT / {String(index).padStart(2, '0')}</p><h1 id="family-page-title" tabIndex={-1} className="hoho-text-display">{module.title}</h1><p>{current.description}</p></div></header><FamilyFinance admin={admin} onUnauthorized={onUnauthorized} view={financeView} assetCategory={module.id === 'assets' ? ({ holdings: 'investment', equity: 'equity' } as Record<string,string>)[pageId] : undefined} debtOnly={module.id === 'assets' && pageId === 'liabilities'}/></>
   const metrics = module.id === 'finances' ? ['本月收入', '本月支出', '收支结余', '预算使用'] : module.id === 'assets' ? ['资产总额', '负债总额', '家庭净资产', '可用流动资金'] : []
   return <><header className="family-page-heading"><div><p className="hoho-text-caption">FAMILY MANAGEMENT / {String(index).padStart(2, '0')}</p><h1 id="family-page-title" tabIndex={-1} className="hoho-text-display">{module.title}</h1><p>{module.description}</p></div></header>
     <section className="family-page-section" aria-labelledby="family-subpage-title"><div className="family-section-heading"><h2 id="family-subpage-title" className="hoho-text-section-title">{current.title}</h2><span>页面框架</span></div><p className="family-subpage-description">{current.description}</p>
-      {current.id === 'overview' ? <>{Boolean(metrics.length) && <section className="family-summary" aria-label={`${module.title}概览`}>{metrics.map(title => <div key={title}><span>{title}</span><strong>—</strong><small>等待录入</small></div>)}</section>}<div className="family-page-directory">{module.pages.slice(1).map(item => <button key={item.id} type="button" onClick={() => choose({ module: module.id, page: item.id })}><span><strong>{item.title}</strong><small>{item.description}</small></span><ChevronRight size={17} aria-hidden="true"/></button>)}</div></> : <>{module.id === 'schedule' && current.id === 'calendar' ? <SimpleCalendar/> : <div className="family-table-scroll" tabIndex={0} role="region" aria-label={`${current.title}记录表`}><table className="family-record-table"><caption className="sr-only">{current.title}，记录功能待开启</caption><thead><tr>{current.columns.map(column => <th key={column} scope="col">{column}</th>)}</tr></thead><tbody><tr><td colSpan={current.columns.length}><div className="family-table-empty"><strong>暂无记录</strong><span>页面结构已建立，记录与编辑功能待开启。</span></div></td></tr></tbody></table></div>}</>}
+      {current.id === 'overview' ? <>{Boolean(metrics.length) && <section className="family-summary" aria-label={`${module.title}概览`}>{metrics.map(title => <div key={title}><span>{title}</span><strong>—</strong><small>等待录入</small></div>)}</section>}<div className="family-page-directory">{module.pages.filter(item => item.id !== 'overview').map(item => <button key={item.id} type="button" onClick={() => choose({ module: module.id, page: item.id })}><span><strong>{item.title}</strong><small>{item.description}</small></span><ChevronRight size={17} aria-hidden="true"/></button>)}</div></> : <>{module.id === 'schedule' && current.id === 'calendar' ? <SimpleCalendar/> : <div className="family-table-scroll" tabIndex={0} role="region" aria-label={`${current.title}记录表`}><table className="family-record-table"><caption className="sr-only">{current.title}，记录功能待开启</caption><thead><tr>{current.columns.map(column => <th key={column} scope="col">{column}</th>)}</tr></thead><tbody><tr><td colSpan={current.columns.length}><div className="family-table-empty"><strong>暂无记录</strong><span>页面结构已建立，记录与编辑功能待开启。</span></div></td></tr></tbody></table></div>}</>}
       <p className="family-section-note">本页为管理框架，尚未接入数据录入和自动统计。</p>
     </section>
   </>
