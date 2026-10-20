@@ -77,3 +77,17 @@ test('legacy oracle reveals only an identifier, expires after 30 days, and commi
   f.advance(30 * 24 * 3600_000)
   assert.equal((await f.call('verify-legacy', { body: { kind: 'session', value: f.admin.raw } })).status, 401)
 })
+
+test('failed preparation can unfreeze unchanged source without a manifest; commit remains forbidden', async t => {
+  const f = await fixture(t)
+  const id = randomUUID()
+  await f.workspace.finance.store.update(state => ({ ...state, attachments: [{ id, size: 50, mimeType: 'image/png' }] }))
+  assert.equal((await f.call('prepare', { body: {} })).status, 500)
+  const state = await (await f.call('status')).json()
+  assert.equal(state.status, 'preparing'); assert.equal(state.digest, null)
+  await assert.rejects(f.workspace.store.update(state => state), { status: 503 })
+  assert.equal((await f.call('commit', { body: { id: state.id, digest: null } })).status, 409)
+  assert.equal((await f.call('release', { body: { id: state.id, digest: null } })).status, 200)
+  await f.workspace.store.update(state => state)
+  assert.equal((await (await f.call('status')).json()).status, 'unprepared')
+})
