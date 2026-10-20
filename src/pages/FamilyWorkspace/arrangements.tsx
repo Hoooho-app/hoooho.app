@@ -6,7 +6,7 @@ import { StatusNotice } from '../../components/design-system/StatusNotice'
 import { ConfirmDialog } from '../../components/design-system/ConfirmDialog'
 import { api, FamilyApiError, messageOf } from './api'
 import { type WorkspaceModule } from './navigation'
-import { arrangementDate, chinaToday, type Arrangement, type ArrangementIntent, type ArrangementSnapshot } from './arrangement-model'
+import { arrangementDate, canonicalArrangement, chinaToday, type Arrangement, type ArrangementIntent, type ArrangementSnapshot } from './arrangement-model'
 
 export function useFamilyArrangements(onUnauthorized: () => void) {
   const [snapshot, setSnapshot] = useState<ArrangementSnapshot>()
@@ -23,7 +23,7 @@ export function useFamilyArrangements(onUnauthorized: () => void) {
   }
   const load = useCallback(async (signal?: AbortSignal) => {
     setLoading(true); setError('')
-    try { const result = await api<ArrangementSnapshot>('/arrangements', undefined, signal); if (mounted.current && !signal?.aborted) { setSnapshot(result); setConflict(false) } }
+    try { const result = await api<ArrangementSnapshot>('/arrangements', undefined, signal); if (mounted.current && !signal?.aborted) { setSnapshot({ ...result, plans: result.plans.map(canonicalArrangement) }); setConflict(false) } }
     catch (cause) { if (mounted.current && !signal?.aborted) setError(fail(cause)) }
     finally { if (mounted.current && !signal?.aborted) setLoading(false) }
   }, [])
@@ -33,7 +33,7 @@ export function useFamilyArrangements(onUnauthorized: () => void) {
     pending.current = true; setBusy(true); setError('')
     try {
       const result = await api<ArrangementSnapshot>('/arrangements', { ...input, revision: snapshot.revision })
-      if (mounted.current) setSnapshot(result)
+      if (mounted.current) setSnapshot({ ...result, plans: result.plans.map(canonicalArrangement) })
       return true
     } catch (cause) {
       if (mounted.current) { setError(fail(cause)); if (cause instanceof FamilyApiError && cause.status === 409) setConflict(true) }

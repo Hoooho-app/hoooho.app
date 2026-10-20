@@ -8,7 +8,7 @@ import { StatusNotice } from '../../components/design-system/StatusNotice'
 import { ConfirmDialog } from '../../components/design-system/ConfirmDialog'
 import { FAMILY_WORKSPACE_PATH } from '../../../shared/family-workspace.mjs'
 import { useDialogFocus } from '../../hooks/useDialogFocus'
-import { defaultLocation, locationHash, resolveLocation, searchWorkspace, workspaceModules, pageSections, financeDefaultView, type FinanceView, type PolicyView, type WorkspaceSectionId, type WorkspaceLocation, type WorkspaceModule } from './navigation'
+import { defaultLocation, locationHash, resolveLocation, searchWorkspace, workspaceModules, pageSections, financePresentation, type PolicyView, type WorkspaceLocation, type WorkspaceModule } from './navigation'
 import { api, FamilyApiError, messageOf } from './api'
 import { FamilyFinance } from './finance'
 import { PageArrangements, useFamilyArrangements, type ArrangementStore } from './arrangements'
@@ -138,8 +138,9 @@ function FamilyHome({ session, onLogout }: { session: Extract<Session, { authent
   const sections = module && subpage ? pageSections(module.id, subpage.id) : []
   const section = sections.find(item => item.id === current.section)
   const openFromCalendar = (location: WorkspaceLocation, intent?: Omit<ArrangementIntent, 'key'>) => {
-    choose(location, !intent)
-    if (intent) setCalendarRequest({ location, intent: { ...intent, key: Date.now() } })
+    const canonical = resolveLocation(locationHash(location), admin)
+    choose(canonical, !intent)
+    if (intent) setCalendarRequest({ location: canonical, intent: { ...intent, key: Date.now() } })
   }
   const viewCalendar = (month: string) => { setCalendarMonth(month); choose(defaultLocation, true) }
   const arrangementPanel = module && subpage && subpage.id !== 'policy' ? <PageArrangements key={`${module.id}/${subpage.id}`} module={module} pageId={subpage.id} store={arrangements} admin={admin} intent={calendarRequest?.location.module === module.id && calendarRequest.location.page === subpage.id ? calendarRequest.intent : undefined} viewCalendar={viewCalendar}/> : undefined
@@ -223,7 +224,7 @@ function GlobalSearch({ choose }: { choose: (location: WorkspaceLocation, focus?
     </form>
     {open && <section className="family-search-results" id="family-search-results" aria-label="全局搜索结果">
       <div className="family-search-result-heading" aria-live="polite">{query.trim() ? `${results.length} 个匹配页面` : '搜索全部九大模块'}<button type="button" aria-label="关闭搜索结果" onClick={() => setOpen(false)}><X size={16}/></button></div>
-      {!query.trim() ? <p className="family-search-empty">输入模块名称、页面或关键词，例如“预算”“房贷”“保姆”。</p> : !results.length ? <p className="family-search-empty" role="status">没有找到匹配的页面，请尝试其他关键词。</p> : <ul>{results.map(result => <li key={`${result.module.id}/${result.page.id}/${result.section?.id ?? ''}`}><button type="button" className="family-search-result" onClick={() => select({ module: result.module.id, page: result.page.id, section: result.section?.id })} onKeyDown={event => {
+      {!query.trim() ? <p className="family-search-empty">输入模块名称、页面或关键词，例如“预算”“房贷”“保姆”。</p> : !results.length ? <p className="family-search-empty" role="status">没有找到匹配的页面，请尝试其他关键词。</p> : <ul>{results.map(result => <li key={`${result.module.id}/${result.page.id}/${result.section?.id ?? ''}`}><button type="button" className="family-search-result" aria-label={result.section?.title ?? result.page.title} onClick={() => select({ module: result.module.id, page: result.page.id, section: result.section?.id })} onKeyDown={event => {
         if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return
         event.preventDefault()
         const items = Array.from(area.current?.querySelectorAll<HTMLButtonElement>('.family-search-result') ?? [])
@@ -249,20 +250,20 @@ function DirectoryNavigation({ level, title, items, activeId, choose }: { level:
   </aside>
 }
 
-function ModuleContent({ module, pageId, sectionId, choose, admin, onUnauthorized, arrangements }: { module: WorkspaceModule; pageId: string; sectionId?: WorkspaceSectionId; choose: (location: WorkspaceLocation) => void; admin: boolean; onUnauthorized: () => void; arrangements?: ReactNode }) {
+function ModuleContent({ module, pageId, sectionId, choose, admin, onUnauthorized, arrangements }: { module: WorkspaceModule; pageId: string; sectionId?: string; choose: (location: WorkspaceLocation) => void; admin: boolean; onUnauthorized: () => void; arrangements?: ReactNode }) {
   const current = module.pages.find(item => item.id === pageId) ?? module.pages[0]
   const index = workspaceModules.findIndex(item => item.id === module.id) + 1
   if (pageId === 'policy') return <FamilyPolicy key={module.id} module={module} admin={admin} view={sectionId as PolicyView ?? 'text'} onViewChange={section => choose({ module: module.id, page: 'policy', section })} onUnauthorized={onUnauthorized}/>
-  const financeView = sectionId as FinanceView | undefined ?? financeDefaultView(module.id, pageId)
-  if (financeView) return <><header className="family-page-heading"><div><p className="hoho-text-caption">FAMILY MANAGEMENT / {String(index).padStart(2, '0')}</p><h1 id="family-page-title" tabIndex={-1} className="hoho-text-display">{module.title}</h1><p>{current.description}</p></div></header>{arrangements}<FamilyFinance admin={admin} onUnauthorized={onUnauthorized} view={financeView} assetCategory={module.id === 'assets' ? ({ holdings: 'investment', equity: 'equity' } as Record<string,string>)[pageId] : undefined} debtOnly={module.id === 'assets' && pageId === 'liabilities'}/></>
-  const metrics = module.id === 'finances' ? ['本月收入', '本月支出', '收支结余', '预算使用'] : module.id === 'assets' ? ['资产总额', '负债总额', '家庭净资产', '可用流动资金'] : []
-  return <><header className="family-page-heading"><div><p className="hoho-text-caption">FAMILY MANAGEMENT / {String(index).padStart(2, '0')}</p><h1 id="family-page-title" tabIndex={-1} className="hoho-text-display">{module.title}</h1><p>{module.description}</p></div></header>
-    {arrangements}
-    <section className="family-page-section" aria-labelledby="family-subpage-title"><div className="family-section-heading"><h2 id="family-subpage-title" className="hoho-text-section-title">{current.title}</h2><span>页面框架</span></div><p className="family-subpage-description">{current.description}</p>
-      {current.id === 'overview' ? <>{Boolean(metrics.length) && <section className="family-summary" aria-label={`${module.title}概览`}>{metrics.map(title => <div key={title}><span>{title}</span><strong>—</strong><small>等待录入</small></div>)}</section>}<div className="family-page-directory">{module.pages.filter(item => item.id !== 'overview').map(item => <button key={item.id} type="button" onClick={() => choose({ module: module.id, page: item.id })}><span><strong>{item.title}</strong><small>{item.description}</small></span><ChevronRight size={17} aria-hidden="true"/></button>)}</div></> : <>{module.id === 'schedule' && current.id === 'calendar' ? <SimpleCalendar/> : <div className="family-table-scroll" tabIndex={0} role="region" aria-label={`${current.title}记录表`}><table className="family-record-table"><caption className="sr-only">{current.title}，记录功能待开启</caption><thead><tr>{current.columns.map(column => <th key={column} scope="col">{column}</th>)}</tr></thead><tbody><tr><td colSpan={current.columns.length}><div className="family-table-empty"><strong>暂无记录</strong><span>页面结构已建立，记录与编辑功能待开启。</span></div></td></tr></tbody></table></div>}</>}
-      <p className="family-section-note">资料表为管理框架，尚未接入数据录入和自动统计；上方安排可保存到首页月历。</p>
-    </section>
-  </>
+  const selected = current.sections.find(item => item.id === sectionId)
+  const presentation = financePresentation(module.id, pageId, sectionId)
+  const heading = <header className="family-page-heading"><div><p className="hoho-text-caption">FAMILY MANAGEMENT / {String(index).padStart(2, '0')}</p><h1 id="family-page-title" tabIndex={-1} className="hoho-text-display">{module.title}</h1><p>{current.description}</p></div></header>
+  if (presentation) return <>{heading}{arrangements}<FamilyFinance admin={admin} onUnauthorized={onUnauthorized} {...presentation} title={selected?.title ?? current.title} onNavigate={choose}/></>
+  const content = selected ?? current
+  return <>{heading}{arrangements}<section className="family-page-section" aria-labelledby="family-subpage-title"><div className="family-section-heading"><h2 id="family-subpage-title" className="hoho-text-section-title">{content.title}</h2><span>页面框架</span></div><p className="family-subpage-description">{content.description}</p>
+    {module.id === 'schedule' && current.id === 'calendar' ? <SimpleCalendar/> : <div className="family-table-scroll" tabIndex={0} role="region" aria-label={`${content.title}记录表`}><table className="family-record-table"><caption className="sr-only">{content.title}，记录功能待开启</caption><thead><tr>{content.columns.map(column => <th key={column} scope="col">{column}</th>)}</tr></thead><tbody><tr><td colSpan={content.columns.length}><div className="family-table-empty"><strong>暂无记录</strong><span>页面结构已建立，记录与编辑功能待开启。</span></div></td></tr></tbody></table></div>}
+    <p className="family-section-note">资料表为管理框架，尚未接入数据录入和自动统计；上方安排可保存到首页月历。</p>
+  </section></>
+
 }
 
 function SimpleCalendar() {
