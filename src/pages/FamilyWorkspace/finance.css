@@ -3,9 +3,6 @@
 .family-finance > .family-section-heading p { margin-top: var(--hoho-space-2); color: rgb(var(--hoho-color-text-secondary)); }
 .family-finance-tools, .family-finance-row-actions { display: flex; align-items: center; gap: var(--hoho-space-2); }
 .family-finance-saved { margin-bottom: var(--hoho-space-4)!important; font-size: var(--hoho-font-size-caption); }
-.family-finance-views { display: flex; overflow-x: auto; border-bottom: 1px solid rgb(var(--hoho-color-border)); margin-bottom: var(--hoho-space-5); }
-.family-finance-views button { min-height: 48px; padding: var(--hoho-space-3) var(--hoho-space-4); border-bottom: 2px solid transparent; white-space: nowrap; color: rgb(var(--hoho-color-text-secondary)); }
-.family-finance-views button[aria-current='page'] { border-bottom-color: rgb(var(--hoho-color-primary)); font-weight: 600; color: rgb(var(--hoho-color-text-primary)); }
 .family-finance-filters { display: flex; align-items: flex-end; gap: var(--hoho-space-4); flex-wrap: wrap; margin-bottom: var(--hoho-space-6); }
 .family-finance-filters > label { width: 180px; max-width: 100%; }
 .family-finance-filters > p { flex: 1 1 180px; color: rgb(var(--hoho-color-text-secondary)); padding-bottom: var(--hoho-space-3); }

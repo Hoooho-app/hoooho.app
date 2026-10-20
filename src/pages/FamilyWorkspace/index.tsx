@@ -8,7 +8,7 @@ import { StatusNotice } from '../../components/design-system/StatusNotice'
 import { ConfirmDialog } from '../../components/design-system/ConfirmDialog'
 import { FAMILY_WORKSPACE_PATH } from '../../../shared/family-workspace.mjs'
 import { useDialogFocus } from '../../hooks/useDialogFocus'
-import { defaultLocation, locationHash, resolveLocation, searchWorkspace, workspaceModules, type WorkspaceLocation, type WorkspaceModule } from './navigation'
+import { defaultLocation, locationHash, resolveLocation, searchWorkspace, workspaceModules, pageSections, financeDefaultView, type FinanceView, type WorkspaceLocation, type WorkspaceModule } from './navigation'
 import { api, FamilyApiError, messageOf } from './api'
 import { FamilyFinance } from './finance'
 import './family-workspace.css'
@@ -128,6 +128,12 @@ function FamilyHome({ session, onLogout }: { session: Extract<Session, { authent
   }
   const module = workspaceModules.find(item => item.id === current.module)
   const subpage = module?.pages.find(item => item.id === current.page) ?? module?.pages[0]
+  const sections = module && subpage ? pageSections(module.id, subpage.id) : []
+  const section = sections.find(item => item.id === current.section)
+  useEffect(() => {
+    const canonical = locationHash(current)
+    if (window.location.hash && window.location.hash !== canonical) window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}${canonical}`)
+  }, [current])
   const date = new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit', weekday: 'long' }).format(new Date())
   return <div className="family-theme family-workspace">
     <a className="family-skip" href="#family-page-title" onClick={event => { event.preventDefault(); document.getElementById('family-page-title')?.focus() }}>跳到主要内容</a>
@@ -144,7 +150,7 @@ function FamilyHome({ session, onLogout }: { session: Extract<Session, { authent
         <span className="family-nav-label">家庭管理</span>
         {workspaceModules.map(item => {
           const Icon = moduleIcons[item.id]
-          return <button key={item.id} type="button" aria-label={item.title} aria-current={current.module === item.id ? 'page' : undefined} onClick={() => choose({ module: item.id, page: 'overview' }, true)}><Icon size={17} aria-hidden="true"/><span>{item.title}</span></button>
+          return <button key={item.id} type="button" aria-label={item.title} aria-current={current.module === item.id ? 'page' : undefined} onClick={() => choose({ module: item.id, page: item.pages[0].id }, true)}><Icon size={17} aria-hidden="true"/><span>{item.title}</span></button>
         })}
       </nav>
       <div className="family-sidebar-foot">
@@ -153,13 +159,14 @@ function FamilyHome({ session, onLogout }: { session: Extract<Session, { authent
         <HohoButton fullWidth size="small" variant="secondary" loading={leaving} onClick={() => void logout()}><LogOut size={15} aria-hidden="true"/>退出登录</HohoButton>
       </div>
     </aside>
-    <div className={`family-main${module ? ' has-secondary' : ''}`}>
+    <div className={`family-main${module ? ' has-secondary' : ''}${sections.length ? ' has-tertiary' : ''}`}>
       <div className="family-topbar"><GlobalSearch choose={choose}/><HohoButton className="family-assistant-trigger" variant="secondary" onClick={() => setChatOpen(true)}><PanelRight size={17} aria-hidden="true"/>生活助手</HohoButton><span className="family-topbar-state"><LockKeyhole size={13} aria-hidden="true"/>已授权</span></div>
-      {module && subpage && <ModuleNavigation module={module} pageId={subpage.id} choose={choose}/>}
+      {module && subpage && <DirectoryNavigation level={2} title={module.title} items={module.pages.map(item => ({ id: item.id, title: item.title, location: { module: module.id, page: item.id } }))} activeId={subpage.id} choose={choose}/>}
+      {module && subpage && section && <DirectoryNavigation level={3} title={subpage.title} items={sections.map(item => ({ id: item.id, title: item.title, location: { module: module.id, page: subpage.id, section: item.id } }))} activeId={section.id} choose={choose}/>}
       <main className="family-content" ref={mainRef}>
-        <div className="family-topline"><span>我的空间{module && <> / {module.title} / {subpage?.title}</>}{current.module === 'access' && ' / 家人访问管理'}</span><span>{date}</span></div>
+        <div className="family-topline"><span>我的空间{module && <> / {module.title} / {subpage?.title}{section && ` / ${section.title}`}</>}{current.module === 'access' && ' / 家人访问管理'}</span><span>{date}</span></div>
         {error && <StatusNotice tone="error" title="操作未完成">{error}</StatusNotice>}
-        <div className="family-page-body">{current.module === 'access' && admin ? <AccessManager onUnauthorized={onLogout}/> : module && subpage ? <ModuleContent module={module} pageId={subpage.id} choose={choose} admin={admin} onUnauthorized={onLogout}/> : <WorkspaceOverview name={session.name} admin={admin} choose={choose}/>}</div>
+        <div className="family-page-body">{current.module === 'access' && admin ? <AccessManager onUnauthorized={onLogout}/> : module && subpage ? <ModuleContent module={module} pageId={subpage.id} sectionId={section?.id} choose={choose} admin={admin} onUnauthorized={onLogout}/> : <WorkspaceOverview name={session.name} admin={admin} choose={choose}/>}</div>
         <footer className="family-page-footer"><span>家庭统筹会 / Ray 家庭空间</span><span>财务透视表已开启 · AI 尚未开启</span></footer>
       </main>
     </div>
@@ -193,7 +200,7 @@ function GlobalSearch({ choose }: { choose: (location: WorkspaceLocation, focus?
   return <div className="family-search" ref={area} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setOpen(false) }} onKeyDown={event => {
     if (event.key === 'Escape') { event.preventDefault(); field.current?.focus(); setOpen(false) }
   }}>
-    <form role="search" aria-label="全局搜索" onSubmit={event => { event.preventDefault(); if (results[0]) select({ module: results[0].module.id, page: results[0].page.id }) }}>
+    <form role="search" aria-label="全局搜索" onSubmit={event => { event.preventDefault(); if (results[0]) select({ module: results[0].module.id, page: results[0].page.id, section: results[0].section?.id }) }}>
       <Search size={17} aria-hidden="true"/>
       <input ref={field} id="family-global-search" type="search" aria-label="全局搜索" autoComplete="off" placeholder="搜索全部模块、页面或关键词" value={query} aria-expanded={open} aria-controls={open ? 'family-search-results' : undefined} onFocus={() => setOpen(true)} onChange={event => { setQuery(event.target.value); setOpen(true) }} onKeyDown={event => {
         if (event.key === 'ArrowDown' && results.length) { event.preventDefault(); area.current?.querySelector<HTMLButtonElement>('.family-search-result')?.focus() }
@@ -203,14 +210,14 @@ function GlobalSearch({ choose }: { choose: (location: WorkspaceLocation, focus?
     </form>
     {open && <section className="family-search-results" id="family-search-results" aria-label="全局搜索结果">
       <div className="family-search-result-heading" aria-live="polite">{query.trim() ? `${results.length} 个匹配页面` : '搜索全部九大模块'}<button type="button" aria-label="关闭搜索结果" onClick={() => setOpen(false)}><X size={16}/></button></div>
-      {!query.trim() ? <p className="family-search-empty">输入模块名称、页面或关键词，例如“预算”“房贷”“保姆”。</p> : !results.length ? <p className="family-search-empty" role="status">没有找到匹配的页面，请尝试其他关键词。</p> : <ul>{results.map(result => <li key={`${result.module.id}/${result.page.id}`}><button type="button" className="family-search-result" onClick={() => select({ module: result.module.id, page: result.page.id })} onKeyDown={event => {
+      {!query.trim() ? <p className="family-search-empty">输入模块名称、页面或关键词，例如“预算”“房贷”“保姆”。</p> : !results.length ? <p className="family-search-empty" role="status">没有找到匹配的页面，请尝试其他关键词。</p> : <ul>{results.map(result => <li key={`${result.module.id}/${result.page.id}/${result.section?.id ?? ''}`}><button type="button" className="family-search-result" onClick={() => select({ module: result.module.id, page: result.page.id, section: result.section?.id })} onKeyDown={event => {
         if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return
         event.preventDefault()
         const items = Array.from(area.current?.querySelectorAll<HTMLButtonElement>('.family-search-result') ?? [])
         const next = items.indexOf(event.currentTarget) + (event.key === 'ArrowDown' ? 1 : -1)
         if (next < 0) field.current?.focus(); else items[next % items.length]?.focus()
-      }}><span><strong>{result.page.title}</strong><small>{result.module.title} / {result.page.description}</small></span><ArrowUpRight size={15} aria-hidden="true"/></button></li>)}</ul>}
-      <p className="family-search-scope">当前检索范围：全部模块与二级页面。</p>
+      }}><span><strong>{result.section?.title ?? result.page.title}</strong><small>{result.module.title} / {result.section ? `${result.page.title} / ${result.section.description}` : result.page.description}</small></span><ArrowUpRight size={15} aria-hidden="true"/></button></li>)}</ul>}
+      <p className="family-search-scope">当前检索范围：全部模块、二级页面与三级目录。</p>
     </section>}
   </div>
 }
@@ -219,25 +226,26 @@ function WorkspaceOverview({ name, admin, choose }: { name: string; admin: boole
   return <><header className="family-page-heading"><div><p className="hoho-text-caption">FAMILY WORKSPACE / 00</p><h1 id="family-page-title" tabIndex={-1} className="hoho-text-display">我的空间</h1><p>{name}，这里汇总家庭事务、资料与安排。</p></div>{admin && <HohoButton variant="secondary" onClick={() => choose({ module: 'access', page: 'overview' }, true)}><Users size={16} aria-hidden="true"/>管理家人权限</HohoButton>}</header>
     <section className="family-summary" aria-label="家庭概览">{[['本月收入','尚未录入'],['本月支出','尚未录入'],['家庭净资产','尚未录入'],['近期安排','尚未录入']].map(([title, hint]) => <div key={title}><span>{title}</span><strong>—</strong><small>{hint}</small></div>)}</section>
     <div className="family-section-heading"><h2 className="hoho-text-section-title">家庭管理目录</h2><span>09 个模块 / {workspaceModules.reduce((total, item) => total + item.pages.length, 0)} 个二级页面</span></div>
-    <div className="family-module-directory">{workspaceModules.map((module, index) => <button key={module.id} type="button" onClick={() => choose({ module: module.id, page: 'overview' }, true)}><span className="family-directory-number">{String(index + 1).padStart(2, '0')}</span><span><strong>{module.title}</strong><small>{module.description}</small></span><span className="family-directory-count">{module.pages.length} 个页面</span><ChevronRight size={17} aria-hidden="true"/></button>)}</div>
+    <div className="family-module-directory">{workspaceModules.map((module, index) => <button key={module.id} type="button" onClick={() => choose({ module: module.id, page: module.pages[0].id }, true)}><span className="family-directory-number">{String(index + 1).padStart(2, '0')}</span><span><strong>{module.title}</strong><small>{module.description}</small></span><span className="family-directory-count">{module.pages.length} 个页面</span><ChevronRight size={17} aria-hidden="true"/></button>)}</div>
     <p className="family-section-note">财务透视表已支持管理员录入、编辑与统计。其他家庭功能继续逐项接入。</p>
   </>
 }
 
-function ModuleNavigation({ module, pageId, choose }: { module: WorkspaceModule; pageId: string; choose: (location: WorkspaceLocation) => void }) {
+function DirectoryNavigation({ level, title, items, activeId, choose }: { level: 2 | 3; title: string; items: { id: string; title: string; location: WorkspaceLocation }[]; activeId: string; choose: (location: WorkspaceLocation, focus?: boolean) => void }) {
   const activeLink = useRef<HTMLAnchorElement>(null)
-  useEffect(() => { activeLink.current?.scrollIntoView({ block: 'nearest', inline: 'nearest' }) }, [module.id, pageId])
-  return <aside className="family-secondary-sidebar">
-    <div className="family-secondary-heading"><p className="hoho-text-caption">二级目录</p><p className="hoho-text-label">{module.title}</p></div>
-    <nav className="family-subnav" aria-label={`${module.title}二级菜单`}>{module.pages.map(item => <a key={item.id} ref={item.id === pageId ? activeLink : undefined} href={locationHash({ module: module.id, page: item.id })} aria-current={item.id === pageId ? 'page' : undefined} onClick={event => { event.preventDefault(); choose({ module: module.id, page: item.id }) }}>{item.title}</a>)}</nav>
+  useEffect(() => { activeLink.current?.scrollIntoView({ block: 'nearest', inline: 'nearest' }) }, [title, activeId])
+  const levelLabel = level === 2 ? '二级' : '三级'
+  return <aside className={`family-secondary-sidebar${level === 3 ? ' family-tertiary-sidebar' : ''}`} aria-label={`${levelLabel}目录`}>
+    <div className="family-secondary-heading"><p className="hoho-text-caption">{levelLabel}目录</p><p className="hoho-text-label">{title}</p></div>
+    <nav className="family-subnav" aria-label={`${title}${levelLabel}菜单`}>{items.map(item => <a key={item.id} ref={item.id === activeId ? activeLink : undefined} href={locationHash(item.location)} aria-current={item.id === activeId ? 'page' : undefined} onClick={event => { event.preventDefault(); choose(item.location, true) }}>{item.title}</a>)}</nav>
   </aside>
 }
 
-function ModuleContent({ module, pageId, choose, admin, onUnauthorized }: { module: WorkspaceModule; pageId: string; choose: (location: WorkspaceLocation) => void; admin: boolean; onUnauthorized: () => void }) {
+function ModuleContent({ module, pageId, sectionId, choose, admin, onUnauthorized }: { module: WorkspaceModule; pageId: string; sectionId?: FinanceView; choose: (location: WorkspaceLocation) => void; admin: boolean; onUnauthorized: () => void }) {
   const current = module.pages.find(item => item.id === pageId) ?? module.pages[0]
   const index = workspaceModules.findIndex(item => item.id === module.id) + 1
-  const financeView = module.id === 'finances' ? ({ overview: 'overview', perspective: 'overview', budget: 'monthly', cashflow: 'monthly', accounts: 'reserve' } as const)[pageId as 'overview' | 'perspective' | 'budget' | 'cashflow' | 'accounts'] : module.id === 'assets' ? ({ overview: 'balance', cash: 'reserve', holdings: 'balance', property: 'balance', equity: 'balance', liabilities: 'balance', allocation: 'goals' } as const)[pageId as 'overview' | 'cash' | 'holdings' | 'property' | 'equity' | 'liabilities' | 'allocation'] : module.id === 'safety' && pageId === 'insurance' ? 'insurance' : undefined
-  if (financeView) return <><header className="family-page-heading"><div><p className="hoho-text-caption">FAMILY MANAGEMENT / {String(index).padStart(2, '0')}</p><h1 id="family-page-title" tabIndex={-1} className="hoho-text-display">{module.title}</h1><p>{current.description}</p></div></header><FamilyFinance admin={admin} onUnauthorized={onUnauthorized} initialView={financeView} assetCategory={module.id === 'assets' ? ({ holdings: 'investment', equity: 'equity' } as Record<string,string>)[pageId] : undefined} debtOnly={module.id === 'assets' && pageId === 'liabilities'}/></>
+  const financeView = sectionId ?? financeDefaultView(module.id, pageId)
+  if (financeView) return <><header className="family-page-heading"><div><p className="hoho-text-caption">FAMILY MANAGEMENT / {String(index).padStart(2, '0')}</p><h1 id="family-page-title" tabIndex={-1} className="hoho-text-display">{module.title}</h1><p>{current.description}</p></div></header><FamilyFinance admin={admin} onUnauthorized={onUnauthorized} view={financeView} assetCategory={module.id === 'assets' ? ({ holdings: 'investment', equity: 'equity' } as Record<string,string>)[pageId] : undefined} debtOnly={module.id === 'assets' && pageId === 'liabilities'}/></>
   const metrics = module.id === 'finances' ? ['本月收入', '本月支出', '收支结余', '预算使用'] : module.id === 'assets' ? ['资产总额', '负债总额', '家庭净资产', '可用流动资金'] : []
   return <><header className="family-page-heading"><div><p className="hoho-text-caption">FAMILY MANAGEMENT / {String(index).padStart(2, '0')}</p><h1 id="family-page-title" tabIndex={-1} className="hoho-text-display">{module.title}</h1><p>{module.description}</p></div></header>
     <section className="family-page-section" aria-labelledby="family-subpage-title"><div className="family-section-heading"><h2 id="family-subpage-title" className="hoho-text-section-title">{current.title}</h2><span>页面框架</span></div><p className="family-subpage-description">{current.description}</p>
