@@ -6,7 +6,6 @@ import { RequireEstablishedHealthData } from '../components/auth/RequireEstablis
 import { RequireOpsAuth } from '../components/auth/RequireOpsAuth'
 import { RequireRegisteredAccount } from '../components/auth/RequireRegisteredAccount'
 import { ProfileSectionGate } from '../components/auth/SessionRecoveryView'
-import { FAMILY_WORKSPACE_PATH } from '../../shared/family-workspace.mjs'
 
 function lazyPage(load: () => Promise<Record<string, unknown>>, exportName: string, archive = false) {
   return async () => {
@@ -18,7 +17,6 @@ function lazyPage(load: () => Promise<Record<string, unknown>>, exportName: stri
 
 installChildBodyHistory()
 export const router = createBrowserRouter([
-  { path: `${FAMILY_WORKSPACE_PATH}/*`, lazy: lazyPage(() => import('../pages/FamilyWorkspace'), 'FamilyWorkspacePage') },
   { path: '/', element: <Navigate to="/nurse-station" replace /> },
   { path: '/login', lazy: lazyPage(() => import('../pages/Login'), 'LoginPage') },
   { path: '/help', lazy: lazyPage(() => import('../pages/Help'), 'HelpCenterPage') },

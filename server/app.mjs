@@ -67,11 +67,8 @@ import {ChildProfileListService} from './health-profile/child-profile-list-servi
 import {profileListRoute,profileListResult} from './health-profile/child-profile-list-api.mjs'
 import { CareHandoffService } from './care-handoff/care-handoff-service.mjs'
 import { handoffRoute, handoffResult, HANDOFF_BODY_LIMIT } from './care-handoff/api.mjs'
-import { FamilyWorkspaceService } from './family-workspace/service.mjs'
-import { createFamilyWorkspaceApi } from './family-workspace/api.mjs'
-import { FAMILY_WORKSPACE_PATH } from '../shared/family-workspace.mjs'
 import { createFamilyMigrationBridge } from './family-project/bridge.mjs'
-import { createFamilyGateway } from './family-project/gateway.mjs'
+import { createFamilyGateway, FAMILY_PATH as FAMILY_WORKSPACE_PATH } from './family-project/gateway.mjs'
 
 const rootDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 assertAuthRuntimeConfig()
@@ -89,11 +86,8 @@ const sharedOptions = {
 }
 
 const auth = new AuthService(sharedOptions)
-const familyWorkspace = new FamilyWorkspaceService({ ...sharedOptions, auth })
 const familyMigration = createFamilyMigrationBridge({ ...sharedOptions, migrationToken: process.env.FAMILY_MIGRATION_TOKEN, upstreamActive: () => Boolean(process.env.FAMILY_UPSTREAM_URL) })
-familyMigration.protect(familyWorkspace)
 const familyGateway = createFamilyGateway({ upstream: process.env.FAMILY_UPSTREAM_URL, token: process.env.FAMILY_GATEWAY_TOKEN })
-const handleFamilyWorkspace = createFamilyWorkspaceApi(familyWorkspace, { readJson, sendJson })
 const browserSessions = new BrowserSessionService(auth)
 const account = new AccountService({ ...sharedOptions, auth, users: auth.users, data: auth.accountData })
 const members = new FamilyMemberService(sharedOptions)
@@ -1110,8 +1104,7 @@ async function handleRequest(request, response) {
       response.setHeader('Referrer-Policy', 'no-referrer')
       response.setHeader('X-Robots-Tag', 'noindex, nofollow')
       if (familyGateway) { await familyGateway(request, response); return }
-      if (request.method !== 'GET' && request.method !== 'HEAD') await familyMigration.assertWritable()
-      if (await handleFamilyWorkspace(request, response, pathname)) return
+      throw new AuthError('家庭空间尚未完成独立服务切换，请稍后重试。', 503, 'FAMILY_UPSTREAM_REQUIRED')
     }
     if (pathname.startsWith('/care-handoff/shared/')) response.setHeader('Referrer-Policy', 'no-referrer')
     observeSessionRequest(request, response, pathname)
