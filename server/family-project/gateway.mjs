@@ -15,7 +15,8 @@ export function createFamilyGateway({ upstream, token, allowHttp = false }) {
     const url = new URL(request.url, 'http://localhost')
     if (url.pathname !== FAMILY_PATH && !url.pathname.startsWith(`${FAMILY_PATH}/`)) return false
     const headers = {
-      host: request.headers.host,
+      host: target.host,
+      'x-family-original-host': request.headers.host,
       'x-family-gateway-token': token,
       'x-forwarded-proto': request.socket?.encrypted || String(request.headers['x-forwarded-proto'] ?? '').split(',')[0] === 'https' ? 'https' : 'http'
     }
