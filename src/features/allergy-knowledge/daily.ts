@@ -30,9 +30,16 @@ export function chooseDailyKnowledge(now: Date, articles: readonly KnowledgeArti
   const day = knowledgeEditionDate(now)
   const retained = previous?.day === day ? available.find(article => article.id === previous.articleId) : null
   if (retained) return retained
-  const [year, month, date] = day.split('-').map(Number)
-  const ordinal = Math.floor(Date.UTC(year, month - 1, date) / 86400000)
-  return available[((ordinal % available.length) + available.length) % available.length]
+  // Anchor rotation to the newest release: appending a scheduled article must
+  // make it the next edition, regardless of the pool size or calendar ordinal.
+  // A retained current edition above always wins over newly added content.
+  const newestFirst = available.slice().reverse()
+  const ordinal = (key: string) => {
+    const [year, month, date] = key.split('-').map(Number)
+    return Math.floor(Date.UTC(year, month - 1, date) / 86400000)
+  }
+  const offset = ordinal(day) - ordinal(newestFirst[0].publishedAt)
+  return newestFirst[offset % newestFirst.length]
 }
 
 export function knowledgeChoiceKey(accountId: string) { return `hoooho:daily-knowledge:v1:${accountId}` }

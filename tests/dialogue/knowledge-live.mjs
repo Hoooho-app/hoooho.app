@@ -32,6 +32,7 @@ try {
     sessionStorage.setItem('hoooho-auth-token', token)
     localStorage.setItem('hoooho-app', JSON.stringify({ state: { authUser: { id: accountId }, currentMemberId: memberId, members: [], profile: null }, version: 5 }))
   }, { token, accountId, memberId })
+  await page.clock.install({ time: new Date('2026-10-18T04:00:00Z') })
   // The release operator deploys only after the isolated mobile suite passes.
   // Poll for the new entrance without any AI calls or access to real members.
   const deadline = Date.now() + 18 * 60000
@@ -40,6 +41,15 @@ try {
     try { await page.locator('.home-knowledge-entry').waitFor({ state: 'visible', timeout: 12000 }); break }
     catch (error) { if (Date.now() > deadline) throw error; await new Promise(resolve => setTimeout(resolve, 10000)) }
   }
+  await expect(page.getByRole('button', { name: /今日过敏小知/ })).toContainText('过敏检测阳性')
+  await page.goto('/allergy-knowledge/eczema-observation-beyond-redness')
+  await expect(page.getByText('这篇内容暂不可用')).toBeVisible()
+  // Simulate the next local edition on the actual deployed bundle. This is
+  // scheduled-content acceptance, not a claim that it is already visible today.
+  await page.clock.setSystemTime(new Date('2026-10-19T04:00:00Z'))
+  await page.goto('/nurse-station')
+  await expect(page.getByRole('button', { name: /今日过敏小知/ })).toContainText('湿疹反复')
+  report.checks.push('2026-10-18 retains seed; future article hidden; simulated 2026-10-19 edition selects new article')
   for (const [width, height] of [[320, 568], [375, 667], [393, 852]]) {
     await page.setViewportSize({ width, height })
     const entry = page.getByRole('button', { name: /今日过敏小知/ })
@@ -48,7 +58,7 @@ try {
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
     await page.screenshot({ path: `${out}/home-${width}.png` })
     await entry.click()
-    await expect(page.getByRole('heading', { name: '过敏检测阳性，就一定要忌口吗？', exact: true })).toBeVisible()
+    await expect(page.getByRole('heading', { name: '湿疹反复，除了红不红，还该记录什么？', exact: true })).toBeVisible()
     assert.ok((await page.locator('.allergy-knowledge-body').innerText()).length >= 600)
     await expect(page.getByText(/明天聊|明日预告/)).toHaveCount(0)
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
@@ -67,15 +77,20 @@ try {
     assert.ok(bookmarkBox.height >= 44 && bookmarkBox.x >= headerTitleBox.x + headerTitleBox.width && bookmarkBox.x + bookmarkBox.width <= width)
     await page.screenshot({ path: `${out}/article-saved-${width}.png` })
     await page.getByText('参考依据', { exact: true }).click()
-    await expect(page.getByRole('link', { name: /美国儿科学会/ })).toBeVisible()
+    await expect(page.getByRole('link', { name: /美国儿科学会/ })).toHaveCount(2)
+    await expect(page.getByRole('link', { name: /NHS/ })).toBeVisible()
+    await expect(page.getByText('资料核对：2026-10-18', { exact: true })).toHaveCount(3)
     await page.getByRole('button', { name: '往期内容', exact: true }).click()
     await expect(page.getByRole('region', { name: '往期内容' })).toContainText('已收藏')
-    await page.getByRole('button', { name: /过敏检测阳性，就一定要忌口吗/ }).click()
+    await page.getByRole('button', { name: /湿疹反复，除了红不红，还该记录什么/ }).click()
     await expect(page.getByRole('button', { name: '已收藏', exact: true })).toBeVisible()
     await page.getByRole('button', { name: '返回', exact: true }).click()
     await expect(page).toHaveURL(/\/nurse-station$/)
     report.checks.push(`${width}x${height}: entrance, article, sources, bookmark, history, back`)
   }
+  await page.goto('/allergy-knowledge/positive-test-and-food-avoidance')
+  await expect(page.getByRole('heading', { name: '过敏检测阳性，就一定要忌口吗？', exact: true })).toBeVisible()
+  report.checks.push('historical stable article URL retained')
   await page.goto('/allergy-knowledge/missing-article')
   await expect(page.getByText('这篇内容暂不可用')).toBeVisible()
   assert.deepEqual(errors, [])
