@@ -1,3 +1,4 @@
+import { isProductPathVisible } from '../../../shared/product-visibility.mjs'
 import { ChartNoAxesCombined, ChevronRight, ClipboardPlus, HandHeart } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { BottomSheetSurface } from '../../components/design-system'
@@ -8,7 +9,7 @@ export const organizeDestinations = [
   { title: '就诊情况单', description: '去医院或咨询 AI 时，快速说明情况', to: '/visit-summary', icon: ClipboardPlus },
   { title: '照顾交接单', description: '固定作息、照护安排和家长交代', to: '/care-handoff', icon: HandHeart },
   { title: '近期情况回顾', description: '用图表回看症状、睡眠和日常变化', to: '/recent-review', icon: ChartNoAxesCombined },
-] as const
+].filter(item => isProductPathVisible(item.to))
 
 export function OrganizeSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const navigate = useNavigate(), location = useLocation()

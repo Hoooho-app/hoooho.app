@@ -11,6 +11,7 @@ import type { JournalDietDetails, JournalMetadata, DietRecordKind } from '../../
 import { familyMemberService } from '../../services/familyMembers'
 import { useQuickRecordPhotos, type QuickRecordPhotoPayload } from '../HealthEventDetail/components/QuickRecordPhotos'
 import { OccurrenceTimeField, useOccurrenceTime } from './OccurrenceTimeField'
+import { dietRecordNameKey, resolveDietRecordName, suggestedDietRecordName, type DietRecordNames } from './dietRecordName'
 import { DailyRecordSettings, DailySaveText } from './DailyRecordSettings'
 
 type InputChannel = 'voice' | 'text'
@@ -99,7 +100,7 @@ function FoodEditor({ foods, onFoodsChange, common, onCommonChange, draftKey, in
   </section>
 }
 
-function FeedingForm({ method, active, scope, initialDiet, occurrence, onSave, saving }: CommonFormProps & { method: NonNullable<JournalDietDetails['feedingMethod']>; active: boolean; scope: string; initialDiet?: JournalDietDetails }) {
+function FeedingForm({ method, active, scope, initialDiet, occurrence, recordName, onSave, saving }: CommonFormProps & { method: NonNullable<JournalDietDetails['feedingMethod']>; active: boolean; scope: string; initialDiet?: JournalDietDetails }) {
   const original = initialDiet?.feedingMethod === method ? initialDiet : undefined
   const [draft,setDraft] = useDietDraftState(`${scope}:feeding:${method}`, { seconds:{left:original?.breastSeconds?.left??0,right:original?.breastSeconds?.right??0},manualMinutes:{left:original?.breastSeconds?.left?String(original.breastSeconds.left/60):'',right:original?.breastSeconds?.right?String(original.breastSeconds.right/60):''},bottleMl:original?.bottleMl?String(original.bottleMl):'',statuses:original?.feedingStatuses??[] as string[] })
   const {seconds,manualMinutes,bottleMl,statuses} = draft
@@ -137,13 +138,15 @@ function FeedingForm({ method, active, scope, initialDiet, occurrence, onSave, s
     {hasBreast && <section className="diet-form-section record-form-group"><h2>母乳喂养时长</h2><div className="diet-timer-grid">{(['left', 'right'] as const).map((side) => { const label = side === 'left' ? '左侧' : '右侧'; return <div className="diet-timer-card" data-active={activeSide === side} key={side}><button aria-label={`${label}${activeSide === side ? '停止计时' : '开始计时'}`} aria-pressed={activeSide === side} onClick={() => setActiveSide(activeSide === side ? null : side)} type="button"><span>{label}</span><strong>{formatDuration(seconds[side])}</strong><em>{activeSide === side ? '停止计时' : '开始计时'}</em></button><label><span>手填</span><input aria-label={`${label}手填分钟`} inputMode="decimal" max="1440" min="0" onChange={(event) => setSideMinutes(side, event.target.value)} placeholder="0" step="0.5" type="number" value={manualMinutes[side]} /><em>分钟</em></label></div> })}</div><div className="diet-total-duration"><span>本次喂养总时长</span><strong>{formatDuration(total)}</strong></div></section>}
     {hasBottle && <section className="record-form-group"><HohoInput inputMode="decimal" label="喂奶量" min="1" onChange={(event) => setBottleMl(event.target.value)} placeholder="例如 120" type="number" value={bottleMl} hint="单位：毫升" /></section>}
     <section className="record-form-group"><MultiChoiceGroup label="进食状态（可选）" options={feedingStatusOptions} values={statuses} onChange={setStatuses} /></section>
-    <section className="record-time-group"><RecordTime occurrence={occurrence} /></section>
+    <section className="record-time-group"><RecordTime occurrence={occurrence} recordName={recordName} /></section>
     <DailyRecordSettings kind="feeding" seed={{ feedingMethod: method, bottleMl }} />
     <SaveBar disabled={!valid} onClick={() => save()} saving={saving} />
   </>
 }
 
-interface CommonFormProps { occurredAt: string; occurrence: ReturnType<typeof useOccurrenceTime>; setOccurredAt: (value: string) => void; onSave: (content: string, details: JournalDietDetails, channel?: InputChannel) => void; saving: boolean; canStart?: boolean }
+type RecordNameControl = { value: string; onChange: (value: string) => void }
+
+interface CommonFormProps { recordName?: RecordNameControl; occurredAt: string; occurrence: ReturnType<typeof useOccurrenceTime>; setOccurredAt: (value: string) => void; onSave: (content: string, details: JournalDietDetails, channel?: InputChannel) => void; saving: boolean; canStart?: boolean }
 
 function SupplementForm({ occurrence, onSave, saving, initialDiet, scope }: CommonFormProps & { initialDiet?: JournalDietDetails; scope: string }) {
   const [draft, setDraft] = useDietDraftState(`${scope}:supplement-form`, { names: initialDiet?.supplementNames ?? [] as string[], amount: initialDiet?.supplementAmount ?? '', unit: initialDiet?.supplementUnit ?? '滴' })
@@ -167,7 +170,7 @@ function SupplementForm({ occurrence, onSave, saving, initialDiet, scope }: Comm
   </>
 }
 
-function FoodRecordForm({ kind, scope, initialDiet, occurrence, onSave, saving, common, onCommonChange, canStart }: CommonFormProps & { kind: 'complementary' | 'meal' | 'snack'; scope: string; initialDiet?: JournalDietDetails; common: readonly string[]; onCommonChange?: (foods: string[]) => Promise<void> }) {
+function FoodRecordForm({ kind, scope, initialDiet, occurrence, recordName, onSave, saving, common, onCommonChange, canStart }: CommonFormProps & { kind: 'complementary' | 'meal' | 'snack'; scope: string; initialDiet?: JournalDietDetails; common: readonly string[]; onCommonChange?: (foods: string[]) => Promise<void> }) {
   const [draft,setDraft] = useDietDraftState(`${scope}:food`,{foods:initialDiet?.foods??[] as string[],reactions:initialDiet?.reactions??[] as string[]})
   const {foods,reactions} = draft
   const setFoods = (foods:string[]) => setDraft(current=>({...current,foods}))
@@ -189,15 +192,15 @@ function FoodRecordForm({ kind, scope, initialDiet, occurrence, onSave, saving, 
   return <>
     <div className="record-form-group"><FoodEditor common={common} draftKey={`${scope}:food-input`} inlineActions foods={foods} onCommonChange={onCommonChange} onFoodsChange={setFoods} /></div>
     <div className="record-form-group"><section className="diet-reaction-section"><h2>进食后有无异常 <em>（可选）</em></h2><ReactionChoices hint="可以稍后补充，不必等待观察时间" values={reactions} onChange={setReactions} /></section></div>
-    <section className="record-time-group"><RecordTime occurrence={occurrence} /></section>
+    <section className="record-time-group"><RecordTime occurrence={occurrence} recordName={recordName} /></section>
     <DailyRecordSettings kind={kind} seed={{ foods: foods.join('、') }} />
     <SaveBar disabled={!valid} onClick={() => save()} saving={saving} />
     {canStart && kind === 'meal' && <HohoButton fullWidth loading={saving} variant="secondary" onClick={() => save(true)}>开始用餐</HohoButton>}
   </>
 }
 
-function RecordTime({ occurrence }: { occurrence: ReturnType<typeof useOccurrenceTime> }) {
-  return <OccurrenceTimeField model={occurrence} label="记录时间" />
+function RecordTime({ occurrence, recordName }: { occurrence: ReturnType<typeof useOccurrenceTime>; recordName?: RecordNameControl }) {
+  return <OccurrenceTimeField model={occurrence} label="记录时间" leadingControl={recordName && <HohoInput aria-label="本次记录名称" className="diet-record-name" hideLabel label="本次记录名称" maxLength={20} onChange={event => recordName.onChange(event.target.value)} value={recordName.value} />} />
 }
 
 function SaveBar({ disabled, onClick, saving }: { disabled: boolean; onClick: () => void; saving: boolean }) {
@@ -222,6 +225,11 @@ export function DietRecordFlow({ kind: initialKind, initialDiet, initialOccurred
   const foodKind = kind === 'feeding' || kind === 'supplement' ? lastFoodKind : kind
   const occurredAt = occurrence.mode === 'now' ? localDateTimeValue(occurrence.now) : occurrence.specifiedValue
   const setOccurredAt = occurrence.setSpecifiedValue
+  const initialNameKey = initialDiet && dietRecordNameKey(initialDiet.kind, initialDiet.feedingMethod)
+  const [recordNameDrafts, setRecordNames] = useDietDraftState<DietRecordNames>(`${scope}:record-names`, initialNameKey && initialDiet?.name ? { [initialNameKey]: initialDiet.name } : {})
+  const recordNames: DietRecordNames = { ...(initialNameKey && initialDiet?.name ? { [initialNameKey]: initialDiet.name } : {}), ...recordNameDrafts }
+  const nameKey = dietRecordNameKey(kind, method)
+  const recordName = nameKey ? { value: recordNames[nameKey] ?? suggestedDietRecordName(nameKey, occurredAt), onChange: (value: string) => setRecordNames(current => ({ ...current, [nameKey]: value })) } : undefined
   const [saving, setSaving] = useState(false)
   const submittingRef = useRef(false)
   const [error, setError] = useState('')
@@ -249,12 +257,20 @@ export function DietRecordFlow({ kind: initialKind, initialDiet, initialOccurred
     const isoTime = occurrence.capture()
     if (!isoTime) return
     const preserved = initialDiet?.kind===details.kind && (details.kind!=='feeding'||initialDiet.feedingMethod===details.feedingMethod) ? initialDiet : undefined
-    const normalizedDetails = { ...preserved, ...details, ...(details.status === 'ongoing' ? { startedAt: isoTime } : {}) }
+    const savedNameKey = dietRecordNameKey(details.kind, details.feedingMethod)
+    const name = savedNameKey ? resolveDietRecordName(savedNameKey, isoTime, recordNames) : undefined
+    const normalizedDetails = { ...preserved, ...details, ...(name ? { name } : {}), ...(details.status === 'ongoing' ? { startedAt: isoTime } : {}) }
     submittingRef.current = true; setSaving(true); setError('')
     try {
-      const message = await onConfirm(content, isoTime, channel, photoModel.payload(), { categories: ['diet'], diet: normalizedDetails })
+      const namedContent = !name ? content : details.kind === 'meal' || details.kind === 'snack' ? [name, ...content.split('\n').slice(1)].join('\n') : `${name}\n${content}`
+      const message = await onConfirm(namedContent, isoTime, channel, photoModel.payload(), { categories: ['diet'], diet: normalizedDetails })
       photoModel.clearAfterSave()
       try {
+        if (savedNameKey) {
+          const remainingNames = { ...recordNames }; delete remainingNames[savedNameKey]
+          if (Object.keys(remainingNames).length) sessionStorage.setItem(`${scope}:record-names`, JSON.stringify(remainingNames))
+          else sessionStorage.removeItem(`${scope}:record-names`)
+        }
         sessionStorage.removeItem(`${scope}:record-name`); sessionStorage.removeItem(`${scope}:record-note`)
         if (details.kind === 'feeding') { sessionStorage.removeItem(`${scope}:feeding:${details.feedingMethod}`); sessionStorage.removeItem(`${scope}:milk-time`) }
         else if (details.kind === 'supplement') { sessionStorage.removeItem(`${scope}:supplement-form`); sessionStorage.removeItem(`${scope}:supplement-time`) }
@@ -266,7 +282,7 @@ export function DietRecordFlow({ kind: initialKind, initialDiet, initialOccurred
       setError(reason instanceof Error ? reason.message : '保存失败，请重试')
     } finally { submittingRef.current = false; setSaving(false) }
   }
-  const common = { occurredAt, occurrence, setOccurredAt, onSave: save, saving, canStart: !recordId }
+  const common = { recordName, occurredAt, occurrence, setOccurredAt, onSave: save, saving, canStart: !recordId }
   const saveFrequentFoods = async (foodKind: 'complementary' | 'meal' | 'snack', foods: string[]) => {
     const next = { ...frequentFoods, [foodKind]: foods }
     const member = await familyMemberService.update(memberId, { dietFrequentFoods: next }, token)

@@ -4,5 +4,5 @@
     "strict": true, "skipLibCheck": true, "outDir": ".codex-tmp/help-tests",
     "rootDir": ".", "allowJs": true
   },
-  "include": ["src/features/help/articles.ts", "src/features/help/assistant.ts", "src/features/help/search.ts", "src/features/help/types.ts", "shared/help-center.mjs"]
+  "include": ["src/features/help/articles.ts", "src/features/help/assistant.ts", "src/features/help/search.ts", "src/features/help/types.ts", "shared/help-center.mjs", "shared/product-visibility.mjs"]
 }

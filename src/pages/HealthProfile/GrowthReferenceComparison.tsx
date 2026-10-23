@@ -1,3 +1,4 @@
+import { PRODUCT_FEATURES } from '../../../shared/product-visibility.mjs'
 import { useEffect, useMemo, useState } from 'react'
 import { Sprout } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
@@ -18,7 +19,11 @@ const references = [
   { id: 'cdc-2000' as const, name: 'CDC 2000', population: '美国儿童参考 · 2–20岁', source: 'https://www.cdc.gov/growthcharts/cdc-data-files.htm' }
 ]
 
-export function GrowthReferenceComparison({ member, records, measure }: { member: Member; records: GrowthMeasurementApiDto[]; measure: GrowthMeasure }) {
+export function GrowthReferenceComparison(props: { member: Member; records: GrowthMeasurementApiDto[]; measure: GrowthMeasure }) {
+  return PRODUCT_FEATURES.careJourney ? <GrowthReferenceComparisonContent {...props} /> : null
+}
+
+function GrowthReferenceComparisonContent({ member, records, measure }: { member: Member; records: GrowthMeasurementApiDto[]; measure: GrowthMeasure }) {
   const navigate = useNavigate(), token = useAppStore(state => state.authToken)
   const [access, setAccess] = useState<ProductAccess | null>(null), [loading, setLoading] = useState(true), [error, setError] = useState(''), [open, setOpen] = useState(false), [refresh, setRefresh] = useState(0)
   useEffect(() => {

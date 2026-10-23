@@ -1,10 +1,11 @@
+import { PRODUCT_FEATURES } from '../../shared/product-visibility.mjs'
 import { test, expect } from '@playwright/test'
 import { TokenService } from '../../server/auth/token-service.mjs'
 
 const token = new TokenService('visit-sheet-e2e-secret', 3600000).create({ id: 'visit-test' })
 const headers = { Authorization: `Bearer ${token}` }
 
-test('nurse-side daily article is readable, bookmarkable and reachable again on mobile', async ({ page, request }, info) => {
+test('daily knowledge respects product visibility and preserves saved reading on mobile', async ({ page, request }, info) => {
   const response = await request.post('/api/members', { headers, data: { name: '科普验收（虚构）', relationship: 'child' } })
   const { id: memberId } = await response.json()
   await request.post(`/api/members/${memberId}/case-records`, { headers, data: { requestId: crypto.randomUUID(), text: '头皮发痒', occurredAt: new Date(Date.now() - 60000).toISOString(), files: [], journal: { categories: ['symptom'] } } })
@@ -12,6 +13,23 @@ test('nurse-side daily article is readable, bookmarkable and reachable again on 
     sessionStorage.setItem('hoooho-auth-token', token)
     localStorage.setItem('hoooho-app', JSON.stringify({ state: { authUser: { id: 'visit-test' }, currentMemberId: memberId, members: [], profile: null }, version: 5 }))
   }, { token, memberId })
+  if (!PRODUCT_FEATURES.careJourney) {
+    const retained = JSON.stringify({ day: '2026-10-15', articleId: 'retained-reading' })
+    await page.addInitScript(value => localStorage.setItem('hoooho:daily-knowledge:v1:visit-test', value), retained)
+    for (const width of [320, 375, 393]) {
+      await page.setViewportSize({ width, height: 852 })
+      await page.goto('/nurse-station')
+      await expect(page.getByRole('button', { name: '按住说话', exact: true })).toBeEnabled()
+      await expect(page.getByRole('button', { name: /今日过敏小知/ })).toHaveCount(0)
+      for (const path of ['/allergy-knowledge', '/allergy-knowledge/missing-article']) {
+        await page.goto(path); await expect(page).toHaveURL(/\/nurse-station$/)
+      }
+      expect(await page.evaluate(() => localStorage.getItem('hoooho:daily-knowledge:v1:visit-test'))).toBe(retained)
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+      await page.screenshot({ path: info.outputPath(`knowledge-hidden-${width}.png`) })
+    }
+    return
+  }
   await page.clock.install({ time: new Date('2026-10-17T04:00:00Z') })
   for (const size of [{ width: 320, height: 568 }, { width: 375, height: 667 }, { width: 393, height: 852 }]) {
     await page.setViewportSize(size)

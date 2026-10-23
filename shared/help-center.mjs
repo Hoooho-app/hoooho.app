@@ -1,5 +1,6 @@
+import { PRODUCT_FEATURES, isProductPathVisible } from './product-visibility.mjs'
 // Shared, public product knowledge; never import runtime configuration here.
-export const SUPPORT_ARTICLES = [
+const ALL_SUPPORT_ARTICLES = [
   {
     "id": "add",
     "title": "怎么添加和切换孩子？",
@@ -715,7 +716,7 @@ export const SUPPORT_ARTICLES = [
   }
 ]
 
-export const USER_MANUAL = [
+const ALL_USER_MANUAL = [
   {
     "id": "family",
     "cat": "family",
@@ -914,7 +915,7 @@ export const USER_MANUAL = [
   }
 ]
 
-export const HELP_MODULES = [
+const ALL_HELP_MODULES = [
   {
     "id": "family",
     "label": "孩子与资料",
@@ -979,7 +980,7 @@ export const HELP_MODULES = [
   }
 ]
 
-export const EXTRA_ARTICLES = [
+const ALL_EXTRA_ARTICLES = [
   {
     "id": "email-code-missing",
     "title": "为什么收不到邮箱验证码？",
@@ -1489,3 +1490,18 @@ export const EXTRA_ARTICLES = [
     "module": "trouble"
   }
 ]
+
+
+// Keep hidden feature tutorials out of navigation, search and the product manager's knowledge.
+const articleVisible = article => !article.actions?.length || article.actions.some(action => isProductPathVisible(action.to))
+const visibleIds = new Set([...ALL_SUPPORT_ARTICLES, ...ALL_EXTRA_ARTICLES].filter(articleVisible).map(article => article.id))
+const visibleArticle = article => ({ ...article, ...(!PRODUCT_FEATURES.auxiliaryTools && article.id === 'allergy' ? { result: '已保存的过敏史可在孩子档案中查看和核对。' } : {}), actions: article.actions?.filter(action => isProductPathVisible(action.to)), relatedArticleIds: article.relatedArticleIds?.filter(id => visibleIds.has(id)) })
+export const SUPPORT_ARTICLES = ALL_SUPPORT_ARTICLES.filter(articleVisible).map(visibleArticle)
+export const EXTRA_ARTICLES = ALL_EXTRA_ARTICLES.filter(articleVisible).map(visibleArticle)
+export const USER_MANUAL = ALL_USER_MANUAL.filter(item => visibleIds.has(item.helpArticleId)).map(item => !PRODUCT_FEATURES.auxiliaryTools && item.helpArticleId === 'allergy' ? { ...item, purpose: '把已确认和待核对的过敏信息放在一起，方便照顾时查看。', output: '一份可查看、补充和核对的孩子过敏史。' } : item)
+export const HELP_MODULES = ALL_HELP_MODULES.map(module => ({
+  ...module,
+  ...(!PRODUCT_FEATURES.auxiliaryTools && module.id === 'allergy' ? { description: '过敏史与已有资料' } : {}),
+  ...(!PRODUCT_FEATURES.auxiliaryTools && module.id === 'follow' ? { description: '健康随记 · 正在跟进' } : {}),
+  articleIds: module.articleIds.filter(id => visibleIds.has(id)),
+})).filter(module => module.articleIds.length)

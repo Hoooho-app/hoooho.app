@@ -11,7 +11,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   verify:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
       TZ: Asia/Shanghai
@@ -22,7 +22,21 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
+      - name: Bound system dependency download waits
+        run: |
+          sudo tee /etc/apt/apt.conf.d/99-hoooho-ci-timeouts >/dev/null <<'APT'
+          Acquire::Retries "1";
+          Acquire::http::Timeout "20";
+          Acquire::https::Timeout "20";
+          APT
+      - run: npx playwright install chromium
+      - name: Verify browser system dependencies
+        run: |
+          hoho_browser_smoke='const { chromium } = require("@playwright/test"); chromium.launch().then(browser => browser.close()).catch(error => { console.error(error); process.exitCode = 1; });'
+          if ! node -e "$hoho_browser_smoke"; then
+            npx playwright install-deps chromium
+            node -e "$hoho_browser_smoke"
+          fi
       - run: node --import ./scripts/register-node-ts-loader.mjs --test src/features/allergy-knowledge/daily.test.ts src/pages/NurseStation/nurseStationStyle.contract.test.ts src/pages/NurseStation/nurseStationView.test.ts
       - run: npm run build
       - run: npx playwright test --config tests/dialogue/knowledge.config.ts --reporter=line
@@ -34,7 +48,7 @@ jobs:
   live:
     if: github.ref == 'refs/heads/feat/daily-allergy-knowledge-20261017'
     needs: verify
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 50
     steps:
       - uses: actions/checkout@v4
@@ -43,7 +57,21 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
+      - name: Bound system dependency download waits
+        run: |
+          sudo tee /etc/apt/apt.conf.d/99-hoooho-ci-timeouts >/dev/null <<'APT'
+          Acquire::Retries "1";
+          Acquire::http::Timeout "20";
+          Acquire::https::Timeout "20";
+          APT
+      - run: npx playwright install chromium
+      - name: Verify browser system dependencies
+        run: |
+          hoho_browser_smoke='const { chromium } = require("@playwright/test"); chromium.launch().then(browser => browser.close()).catch(error => { console.error(error); process.exitCode = 1; });'
+          if ! node -e "$hoho_browser_smoke"; then
+            npx playwright install-deps chromium
+            node -e "$hoho_browser_smoke"
+          fi
       - name: Verify Production (single environment)
         run: node tests/dialogue/knowledge-live.mjs https://hoooho.com
       - uses: actions/upload-artifact@v4
