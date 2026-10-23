@@ -6,7 +6,7 @@ permissions:
   contents: read
 jobs:
   verify:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
       TZ: Asia/Shanghai
@@ -31,7 +31,7 @@ jobs:
   live:
     if: github.head_ref == 'codex/quick-search-fuzzy-20261017'
     needs: verify
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
