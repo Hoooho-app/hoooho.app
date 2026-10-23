@@ -18,3 +18,7 @@
 @media(max-height:400px) { .record-entry-actions.is-daily-open { padding-top:88px; } .daily-record-options { top:0; bottom:auto; } }
 
 .record-entry-grid > button[data-record-entry="symptom"] { --record-entry-surface:rgb(var(--hoho-color-primary-soft)); }
+
+/* Opt-in front desk keeps the original category colors. */
+.record-entry-actions--conversation .record-entry-grid>button{min-height:44px;height:44px;border-color:rgb(var(--hoho-color-text-primary)/.07);font-size:var(--hoho-font-size-body-small);font-weight:500;box-shadow:inset 0 1px 0 rgb(255 255 255/.75),0 3px 8px rgb(39 51 50/.045);padding-inline:2px}
+@media(max-width:359px){.record-entry-actions--conversation .record-entry-grid>button{font-size:12.5px}}

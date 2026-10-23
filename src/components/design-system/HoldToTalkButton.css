@@ -15,3 +15,13 @@ body .hoho-hold-to-talk.is-cancelling[data-variant='primary']{background:rgb(var
 .hoho-hold-feedback--expanded .hoho-hold-feedback__wave span{width:5px}
 .hoho-hold-feedback--expanded .hoho-hold-feedback__status small{font-size:var(--hoho-font-size-body);font-weight:400}
 .hoho-hold-feedback__time{font-variant-numeric:tabular-nums;font-size:var(--hoho-font-size-page-title)}
+/* Opt-in chat capture: keep the page in place while showing genuine input level. */
+.hoho-hold-feedback.hoho-hold-feedback--conversation{position:fixed;inset:0!important;width:min(100vw,var(--hoho-app-shell-max));margin-inline:auto;height:100dvh;transform:none;pointer-events:none;background:linear-gradient(to top,rgb(49 84 64/.99),rgb(62 94 74/.96) 24%,rgb(115 143 121/.3) 42%,transparent 56%);animation:hoho-capture-enter var(--hoho-motion-base) var(--hoho-ease-standard) both}
+.hoho-hold-feedback--conversation .hoho-hold-feedback__halo{display:none}
+.hoho-hold-feedback--conversation .hoho-hold-feedback__status{position:absolute;left:16px!important;right:16px;top:auto;bottom:max(76px,calc(env(safe-area-inset-bottom) + 60px));width:auto;min-width:0;max-width:calc(100% - 32px);transform:none;background:transparent;border:0;box-shadow:none;color:white;text-align:center;gap:8px}
+.hoho-hold-feedback--conversation .hoho-hold-feedback__wave{order:2;display:flex;gap:4px;align-items:center;justify-content:center;height:40px;width:100%;min-width:0}
+.hoho-hold-feedback--conversation .hoho-hold-feedback__wave span{width:3px;min-height:5px;background:rgb(255 255 255/.9)}
+.hoho-hold-feedback--conversation .hoho-hold-feedback__status>small{color:rgb(255 255 255/.88);font-size:14px}
+.hoho-hold-feedback--conversation.is-cancelling{background:linear-gradient(to top,rgb(146 53 57/.98),rgb(174 62 67/.65) 16%,transparent 52%)}
+@keyframes hoho-capture-enter{from{opacity:0}to{opacity:1}}
+@media(prefers-reduced-motion:reduce){.hoho-hold-feedback--conversation{animation:none}}

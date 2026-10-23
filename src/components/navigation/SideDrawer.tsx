@@ -18,6 +18,7 @@ import { organizeNavigationState } from '../../features/organize/navigation'
 
 interface SideDrawerProps {
   open: boolean
+  cleanChrome?: boolean
   onClose: () => void
   onOpenChildSheet: () => void
 }
@@ -29,7 +30,8 @@ export const sidebarMenuGroups = [
     { label: '服务前台', icon: House, to: '/nurse-station' },
     { label: '健康日历', icon: CalendarDays, to: '/health-events' },
     { label: '孩子档案', icon: Folder, to: '/health-profile' },
-    { label: '一键整理', icon: ClipboardList, to: '/visit-summary' }
+    { label: '一键整理', icon: ClipboardList, to: '/visit-summary' },
+    { label: '对话记录', icon: MessageCircle, to: '/conversation-history' }
     ]
   },
   {
@@ -75,7 +77,7 @@ const recorderRelationshipLabel = {
   maternal_grandfather: '外公', maternal_grandmother: '外婆', nanny: '保姆', other: '其他'
 } as const
 
-export function SideDrawer({ onClose, onOpenChildSheet, open }: SideDrawerProps) {
+export function SideDrawer({ onClose, onOpenChildSheet, open, cleanChrome=false }: SideDrawerProps) {
   const updates=useRecordUpdates()
   const drawerRef = useRef<HTMLElement>(null)
   const navigate = useNavigate()
@@ -132,10 +134,10 @@ export function SideDrawer({ onClose, onOpenChildSheet, open }: SideDrawerProps)
   return (
     <div className="hoho-drawer-layer" role="dialog" aria-modal="true" aria-label="侧边栏菜单">
       <button className="absolute inset-0 bg-text-primary/55" type="button" aria-label="关闭侧边栏" onClick={onClose} />
-      <aside className="hoho-drawer" ref={drawerRef} tabIndex={-1}>
-        <button className="hoho-drawer__close grid h-10 w-10 place-items-center rounded-full" type="button" aria-label="关闭菜单" onClick={onClose}>
+      <aside className={`hoho-drawer${cleanChrome?' hoho-drawer--clean':''}`} ref={drawerRef} tabIndex={-1}>
+        {!cleanChrome&&<button className="hoho-drawer__close grid h-10 w-10 place-items-center rounded-full" type="button" aria-label="关闭菜单" onClick={onClose}>
           <X size={24} strokeWidth={1.7} />
-        </button>
+        </button>}
 
         <section className="hoho-drawer__member mt-2" aria-label="当前角色">
           {members.length > 0 ? (
