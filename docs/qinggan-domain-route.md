@@ -1,5 +1,13 @@
 # 情感记愁诗临时域名入口
 
+## 普通打开的缓存兼容修复
+
+当前正式入口改为 `https://hoooho.com/api/apps/qinggan-jichoushi-notebook/`。旧根地址在到达服务器时重定向到该入口，分享查询参数保留；旧路径的附件/API 继续可用。
+
+原因：已经安装的旧 Hoooho Service Worker 会用健康首页接管普通导航，React 随后显示健康产品的404页。仅在新 Worker 中加入排除规则，无法保证旧 Worker 立即更新。新入口位于历代 Worker 已排除的 `/api/` 范围，由同一受限转发在健康鉴权前处理；独立前端、后端及已有访问口令均不变。
+
+本修复基线 `418c04508cd8da2b04e2d0d304dc6ab6c733ee5e`，独立干净工作树。验收：普通点击/再次进入可打开正确文档；相对样式、脚本和API不丢失；旧分享参数保留；健康/家庭路径不受影响。新增旧 Worker 导航排除与文档/相对资源的回归验证。
+
 本次范围：只新增 `/qinggan-jichoushi-notebook/` 受限转发。健康、家庭业务与界面保持原样。基线 origin/main `ff4385aa1714d3ee5644deea47c36326762f40c4`，开始工作时工作区干净。
 
 前端、后端在独立 Railway 项目 `qinggan-jichoushi-web` 与 `qinggan-jichoushi-api` 中运行。后端另挂持久卷，使用独立匿名凭据；不得共享健康账号、家庭账号、AUTH_TOKEN_SECRET 或既有健康/家庭数据。此仓库只将域名路径转发到 `QINGGAN_UPSTREAM_URL`，环境变量必须指向独立前端 HTTPS 根地址。

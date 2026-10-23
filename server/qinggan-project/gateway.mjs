@@ -4,6 +4,9 @@ import { Transform } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 
 export const QINGGAN_PATH = '/qinggan-jichoushi-notebook'
+// Existing health service workers already exclude /api/ navigations. Keep the
+// independent document here so even an older installed worker reaches the host.
+export const QINGGAN_ENTRY_PATH = '/api/apps/qinggan-jichoushi-notebook'
 const responseHeaders = ['content-type', 'content-length', 'content-disposition', 'content-security-policy', 'permissions-policy', 'retry-after']
 
 // This host owns only the path. All application code, data and identity live upstream.
@@ -16,10 +19,11 @@ export function createQingganGateway({ upstream, allowHttp = false } = {}) {
   }
   return async (request, response) => {
     const url = new URL(request.url || '/', 'http://localhost')
-    if (url.pathname !== QINGGAN_PATH && !url.pathname.startsWith(`${QINGGAN_PATH}/`)) return false
+    const matchedPath = [QINGGAN_ENTRY_PATH, QINGGAN_PATH].find(prefix => url.pathname === prefix || url.pathname.startsWith(`${prefix}/`))
+    if (!matchedPath) return false
     const safeHeaders = { 'Cache-Control': 'private, no-store', 'Referrer-Policy': 'no-referrer', 'X-Content-Type-Options': 'nosniff', 'X-Robots-Tag': 'noindex, nofollow' }
-    if (url.pathname === QINGGAN_PATH) {
-      response.writeHead(308, { ...safeHeaders, Location: `${QINGGAN_PATH}/${url.search}` }); response.end(); return true
+    if (url.pathname === QINGGAN_PATH || url.pathname === `${QINGGAN_PATH}/` || url.pathname === QINGGAN_ENTRY_PATH) {
+      response.writeHead(308, { ...safeHeaders, Location: `${QINGGAN_ENTRY_PATH}/${url.search}` }); response.end(); return true
     }
     if (!target) {
       response.writeHead(503, { ...safeHeaders, 'Content-Type': 'application/json; charset=utf-8' })
@@ -34,7 +38,7 @@ export function createQingganGateway({ upstream, allowHttp = false } = {}) {
     const limit = new Transform({ transform(chunk, encoding, done) { bytes += chunk.length; done(bytes > 12 * 1024 * 1024 ? Object.assign(new Error('Request too large'), { status: 413 }) : null, chunk) } })
     try {
       await new Promise((resolve, reject) => {
-        const outgoing = (target.protocol === 'https:' ? https : http).request({ protocol: target.protocol, hostname: target.hostname, port: target.port || undefined, path: `${url.pathname.slice(QINGGAN_PATH.length)}${url.search}`, method: request.method, headers, timeout: 85000 }, incoming => {
+        const outgoing = (target.protocol === 'https:' ? https : http).request({ protocol: target.protocol, hostname: target.hostname, port: target.port || undefined, path: `${url.pathname.slice(matchedPath.length)}${url.search}`, method: request.method, headers, timeout: 85000 }, incoming => {
           for (const name of responseHeaders) if (incoming.headers[name]) response.setHeader(name, incoming.headers[name])
           for (const [name, value] of Object.entries(safeHeaders)) response.setHeader(name, value)
           response.statusCode = incoming.statusCode || 502
