@@ -11,14 +11,3 @@
 .hoho-dialogue-composer--input-only { grid-template-columns:var(--hoho-touch-target) minmax(0,1fr); }
 .hoho-dialogue-composer--input-only .hoho-dialogue-photo { grid-column:1; grid-row:1; }
 .hoho-dialogue-composer--input-only .hoho-dialogue-hold { grid-column:2; grid-row:1; }
-
-/* Explicit opt-in: conversations in the front desk and record workspace. */
-.hoho-dialogue-composer--conversation{grid-template-columns:44px minmax(0,1fr) 44px 44px;gap:0;min-height:64px;padding:var(--hoho-space-2) var(--hoho-space-1);border:1px solid rgb(var(--hoho-color-border));border-radius:var(--hoho-radius-overlay);background:rgb(var(--hoho-color-surface-white));box-shadow:var(--hoho-shadow-card)}
-.hoho-dialogue-composer--conversation>textarea{display:block;box-sizing:border-box;width:100%;min-width:0;min-height:24px;max-height:96px;height:24px;padding:0 var(--hoho-space-1);resize:none;border:0;border-radius:0;background:transparent;color:rgb(var(--hoho-color-text-primary));font-family:var(--hoho-font-family);font-size:16px;line-height:24px;box-shadow:none}
-.hoho-dialogue-composer--conversation>textarea::placeholder{color:rgb(var(--hoho-color-text-secondary));opacity:1}
-.hoho-dialogue-composer--conversation:focus-within{outline:2px solid rgb(var(--hoho-color-action));outline-offset:2px}
-.hoho-dialogue-composer--conversation>.hoho-button{border:0;background:transparent;box-shadow:none;border-radius:var(--hoho-radius-pill);color:rgb(var(--hoho-color-text-primary))}
-.hoho-dialogue-composer--conversation>.hoho-dialogue-add[data-variant='primary']{background:rgb(var(--hoho-color-action));color:rgb(var(--hoho-color-action-text))}
-.hoho-dialogue-composer--conversation>.hoho-dialogue-hold{width:100%;min-width:0;height:44px;min-height:44px;padding:0;justify-content:center;border:0;background:transparent;color:rgb(var(--hoho-color-text-secondary));font-size:var(--hoho-font-size-body);box-shadow:none}
-.hoho-dialogue-composer--conversation>.hoho-dialogue-hold svg{display:none}
-.hoho-dialogue-composer--conversation>.hoho-dialogue-hold:is(.is-listening,.is-pressed){background:rgb(var(--hoho-color-primary-soft));color:rgb(var(--hoho-color-primary))}

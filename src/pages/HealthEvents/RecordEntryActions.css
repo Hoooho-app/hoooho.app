@@ -18,6 +18,3 @@
 @media(max-height:400px) { .record-entry-actions.is-daily-open { padding-top:88px; } .daily-record-options { top:0; bottom:auto; } }
 
 .record-entry-grid > button[data-record-entry="symptom"] { --record-entry-surface:rgb(var(--hoho-color-primary-soft)); }
-
-.record-entry-actions--conversation .record-entry-grid>button[data-record-entry]{--record-entry-surface:rgb(var(--hoho-color-surface));font-size:var(--hoho-font-size-caption);font-weight:400}
-@media(max-width:359px){.record-entry-actions--conversation .record-entry-grid>button[data-record-entry]{font-size:12px;padding-inline:2px}}

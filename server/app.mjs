@@ -925,12 +925,6 @@ async function handleApi(request, response, pathname, searchParams) {
   if(insightsMatch&&request.method==='GET'){sendJson(response,200,await aiBusiness.insights(await readAccountId(request),decodeRouteValue(insightsMatch[1])));return true}
   const failedFrontMessage=/^\/api\/members\/([^/]+)\/front-desk-record\/messages\/([^/]+)$/.exec(pathname)
   if(failedFrontMessage&&request.method==='DELETE'){response.setHeader('Cache-Control','no-store');sendJson(response,200,await frontDeskRecord.discard(await readAccountId(request),decodeRouteValue(failedFrontMessage[1]),decodeRouteValue(failedFrontMessage[2])));return true}
-  const frontHistoryMatch = /^\/api\/members\/([^/]+)\/front-desk-record\/history$/.exec(pathname)
-  if (frontHistoryMatch && request.method === 'GET') {
-    response.setHeader('Cache-Control', 'no-store')
-    sendJson(response, 200, await frontDeskRecord.history(await readAccountId(request), decodeRouteValue(frontHistoryMatch[1]), { query: searchParams.get('q') ?? '', offset: Number(searchParams.get('offset') ?? 0) }))
-    return true
-  }
   const frontRecordMatch = /^\/api\/members\/([^/]+)\/front-desk-record(?:\/contexts\/([^/]+))?$/.exec(pathname)
   if (frontRecordMatch) {
     const accountId = await readAccountId(request), memberId = decodeRouteValue(frontRecordMatch[1])

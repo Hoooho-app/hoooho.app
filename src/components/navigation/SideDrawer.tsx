@@ -15,7 +15,6 @@ import { accountService } from '../../services/account'
 import { useState } from 'react'
 import { OrganizeSheet } from '../../features/organize/OrganizeSheet'
 import { organizeNavigationState } from '../../features/organize/navigation'
-import brandLogo from '../../assets/brand/hoooho-logo-approved.png'
 
 interface SideDrawerProps {
   open: boolean
@@ -30,8 +29,7 @@ export const sidebarMenuGroups = [
     { label: '服务前台', icon: House, to: '/nurse-station' },
     { label: '健康日历', icon: CalendarDays, to: '/health-events' },
     { label: '孩子档案', icon: Folder, to: '/health-profile' },
-    { label: '一键整理', icon: ClipboardList, to: '/visit-summary' },
-    { label: '对话记录', icon: MessageCircle, to: '/conversation-history' }
+    { label: '一键整理', icon: ClipboardList, to: '/visit-summary' }
     ]
   },
   {
@@ -135,7 +133,6 @@ export function SideDrawer({ onClose, onOpenChildSheet, open }: SideDrawerProps)
     <div className="hoho-drawer-layer" role="dialog" aria-modal="true" aria-label="侧边栏菜单">
       <button className="absolute inset-0 bg-text-primary/55" type="button" aria-label="关闭侧边栏" onClick={onClose} />
       <aside className="hoho-drawer" ref={drawerRef} tabIndex={-1}>
-        <div className="hoho-drawer__brand flex min-h-11 items-center gap-2 px-2 mb-3"><img className="h-8 w-8 rounded-control" src={brandLogo} alt="" /><span>Hoooho</span></div>
         <button className="hoho-drawer__close grid h-10 w-10 place-items-center rounded-full" type="button" aria-label="关闭菜单" onClick={onClose}>
           <X size={24} strokeWidth={1.7} />
         </button>
