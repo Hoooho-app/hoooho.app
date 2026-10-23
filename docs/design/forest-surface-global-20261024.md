@@ -40,3 +40,5 @@
 上线记录在 Production 核验后追加；本试版不等同产品主人视觉验收。
 
 发布检查依赖：Quick search workflow 因 ubuntu-latest 已变为26.04、Playwright1.55不支持而在安装阶段失败（run40026694195）；将该workflow固定为项目已有的24.04支持基线，测试范围与业务代码不变。
+
+Quick search 恢复录音的旧测试仍点击已不存在的首页“智能记录”入口（run40026878518，8通过／1失败）；改为重新打开同一已有smart-record草稿路由，继续断言IndexedDB中迟到音频原件完整保留，不削弱数据保护断言。

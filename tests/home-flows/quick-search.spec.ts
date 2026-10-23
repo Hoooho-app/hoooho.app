@@ -214,7 +214,8 @@ test('共享录音逻辑在智能记录退出后仍保存迟到的最后音频�
  await hold.focus();await page.keyboard.down('Space');await page.waitForTimeout(1100)
  await page.getByRole('button',{name:'返回',exact:true}).click();await page.keyboard.up('Space')
  await page.getByRole('button',{name:'保存草稿并退出',exact:true}).click();await expect(page).toHaveURL(/nurse-station$/)
- await page.getByRole('button',{name:'智能记录',exact:true}).click()
+ // Resume the same legacy draft route; the current home is the conversation itself.
+ await page.goto('/smart-record?source=front-desk')
  await expect.poll(()=>page.evaluate(async memberId=>{
   const db=await new Promise<IDBDatabase>((resolve,reject)=>{const r=indexedDB.open('hoooho-smart-record-drafts',1);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)})
   try{return await new Promise<boolean>((resolve,reject)=>{const r=db.transaction('drafts').objectStore('drafts').get(`home-smart:visit-test:${memberId}:new`);r.onsuccess=()=>resolve(Boolean(r.result?.files?.some((file:any)=>file.type.startsWith('audio/')&&file.bytes?.byteLength>300)));r.onerror=()=>reject(r.error)})}finally{db.close()}
