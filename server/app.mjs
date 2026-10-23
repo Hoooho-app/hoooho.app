@@ -69,6 +69,7 @@ import { CareHandoffService } from './care-handoff/care-handoff-service.mjs'
 import { handoffRoute, handoffResult, HANDOFF_BODY_LIMIT } from './care-handoff/api.mjs'
 import { createFamilyMigrationBridge } from './family-project/bridge.mjs'
 import { createFamilyGateway, FAMILY_PATH as FAMILY_WORKSPACE_PATH } from './family-project/gateway.mjs'
+import { createQingganGateway } from './qinggan-project/gateway.mjs'
 
 const rootDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 assertAuthRuntimeConfig()
@@ -88,6 +89,7 @@ const sharedOptions = {
 const auth = new AuthService(sharedOptions)
 const familyMigration = createFamilyMigrationBridge({ ...sharedOptions, migrationToken: process.env.FAMILY_MIGRATION_TOKEN, upstreamActive: () => Boolean(process.env.FAMILY_UPSTREAM_URL) })
 const familyGateway = createFamilyGateway({ upstream: process.env.FAMILY_UPSTREAM_URL, token: process.env.FAMILY_GATEWAY_TOKEN })
+const qingganGateway = createQingganGateway({ upstream: process.env.QINGGAN_UPSTREAM_URL })
 const browserSessions = new BrowserSessionService(auth)
 const account = new AccountService({ ...sharedOptions, auth, users: auth.users, data: auth.accountData })
 const members = new FamilyMemberService(sharedOptions)
@@ -1105,6 +1107,7 @@ async function handleRequest(request, response) {
     }
     const url = new URL(request.url ?? '/', 'http://localhost')
     const pathname = url.pathname
+    if (await qingganGateway(request, response)) return
     if (await familyMigration.handle(request, response, pathname, url.searchParams, { readJson, sendJson })) return
     if (pathname === FAMILY_WORKSPACE_PATH || pathname.startsWith(`${FAMILY_WORKSPACE_PATH}/`)) {
       response.setHeader('Referrer-Policy', 'no-referrer')
