@@ -3,6 +3,15 @@ import {TokenService} from '../../server/auth/token-service.mjs'
 const token=new TokenService('visit-sheet-e2e-secret',3600000).create({id:'visit-test'})
 const headers={Authorization:`Bearer ${token}`}
 let memberId:string
+// This suite exercises the independent record route. The new home has its own
+// composer, so enter the existing route with same-document browser history.
+async function enterRecord(page:import('@playwright/test').Page){
+ await page.evaluate(()=>{
+  const state=window.history.state??{}
+  window.history.pushState({...state,idx:(state.idx??0)+1,key:crypto.randomUUID()},'','/smart-record?source=front-desk')
+  window.dispatchEvent(new PopStateEvent('popstate',{state:window.history.state}))
+ })
+}
 test.beforeEach(async({page,request})=>{
  const response=await request.post('/api/members',{headers,data:{name:'退出验证（虚构）',relationship:'child'}})
  expect(response.ok()).toBe(true);memberId=(await response.json()).id
@@ -10,13 +19,14 @@ test.beforeEach(async({page,request})=>{
  await request.post('http://127.0.0.1:4198/draft-data',{data:{items:null}})
  await page.addInitScript(({token,memberId})=>{sessionStorage.setItem('hoooho-auth-token',token);localStorage.setItem('hoooho-app',JSON.stringify({state:{authUser:{id:'visit-test'},currentMemberId:memberId,members:[],profile:null},version:5}))},{token,memberId})
  await page.goto('/nurse-station')
- await page.getByRole('button',{name:'智能记录',exact:true}).click()
+ await expect(page.getByRole('button',{name:'按住说话',exact:true})).toBeEnabled()
+ await enterRecord(page)
  await page.getByRole('button',{name:'改用文字'}).click()
  await expect(page.getByLabel('对话输入')).toBeEnabled()
 })
 async function reenter(page:import('@playwright/test').Page){
  await expect(page).toHaveURL(/\/nurse-station$/)
- await page.getByRole('button',{name:'智能记录',exact:true}).click()
+ await enterRecord(page)
  await page.getByRole('button',{name:'改用文字'}).click()
  await expect(page.getByLabel('对话输入')).toBeEnabled()
 }
