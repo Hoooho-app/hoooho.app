@@ -27,6 +27,13 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci --no-audit --no-fund
+      - name: Bound system dependency download waits
+        run: |
+          sudo tee /etc/apt/apt.conf.d/99-hoooho-ci-timeouts >/dev/null <<'APT'
+          Acquire::Retries "1";
+          Acquire::http::Timeout "20";
+          Acquire::https::Timeout "20";
+          APT
       - run: npx playwright install --with-deps chromium
       - run: npm run test:client
       - run: npm run test:server
