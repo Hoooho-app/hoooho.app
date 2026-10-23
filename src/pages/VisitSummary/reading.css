@@ -127,7 +127,7 @@
 .visit-export-option.hoho-button small{display:block;color:inherit;font-size:var(--hoho-font-size-caption);font-weight:400;line-height:var(--hoho-line-height-body);margin-top:var(--hoho-space-1);opacity:.85}
 
 /* V2 is local to the current card and the surfaces opened from it. */
-#chapter-overview { padding:0;border-radius:20px;box-shadow:0 2px 9px rgb(var(--hoho-color-text-primary) / .016); }
+#chapter-overview { padding:0;border-radius:20px;box-shadow:var(--hoho-shadow-card); }
 #chapter-overview .visit-reading-card-head { padding:10px var(--hoho-space-3); }
 #chapter-overview .visit-reading-toggle { min-height:44px;align-items:center; }
 #chapter-overview .visit-reading-toggle>span { align-items:center; }

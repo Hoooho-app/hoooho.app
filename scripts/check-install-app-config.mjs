@@ -21,8 +21,8 @@ assert.equal(manifest.name, 'Hoooho')
 assert.equal(manifest.short_name, 'Hoooho')
 assert.equal(manifest.start_url, '/health-events')
 assert.equal(manifest.display, 'standalone')
-assert.equal(manifest.theme_color, '#486253')
-assert.equal(manifest.background_color, '#F5F8F6')
+assert.equal(manifest.theme_color, '#f4f2ed')
+assert.equal(manifest.background_color, '#f4f2ed')
 
 for (const expected of [
   ['/icons/app-icon-192-huhu-20261017.png', '192x192', 'any'],

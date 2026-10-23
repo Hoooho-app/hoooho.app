@@ -50,6 +50,7 @@ export function useQuickRecordPhotos(memberId?: string, token?: string, limit = 
   const localScope=`${accountId}:${memberId}:${namespace}`
   const scopeRef=useRef(localScope)
   const [notice, setNotice] = useState('')
+  const [hydrating,setHydrating]=useState(allowVideos),[restoreError,setRestoreError]=useState(''),[restoreAttempt,setRestoreAttempt]=useState(0)
   const [previewIndex, setPreviewIndex] = useState<number | null>(null)
   const photosRef = useRef(photos)
   const draftIdRef = useRef('')
@@ -58,6 +59,8 @@ export function useQuickRecordPhotos(memberId?: string, token?: string, limit = 
   const uploadVersionsRef = useRef(new Map<string, number>())
   const removedIds=useRef(new Set<string>())
   const hydrationGeneration=useRef(0)
+  const hydrationTask=useRef<Promise<void>>(Promise.resolve())
+  const adoptions=useRef(new Map<string,Promise<void>>())
   photosRef.current = photos
 
   useEffect(()=>{if(scopeRef.current!==localScope){photosRef.current.forEach(p=>{URL.revokeObjectURL(p.previewUrl);if(p.posterUrl)URL.revokeObjectURL(p.posterUrl)});photosRef.current=[];setPhotos([]);uploadVersionsRef.current.clear();draftIdRef.current='';scopeRef.current=localScope;setPreviewIndex(null)}},[localScope])
@@ -72,11 +75,12 @@ export function useQuickRecordPhotos(memberId?: string, token?: string, limit = 
   useEffect(() => {
     if (!memberId || !token) return
     const stored = sessionStorage.getItem(draftStorageKey(memberId, namespace))
-    if ((!stored&&!allowVideos) || photosRef.current.length) return
+    if ((!stored&&!allowVideos) || (photosRef.current.length&&!restoreAttempt)) return
+    setHydrating(true);setRestoreError('')
     draftIdRef.current = stored||ensureDraftId()
     const hydrationDraft=draftIdRef.current,hydrationTurn=hydrationGeneration.current
     let active = true
-    void quickRecordService.listPhotos(hydrationDraft, memberId, token).then(async (saved) => {
+    hydrationTask.current=quickRecordService.listPhotos(hydrationDraft, memberId, token).then(async (saved) => {
       const hydrated = await Promise.all(saved.map(async (photo) => {
         let blob: Blob
         if(allowVideos)try{blob=await quickRecordService.mediaPreview(hydrationDraft,photo.id,memberId,token)}catch{blob=await quickRecordService.readPhoto(hydrationDraft,photo.id,memberId,token)}
@@ -89,9 +93,9 @@ export function useQuickRecordPhotos(memberId?: string, token?: string, limit = 
       const restored=pending.map(p=>({localId:p.localId,file:p.file,name:p.file.name,mimeType:p.file.type,size:p.file.size,origin:p.origin,previewUrl:URL.createObjectURL(p.file),status:'failed' as const,error:'上次上传未完成，原件已在本机恢复，请重试上传'}))
       if (active&&hydrationGeneration.current===hydrationTurn) setPhotos(current=>{const candidates=[...hydrated,...restored];const added=candidates.filter(p=>!removedIds.current.has(p.localId)&&!('serverId' in p&&removedIds.current.has(p.serverId!))&&!current.some(c=>c.localId===p.localId||('serverId' in p&&p.serverId===c.serverId)));candidates.filter(p=>!added.includes(p)).forEach(p=>{URL.revokeObjectURL(p.previewUrl);if('posterUrl' in p&&p.posterUrl)URL.revokeObjectURL(p.posterUrl)});const next=[...current,...added];photosRef.current=next;return next})
       else [...hydrated,...restored].forEach((photo) => {URL.revokeObjectURL(photo.previewUrl);if('posterUrl' in photo&&photo.posterUrl)URL.revokeObjectURL(photo.posterUrl)})
-    }).catch(() => { if (active) setNotice(allowVideos ? '资料草稿暂时无法恢复，请稍后重试' : '照片草稿暂时无法恢复，请稍后重试') })
+    }).catch(() => { if (active) {const message=allowVideos ? '资料草稿暂时无法恢复，请稍后重试' : '照片草稿暂时无法恢复，请稍后重试';setNotice(message);setRestoreError(message)} }).finally(()=>{if(active)setHydrating(false)})
     return () => { active = false }
-  }, [memberId, namespace, token, localScope])
+  }, [memberId, namespace, token, localScope, restoreAttempt])
 
   useEffect(() => { live.current=true; return () => { live.current=false;photosRef.current.forEach((photo) => {URL.revokeObjectURL(photo.previewUrl);if(photo.posterUrl)URL.revokeObjectURL(photo.posterUrl)}) } }, [])
 
@@ -159,6 +163,35 @@ export function useQuickRecordPhotos(memberId?: string, token?: string, limit = 
     beginUpload(item, photosRef.current.findIndex((photo) => photo.localId === localId))
   }
 
+  /** Adopt a previously persisted original without allocating another upload ID. */
+  const adoptPending = (localId:string):Promise<void> => {
+    const existing=adoptions.current.get(localId)
+    if(existing)return existing
+    const scope=localScope,generation=hydrationGeneration.current
+    const task=(async()=>{
+      if(!allowVideos||!memberId||!token)throw new Error('当前入口不能接收视频原件')
+      const restoring=hydrationTask.current;await restoring
+      if(restoring!==hydrationTask.current)await hydrationTask.current
+      const assertOwner=()=>{const s=useAppStore.getState();if(!live.current||scopeRef.current!==scope||hydrationGeneration.current!==generation||removedIds.current.has(localId)||s.authUser?.id!==accountId||s.currentMemberId!==memberId)throw new Error('记录对象已切换，视频原件保留在原草稿')}
+      assertOwner()
+      const present=photosRef.current.find(p=>p.localId===localId)
+      if(present){if(present.status==='failed')retry(localId);return}
+      const pending=(await localMediaDraft.list(scope)).find(p=>p.localId===localId)
+      assertOwner()
+      if(!pending)throw new Error('未找到这份本机视频，请重新选择；其他草稿仍保留')
+      const already=photosRef.current.find(p=>p.localId===localId)
+      if(already){if(already.status==='failed')retry(localId);return}
+      if(!pending.file.type&&!/\.(mp4|mov|webm)$/i.test(pending.file.name))throw new Error('不支持的视频格式，请选择 MP4、MOV 或 WebM')
+      if(photosRef.current.length>=limit)throw new Error(`最多上传${limit}份资料，请先移除不需要的原件`)
+      const item:QuickRecordPhotoItem={localId,file:pending.file,origin:pending.origin,name:pending.file.name,mimeType:pending.file.type||(/\.mov$/i.test(pending.file.name)?'video/quicktime':/\.webm$/i.test(pending.file.name)?'video/webm':'video/mp4'),size:pending.file.size,previewUrl:URL.createObjectURL(pending.file),status:'uploading'}
+      const index=photosRef.current.length,next=[...photosRef.current,item]
+      photosRef.current=next;setPhotos(next);ensureDraftId();beginUpload(item,index)
+    })()
+    adoptions.current.set(localId,task)
+    void task.finally(()=>{if(adoptions.current.get(localId)===task)adoptions.current.delete(localId)}).catch(()=>undefined)
+    return task
+  }
+
   const remove = (localId: string) => {
     const item = photosRef.current.find((photo) => photo.localId === localId)
     if (!item) return
@@ -215,7 +248,7 @@ export function useQuickRecordPhotos(memberId?: string, token?: string, limit = 
   const refreshReview=async(localId:string)=>{const item=photosRef.current.find(p=>p.localId===localId);if(!item?.serverId||!memberId||!token)return;const scope=localScope;try{const review=await quickRecordService.mediaReview(ensureDraftId(),item.serverId,memberId,token);if(live.current&&scopeRef.current===scope)setPhotos(current=>current.map(p=>p.localId===localId?{...p,review:review??p.review,reviewFetchError:undefined}:p))}catch{if(live.current&&scopeRef.current===scope)setPhotos(current=>current.map(p=>p.localId===localId?{...p,reviewFetchError:'状态更新失败，已有结果保留；请重试加载'}:p))}}
   const retryReview=async(localId:string,part:string)=>{const item=photosRef.current.find(p=>p.localId===localId);if(!item?.serverId||!memberId||!token)return;try{const review=await quickRecordService.mediaReview(ensureDraftId(),item.serverId,memberId,token,part);if(live.current)setPhotos(current=>current.map(p=>p.localId===localId?{...p,review:review??undefined}:p))}catch(e){setNotice(e instanceof Error?e.message:'整理重试失败')}}
   const confirmReview=async(localId:string,text:string)=>{const item=photosRef.current.find(p=>p.localId===localId);if(!item?.serverId||!memberId||!token)throw new Error('资料尚未上传');const scope=localScope;const review=await quickRecordService.confirmMedia(ensureDraftId(),item.serverId,memberId,token,text);if(!live.current||scopeRef.current!==scope||!photosRef.current.some(p=>p.localId===localId))throw new Error('资料已移除或人物已切换，未应用到正文');if(live.current)setPhotos(current=>current.map(p=>p.localId===localId?{...p,review}:p))}
-  return { refreshReview,retryReview,confirmReview,allowVideos, photos, notice, previewIndex, setPreviewIndex, chooseFiles, retry, remove, cancel, clearAfterSave: clearLocal, payload, blocked: hasUnreadyPhotos(photos) }
+  return { hydrating,restoreError,retryRestore:()=>setRestoreAttempt(n=>n+1),refreshReview,retryReview,confirmReview,adoptPending,allowVideos, photos, notice, previewIndex, setPreviewIndex, chooseFiles, retry, remove, cancel, clearAfterSave: clearLocal, payload, blocked: hasUnreadyPhotos(photos) }
 }
 
 export function QuickRecordPhotos({ model, limit = QUICK_RECORD_PHOTO_LIMIT, showAddButton = true, onApply, onChooseFiles }: { model: ReturnType<typeof useQuickRecordPhotos>; limit?: number; showAddButton?: boolean; onApply?: (text:string,id:string)=>void; onChooseFiles?: (files:FileList|null)=>void }) {

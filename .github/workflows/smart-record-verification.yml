@@ -3,7 +3,7 @@ on:
   push:
     branches: [codex/smart-record-progress-20261016]
   pull_request:
-    paths: ['server/ai/**', 'src/features/ai-business/**', 'tests/dialogue/**', '.github/workflows/smart-record-verification.yml']
+    paths: ['server/ai/**', 'src/features/ai-business/**', 'tests/dialogue/**', 'tests/conversation-home/**', '.github/workflows/smart-record-verification.yml']
 permissions:
   contents: read
 jobs:
@@ -25,6 +25,7 @@ jobs:
       - run: npx playwright test --config tests/dialogue/symptom-followup.config.ts
       - if: ${{ !cancelled() }}
         run: npx playwright test --config tests/dialogue/playwright.config.ts recognition-progress.spec.ts smart-record-actions.spec.ts smart-record-exit.spec.ts --grep-invert 'saving while ASR is pending'
+      - run: npx playwright test --config tests/conversation-home/playwright.config.ts
       - uses: actions/upload-artifact@v4
         if: always()
         with:

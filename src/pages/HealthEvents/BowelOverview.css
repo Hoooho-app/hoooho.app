@@ -2,7 +2,7 @@
 .bowel-record-page.bowel-record-page{color:rgb(var(--hoho-color-text-primary));font-family:var(--hoho-font-family)}
 .bowel-record-page.bowel-record-page>header{background:rgb(var(--hoho-color-page-background));backdrop-filter:none}
 .bowel-record-page.bowel-record-page>header h1{font-family:var(--hoho-font-family-heading)}
-.bowel-record-page.bowel-record-page .diet-record-scroll{padding:var(--hoho-space-4) var(--hoho-page-gutter) calc(var(--hoho-space-6) + env(safe-area-inset-bottom));background:rgb(var(--hoho-color-surface))}
+.bowel-record-page.bowel-record-page .diet-record-scroll{padding:var(--hoho-space-4) var(--hoho-page-gutter) calc(var(--hoho-space-6) + env(safe-area-inset-bottom));background-color:rgb(var(--hoho-color-page-background));background-image:var(--hoho-page-grain)}
 .bowel-record-page.bowel-record-page .diet-record-scroll>*{margin:0}
 .bowel-record-page.bowel-record-page :is(.bowel-fieldset,.bowel-photo-section,.record-form-group,.record-time-group){min-width:0;border:0;border-radius:0;background:transparent;box-shadow:none;padding:var(--hoho-space-4) 0}
 .bowel-record-page.bowel-record-page .diet-record-scroll>.bowel-fieldset:first-child{padding-top:0}

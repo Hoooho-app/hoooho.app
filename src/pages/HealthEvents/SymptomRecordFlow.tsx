@@ -52,7 +52,7 @@ function restoreDraft(memberId: string) {
 
 const impactOptions: readonly [SymptomImpactLevel, string][] = [['little', '轻度'], ['some', '中度'], ['clear', '重度']]
 
-export function SymptomRecordFlow({ memberId, token, selectedDay, today, onBack, onClose, onConfirm, onSaved, title = '记录症状', draftScope = memberId, extraFields, embedded = false, saveLabel, onDirtyChange, initialNurseMode }: { memberId: string; token: string; selectedDay: string; today: string; onBack: () => void; onClose: () => void; onConfirm: SaveRecord; onSaved: (message: string) => void; title?: string; draftScope?: string; extraFields?: ReactNode; embedded?: boolean; saveLabel?: string; onDirtyChange?: (dirty: boolean) => void; initialNurseMode?: 'voice' | 'text' }) {
+export function SymptomRecordFlow({ memberId, token, selectedDay, today, onBack, onClose, onConfirm, onSaved, title = '记录症状', draftScope = memberId, extraFields, embedded = false, saveLabel, onDirtyChange, initialNurseMode, incomingMedia, onIncomingMediaConsumed, requireAllMediaUploaded = false }: { memberId: string; token: string; selectedDay: string; today: string; onBack: () => void; onClose: () => void; onConfirm: SaveRecord; onSaved: (message: string) => void; title?: string; draftScope?: string; extraFields?: ReactNode; embedded?: boolean; saveLabel?: string; onDirtyChange?: (dirty: boolean) => void; initialNurseMode?: 'voice' | 'text'; incomingMedia?: { id: string; scope: string }; onIncomingMediaConsumed?: (id: string) => void; requireAllMediaUploaded?: boolean }) {
   const [draft, setDraft] = useState<Draft>(() => restoreDraft(draftScope))
   const draftOwner = useRef(useAppStore.getState().authUser?.id)
   const [saveFailed,setSaveFailed]=useState(false)
@@ -69,6 +69,16 @@ export function SymptomRecordFlow({ memberId, token, selectedDay, today, onBack,
   const locationEditedRef = useRef(Boolean(draft.locationText || draft.locations.length))
   const previewVersionRef = useRef(0)
   const photos = useQuickRecordPhotos(memberId, token, 6, draftScope === memberId ? 'symptom' : `symptom:${draftScope}`, true)
+  const [importError,setImportError]=useState(''),[importAttempt,setImportAttempt]=useState(0)
+  const incomingConsumed=useRef(onIncomingMediaConsumed);incomingConsumed.current=onIncomingMediaConsumed
+  useEffect(()=>{
+    if(!incomingMedia)return
+    let active=true;setImportError('')
+    const expected=`${useAppStore.getState().authUser?.id}:${memberId}:symptom:${draftScope}`
+    void (incomingMedia.scope===expected?photos.adoptPending(incomingMedia.id):Promise.reject(new Error('视频属于另一条草稿，请切回原记录对象'))).then(()=>{if(active)incomingConsumed.current?.(incomingMedia.id)}).catch(reason=>{if(active)setImportError(reason instanceof Error?reason.message:'视频尚未导入，请重试')})
+    return()=>{active=false}
+  },[incomingMedia?.id,incomingMedia?.scope,memberId,token,draftScope,importAttempt])
+  const mediaSaveBlocked=requireAllMediaUploaded&&Boolean(incomingMedia||importError||photos.blocked||photos.hydrating||photos.restoreError)
   const draftRef=useRef(draft);draftRef.current=draft
   useEffect(() => {
     if (!draft.aiNurse || nurseOpen || saving) return
@@ -144,7 +154,7 @@ export function SymptomRecordFlow({ memberId, token, selectedDay, today, onBack,
   useEffect(() => { onDirtyChange?.(isDirty || saving || voice.busy); return () => onDirtyChange?.(false) }, [isDirty, saving, voice.busy, onDirtyChange])
   const leave = (action: () => void) => { if (!isDirty || window.confirm('这条症状还没有保存，保留草稿并退出？')) { void persistReview(draftRef.current).then(action).catch(() => setPageError('草稿尚未同步，请恢复网络后重试退出；当前内容保留。')) } }
   const save = async () => {
-    if (saving || voice.busy) return
+    if (saving || voice.busy || mediaSaveBlocked) return
     if (!draft.narrative.trim() && !photos.photos.some(p=>p.status==='uploaded')) { setFieldErrors((current) => ({ ...current, narrative: '请填写哪里不舒服' })); narrativeRef.current?.focus(); narrativeRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' }); return }
     if (!canSave) return
     if(photos.blocked && !window.confirm('部分资料尚未上传成功，本次只保存正文和已上传原件。未完成资料不会标记为已保存，是否继续？'))return
@@ -191,8 +201,13 @@ export function SymptomRecordFlow({ memberId, token, selectedDay, today, onBack,
   const manualLocationIsStructured = draft.locations.some((location) => location.label.trim() === manualLocation)
   const inlineOccurrence=embedded&&<OccurrenceTimeField model={occurrence} label="发生时间" labelIcon={<Clock3 aria-hidden="true" size={21} strokeWidth={1.8} />} onValueChange={(value) => {update('occurredAt',value||undefined);update('timeText','')}} showDateContext />
   const form = <div className={embedded ? 'symptom-record-inline' : 'symptom-record-page-layer'} style={embedded ? undefined : { top: viewport.top, height: viewport.height, bottom: 'auto' }}><section aria-label={title} aria-modal={embedded ? undefined : true} data-keyboard={viewport.keyboard} className="symptom-record-page symptom-record-page--brand-white" role={embedded ? 'region' : 'dialog'}>
-    {!embedded && <header><button aria-label="返回" disabled={saving} onClick={() => leave(onBack)} type="button"><ChevronLeft aria-hidden="true" size={24} strokeWidth={1.8} /></button><h1>{title}</h1><RecordSaveAction disabled={saving || voice.busy || nurseOpen || !!conflict} saving={saving} onClick={() => void save()} label={saveFailed ? '重试' : '保存'}/></header>}
+    {!embedded && <header><button aria-label="返回" disabled={saving} onClick={() => leave(onBack)} type="button"><ChevronLeft aria-hidden="true" size={24} strokeWidth={1.8} /></button><h1>{title}</h1><RecordSaveAction disabled={saving || voice.busy || nurseOpen || !!conflict || mediaSaveBlocked} saving={saving} onClick={() => void save()} label={saveFailed ? '重试' : '保存'}/></header>}
     <div className="symptom-record-scroll">
+      {requireAllMediaUploaded&&photos.hydrating&&<p role="status" className="symptom-draft-notice">正在恢复资料草稿…</p>}
+      {requireAllMediaUploaded&&photos.restoreError&&<p role="alert" className="symptom-save-error">{photos.restoreError}<HohoButton variant="text" onClick={photos.retryRestore}>重新恢复资料</HohoButton></p>}
+      {incomingMedia&&!importError&&<p role="status" className="symptom-draft-notice">正在接收视频原件…</p>}
+      {importError&&<p role="alert" className="symptom-save-error">{importError}<HohoButton variant="text" onClick={()=>setImportAttempt(n=>n+1)}>重试导入</HohoButton></p>}
+      {requireAllMediaUploaded&&photos.blocked&&<p role="status" className="symptom-draft-notice">原件上传完成后可以保存。上传失败时可重试，或移除这份资料。</p>}
       {draft.nursePaused && !draft.aiNurse && <p className="symptom-draft-notice">AI 对话已暂停，内容保留。<button onClick={()=>setNurseOpen(true)}>继续</button></p>}{saveFailed&&<p role="alert" className="symptom-save-error">暂未保存成功。修改和原始对话仍在，可重新点击保存。</p>}
       {draft.nurseWarnings?.map(warning=><p key={warning} role="alert" className="symptom-draft-notice">{warning}</p>)}
       <section className="symptom-card symptom-narrative"><div className="symptom-heading"><h2 aria-label="症状描述（主诉）"><Cross aria-hidden="true" size={21} strokeWidth={1.8} />症状描述<span>（主诉）</span></h2></div><textarea ref={narrativeRef} aria-describedby={fieldErrors.narrative ? 'symptom-narrative-error' : undefined} aria-invalid={Boolean(fieldErrors.narrative)} aria-label="哪里不舒服" maxLength={1000} readOnly={voice.busy} onBlur={() => { if (narrativeRef.current) narrativeRef.current.scrollTop = 0 }} onChange={(event) => updateNarrative(event.target.value)} onCompositionEnd={(event) => { setComposing(false); updateNarrative(event.currentTarget.value) }} onCompositionStart={() => { previewVersionRef.current += 1; setComposing(true); setRecognition('idle') }} placeholder="描述症状和变化，例如：左肘窝发红、发痒" value={draft.narrative} />{fieldErrors.narrative && <p className="symptom-field-error" id="symptom-narrative-error" role="alert">{fieldErrors.narrative}</p>}{recognition === 'loading' && <p className="symptom-extraction-note" role="status">正在整理症状描述…</p>}{recognition === 'success' && <p className="symptom-extraction-note" role="status">已整理，可继续修改</p>}{recognition === 'empty' && <p className="symptom-extraction-note">暂未生成摘要，可直接保存原文。</p>}{recognition === 'error' && <p className="symptom-extraction-note">暂时无法整理，可直接保存原文。</p>}{draft.keywords.length > 0 && <div className="symptom-keywords">{draft.keywords.map((keyword) => <button aria-label={`移除${keyword}`} key={keyword} onClick={() => update('keywords', draft.keywords.filter((item) => item !== keyword))} type="button">{keyword}<X aria-hidden="true" size={12} /></button>)}</div>}

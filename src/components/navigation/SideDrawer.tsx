@@ -77,7 +77,7 @@ const recorderRelationshipLabel = {
   maternal_grandfather: '外公', maternal_grandmother: '外婆', nanny: '保姆', other: '其他'
 } as const
 
-export function SideDrawer({ onClose, onOpenChildSheet, open, cleanChrome=false }: SideDrawerProps) {
+export function SideDrawer({ onClose, onOpenChildSheet, open, cleanChrome=true }: SideDrawerProps) {
   const updates=useRecordUpdates()
   const drawerRef = useRef<HTMLElement>(null)
   const navigate = useNavigate()

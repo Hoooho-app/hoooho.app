@@ -1,10 +1,12 @@
 import { useEffect, useId, useRef, useState } from 'react'
-import { ArrowUp, Camera, Image, Keyboard, Mic, Plus, Send, Square } from 'lucide-react'
+import { createPortal } from 'react-dom'
+import { ArrowUp, Camera, FileUp, Image, Keyboard, Mic, Send, Square, Video } from 'lucide-react'
 import { HohoButton } from './HohoButton'
 import { HoldToTalkButton } from './HoldToTalkButton'
+import { BottomSheetSurface } from './BottomSheetSurface'
 import './DialogueComposer.css'
 
-export type DialoguePhotoSource = 'camera' | 'album'
+export type DialoguePhotoSource = 'camera' | 'album' | 'video' | 'file'
 /** A 44px row; choice and recording feedback float above it. */
 export function DialogueComposer({ text, onTextChange, onSend, onStart, onStop, onDiscard, onPhoto, directPhoto = false, inputOnly = false, releaseLabel = '松开即结束', discardOnBlur = true, disabled = false, voiceDisabled = false, listening = false, requesting = false, audioLevel = 0, processing = false, allowTextWhileProcessing = false, initialTyping = false, maxLength = 4000, placeholder = '说说你的情况…', expandedFeedback = false, feedbackHint, variant = 'default', working=false, onPauseWork }: {
   text: string; onTextChange: (value: string) => void; onSend: () => void
@@ -20,22 +22,23 @@ export function DialogueComposer({ text, onTextChange, onSend, onStart, onStop, 
   const menuId = useId()
   const composing=useRef(false),textBlocked=disabled||(processing&&!allowTextWhileProcessing)
   useEffect(() => {
-    if (!photoOpen) return
+    if (!photoOpen || variant === 'conversation') return
     const outside = (e:PointerEvent) => { if (!root.current?.contains(e.target as Node)) setPhotoOpen(false) }
     document.addEventListener('pointerdown', outside)
     return () => document.removeEventListener('pointerdown', outside)
-  }, [photoOpen])
+  }, [photoOpen,variant])
   useEffect(()=>{if(variant==='conversation'&&text.trim())setTyping(true)},[variant,text])
   useEffect(() => {
     if (variant !== 'conversation' || !input.current) return
     input.current.style.height = '24px'
     input.current.style.height = `${Math.min(96, Math.max(24, input.current.scrollHeight))}px`
   }, [text, typing, variant])
-  if (variant === 'conversation') return <div ref={root} className="hoho-dialogue-composer hoho-dialogue-composer--conversation">
+  if (variant === 'conversation') return <div ref={root} className={`hoho-dialogue-composer hoho-dialogue-composer--conversation${(text.trim()&&typing)||(working&&onPauseWork)?' has-action':''}`}>
     {typing?<textarea ref={input} aria-label="对话输入" rows={1} maxLength={maxLength} value={text} placeholder={placeholder} disabled={textBlocked} onChange={e=>onTextChange(e.target.value)} onCompositionStart={()=>{composing.current=true}} onCompositionEnd={()=>{composing.current=false}} onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.nativeEvent.isComposing&&!composing.current&&e.keyCode!==229&&text.trim()){e.preventDefault();onSend()}}}/>:<HoldToTalkButton className="hoho-dialogue-hold" presentation="conversation" disabled={disabled||voiceDisabled} listening={listening} requesting={requesting} processing={processing} audioLevel={audioLevel} releaseLabel={releaseLabel} discardOnBlur={discardOnBlur} expandedFeedback={expandedFeedback} feedbackHint={feedbackHint} onStart={()=>{setPhotoOpen(false);onStart()}} onStop={onStop} onDiscard={onDiscard}/>}
     <HohoButton variant="ghost" size="icon" className="hoho-dialogue-mode" disabled={textBlocked||listening||requesting} onClick={()=>{setPhotoOpen(false);setTyping(!typing);if(!typing)requestAnimationFrame(()=>input.current?.focus())}} aria-label={typing?'改用语音':'改用文字'}>{typing?<Mic size={21} aria-hidden/>:<Keyboard size={21} aria-hidden/>}</HohoButton>
-    <HohoButton variant="ghost" size="icon" className="hoho-dialogue-photo" aria-label="拍照" disabled={disabled||listening||requesting||processing} onClick={()=>onPhoto('camera')}><Camera size={21} aria-hidden/></HohoButton>
-    {text.trim()&&typing?<HohoButton className="hoho-dialogue-add" size="icon" aria-label="发送" disabled={textBlocked} onClick={onSend}><ArrowUp size={20} aria-hidden/></HohoButton>:working&&onPauseWork?<HohoButton className="hoho-dialogue-add" variant="ghost" size="icon" aria-label="暂停整理" disabled={disabled||listening||requesting} onClick={onPauseWork}><Square size={18} aria-hidden/></HohoButton>:<HohoButton className="hoho-dialogue-add" variant="ghost" size="icon" aria-label="添加图片" disabled={disabled||listening||requesting||processing} onClick={()=>onPhoto('album')}><Plus size={22} aria-hidden/></HohoButton>}
+    <HohoButton variant="ghost" size="icon" className="hoho-dialogue-photo" aria-label="添加照片、视频或文件" aria-haspopup="dialog" aria-expanded={photoOpen} disabled={disabled||listening||requesting||processing} onClick={()=>setPhotoOpen(true)}><Camera size={21} aria-hidden/></HohoButton>
+    {text.trim()&&typing?<HohoButton className="hoho-dialogue-add" size="icon" aria-label="发送" disabled={textBlocked} onClick={onSend}><ArrowUp size={20} aria-hidden/></HohoButton>:working&&onPauseWork?<HohoButton className="hoho-dialogue-add" variant="ghost" size="icon" aria-label="暂停整理" disabled={disabled||listening||requesting} onClick={onPauseWork}><Square size={18} aria-hidden/></HohoButton>:null}
+    {photoOpen&&createPortal(<BottomSheetSurface open label="添加附件" title="添加附件" viewportAware onClose={()=>setPhotoOpen(false)}><div className="hoho-dialogue-media-sources">{([{id:'album',label:'上传照片',icon:Image},{id:'camera',label:'拍照片',icon:Camera},{id:'video',label:'拍视频',icon:Video},{id:'file',label:'选择文件',icon:FileUp}] as const).map(({id,label,icon:Icon})=><HohoButton key={id} variant="ghost" onClick={()=>{setPhotoOpen(false);onPhoto(id)}}><Icon size={21} aria-hidden/>{label}</HohoButton>)}</div></BottomSheetSurface>,document.body)}
   </div>
   return <div ref={root} className={`hoho-dialogue-composer${inputOnly ? ' hoho-dialogue-composer--input-only' : ''}`}>
     {!inputOnly && <HohoButton variant="ghost" size="icon" className="hoho-dialogue-mode" disabled={textBlocked || listening} onClick={() => {setPhotoOpen(false);setTyping(!typing);if (!typing) requestAnimationFrame(() => input.current?.focus())}} aria-label={typing ? '改用语音' : '改用文字'}>

@@ -2,6 +2,12 @@ import { test as base, expect, chromium } from '@playwright/test'
 // A separate browser per flow also supports Chromium's single-process fallback.
 const test=base.extend({page:async({launchOptions,baseURL},use)=>{const browser=await chromium.launch(launchOptions);const page=await browser.newPage({baseURL,viewport:{width:390,height:844},timezoneId:'Asia/Shanghai',serviceWorkers:'block'});try{await use(page)}finally{await browser.close()}}})
 import sharp from 'sharp'
+import {PDFDocument} from 'pdf-lib'
+import {execFileSync} from 'node:child_process'
+import ffmpeg from '@ffmpeg-installer/ffmpeg'
+import {readFileSync,mkdtempSync,rmSync} from 'node:fs'
+import {tmpdir} from 'node:os'
+import path from 'node:path'
 import { TokenService } from '../../server/auth/token-service.mjs'
 const token=new TokenService('visit-sheet-e2e-secret',3600000).create({id:'visit-test'})
 const headers={Authorization:`Bearer ${token}`}
@@ -42,7 +48,7 @@ test('real home keeps reception, five original entries and full clean navigation
   expect(await buttons.allTextContents()).toEqual(['记录症状','喂养/饮食','日常','用药','就诊资料'])
   for(const button of await buttons.all())expect((await button.boundingBox())!.height).toBeGreaterThanOrEqual(44)
   expect(await page.locator('.hoho-reception video').evaluate(e=>getComputedStyle(e).objectFit)).toBe('contain')
-  if(width===390){expect((await page.locator('.hoho-reception').boundingBox())!.width).toBe(358);expect((await page.locator('.hoho-reception video').boundingBox())!.width).toBe(144)}
+  if(width===390){expect((await page.locator('.hoho-reception').boundingBox())!.width).toBe(358);expect((await page.locator('.hoho-reception video').boundingBox())!.width).toBe(112)}
  }
  await page.setViewportSize({width:390,height:844})
  await expect(page.getByRole('region',{name:'症状跟进',exact:true})).toBeVisible()
@@ -84,7 +90,8 @@ test('new conversation survives reload and exposes submitted originals and unsen
  await typeText(page,raw)
  await page.getByRole('button',{name:'发送',exact:true}).click()
  await expect(page.getByRole('button',{name:'核对记录',exact:true})).toBeEnabled()
- await expect(page.locator('.nurse-avatar--assistant')).toBeVisible()
+ await expect(page.locator('.nurse-avatar')).toHaveCount(0)
+ expect(await page.locator('.nurse-turn-content').first().evaluate(e=>e.getBoundingClientRect().width)).toBe(await page.locator('.nurse-conversation').evaluate(e=>e.getBoundingClientRect().width))
  await expect(page.locator('.conversation-time').first()).toContainText(/2026/)
  expect(await page.locator('.nurse-turn--assistant .nurse-turn-content').last().evaluate(e=>getComputedStyle(e).backgroundColor)).toBe('rgb(255, 255, 255)')
  await page.screenshot({path:info.outputPath('chat.png')})
@@ -162,10 +169,11 @@ test('failed recording survives refresh, retries and remains readable after a ne
  await expect(page.locator('.nurse-conversation')).toContainText('另一段对话：今天吃了一碗粥')
 })
 
-test('plus retains the original image upload and feeding label opens its original form',async({page})=>{
+test('camera retains the original image upload and feeding label opens its original form',async({page})=>{
  const png=await sharp({create:{width:96,height:96,channels:3,background:'#eeccaa'}}).png().toBuffer()
  const chooser=page.waitForEvent('filechooser')
- await page.getByRole('button',{name:'添加图片',exact:true}).click()
+ await page.getByRole('button',{name:'添加照片、视频或文件',exact:true}).click()
+ await page.getByRole('button',{name:'上传照片',exact:true}).click()
  await(await chooser).setFiles({name:'合成观察.png',mimeType:'image/png',buffer:png})
  await expect(page.getByRole('button',{name:'核对记录',exact:true})).toBeEnabled()
  await expect(page.getByRole('img',{name:'合成观察.png',exact:true})).toBeVisible()
@@ -244,4 +252,109 @@ test('the in-composer pause control preserves a real task and resumes it',async(
  await page.getByRole('button',{name:'继续处理',exact:true}).click()
  await expect(page.getByRole('button',{name:'核对记录',exact:true})).toBeEnabled()
  await expect(page.locator('.nurse-turn--user')).toHaveCount(1)
+})
+
+
+test('compact sidebar and continuous paper carry through the shared health pages',async({page})=>{
+ for(const width of [320,375,390,430]){
+  await page.setViewportSize({width,height:680})
+  await page.getByRole('button',{name:'打开菜单',exact:true}).click()
+  const drawer=page.getByRole('dialog',{name:'侧边栏菜单'})
+  expect((await drawer.locator('.hoho-drawer').boundingBox())!.width).toBeCloseTo(Math.min(width*.78,300),0)
+  for(const selector of ['.hoho-drawer__member','.hoho-drawer__account','.hoho-drawer__member-trigger']){
+   expect(await drawer.locator(selector).evaluate(e=>getComputedStyle(e).borderTopWidth)).toBe('0px')
+   expect(await drawer.locator(selector).evaluate(e=>getComputedStyle(e).borderBottomWidth)).toBe('0px')
+  }
+  await page.keyboard.press('Escape')
+ }
+ for(const url of ['/health-events','/health-profile','/settings','/quick-search']){
+  await page.goto(url)
+  await expect(page.locator('.app-shell:not(.session-recovery-screen)')).toBeVisible()
+  await expect.poll(()=>page.locator('.app-shell').evaluate(e=>getComputedStyle(e).backgroundImage)).toContain('paper-fiber-20261024.svg')
+  expect(await page.locator('meta[name="theme-color"]').getAttribute('content')).toBe('#f4f2ed')
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
+ }
+})
+
+test('one camera exposes four native sources and PDF keeps a readable original',async({page})=>{
+ await page.getByRole('button',{name:'添加照片、视频或文件',exact:true}).click()
+ const sheet=page.getByRole('dialog',{name:'添加附件',exact:true})
+ for(const name of ['上传照片','拍照片','拍视频','选择文件'])await expect(sheet.getByRole('button',{name,exact:true})).toBeVisible()
+ const capture=page.waitForEvent('filechooser');await sheet.getByRole('button',{name:'拍视频',exact:true}).click()
+ const video=await capture;expect(await video.element().getAttribute('capture')).toBe('environment');expect(await video.element().getAttribute('accept')).toContain('video/mp4')
+ await page.getByRole('button',{name:'添加照片、视频或文件',exact:true}).click()
+ const picker=page.waitForEvent('filechooser');await page.getByRole('button',{name:'选择文件',exact:true}).click()
+ const pdf=await PDFDocument.create();pdf.addPage([120,180])
+ await(await picker).setFiles({name:'虚构就诊原件.pdf',mimeType:'application/pdf',buffer:Buffer.from(await pdf.save())})
+ const original=page.getByRole('group',{name:'PDF原件：虚构就诊原件.pdf',exact:true})
+ await expect(original.getByRole('link',{name:'查看原件',exact:true})).toHaveAttribute('href',/^blob:/)
+ await expect(page.getByRole('button',{name:'核对记录',exact:true})).toBeEnabled()
+ await page.reload()
+ await expect(page.getByRole('group',{name:'PDF原件：虚构就诊原件.pdf',exact:true}).getByRole('link',{name:'下载PDF',exact:true})).toHaveAttribute('href',/^blob:/)
+})
+
+test('video uploads and saves its real original without replacing the current conversation',async({page,request})=>{
+ await typeText(page,'当前对话未发送的观察')
+ const temp=mkdtempSync(path.join(tmpdir(),'hoho-video-home-')),videoPath=path.join(temp,'synthetic.mp4')
+ try{
+  execFileSync(ffmpeg.path,['-loglevel','error','-f','lavfi','-i','color=c=red:s=160x120:r=10','-t','1','-c:v','libx264','-pix_fmt','yuv420p',videoPath])
+  await page.getByRole('button',{name:'添加照片、视频或文件',exact:true}).click()
+  const picker=page.waitForEvent('filechooser');await page.getByRole('button',{name:'拍视频',exact:true}).click()
+  await(await picker).setFiles({name:'虚构视频.mp4',mimeType:'video/mp4',buffer:readFileSync(videoPath)})
+  const recorder=page.getByRole('dialog',{name:'核对视频记录',exact:true})
+  await expect(recorder).toBeVisible()
+  await expect(recorder.getByText('1. 虚构视频.mp4',{exact:true})).toBeVisible()
+  await expect(recorder.locator('.quick-record-photo[data-status="uploaded"]')).toHaveCount(1,{timeout:30000})
+  await recorder.getByLabel('哪里不舒服',{exact:true}).fill('今天观察到孩子手臂发红，附原始视频')
+  page.once('dialog',dialog=>dialog.accept())
+  await recorder.getByRole('button',{name:'返回',exact:true}).click()
+  // Returning from the recorder keeps its separate draft and the unsent chat input.
+  if(await recorder.isVisible()){page.once('dialog',dialog=>dialog.accept());await recorder.getByRole('button',{name:'返回',exact:true}).click()}
+  await expect(page.getByLabel('对话输入')).toHaveValue('当前对话未发送的观察')
+  await page.reload()
+  await page.getByRole('button',{name:'继续核对视频',exact:true}).click()
+  await expect(page.getByLabel('哪里不舒服',{exact:true})).toHaveValue('今天观察到孩子手臂发红，附原始视频')
+  let saves=0
+  await page.route('**/api/members/*/case-records',async route=>{
+   saves++;const response=await route.fetch()
+   await page.evaluate(()=>{const original=IDBObjectStore.prototype.put;let fail=true;IDBObjectStore.prototype.put=function(value,key){if(fail&&this.name==='drafts'){fail=false;throw new DOMException('synthetic checkpoint failure','QuotaExceededError')}return original.call(this,value,key)}})
+   await route.fulfill({response})
+  })
+  const saving=page.waitForResponse(response=>response.url().includes('/case-records')&&response.request().method()==='POST')
+  await page.getByRole('dialog',{name:'核对视频记录',exact:true}).getByRole('button',{name:'保存记录',exact:true}).click()
+  const response=await saving;expect(response.ok()).toBe(true);const saved=await response.json();expect(saved.attachmentIds).toHaveLength(1)
+  await expect(page.getByRole('button',{name:'恢复视频保存结果',exact:true})).toBeVisible()
+  await page.reload()
+  await page.getByRole('button',{name:'恢复视频保存结果',exact:true}).click()
+  await expect(page.getByRole('button',{name:'恢复视频保存结果',exact:true})).toHaveCount(0)
+  expect(saves).toBe(1)
+  await expect(page.getByText('视频记录已保存，可查看原件。',{exact:true})).toHaveCount(1)
+  await expect(page.getByLabel('对话输入')).toHaveValue('当前对话未发送的观察')
+  const attachments=await request.get(`/api/events/${saved.eventId}/records`,{headers});expect(attachments.ok()).toBe(true)
+  expect(JSON.stringify(await attachments.json())).toContain(saved.attachmentIds[0])
+ }finally{rmSync(temp,{recursive:true,force:true})}
+})
+
+
+test('failed video keeps its original across refresh and cannot save before attachment recovery',async({page})=>{
+ await page.route('**/api/quick-records/*/media',route=>route.abort('failed'))
+ await page.getByRole('button',{name:'添加照片、视频或文件',exact:true}).click()
+ const picker=page.waitForEvent('filechooser');await page.getByRole('button',{name:'拍视频',exact:true}).click()
+ await(await picker).setFiles({name:'保留失败原件.mp4',mimeType:'video/mp4',buffer:Buffer.from('synthetic upload interrupted')})
+ const recorder=page.getByRole('dialog',{name:'核对视频记录',exact:true})
+ await expect(recorder.getByRole('button',{name:'重试上传 保留失败原件.mp4',exact:true})).toBeVisible()
+ await recorder.getByLabel('哪里不舒服',{exact:true}).fill('这条观察与视频都需要保留')
+ await expect(recorder.getByRole('button',{name:'保存记录',exact:true})).toBeDisabled()
+ page.once('dialog',dialog=>dialog.accept());await recorder.getByRole('button',{name:'返回',exact:true}).click()
+ await page.reload()
+ let release!:()=>void;const gate=new Promise<void>(resolve=>{release=resolve})
+ await page.route('**/api/quick-records/*/photos',async route=>{if(route.request().method()==='GET'){await gate;await route.continue()}else await route.continue()})
+ await page.getByRole('button',{name:'继续核对视频',exact:true}).click()
+ await expect(page.getByLabel('哪里不舒服',{exact:true})).toHaveValue('这条观察与视频都需要保留')
+ await expect(recorder.getByRole('button',{name:'保存记录',exact:true})).toBeDisabled()
+ release()
+ await expect(recorder.getByRole('button',{name:'重试上传 保留失败原件.mp4',exact:true})).toBeVisible()
+ await expect(recorder.getByRole('button',{name:'保存记录',exact:true})).toBeDisabled()
+ const originals=await page.evaluate(()=>new Promise<number>((resolve,reject)=>{const request=indexedDB.open('hoooho-pending-symptom-media',1);request.onsuccess=()=>{const db=request.result,tx=db.transaction('files','readonly'),read=tx.objectStore('files').getAll();read.onsuccess=()=>{const count=read.result.filter((item:any)=>item.file.name==='保留失败原件.mp4').length;db.close();resolve(count)};read.onerror=()=>reject(read.error)}}))
+ expect(originals).toBe(1)
 })

@@ -4,7 +4,8 @@
   --symptom-neutral-surface: rgb(var(--hoho-color-text-primary) / .025);
   --symptom-neutral-border: rgb(var(--hoho-color-text-primary) / .065);
   --symptom-card-radius: calc(var(--hoho-radius-card) + var(--hoho-space-1));
-  background: rgb(var(--hoho-color-surface));
+  background-color: rgb(var(--hoho-color-page-background));
+  background-image:var(--hoho-page-grain);
   height: 100%;
 }
 

@@ -18,7 +18,7 @@ test('V2 exposes the required design foundations', async () => {
   assert.match(tokens, /--hoho-color-background:\s*244 242 237/)
   assert.match(tokens, /--hoho-color-text-primary:\s*39 51 50/)
   assert.match(tokens, /--hoho-radius-control:\s*10px/)
-  assert.match(html, /name="theme-color" content="#486253"/)
+  assert.match(html, /name="theme-color" content="#f4f2ed"/)
 })
 
 test('global user page foundation uses the approved paper surface', async () => {

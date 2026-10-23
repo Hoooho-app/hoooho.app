@@ -56,6 +56,7 @@
   --hoho-font-family: "Hoooho Paper Sans", -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", "Noto Sans SC", "Segoe UI", sans-serif;
   --hoho-font-family-heading: "Hoooho Paper Serif", "Songti SC", "Noto Serif CJK SC", serif;
   --hoho-paper-grain: url("/images/paper-grain.svg");
+  --hoho-page-grain: url("/images/paper-fiber-20261024.svg");
   --hoho-paper-light: linear-gradient(145deg, rgb(255 255 255 / .32), rgb(214 218 211 / .07));
   --hoho-font-size-display: 1.75rem;
   --hoho-line-height-display: 1.25;
@@ -94,7 +95,7 @@
   --hoho-radius-pill: 999px;
 
   --hoho-shadow-none: none;
-  --hoho-shadow-card: inset 0 1px 0 rgb(255 255 255 / .9), 0 1px 2px rgb(39 51 50 / .05), 0 8px 24px rgb(39 51 50 / .045);
+  --hoho-shadow-card: inset 0 1px 0 rgb(255 255 255 / .95), 0 2px 4px rgb(39 51 50 / .065), 0 12px 30px rgb(39 51 50 / .11);
   --hoho-shadow-soft: var(--hoho-shadow-card);
   --hoho-shadow-floating: 0 14px 40px rgb(18 92 85 / 0.12);
   --hoho-shadow-overlay: 0 28px 72px rgb(18 49 47 / 0.18);

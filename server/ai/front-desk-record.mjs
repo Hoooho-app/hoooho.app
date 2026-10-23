@@ -5,6 +5,7 @@ import { JsonStore } from '../auth/storage/json-store.mjs'
 import { accountTransaction } from '../auth/storage/transaction.mjs'
 import { BusinessModel } from './business/model.mjs'
 import { prepareDocuments, prepareVoiceOriginals } from './business/documents.mjs'
+import { pdfPageImage } from './business/pdf-page-image.mjs'
 import { createDialogueProvider } from './providers/dialogue-provider.mjs'
 import { withAIAccount } from './providers/call-control.mjs'
 import { fail, fingerprint } from './business/contract.mjs'
@@ -164,7 +165,11 @@ export class FrontDeskRecord {
       let content = [{ type: 'input_text', text: JSON.stringify({ history, latest: { text: message.text, kind: message.kind } }) }]
       if (prepared.pages.length) {
         // A real contact sheet respects the configured one-image request limit.
-        const cells = await Promise.all(prepared.pages.map(p => sharp(Buffer.from(p.dataUrl.split(',')[1], 'base64')).rotate().resize(1000, 1000, { fit: 'inside', withoutEnlargement: true }).extend({ top: 0, bottom: 0, left: 0, right: 0 }).png().toBuffer({ resolveWithObject: true })))
+        const cells = await Promise.all(prepared.pages.map(async p => {
+          const image = p.mimeType === 'application/pdf' ? await pdfPageImage(p.dataUrl, signal) : p.dataUrl
+          signal?.throwIfAborted()
+          return sharp(Buffer.from(image.split(',')[1], 'base64')).rotate().resize(1000, 1000, { fit: 'inside', withoutEnlargement: true }).png().toBuffer({ resolveWithObject: true })
+        }))
         const height = cells.reduce((n, c) => n + c.info.height, 0)
         let top = 0
         const image = await sharp({ create: { width: 1000, height, channels: 3, background: '#ffffff' } }).composite(cells.map(c => { const placement = { input: c.data, top, left: 0 }; top += c.info.height; return placement })).resize({ width: 1600, height: 4000, fit: 'inside', withoutEnlargement: true }).jpeg({ quality: 88 }).toBuffer()

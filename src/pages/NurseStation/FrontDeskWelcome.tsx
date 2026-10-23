@@ -21,7 +21,7 @@ export function FrontDeskWelcome({ empty = false }: { empty?: boolean }) {
     return()=>{observer.disconnect();query.removeEventListener('change',update);document.removeEventListener('visibilitychange',hidden)}
   },[])
   return <div className="front-desk-welcome">
-    <ReceptionSurface media={<div ref={media} className="front-desk-welcome__video"><NurseStationIdleVideo active={visible} reducedMotion={reduced||(care.enabled&&care.reduceMotion)}/></div>} title={<>孩子的情况，<br/>慢慢说，我来记。</>} description={<>记清楚，也方便<br/>交给需要的人。</>}/>
+    <ReceptionSurface media={<div ref={media} className="front-desk-welcome__video"><NurseStationIdleVideo active={visible} reducedMotion={reduced||(care.enabled&&care.reduceMotion)}/></div>} title={<>孩子的情况，<br/>慢慢说，我来记。</>} description="记清楚，也方便交给需要的人。"/>
     {empty?<HohoButton size="large" fullWidth onClick={()=>navigate('/family/new',{state:{firstUseEntry:{continueToRecord:false,returnTo:'/nurse-station'}}})}>添加第一个孩子</HohoButton>:<><SymptomFollowupCard/><HohoButton className="front-desk-history-link" variant="text" onClick={()=>navigate('/conversation-history')}><History size={17} aria-hidden="true"/>查看之前的对话</HohoButton></>}
   </div>
 }
