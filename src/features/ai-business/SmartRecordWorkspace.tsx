@@ -9,6 +9,7 @@ import { localDateTimeValue, localDateTimeToIso } from '../../utils/healthOccurr
 import { appendCaptureTurn,beginCaptureFinalization,captureDraft, checkpointCaptureDraft, fileIdentity, hasCaptureContent, pendingCaptureCancellations, retainedCaptureDrafts, type CaptureDraft, type CaptureTurn } from './captureDraft'
 import {restoreFrontContext, restoreFrontFile, type FrontContext} from './frontDeskRecord'
 import {RecordMedia} from './RecordMedia'
+import {FrontDeskVideoRecorder} from './FrontDeskVideoRecorder'
 import { fileDataUrl } from './CaseCaptureWorkspace'
 import { retainSmartRecordEdits, type SmartRecordDraft } from './smartRecordTypes'
 import { useSmartRecordVoice } from './useSmartRecordVoice'
@@ -44,6 +45,9 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
   const [progressError,setProgressError]=useState('')
   const [originalsNeedReview,setOriginalsNeedReview]=useState(false)
   const mounted=useRef(true),pending=useRef(false),sendLock=useRef(false),writes=useRef<Promise<unknown>>(Promise.resolve()),abort=useRef<AbortController|null>(null),camera=useRef<HTMLInputElement>(null),album=useRef<HTMLInputElement>(null)
+  const videoCamera=useRef<HTMLInputElement>(null),filePicker=useRef<HTMLInputElement>(null)
+  const [incomingVideo,setIncomingVideo]=useState<{id:string;file:File;origin:'capture'|'library'}>()
+  useEffect(()=>setIncomingVideo(undefined),[accountId,memberId])
   const memberName=useAppStore(s=>s.members.find(member=>member.id===memberId)?.name)
   const greeting=eventTitle ? `继续补充“${eventTitle}”的进展。有什么变化、做过什么处理，都可以和我说说。` : page?`我是今天的值班护士。${memberName||'孩子'}今天怎么样？有什么需要我帮你记下来的吗？` : '吃了什么、睡得怎样、有什么症状，都可以和我说说。现在、过去的情况都可以记。'
   const [dialogueBusy,setDialogueBusy]=useState(false)
@@ -269,9 +273,21 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
   voiceBusy.current=voice.busy
   async function sendText(){if(sendLock.current||pending.current||voice.state==='listening'||voice.state==='requesting')return;sendLock.current=true;try{const text=current.current.conversationInput?.trim();if(!text)return;setLocalStage('uploading');if(page&&!eventId){const turn:CaptureTurn={id:crypto.randomUUID(),text,at:Date.now(),kind:'text',role:'user',status:'pending'};await persist({...current.current,smartReview:current.current.smartReview?{...current.current.smartReview,state:'changed'}:undefined,capturedAt:current.current.capturedAt??new Date().toISOString(),conversationInput:'',conversationTurns:[...current.current.conversationTurns??[],turn]});void submitTurn(turn).catch(()=>undefined)}else{const turn:CaptureTurn={id:crypto.randomUUID(),text,at:Date.now(),kind:'text',role:'user',status:'pending'},next=appendCaptureTurn({...current.current,capturedAt:current.current.capturedAt??new Date().toISOString()},text,turn.id);await persist({...next,conversationTurns:next.conversationTurns?.map(t=>t.id===turn.id?turn:t)});void submitTurn(turn).catch(()=>undefined)}}catch(e){setError(e instanceof Error?e.message:'内容暂未保存，请再试一次')}finally{sendLock.current=false}}
   const review=local.smartReview,canSave=review?.state==='ready'&&review.inputText===local.text&&!local.pendingVoice&&!jobBusy&&!job?.unresolvedInputs?.length&&!localStage&&(!job||job.resultRevision===job.inputRevision&&['ready','needs_review'].includes(job.state))
-  const pickFiles=(files:FileList|null)=>{
+  const pickFiles=(files:FileList|null,origin:'capture'|'library'='library')=>{
     if(!files?.length)return
-    const selected=Array.from(files),next=[...current.current.files,...selected]
+    const selected=Array.from(files).map(file=>{
+      if(file.type)return file
+      const extension=file.name.split('.').pop()?.toLowerCase(),mime:Record<string,string>={pdf:'application/pdf',mp4:'video/mp4',mov:'video/quicktime',webm:'video/webm',jpg:'image/jpeg',jpeg:'image/jpeg',png:'image/png',webp:'image/webp',heic:'image/heic',heif:'image/heif'}
+      return mime[extension??'']?new File([file],file.name,{type:mime[extension!],lastModified:file.lastModified}):file
+    })
+    const videos=selected.filter(file=>file.type.startsWith('video/'))
+    if(home&&videos.length){
+      if(selected.length!==1||!['video/mp4','video/quicktime','video/webm'].includes(videos[0].type)){setError('请单独选择一段 MP4、MOV 或 WebM 视频');return}
+      if(videos[0].size>100*1024*1024){setError('视频超过100MB，请裁剪后重新选择');return}
+      setError('');setIncomingVideo({id:crypto.randomUUID(),file:videos[0],origin});return
+    }
+    if(selected.some(file=>!['image/jpeg','image/png','image/webp','image/heic','image/heif','application/pdf'].includes(file.type))){setError('请选择照片、PDF 文件或 MP4、MOV、WebM 视频');return}
+    const next=[...current.current.files,...selected]
     if(next.length>12||next.reduce((sum,f)=>sum+f.size,0)>15*1024*1024){setError('最多12份原件，总大小15 MB');return}
     setLocalStage('uploading')
     const turn:CaptureTurn={id:crypto.randomUUID(),text:'',at:Date.now(),kind:'image',role:'user',fileKeys:selected.map(fileIdentity),status:'pending'}
@@ -376,7 +392,7 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
       setError(e instanceof Error?e.message:'保存未完成，草稿保留，可重试');setStatus('')
     }}finally{pending.current=false;if(mounted.current)setBusy(false)}
   }
-  const conversationFooter=<DialogueComposer variant={home?'conversation':'default'} initialTyping={Boolean(local.conversationInput?.trim())} placeholder={home?'孩子今天怎么样？':undefined} expandedFeedback feedbackHint="松开后显示文字" discardOnBlur={!page} directPhoto={page} text={local.conversationInput??''} onTextChange={conversationInput=>change({conversationInput})} maxLength={5000} disabled={!ready||pending.current||completed||!!resumeChoices||exitOpen||!!local.rawSavedGuide} voiceDisabled={!!local.rawSavedGuide} allowTextWhileProcessing working={home&&jobBusy} onPauseWork={home?()=>void taskCommand('pause'):undefined} audioLevel={voice.audioLevel} requesting={voice.state==='requesting'} listening={voice.state==='listening'} processing={voice.state==='transcribing'} onStart={()=>{void voice.start()}} onStop={voice.stop} onDiscard={voice.discard} onPhoto={source=>(source==='camera'?camera:album).current?.click()} onSend={()=>void sendText()}/>
+  const conversationFooter=<DialogueComposer variant={home?'conversation':'default'} initialTyping={Boolean(local.conversationInput?.trim())} placeholder={home?'孩子今天怎么样？':undefined} expandedFeedback feedbackHint="松开后显示文字" discardOnBlur={!page} directPhoto={page} text={local.conversationInput??''} onTextChange={conversationInput=>change({conversationInput})} maxLength={5000} disabled={!ready||pending.current||completed||!!resumeChoices||exitOpen||!!local.rawSavedGuide} voiceDisabled={!!local.rawSavedGuide} allowTextWhileProcessing working={home&&jobBusy} onPauseWork={home?()=>void taskCommand('pause'):undefined} audioLevel={voice.audioLevel} requesting={voice.state==='requesting'} listening={voice.state==='listening'} processing={voice.state==='transcribing'} onStart={()=>{void voice.start()}} onStop={voice.stop} onDiscard={voice.discard} onPhoto={source=>({camera,album,video:videoCamera,file:filePicker}[source]).current?.click()} onSend={()=>void sendText()}/>
   const saveBlocked=busy||jobBusy||!!localStage||voice.busy||!canSave||!review?.items.length||!!review.documentWarnings?.length||!!review.unmappedRows?.length||review.sources?.some(s=>s.status==='uncertain')
   const reviewFooter=<div className="smart-record-review-footer">
     {!!saveBlocked&&!busy&&Boolean(review?.items.length)&&<p role="status">{review?.inputText!==local.text||review?.state!=='ready'?'内容有更新，请返回对话重新整理后再保存。':local.pendingVoice?'录音仍需处理，请返回对话。':review?.documentWarnings?.length||review?.unmappedRows?.length||review?.sources?.some(s=>s.status==='uncertain')?'有资料尚需核对，请返回对话查看提示。':'请先确认每条记录的发生时间；不记得也可以填写。'}</p>}
@@ -451,7 +467,13 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
 
     </div>}
     {completed&&<CaseMergePrompt key={`${accountId}:${memberId}`} focusIds={(local.savedGuides??[]).filter(g=>completedGuideIds.current.has(g.id)).map(g=>g.eventId)}/>}
-    <input type="file" ref={camera} accept="image/jpeg,image/png,image/webp" capture="environment" hidden onChange={e=>{pickFiles(e.target.files);e.currentTarget.value=''}}/>
+    {home&&<FrontDeskVideoRecorder key={`${accountId}:${memberId}`} accountId={accountId} memberId={memberId} token={token} incoming={incomingVideo} onIncomingConsumed={id=>setIncomingVideo(value=>value?.id===id?undefined:value)} onSavedGuide={async guide=>{
+      if(!mounted.current||useAppStore.getState().authUser?.id!==accountId||useAppStore.getState().currentMemberId!==memberId)throw new Error('记录对象已切换，保存结果保留')
+      await persist({...current.current,savedGuides:[...(current.current.savedGuides??[]).filter(item=>item.id!==guide.id),guide]});setError('')
+    }}/>}
+    {home&&<><input type="file" ref={videoCamera} aria-label="拍摄视频" accept="video/mp4,video/quicktime,video/webm" capture="environment" hidden onChange={e=>{pickFiles(e.target.files,'capture');e.currentTarget.value=''}}/>
+    <input type="file" ref={filePicker} aria-label="选择附件文件" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf,video/mp4,video/quicktime,video/webm,.pdf,.mp4,.mov,.webm" hidden onChange={e=>{pickFiles(e.target.files);e.currentTarget.value=''}}/></>}
+    <input type="file" ref={camera} accept="image/jpeg,image/png,image/webp" capture="environment" hidden onChange={e=>{pickFiles(e.target.files,'capture');e.currentTarget.value=''}}/>
     <input type="file" ref={album} aria-label="从相册选择" accept={page?'image/jpeg,image/png,image/webp,image/heic,image/heif':'image/jpeg,image/png,image/webp'} hidden multiple onChange={e=>{pickFiles(e.target.files);e.currentTarget.value=''}}/>
   </>
   const close=()=>{if(exiting)return;if(unfinished||voice.busy){voice.stop();setExitError('');setExitOpen(true)}else{allowLeave.current=true;onClose()}}

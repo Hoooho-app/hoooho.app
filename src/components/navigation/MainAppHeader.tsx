@@ -75,7 +75,7 @@ export function MainAppHeader({ title, compact = false, action, childSelectionRe
           {showInstallApp && installApp.visible && <button aria-label="添加 Hoooho 到主屏" className="install-app-trigger" disabled={installApp.busy} onClick={() => void installApp.activate()} type="button">添加到主屏</button>}
         </div>}
       </header>
-      <SideDrawer open={open} cleanChrome={conversation} onClose={() => setOpen(false)} onOpenChildSheet={() => setChildSheetOpen(true)} />
+      <SideDrawer open={open} onClose={() => setOpen(false)} onOpenChildSheet={() => setChildSheetOpen(true)} />
       <CurrentChildSheet
         onAdd={() => { setChildSheetOpen(false); navigate('/family/new') }}
         onClose={() => setChildSheetOpen(false)}

@@ -74,3 +74,8 @@ Original photo previews opened from an existing record, reminder or upload works
 ### Duration and count progress
 
 `HohoProgress` displays a value/max with an accessible label. Use its continuous mode for care journey growth/achievement counts and its segmented mode for individual observation durations up to 14 steps (longer durations remain continuous). `tone="sprout"` preserves the existing fixed sprout green. The component has no completion or health interpretation; each feature supplies that meaning in adjacent text.
+
+
+### 2026-10-24 纸面层次与首页对话精修
+
+产品主人授权全健康产品统一纸底纹理与既有浮卡阴影。全页及安全区用 `--hoho-page-grain`，卡片保留更轻的 `--hoho-paper-grain`；现有浮卡统一 `--hoho-shadow-card`，扁平列表和输入框不新增浮卡效果。首页接待横幅使用112px视频（窄屏96px），头像取消，双方气泡通栏。侧栏去边框、分隔与关闭图标，宽度 `min(78vw,300px)`，空白和Escape关闭，键盘焦点局部标识。单相机入口复用共享底部面板提供照片、拍照、视频和文件选项。完整本轮规范见 [纸面与对话精修](design/paper-conversation-refinement-20261024.md)。

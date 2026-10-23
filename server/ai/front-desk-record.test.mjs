@@ -4,6 +4,7 @@ import {mkdtemp,rm} from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import sharp from 'sharp'
+import {PDFDocument} from 'pdf-lib'
 import {FrontDeskRecord} from './front-desk-record.mjs'
 import {FamilyMemberRepository} from '../members/repositories/family-member-repository.mjs'
 import {HealthEventService} from '../events/health-event-service.mjs'
@@ -158,4 +159,16 @@ test('history is an owned, paginated summary of closed and current conversations
  await assert.rejects(()=>f.service.history('synthetic',f.member.id,{offset:-1}),{code:'FRONT_HISTORY_INVALID'})
  assert.equal(JSON.stringify(await f.service.store.read()),before)
  assert.equal((await f.service.snapshot('synthetic',f.member.id,old.context.id)).messages[0].files[0].name,'原始照片.jpg')
+})
+
+
+test('PDF pages reach vision as rendered images while the complete original remains intact',async t=>{
+ const f=await setup(t),pdf=await PDFDocument.create();pdf.addPage([160,200]);pdf.addPage([160,220])
+ const dataUrl=`data:application/pdf;base64,${Buffer.from(await pdf.save()).toString('base64')}`
+ const result=await f.service.submit('synthetic',f.member.id,{id:'pdf-pages',kind:'image',text:'',files:[{name:'两页原件.pdf',mimeType:'application/pdf',dataUrl}]})
+ assert.equal(f.calls[0].vision,true)
+ const image=f.calls[0].input[0].content.find(c=>c.type==='input_image')
+ assert.equal((await sharp(Buffer.from(image.image_url.split(',')[1],'base64')).metadata()).format,'jpeg')
+ assert.equal(result.context.messages[0].files[0].dataUrl,dataUrl)
+ assert.equal(result.context.messages[0].files[0].mimeType,'application/pdf')
 })

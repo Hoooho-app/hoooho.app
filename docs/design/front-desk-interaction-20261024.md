@@ -1,3 +1,5 @@
+> 本文为上一轮交互基线。本轮尺寸、头像、侧栏与附件规则以 [纸面与对话精修](paper-conversation-refinement-20261024.md) 为准。
+
 # Hoooho 首页交互与视觉修订
 
 基线：origin/main `3c6d7c23872a20867fd68a8923d8162bba6d25ee`，工作树干净，独立分支 `feat/front-desk-polish-20261024`。本轮仅首页、其聊天/侧栏与必要历史入口，其他页面沿现有 Design System V2。此版替代已撤回的10月23日方案；未得到产品主人视觉验收前，不扩散到其他页面。

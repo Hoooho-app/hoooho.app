@@ -3,7 +3,7 @@ on:
   push:
     branches: [codex/smart-record-progress-20261016]
   pull_request:
-    paths: ['server/ai/**', 'src/features/ai-business/**', 'tests/dialogue/**', '.github/workflows/smart-record-verification.yml']
+    paths: ['server/ai/**', 'src/features/ai-business/**', 'tests/dialogue/**', 'tests/conversation-home/**', '.github/workflows/smart-record-verification.yml']
 permissions:
   contents: read
 jobs:
@@ -17,6 +17,13 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
+      - name: Bound system dependency download waits
+        run: |
+          sudo tee /etc/apt/apt.conf.d/99-hoooho-ci-timeouts >/dev/null <<'APT'
+          Acquire::Retries "1";
+          Acquire::http::Timeout "20";
+          Acquire::https::Timeout "20";
+          APT
       - run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - run: npx playwright install --with-deps chromium
       - run: node --test server/ai/recognition-jobs.test.mjs server/ai/front-desk-record.test.mjs server/ai/business/*.test.mjs
@@ -25,6 +32,7 @@ jobs:
       - run: npx playwright test --config tests/dialogue/symptom-followup.config.ts
       - if: ${{ !cancelled() }}
         run: npx playwright test --config tests/dialogue/playwright.config.ts recognition-progress.spec.ts smart-record-actions.spec.ts smart-record-exit.spec.ts --grep-invert 'saving while ASR is pending'
+      - run: npx playwright test --config tests/conversation-home/playwright.config.ts
       - uses: actions/upload-artifact@v4
         if: always()
         with:

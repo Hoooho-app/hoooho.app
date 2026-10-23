@@ -135,7 +135,7 @@
   border-radius: 17px;
   background: rgb(var(--hoho-color-surface));
   padding: 17px 13px 14px;
-  box-shadow: 0 7px 22px rgb(18 92 85 / .045);
+  box-shadow: var(--hoho-shadow-card);
 }
 
 .dietary-display-card__brand { display: grid; justify-items: center; gap: 3px; text-align: center; }

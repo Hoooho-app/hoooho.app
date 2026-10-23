@@ -2,7 +2,7 @@
 /* Shared paper material. No positioning, DOM order or navigation changes. */
 @font-face { font-family: 'Hoooho Paper Serif'; src: url('/fonts/paper-serif.woff') format('woff'); font-display: swap; font-weight: 200 900; }
 @layer components {
-  .app-shell { background-image: var(--hoho-paper-grain); }
+  .app-shell { background-image: var(--hoho-page-grain); }
   .hoho-health-card, .hoho-modal-surface, .hoho-bottom-sheet, .hoho-drawer.hoho-drawer,
   .visit-reading-card, .visit-reading-person, .settings-group, .profile-directory-group {
     background-image: var(--hoho-paper-grain), var(--hoho-paper-light);
@@ -28,22 +28,22 @@
 }
 /* Grain is translucent: the drawer must always keep an opaque paper base. */
 body .hoho-drawer.hoho-drawer {
-  background-color: rgb(var(--hoho-color-surface));
-  background-image: var(--hoho-paper-grain), var(--hoho-paper-light);
+  background-color: rgb(var(--hoho-color-page-background));
+  background-image: var(--hoho-page-grain);
 }
 /* Explicit material bridges also cover page CSS outside Tailwind's component layer. */
 body header.hoho-page-header, body .hoho-legacy-header, body .dietary-page-header, body .help-header,
 body .allergy-history-header, body .allergy-header, body .visit-report-header,
 body .visit-subpage > header, body .med-reminder-flow > header, body .desensitization-new-header, body .journal-search-header {
   background-color: rgb(var(--hoho-color-page-background));
-  background-image: var(--hoho-paper-grain);
+  background-image: var(--hoho-page-grain);
   border-bottom-color: rgb(var(--hoho-color-border) / .55);
   box-shadow: none;
   backdrop-filter: none;
 }
 body .app-shell, body .dietary-card-page, body .food-label-page, body .nurse-station-page {
   background-color: rgb(var(--hoho-color-page-background));
-  background-image: var(--hoho-paper-grain);
+  background-image: var(--hoho-page-grain);
 }
 body .dietary-card, body .medication-course-card__surface, body .med-reminder-flow {
   background-color: rgb(var(--hoho-color-surface));
@@ -55,13 +55,14 @@ body .visit-subpage, body .visit-reading-card, body .med-reminder-flow {
   background-color: rgb(var(--hoho-color-page-background));
   background-image: var(--hoho-paper-grain);
 }
+body .visit-report, body .visit-summary-page, body .visit-subpage, body .med-reminder-flow { background-image:var(--hoho-page-grain); }
 body .med-action-sheet, body .medication-delete-dialog, body .nurse-station-sheet {
   background-color: rgb(var(--hoho-color-surface));
   background-image: var(--hoho-paper-grain), var(--hoho-paper-light);
 }
 body .med-reminder-flow footer, body .dietary-edit-footer {
   background-color: rgb(var(--hoho-color-page-background));
-  background-image: var(--hoho-paper-grain);
+  background-image: var(--hoho-page-grain);
 }
 body .nurse-home-dialogue__body {
   background: radial-gradient(ellipse 122px 110px at calc(100% - 61px) center, #fff 78%, rgb(255 255 255 / 0) 100%);
@@ -91,3 +92,27 @@ body .med-action-grid button:first-child:active:not(:disabled) { background-colo
 @media (prefers-reduced-motion: reduce) {
   .home-symptom-description[data-paper-updated='true'], .home-symptom-dates small[data-paper-updated='true'], .visit-reading[data-paper-updated='true'] .visit-reading-card { animation: none; }
 }
+
+/* Page paper stays continuous through nested scrolling views and safe areas. */
+html, body, #root { background-color:rgb(var(--hoho-color-page-background)); background-image:var(--hoho-page-grain); }
+body :is(.smart-record-page,.smart-record-page__footer,.diet-record-page,.sleep-record-page,.medication-record-page,.symptom-record-page,.bowel-record-page,.diet-record-scroll,.growth-data-page,.growth-update-page,.growth-auto-page,.growth-records-page,.growth-reassurance-page,.journal-search-page,.quick-search-footer,.visit-materials-page) {
+  background-color:rgb(var(--hoho-color-page-background));
+  background-image:var(--hoho-page-grain);
+}
+body .hoho-drawer--clean.hoho-drawer {
+  width:min(78vw,300px);
+  padding-top:max(var(--hoho-space-4),env(safe-area-inset-top));
+  padding-bottom:max(var(--hoho-space-4),env(safe-area-inset-bottom));
+}
+.hoho-drawer--clean .hoho-drawer__member { border:0; padding-inline:0; }
+.hoho-drawer--clean .hoho-drawer__account { border-top:0; }
+.hoho-drawer--clean .hoho-drawer__member-trigger { border:0; outline:0; box-shadow:none; background:transparent; border-radius:0; }
+.hoho-drawer--clean .hoho-drawer__member-trigger:focus-visible { outline:0; box-shadow:inset 3px 0 rgb(var(--hoho-color-primary)); }
+.hoho-drawer--clean .hoho-drawer__member-name-line { flex-wrap:wrap; gap:2px var(--hoho-space-2); }
+.hoho-drawer--clean .hoho-drawer__member-name-line strong { overflow:visible; white-space:normal; overflow-wrap:anywhere; }
+.hoho-drawer--clean .hoho-drawer__member-meta { white-space:normal; overflow:visible; font-size:var(--hoho-font-size-caption); }
+.hoho-drawer--clean .hoho-drawer__item { gap:var(--hoho-space-3); }
+.hoho-drawer--clean .hoho-drawer__item>svg { flex:none; }
+.hoho-drawer--clean .hoho-drawer__item>span { min-width:0; white-space:normal; }
+
+.hoho-drawer--clean .hoho-drawer__item { min-height:var(--hoho-touch-target); height:auto; }
