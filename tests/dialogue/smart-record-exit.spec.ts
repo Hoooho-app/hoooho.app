@@ -11,6 +11,7 @@ async function enterRecord(page:import('@playwright/test').Page){
   window.history.pushState({...state,idx:(state.idx??0)+1,key:crypto.randomUUID()},'','/smart-record?source=front-desk')
   window.dispatchEvent(new PopStateEvent('popstate',{state:window.history.state}))
  })
+ await expect(page.getByRole('heading',{name:'智能记录',exact:true})).toBeVisible()
 }
 test.beforeEach(async({page,request})=>{
  const response=await request.post('/api/members',{headers,data:{name:'退出验证（虚构）',relationship:'child'}})
@@ -26,7 +27,10 @@ test.beforeEach(async({page,request})=>{
 })
 async function reenter(page:import('@playwright/test').Page){
  await expect(page).toHaveURL(/\/nurse-station$/)
- await enterRecord(page)
+ // Home now restores this same draft. Reload the public independent route to
+ // verify its recovery without triggering home's separate navigation guard.
+ await page.goto('/smart-record?source=front-desk')
+ await expect(page.getByRole('heading',{name:'智能记录',exact:true})).toBeVisible()
  await page.getByRole('button',{name:'改用文字'}).click()
  await expect(page.getByLabel('对话输入')).toBeEnabled()
 }
