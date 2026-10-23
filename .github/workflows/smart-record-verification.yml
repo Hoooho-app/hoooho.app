@@ -24,8 +24,27 @@ jobs:
           Acquire::http::Timeout "20";
           Acquire::https::Timeout "20";
           APT
-      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
-      - run: npx playwright install --with-deps chromium
+      - name: Use bundled media tools
+        run: |
+          node --input-type=module <<'NODE'
+          import ffmpeg from '@ffmpeg-installer/ffmpeg'
+          import ffprobe from 'ffprobe-static'
+          import { dirname } from 'node:path'
+          import { appendFileSync } from 'node:fs'
+          appendFileSync(process.env.GITHUB_PATH, [dirname(ffmpeg.path), dirname(ffprobe.path), ''].join('\n'))
+          NODE
+      - name: Verify media tools
+        run: |
+          ffmpeg -version
+          ffprobe -version
+      - run: npx playwright install chromium
+      - name: Verify browser system dependencies
+        run: |
+          hoho_browser_smoke='const { chromium } = require("@playwright/test"); chromium.launch().then(browser => browser.close()).catch(error => { console.error(error); process.exitCode = 1; });'
+          if ! node -e "$hoho_browser_smoke"; then
+            npx playwright install-deps chromium
+            node -e "$hoho_browser_smoke"
+          fi
       - run: node --test server/ai/recognition-jobs.test.mjs server/ai/front-desk-record.test.mjs server/ai/business/*.test.mjs
       - run: node --import ./scripts/register-node-ts-loader.mjs --test src/features/case-continuity/followupPresentation.test.ts
       - run: npm run build
