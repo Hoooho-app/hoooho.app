@@ -74,9 +74,9 @@ export function presentCalendarRecord(record: Presentable) {
     const minutes = diet.startedAt ? minutesBetween(diet.startedAt, diet.endedAt) : (diet.breastSeconds?.total ?? 0) / 60
     if (diet.status === 'ongoing') { coreSummary = `${title} · 持续中`; monthSummary = `${title}持续中` }
     else if (positive(minutes)) { coreSummary = `${title} · ${minutes < 60 ? '共' : ''}${compactDuration(minutes)}`; monthSummary = `${title}${compactDuration(minutes)}` }
-    else if (positive(diet.bottleMl)) { coreSummary = `${title} · ${diet.bottleMl}mL`; monthSummary = `奶${diet.bottleMl}ml` }
+    else if (positive(diet.bottleMl)) { coreSummary = `${title} · ${diet.bottleMl}mL`; monthSummary = `${diet.name?.trim() || '奶'}${diet.bottleMl}ml` }
     else if (diet.kind === 'supplement') { coreSummary = [diet.supplementNames?.join('、') || '补剂', diet.supplementAmount && `${diet.supplementAmount}${diet.supplementUnit ?? ''}`].filter(Boolean).join(' · '); monthSummary = coreSummary }
-    else if (diet.foods?.length) { coreSummary = `${diet.foods.join('、')}${diet.amount ?? ''}`; monthSummary = `${diet.foods[0]}${diet.amount ?? ''}` }
+    else if (diet.foods?.length) { coreSummary = [diet.name?.trim(), `${diet.foods.join('、')}${diet.amount ?? ''}`].filter(Boolean).join(' · '); monthSummary = [diet.name?.trim(), `${diet.foods[0]}${diet.amount ?? ''}`].filter(Boolean).join(' · ') }
     else { coreSummary = title; monthSummary = title }
   } else if (record.medication) {
     const drug = record.medication, names = drug.medications?.map(item => item.medicationName) ?? [drug.medicationName]

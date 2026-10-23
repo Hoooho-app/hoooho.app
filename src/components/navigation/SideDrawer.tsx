@@ -1,3 +1,4 @@
+import { isProductPathVisible } from '../../../shared/product-visibility.mjs'
 import { CareHandsIcon } from '../design-system/SproutEntry'
 import {UpdateDot,useRecordUpdates} from '../../features/record-updates/RecordUpdates'
 import { Eye, CalendarDays, ClipboardList, ScanLine, Pill, ChevronDown, ChevronRight, CircleHelp, Folder, House, Info, MessageCircle, Package, Settings, UserRound, Wrench, X } from 'lucide-react'
@@ -10,7 +11,7 @@ import { useDialogFocus } from '../../hooks/useDialogFocus'
 import { useAppStore } from '../../store/useAppStore'
 import { getCurrentPath } from './navigationState'
 import { makeFeedbackState } from '../../features/feedback/navigation'
-import { AccountSheet, MembershipBadge } from '../account/AccountSheet'
+import { AccountSheet } from '../account/AccountSheet'
 import { accountService } from '../../services/account'
 import { useState } from 'react'
 import { OrganizeSheet } from '../../features/organize/OrganizeSheet'
@@ -23,7 +24,7 @@ interface SideDrawerProps {
   onOpenChildSheet: () => void
 }
 
-export const sidebarMenuGroups = [
+const allSidebarMenuGroups = [
   {
     title: '记录',
     items: [
@@ -65,6 +66,8 @@ export const sidebarMenuGroups = [
     ]
   }
 ]
+
+export const sidebarMenuGroups = allSidebarMenuGroups.map(group => ({ ...group, items: group.items.filter(item => isProductPathVisible(item.to)) })).filter(group => group.items.length > 0)
 
 const sidebarMenuSections = [
   { title: sidebarMenuGroups[0].title, groups: sidebarMenuGroups.slice(0, 1) },
@@ -210,7 +213,6 @@ export function SideDrawer({ onClose, onOpenChildSheet, open, cleanChrome=true }
             </strong>
             <span className="mt-0.5 block truncate text-xs text-text-secondary">{authUser?.guest ? '保留当前健康记录' : '已同步'}</span>
           </span>
-          {!authUser?.guest && <MembershipBadge />}
           <ChevronRight className="text-text-secondary" size={17} strokeWidth={1.7} />
         </button>
       </aside>

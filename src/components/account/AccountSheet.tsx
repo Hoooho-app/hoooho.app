@@ -1,3 +1,4 @@
+import { PRODUCT_FEATURES } from '../../../shared/product-visibility.mjs'
 import { ChevronRight, LogOut, ShieldCheck, Sparkles } from 'lucide-react'
 import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
@@ -9,7 +10,7 @@ import { authService } from '../../services/auth'
 import { beginBrowserSessionLogout, endBrowserSessionLogout } from '../auth/SessionBootstrap'
 
 export function MembershipBadge() {
-  return <span className="account-free-badge">免费版</span>
+  return PRODUCT_FEATURES.membership ? <span className="account-free-badge">免费版</span> : null
 }
 
 export function AccountSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -69,7 +70,7 @@ export function AccountSheet({ open, onClose }: { open: boolean; onClose: () => 
           </div>
           <div className="settings-list">
             <HohoSurfaceRow leading={<ShieldCheck size={19} />} onActivate={() => openPage('/account/security')} title="账户与安全" />
-            <HohoSurfaceRow leading={<Sparkles size={19} />} onActivate={() => openPage('/account/membership')} title="会员状态" value={<MembershipBadge />} />
+            {PRODUCT_FEATURES.membership && <HohoSurfaceRow leading={<Sparkles size={19} />} onActivate={() => openPage('/account/membership')} title="会员状态" value={<MembershipBadge />} />}
           </div>
           <button className="account-sheet-logout" type="button" onClick={() => setConfirmLogout(true)}>
             <LogOut size={19} /><span className="flex-1">退出登录</span><ChevronRight size={18} />

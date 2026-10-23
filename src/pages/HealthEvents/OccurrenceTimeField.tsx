@@ -45,11 +45,11 @@ export function useOccurrenceTime(selectedDay: string, today: string, initialOcc
 
 type OccurrenceTimeFieldModel = Pick<ReturnType<typeof useOccurrenceTime>, 'mode' | 'specifiedValue' | 'now' | 'error' | 'today' | 'setMode' | 'setSpecifiedValue'>
 
-export function OccurrenceTimeField({ model, label = '发生时间', labelIcon, displayLabel, onValueChange, showDateContext = false, disabled = false }: { model: OccurrenceTimeFieldModel; label?: string; labelIcon?: ReactNode; displayLabel?: string; onValueChange?: (value: string) => void; showDateContext?: boolean; disabled?: boolean }) {
+export function OccurrenceTimeField({ model, label = '发生时间', labelIcon, displayLabel, onValueChange, showDateContext = false, disabled = false, leadingControl }: { model: OccurrenceTimeFieldModel; label?: string; labelIcon?: ReactNode; displayLabel?: string; onValueChange?: (value: string) => void; showDateContext?: boolean; disabled?: boolean; leadingControl?: ReactNode }) {
   const id=useId(),labelId=`occurrence-label-${id}`,errorId=`occurrence-error-${id}`
   const value = model.mode === 'now' ? localDateTimeValue(model.now) : model.specifiedValue
-  return <section className="occurrence-time-field" aria-labelledby={labelId}>
-    <strong id={labelId}>{labelIcon ?? <Clock3 aria-hidden="true" size={20} strokeWidth={1.8} />}{label}</strong>
+  return <section className="occurrence-time-field" aria-label={leadingControl ? '记录名称与时间' : undefined} aria-labelledby={leadingControl ? undefined : labelId}>
+    {leadingControl ?? <strong id={labelId}>{labelIcon ?? <Clock3 aria-hidden="true" size={20} strokeWidth={1.8} />}{label}</strong>}
     <label className="occurrence-time-control"><span aria-hidden="true">{displayLabel??formatOccurrenceTimeLabel(value, model.today, showDateContext)} ›</span><input disabled={disabled} aria-describedby={model.error ? errorId : undefined} aria-invalid={Boolean(model.error)} aria-label={label} max={localDateTimeValue()} onChange={(event) => { onValueChange?.(event.target.value); event.target.value ? model.setSpecifiedValue(event.target.value) : model.setMode('now') }} type="datetime-local" value={value} /></label>
     {model.error && <p className="occurrence-time-error" id={errorId} role="alert">{model.error}</p>}
   </section>

@@ -1,3 +1,4 @@
+import { PRODUCT_FEATURES } from '../../../shared/product-visibility.mjs'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Download, SlidersHorizontal, Sprout, Bookmark } from 'lucide-react'
@@ -19,7 +20,7 @@ function ChartCard({ title, metric, note, children, onSource }: { title: string;
   return <HealthCard className="review-card"><header><Typography variant="sectionTitle">{title}</Typography><button className="review-source" onClick={onSource}>记录明细</button></header><div className="review-metric">{metric}</div>{children}<Typography variant="caption">{note}</Typography></HealthCard>
 }
 function ReviewContent({ memberId, token, accountId }: { memberId: string; token: string; accountId: string }) {
-  const location = useLocation(), query = new URLSearchParams(location.search), snapshotId = query.get('snapshot') ?? '', voucherId = query.get('voucher') ?? query.get('voucherId') ?? ''
+  const location = useLocation(), query = new URLSearchParams(location.search), snapshotId = PRODUCT_FEATURES.careJourney ? query.get('snapshot') ?? '' : '', voucherId = PRODUCT_FEATURES.careJourney ? query.get('voucher') ?? query.get('voucherId') ?? '' : ''
   const scope = `${accountId}:${memberId}:${token}:${snapshotId}`, navigate = useNavigate(), exportRef = useRef<HTMLDivElement>(null)
   const currentName = useAppStore(s => s.members.find(m => m.id === memberId)?.name || s.profile?.nickname || '')
   const [frozen, setFrozen] = useState<ReviewSnapshot | null>(null), [view, setView] = useState<'charts' | 'comparison'>('charts')
@@ -34,6 +35,7 @@ function ReviewContent({ memberId, token, accountId }: { memberId: string; token
   const [detail, setDetail] = useState<{ title: string; rows: ReviewRow[] } | null>(null), [exportMessage, setExportMessage] = useState('')
   const needsVoucher = Boolean(reviewAccess?.commercializationReady && !reviewAccess.included)
   useEffect(() => {
+    if (!PRODUCT_FEATURES.careJourney) return
     const controller = new AbortController()
     void apiRequest<{ commercializationReady: boolean; products: Record<string, { included?: boolean }> }>('/api/care-journey/entitlements', { token, signal: controller.signal }).then(data => { if (!controller.signal.aborted) setReviewAccess({ commercializationReady: data.commercializationReady, included: Boolean(data.products['review-once']?.included) }) }).catch(() => {})
     return () => controller.abort()
@@ -56,7 +58,7 @@ function ReviewContent({ memberId, token, accountId }: { memberId: string; token
           track(apiRequest<ReviewSources['index']>(`${path}/journal-index`, options)),
           track(apiRequest<ReviewSources['cases']>(`${path}/cases?timezone=Asia%2FShanghai`, options)),
           track(apiRequest<ReviewSources['profiles']>('/api/auth/profile-sections', options)),
-          track(apiRequest<ReviewSources['reminders']>(`/api/medication-reminders?memberId=${encodeURIComponent(memberId)}`, options)),
+          PRODUCT_FEATURES.auxiliaryTools ? track(apiRequest<ReviewSources['reminders']>(`/api/medication-reminders?memberId=${encodeURIComponent(memberId)}`, options)) : track(Promise.resolve([])),
         ])
         if (!controller.signal.aborted) setState({ scope, status: 'ready', data: { index, cases, profiles, reminders } })
       } catch (error) { if (!controller.signal.aborted) setState({ scope, status: 'error', message: error instanceof Error ? error.message : '回顾加载失败，请重试' }) }
@@ -103,11 +105,11 @@ function ReviewContent({ memberId, token, accountId }: { memberId: string; token
       {state.scope === scope && state.status !== 'loading' && <>{!frozen && <div className="review-controls"><div role="group" aria-label="回顾范围">{presets.map(p => <button key={p.id} aria-pressed={preset === p.id} onClick={() => { setPreset(p.id); setRange(reviewRange(p.id)); setDetail(null); setSnapshotError('') }}>{p.title}</button>)}</div><HohoButton variant="text" onClick={() => { setDates(range); setRangeError(''); setCustom(true) }}><SlidersHorizontal size={16} />自定义</HohoButton></div>}
       <Typography variant="caption">{range.start} — {range.end} · 北京时间</Typography></>}
       {state.scope !== scope || state.status === 'loading' ? <ProcessingState title="正在整理近期情况回顾" steps={['读取健康与日常记录', '汇总统计指标', '生成图表']} step={state.scope === scope && sourcesRead === 4 ? 1 : 0} progress={{ completed: state.scope === scope ? sourcesRead : 0, total: 4 }} /> : state.status === 'error' ? <StatusNotice tone="error" title={state.message}><HohoButton variant="secondary" onClick={() => setRevision(r => r + 1)}>重试</HohoButton></StatusNotice> : model && <>
-        <div className="review-snapshot-tools">
+        {PRODUCT_FEATURES.careJourney && <div className="review-snapshot-tools">
           {frozen ? <><div><Bookmark size={18} aria-hidden="true"/><span>已保存的固定回顾 · {new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia/Shanghai', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(frozen.createdAt))}</span></div><Typography variant="caption">按保存时的资料呈现，可重复查看与导出，不随之后的编辑变化。{frozen.voucherConsumed === false ? '本次未消耗回顾券。' : ''}</Typography><HohoButton variant="text" onClick={openCurrent}>查看当前资料</HohoButton></> : <><div><Sprout size={18} aria-hidden="true"/><span>{voucherId ? '近期回顾单次券 · 一个孩子连续7天' : '保存这一段回顾'}</span></div><Typography variant="caption">保存后可在“已保存回顾”找回。{reviewAccess && !reviewAccess.commercializationReady ? '当前回顾与固定保存免费，待用券继续保留。' : reviewAccess?.included ? '当前资格已包含，不消耗待用券。' : needsVoucher ? '单次券适用于一个孩子连续7天，成功保存后核销，失败保留原券。' : '按本次资料保存为固定版本。'}</Typography><HohoButton variant="text" loading={savingSnapshot} disabled={!model.recordCount || Boolean(needsVoucher && voucherId && !isVoucherReviewRange(range.start, range.end))} onClick={() => void saveSnapshot()}>{needsVoucher ? voucherId ? '使用单次券保存' : '兑换回顾单次券' : '保存固定回顾'}</HohoButton></>}
           <HohoButton variant="text" onClick={() => void openLibrary()}>已保存回顾</HohoButton>
         </div>
-        {snapshotError && <StatusNotice tone="error" title={snapshotError}/>}
+        }{snapshotError && <StatusNotice tone="error" title={snapshotError}/>}
         <div className="review-view-tabs" role="tablist" aria-label="回顾内容"><button id="review-charts-tab" role="tab" aria-selected={view === 'charts'} aria-controls="review-charts-panel" onClick={() => setView('charts')}>图表总览</button><button id="review-comparison-tab" role="tab" aria-selected={view === 'comparison'} aria-controls="review-comparison-panel" onClick={() => setView('comparison')}>记录对照</button></div>
         <div className="review-coverage"><span>{name}</span><span>{model.recordCount}条已录入记录</span><span>夜间睡眠覆盖 {model.sleepDays}/{model.totalDays}天</span></div>
         <div ref={exportRef} className="review-export" data-view={view}>
@@ -122,10 +124,10 @@ function ReviewContent({ memberId, token, accountId }: { memberId: string; token
           <ChartCard title="入睡规律" metric={<>{model.sleepSpreadMinutes ?? '—'}<small>分钟波动</small></>} note="中间50%入睡时刻的跨度；越小越集中，折线为分段中位数" onSource={() => source('夜间睡眠', model.sleepRows)}>{chart(model.bedtime, '入睡时刻', '时刻', 'line', timeLabel)}</ChartCard>
           <ChartCard title="夜间睡眠时长" metric={<>{model.sleepRows.length}<small>次完整记录</small></>} note="每段内单次夜间睡眠的平均时长；不含午睡和进行中记录" onSource={() => source('夜间睡眠', model.sleepRows)}>{chart(model.sleepDuration, '单次夜间睡眠时长', '小时')}</ChartCard>
           <ChartCard title="已记录奶量" metric={<>{Math.round(model.milkTotal).toLocaleString()}<small>mL</small></>} note="仅汇总有明确毫升数的瓶喂记录；缺失处留空" onSource={() => source('已记录奶量', model.milk)}>{chart(model.milkSeries, '已记录奶量合计', 'mL', 'bar')}</ChartCard>
-          <ChartCard title="用药安排执行" metric={<>{model.medicationPercent === null ? '—' : `${model.medicationPercent}%`}<small>有完成记录</small></>} note="仅统计所选范围内已到期的用药安排；不等同于按时率" onSource={() => source('用药安排执行', [...model.medicationDone, ...model.medicationUnrecorded])}>
+          {PRODUCT_FEATURES.auxiliaryTools && <ChartCard title="用药安排执行" metric={<>{model.medicationPercent === null ? '—' : `${model.medicationPercent}%`}<small>有完成记录</small></>} note="仅统计所选范围内已到期的用药安排；不等同于按时率" onSource={() => source('用药安排执行', [...model.medicationDone, ...model.medicationUnrecorded])}>
             {model.medicationTotal ? <FactDistribution showPercent values={[{ label: '已完成', count: model.medicationDone.length }, { label: '尚无执行记录', count: model.medicationUnrecorded.length }]} unit="次安排" /> : <Typography variant="caption">暂无可统计的到期用药安排</Typography>}
           </ChartCard>
-          <ChartCard title="补剂与外用照护" metric={<>{model.supplements.length + model.topical.length}<small>条记录</small></>} note="按实际录入条数统计，不推算完成率" onSource={() => source('补剂与外用照护', [...model.supplements, ...model.topical])}><div className="review-ratio">{[{ label: '补剂', rows: model.supplements }, { label: '外用照护', rows: model.topical }].map(a => <div key={a.label}><span>{a.label} · {a.rows.length}条</span><meter min={0} max={Math.max(1, model.supplements.length, model.topical.length)} value={a.rows.length}>{a.rows.length}</meter></div>)}</div></ChartCard>
+          }<ChartCard title="补剂与外用照护" metric={<>{model.supplements.length + model.topical.length}<small>条记录</small></>} note="按实际录入条数统计，不推算完成率" onSource={() => source('补剂与外用照护', [...model.supplements, ...model.topical])}><div className="review-ratio">{[{ label: '补剂', rows: model.supplements }, { label: '外用照护', rows: model.topical }].map(a => <div key={a.label}><span>{a.label} · {a.rows.length}条</span><meter min={0} max={Math.max(1, model.supplements.length, model.topical.length)} value={a.rows.length}>{a.rows.length}</meter></div>)}</div></ChartCard>
         </div>
         <section id="review-comparison-panel" role="tabpanel" aria-labelledby="review-comparison-tab" aria-hidden={view !== 'comparison'} className="review-comparison">
           <Typography variant="caption">同一天的记录放在一起核对。“暂无记录”不表示未发生，同日变化不代表存在因果关系。</Typography>

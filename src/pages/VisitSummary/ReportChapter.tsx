@@ -1,3 +1,4 @@
+import { PRODUCT_FEATURES } from '../../../shared/product-visibility.mjs'
 import { MapPin } from 'lucide-react'
 import { ReadOnlyMedicationReminderCard } from '../NurseStation/MedicationReminderCard'
 import type { ReactNode } from 'react'
@@ -91,7 +92,7 @@ export function ReportChapter({
       {leading}
       {chapter.id!=='overview'&&<div className={`visit-chapter-overview${chapter.id==='course'?' visit-course-nodes':''}`} data-chapter-overview={chapter.id}>{chapter.overview?.items.map((item,i)=><article key={i}><h3>{item.title}</h3><p>{item.detail}</p>{item.sourceIds.length>0&&(readOnly?item.sourceIds.map(id=><a key={id} href={`#${id}`}>[{report.sources.find(s=>s.id===id)?.code}]</a>):<button className="visit-text-action" onClick={()=>onEvidence?.(item.sourceIds)}>查看依据</button>)}</article>)}</div>}
       {chapter.overview?.lines.map((line,i)=><p className="visit-muted" key={i}>{line}</p>)}
-      {chapter.id==='medication'&&!!report.medicationReminders?.length&&<ChapterDetails expanded={expanded} readOnly={readOnly} title={`${expanded?'用药计划与完整周历':'展开用药计划与完整周历'} · ${report.medicationReminders.length} 项`}><p className="visit-muted">计划与实际使用分开。未来、未确认和已归档计划只在这里核对。</p>{report.medicationReminders.map(r=><ReadOnlyMedicationReminderCard key={r.id} reminder={r} now={new Date(report.generatedAt)} onEvidence={onEvidence} expanded={readOnly || expanded}/>)}</ChapterDetails>}
+      {PRODUCT_FEATURES.auxiliaryTools&&chapter.id==='medication'&&!!report.medicationReminders?.length&&<ChapterDetails expanded={expanded} readOnly={readOnly} title={`${expanded?'用药计划与完整周历':'展开用药计划与完整周历'} · ${report.medicationReminders.length} 项`}><p className="visit-muted">计划与实际使用分开。未来、未确认和已归档计划只在这里核对。</p>{report.medicationReminders.map(r=><ReadOnlyMedicationReminderCard key={r.id} reminder={r} now={new Date(report.generatedAt)} onEvidence={onEvidence} expanded={readOnly || expanded}/>)}</ChapterDetails>}
       {!!chapter.blocks.length&&<ChapterDetails expanded={expanded} readOnly={readOnly} title={expanded&&chapter.id==='medication'?'用药记录与依据':{overview:'展开病情数据与依据',course:'展开经过与依据',medication:'查看完整用药经过',allergy:'展开过敏资料与观察过程',history:'展开既往与其他背景',temperature:'展开体温曲线与测量记录',growth:'展开成长曲线与日常记录',visits:'展开就诊与检查依据',sources:'展开资料说明'}[chapter.id]}>
       {chapter.summary && <p className="visit-intro">{chapter.summary}</p>}
       {chapter.blocks.map((block, index) => {

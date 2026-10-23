@@ -72,9 +72,9 @@ test('real home keeps reception, five original entries and full clean navigation
  const drawer=page.getByRole('dialog',{name:'侧边栏菜单'})
  await expect(drawer.locator('.hoho-drawer__brand')).toHaveCount(0)
  await expect(drawer.getByRole('button',{name:'关闭菜单',exact:true})).toHaveCount(0)
- for(const label of ['服务前台','健康日历','孩子档案','一键整理','对话记录','呵护之旅','辅助工具','产品中心'])await expect(drawer.getByRole('button',{name:label,exact:true})).toBeVisible()
- await drawer.getByRole('button',{name:'辅助工具',exact:true}).click()
- for(const label of ['忌口卡','排敏观察','配料表扫描','用药安排','照顾交接单'])await expect(drawer.getByRole('button',{name:label,exact:true})).toBeVisible()
+ for(const label of ['服务前台','健康日历','孩子档案','一键整理','对话记录','产品中心'])await expect(drawer.getByRole('button',{name:label,exact:true})).toBeVisible()
+ for(const label of ['呵护之旅','辅助工具','忌口卡','排敏观察','配料表扫描','用药安排','照顾交接单'])await expect(drawer.getByRole('button',{name:label,exact:true})).toHaveCount(0)
+ await expect(drawer.getByText('免费版',{exact:true})).toHaveCount(0)
  await drawer.getByRole('button',{name:'产品中心',exact:true}).click()
  for(const label of ['设置','帮助','反馈','关于'])await expect(drawer.getByRole('button',{name:label,exact:true})).toBeVisible()
  await page.screenshot({path:info.outputPath('sidebar.png')})
@@ -270,7 +270,7 @@ test('compact sidebar and continuous paper carry through the shared health pages
  for(const url of ['/health-events','/health-profile','/settings','/quick-search']){
   await page.goto(url)
   await expect(page.locator('.app-shell:not(.session-recovery-screen)')).toBeVisible()
-  await expect.poll(()=>page.locator('.app-shell').evaluate(e=>getComputedStyle(e).backgroundImage)).toContain('paper-fiber-20261024.svg')
+  await expect.poll(()=>page.locator('.app-shell').evaluate(e=>getComputedStyle(e).backgroundImage)).toContain('paper-fiber-rough-20261024.svg')
   expect(await page.locator('meta[name="theme-color"]').getAttribute('content')).toBe('#f4f2ed')
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
  }

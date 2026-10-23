@@ -57,3 +57,13 @@ test('one mixed occurrence is visible in feeding and symptom filters without cha
  assert.equal(matchesCalendarGroup(record,'medication'),false);assert.equal(record.id,'mixed')
  assert.equal(matchesCalendarGroup({...record,sourceType:'medical_file'},'feeding'),false)
 })
+
+test('named feeding and meals retain names with factual amounts in day and month summaries', () => {
+  const milk = presentCalendarRecord({ ...base, diet: { kind: 'feeding', feedingMethod: 'formula', name: '夜奶', bottleMl: 120 } })
+  assert.equal(milk.coreSummary, '夜奶 · 120mL')
+  assert.equal(milk.monthSummary, '夜奶120ml')
+  const meal = presentCalendarRecord({ ...base, diet: { kind: 'meal', name: '家里的早餐', foods: ['米饭','鸡蛋'] } })
+  assert.equal(meal.coreSummary, '家里的早餐 · 米饭、鸡蛋')
+  assert.equal(meal.monthSummary, '家里的早餐 · 米饭')
+  assert.match(meal.fullDetail, /家里的早餐/)
+})

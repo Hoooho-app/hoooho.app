@@ -130,7 +130,7 @@ export function SymptomRecordSheet({ origin, entry, memberId, memberName, record
   const recordLabel = category && category !== 'symptom' ? `${journalCategoryLabels[category]}记录` : '症状记录'
   const isSymptomRecord = recordLabel === '症状记录'
   const title = symptomRecordTitle(entry)
-  const originalNarrative = record?.journal?.symptom?.narrative ?? entry.source.originalText ?? record?.content ?? title
+  const originalNarrative = record?.journal?.diet?.name ? record.content : record?.journal?.symptom?.narrative ?? entry.source.originalText ?? record?.content ?? title
   const detailKeywords = isSymptomRecord ? visibleSymptomKeywords(originalNarrative, record?.journal?.symptom?.keywords ?? []) : []
   const detailLocation = symptomLocationDisplay(record?.journal?.symptom)
   const hasStructuredTemperature = typeof record?.journal?.symptom?.symptomSpecificData?.currentTemperature === 'number'

@@ -1,9 +1,11 @@
+import { PRODUCT_FEATURES } from '../../../shared/product-visibility.mjs'
 import { useEffect, useState } from 'react'
 import { getKnowledgeStorage, nextKnowledgeUpdate, readDailyKnowledge } from './daily'
 
 export function useDailyKnowledge(accountId: string) {
-  const [article, setArticle] = useState(() => readDailyKnowledge(accountId, new Date(), getKnowledgeStorage()))
+  const [article, setArticle] = useState(() => PRODUCT_FEATURES.careJourney ? readDailyKnowledge(accountId, new Date(), getKnowledgeStorage()) : null)
   useEffect(() => {
+    if (!PRODUCT_FEATURES.careJourney) return
     let timer: number
     const refresh = () => {
       window.clearTimeout(timer)

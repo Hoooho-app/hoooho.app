@@ -1,5 +1,6 @@
 import type { ComponentType } from 'react'
-import { Navigate, createBrowserRouter } from 'react-router-dom'
+import { isProductPathVisible } from '../../shared/product-visibility.mjs'
+import { Navigate, createBrowserRouter, type RouteObject } from 'react-router-dom'
 import { installChildBodyHistory } from '../features/body-location/childBodyHistory'
 import { RequireAuth } from '../components/auth/RequireAuth'
 import { RequireEstablishedHealthData } from '../components/auth/RequireEstablishedHealthData'
@@ -15,8 +16,15 @@ function lazyPage(load: () => Promise<Record<string, unknown>>, exportName: stri
   }
 }
 
+// Redirect before loading a hidden feature, including old bookmarks and shared links.
+function visibleRoutes(routes: RouteObject[]): RouteObject[] {
+  return routes.map(route => route.path && !isProductPathVisible(route.path)
+    ? { path: route.path, element: <Navigate to="/nurse-station" replace /> }
+    : route.children ? { ...route, children: visibleRoutes(route.children) } as RouteObject : route)
+}
+
 installChildBodyHistory()
-export const router = createBrowserRouter([
+export const router = createBrowserRouter(visibleRoutes([
   { path: '/', element: <Navigate to="/nurse-station" replace /> },
   { path: '/login', lazy: lazyPage(() => import('../pages/Login'), 'LoginPage') },
   { path: '/help', lazy: lazyPage(() => import('../pages/Help'), 'HelpCenterPage') },
@@ -140,4 +148,4 @@ export const router = createBrowserRouter([
     ]
   },
   { path: '*', lazy: lazyPage(() => import('../pages/NotFound'), 'NotFoundPage') }
-])
+]))
