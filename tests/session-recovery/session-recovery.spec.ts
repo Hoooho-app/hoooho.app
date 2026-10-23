@@ -146,13 +146,13 @@ test('profile failure does not block an unrelated page and archive routes wait f
   await page.goto('/account/nickname')
   await expect(page.getByRole('textbox', { name: /^昵称/ })).toHaveValue('验收家长')
   await expect(page.locator('.session-recovery-notice')).toContainText('部分资料暂未更新')
-  await page.goto('/dietary-card/edit')
+  await page.goto('/health-profile/identity')
   await expect(page.getByRole('heading', { name: '部分资料暂时未加载' })).toBeVisible()
   await expect(page.getByText('暂无过敏史', { exact: true })).toHaveCount(0)
   state.profileMode = 'ok'
   await page.getByRole('button', { name: '重新连接', exact: true }).click()
   await expect(page.locator('[data-session-recovery-screen]')).toHaveCount(0)
-  await expect(page).toHaveURL(/dietary-card\/edit/)
+  await expect(page).toHaveURL(/health-profile\/identity/)
 })
 
 test('a 401 during member hydration recovers its token without a dependency deadlock', async ({ page }) => {
@@ -229,7 +229,7 @@ test('fast recovery stays silent and offline recovery retries once before reconn
 
 test('an established archive editor survives token refresh and a gate revalidation failure', async ({ page }) => {
   const state = await setup(page)
-  await page.goto('/dietary-card/edit')
+  await page.goto('/health-profile/identity')
   await expect(page.locator('[data-session-recovery-screen]')).toHaveCount(0)
   const content = page.locator('main.app-shell').last()
   await content.evaluate(node => { node.dataset.recoveryMarker = 'original-archive-editor' })
