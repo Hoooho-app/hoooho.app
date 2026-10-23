@@ -83,7 +83,7 @@
   justify-content: center;
   gap: 5px;
   padding: 0 9px;
-  color: rgb(var(--hoho-color-primary));
+  color: rgb(var(--hoho-color-link));
   font-size: 12px;
   font-weight: 690;
   white-space: nowrap;
@@ -220,7 +220,7 @@
 .dietary-item-remove { color: rgb(var(--hoho-color-error)); }
 .dietary-edit-item svg { width: 18px; height: 18px; }
 
-.dietary-add-food { display: flex; min-height: 50px; align-items: center; justify-content: center; gap: 8px; border: 1px dashed rgb(var(--hoho-color-primary-border)); border-radius: var(--hoho-radius-control); color: rgb(var(--hoho-color-primary)); font-size: 14px; font-weight: 720; }
+.dietary-add-food { display: flex; min-height: 50px; align-items: center; justify-content: center; gap: 8px; border: 1px dashed rgb(var(--hoho-color-primary-border)); border-radius: var(--hoho-radius-control); color: rgb(var(--hoho-color-link)); font-size: 14px; font-weight: 720; }
 .dietary-add-food svg { width: 21px; }
 .dietary-edit-note,
 .dietary-edit-empty,

@@ -1,8 +1,8 @@
 .vaccine-plan-content{display:grid;gap:var(--hoho-space-6);padding-bottom:calc(var(--hoho-space-8) + env(safe-area-inset-bottom));overflow-wrap:anywhere}
-.vaccine-plan-intro{display:flex;align-items:center;gap:var(--hoho-space-3);color:rgb(var(--hoho-color-primary));padding:var(--hoho-space-4) 0}
+.vaccine-plan-intro{display:flex;align-items:center;gap:var(--hoho-space-3);color:rgb(var(--hoho-color-link));padding:var(--hoho-space-4) 0}
 .vaccine-plan-content .hoho-section{display:grid;gap:var(--hoho-space-3)}
 .vaccine-plan-record{display:grid;gap:var(--hoho-space-1);padding:var(--hoho-space-3) 0;border-bottom:1px solid rgb(var(--hoho-color-border))}
-.vaccine-plan-record a,.vaccine-plan-source,.vaccine-plan-content .hoho-section__header a{color:rgb(var(--hoho-color-primary));text-decoration:underline;text-underline-offset:3px;min-height:var(--hoho-touch-target);display:inline-flex;align-items:center;gap:var(--hoho-space-2)}
+.vaccine-plan-record a,.vaccine-plan-source,.vaccine-plan-content .hoho-section__header a{color:rgb(var(--hoho-color-link));text-decoration:underline;text-underline-offset:3px;min-height:var(--hoho-touch-target);display:inline-flex;align-items:center;gap:var(--hoho-space-2)}
 .vaccine-plan-checklist{list-style:disc;padding-left:var(--hoho-space-5);display:grid;gap:var(--hoho-space-2)}
 .vaccine-program-rows{display:grid;gap:var(--hoho-space-2)}
 .vaccine-program-row{border-bottom:1px solid rgb(var(--hoho-color-border));padding:var(--hoho-space-3) 0}

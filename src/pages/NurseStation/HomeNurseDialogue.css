@@ -7,7 +7,7 @@
   box-shadow: none;
 }
 .nurse-home-dialogue .nurse-home-dialogue__eyebrow {
-  color: rgb(var(--hoho-color-primary));
+  color: rgb(var(--hoho-color-link));
 }
 .nurse-home-dialogue .nurse-home-dialogue__description {
   color: rgb(var(--hoho-color-text-secondary));
@@ -63,7 +63,7 @@
   padding-inline: 5px;
   border-radius: var(--hoho-radius-small);
   background: rgb(var(--hoho-color-surface-subtle));
-  color: rgb(var(--hoho-color-primary));
+  color: rgb(var(--hoho-color-link));
   font-size: var(--hoho-font-size-caption);
   line-height: 18px;
   font-variant-numeric: tabular-nums;

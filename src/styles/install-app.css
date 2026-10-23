@@ -8,13 +8,13 @@
     border: 0;
     background: transparent;
     padding: 0 2px;
-    color: rgb(var(--hoho-color-primary));
+    color: rgb(var(--hoho-color-link));
     font-size: 12px;
     font-weight: 600;
     white-space: nowrap;
   }
   .install-app-trigger:disabled { opacity: .55; }
-  .install-app-prompt-cancel{min-height:44px;padding:0 12px;color:rgb(var(--hoho-color-primary));font-weight:600;white-space:nowrap}
+  .install-app-prompt-cancel{min-height:44px;padding:0 12px;color:rgb(var(--hoho-color-link));font-weight:600;white-space:nowrap}
 
   .install-guide-layer {
     position: fixed;
@@ -22,7 +22,7 @@
     z-index: 80;
     display: flex;
     justify-content: center;
-    background: rgb(var(--hoho-color-text-primary) / .28);
+    background: rgb(var(--hoho-color-scrim) / .28);
   }
 
   .install-guide {
@@ -132,7 +132,7 @@
     border: 0;
     background: transparent;
     padding: 8px 16px calc(8px + env(safe-area-inset-bottom));
-    color: rgb(var(--hoho-color-primary));
+    color: rgb(var(--hoho-color-link));
     font-size: 13px;
     font-weight: 600;
   }
@@ -147,7 +147,7 @@
     max-width: calc(100% - 32px);
     margin: auto;
     border-radius: var(--hoho-radius-control);
-    background: rgb(var(--hoho-color-text-primary));
+    background: rgb(var(--hoho-color-scrim));
     padding: 10px 14px;
     color: rgb(var(--hoho-color-surface));
     font-size: 13px;

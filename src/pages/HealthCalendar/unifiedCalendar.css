@@ -51,7 +51,7 @@
 .calendar-picker-content input { flex: 1; min-width: 0; }
 .unified-health-calendar .health-calendar__grid { border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-card); padding: var(--hoho-space-2); background: rgb(var(--hoho-color-surface)); background-image: var(--hoho-paper-grain), var(--hoho-paper-light); }
 .health-calendar__day[data-outside='true'] { opacity: .45; }
-.health-calendar__reminders { display: flex; align-items: center; justify-content: center; gap: var(--hoho-space-1); color: rgb(var(--hoho-color-primary)); flex-shrink: 0; line-height: 16px; }
+.health-calendar__reminders { display: flex; align-items: center; justify-content: center; gap: var(--hoho-space-1); color: rgb(var(--hoho-color-link)); flex-shrink: 0; line-height: 16px; }
 .calendar-reminder-rows { display: grid; gap: var(--hoho-space-2); flex: none; }
 .calendar-reminder-row { display: grid; grid-template-columns: 24px minmax(0,1fr) auto 16px; align-items: center; gap: var(--hoho-space-2); width: 100%; min-height: 64px; padding: var(--hoho-space-3); border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-control); background: rgb(var(--hoho-color-surface)); color: rgb(var(--hoho-color-text-primary)); text-align: left; }
 .calendar-reminder-row > svg:first-child { color: rgb(var(--calendar-tone)); }

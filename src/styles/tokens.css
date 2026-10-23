@@ -1,5 +1,5 @@
 :root {
-  /* Hoooho paper direction: product-owner authorized whole-site visual migration. */
+  /* Forest canvas with light surfaces: product-owner global visual trial. */
   --hoho-color-primary: 72 98 83;
   --hoho-color-primary-hover: 57 80 66;
   --hoho-color-primary-active: 44 64 52;
@@ -9,15 +9,25 @@
   --hoho-color-sprout-surface: 235 239 230;
   --hoho-color-sprout-border: 199 210 193;
   --hoho-color-sprout-text: 72 98 83;
+  --hoho-color-link: var(--hoho-color-primary);
+  --hoho-color-on-canvas: 243 240 231;
+  --hoho-color-on-canvas-secondary: 193 205 195;
+  --hoho-color-on-canvas-weak: 170 189 176;
+  --hoho-color-scrim: 5 18 14;
+  --hoho-color-inverse-text: 255 255 255;
   --hoho-color-secondary: 94 105 97;
-  /* Product-owner restored the previous moss button palette. */
-  --hoho-color-action: var(--hoho-color-primary);
-  --hoho-color-action-hover: var(--hoho-color-primary-hover);
-  --hoho-color-action-active: var(--hoho-color-primary-active);
-  --hoho-color-action-text: 255 255 255;
-  --hoho-color-action-border: var(--hoho-color-primary-active);
-  --hoho-color-page-background: 244 242 237;
-  --hoho-color-background: 244 242 237;
+  /* Warm white actions contrast with the opening-screen forest. */
+  --hoho-color-action: 243 240 231;
+  --hoho-color-action-hover: 255 255 255;
+  --hoho-color-action-active: 226 232 221;
+  --hoho-color-action-text: 17 47 41;
+  --hoho-color-action-border: 113 128 110;
+  --hoho-color-canvas: 9 35 27;
+  --hoho-color-ink: 39 51 50;
+  --hoho-color-ink-secondary: 94 105 97;
+  --hoho-color-ink-weak: 101 112 104;
+  --hoho-color-page-background: 9 35 27;
+  --hoho-color-background: 9 35 27;
   --hoho-color-surface: 252 251 247;
   --hoho-color-surface-subtle: 242 241 234;
   --hoho-color-surface-elevated: 255 254 250;
@@ -55,9 +65,9 @@
 
   --hoho-font-family: "Hoooho Paper Sans", -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", "Noto Sans SC", "Segoe UI", sans-serif;
   --hoho-font-family-heading: "Hoooho Paper Serif", "Songti SC", "Noto Serif CJK SC", serif;
-  --hoho-paper-grain: url("/images/paper-grain.svg");
-  --hoho-page-grain: url("/images/paper-fiber-rough-20261024.svg");
-  --hoho-paper-light: linear-gradient(145deg, rgb(255 255 255 / .32), rgb(214 218 211 / .07));
+  --hoho-paper-grain: none;
+  --hoho-page-grain: none;
+  --hoho-paper-light: none;
   --hoho-font-size-display: 1.75rem;
   --hoho-line-height-display: 1.25;
   --hoho-font-size-page-title: 1.375rem;
@@ -95,10 +105,10 @@
   --hoho-radius-pill: 999px;
 
   --hoho-shadow-none: none;
-  --hoho-shadow-card: inset 0 1px 0 rgb(255 255 255 / .95), 0 2px 4px rgb(39 51 50 / .065), 0 12px 30px rgb(39 51 50 / .11);
+  --hoho-shadow-card: inset 0 1px 0 rgb(255 255 255 / .95), 0 2px 4px rgb(39 51 50 / .065), 0 12px 30px rgb(0 12 8 / .22);
   --hoho-shadow-soft: var(--hoho-shadow-card);
-  --hoho-shadow-floating: 0 14px 40px rgb(18 92 85 / 0.12);
-  --hoho-shadow-overlay: 0 28px 72px rgb(18 49 47 / 0.18);
+  --hoho-shadow-floating: 0 14px 40px rgb(0 12 8 / .28);
+  --hoho-shadow-overlay: 0 28px 72px rgb(0 12 8 / .4);
 
   --hoho-motion-fast: 140ms;
   --hoho-motion-base: 200ms;

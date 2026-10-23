@@ -96,7 +96,7 @@
 .nurse-next-action-trigger[data-active='true'] {
   border-color: rgb(var(--hoho-color-primary-border));
   background: rgb(var(--hoho-color-surface));
-  color: rgb(var(--hoho-color-primary));
+  color: rgb(var(--hoho-color-link));
   box-shadow: var(--hoho-shadow-card);
 }
 
@@ -394,7 +394,7 @@
 .quick-record-photo-add {
   display: grid;
   place-items: center;
-  color: rgb(var(--hoho-color-primary));
+  color: rgb(var(--hoho-color-link));
 }
 
 .quick-record-photo__preview,
@@ -418,7 +418,7 @@
   height: 20px;
   place-items: center;
   border-radius: 999px;
-  background: rgb(var(--hoho-color-text-primary) / 0.78);
+  background: rgb(var(--hoho-color-scrim) / 0.78);
   color: rgb(var(--hoho-color-surface));
 }
 
@@ -427,7 +427,7 @@
   inset: 0;
   display: grid;
   place-items: center;
-  background: rgb(var(--hoho-color-text-primary) / 0.42);
+  background: rgb(var(--hoho-color-scrim) / 0.42);
   color: rgb(var(--hoho-color-surface));
 }
 
@@ -459,7 +459,7 @@
 }
 
 .quick-record-photo__failed > span { grid-column: 1 / -1; }
-.quick-record-photo__failed button { display: inline-flex; min-height: 30px; align-items: center; justify-content: center; gap: 2px; border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-small); color: rgb(var(--hoho-color-primary)); font-size: 10px; }
+.quick-record-photo__failed button { display: inline-flex; min-height: 30px; align-items: center; justify-content: center; gap: 2px; border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-small); color: rgb(var(--hoho-color-link)); font-size: 10px; }
 
 .quick-record-photo-notice,
 .quick-record-photo-error {

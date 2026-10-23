@@ -1,5 +1,5 @@
 .medical-preparation-shared { position: relative; height: 100dvh; overflow: hidden; background: rgb(var(--hoho-color-surface)); }
-.medical-preparation-shared__banner { min-height: 28px; padding: 6px 12px; background: rgb(var(--hoho-color-primary-soft)); color: rgb(var(--hoho-color-primary)); font-size: 11px; text-align: center; }
+.medical-preparation-shared__banner { min-height: 28px; padding: 6px 12px; background: rgb(var(--hoho-color-primary-soft)); color: rgb(var(--hoho-color-link)); font-size: 11px; text-align: center; }
 .medical-preparation-shared__header { display: grid; min-height: 50px; place-items: center; border-bottom: 1px solid rgb(var(--hoho-color-border)); font-size: var(--hoho-font-size-body); }
 .medical-preparation-shared__body { height: calc(100dvh - 78px); }
 .medical-preparation-shared__body > .visit-summary-scroll { height: 100%; }

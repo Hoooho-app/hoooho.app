@@ -9,7 +9,7 @@
 .record-entry-grid > button[data-record-entry='medication'] { --record-entry-surface:rgb(var(--hoho-color-primary-soft)); }
 .record-entry-grid > button[data-record-entry] { background:var(--record-entry-surface); }
 .daily-record-options img { width:40px; height:40px; object-fit:contain; }
-.record-entry-grid > button[aria-pressed='true'] { border-color:rgb(var(--hoho-color-primary)); background:var(--record-entry-surface,rgb(var(--hoho-color-primary-soft))); color:rgb(var(--hoho-color-primary)); }
+.record-entry-grid > button[aria-pressed='true'] { border-color:rgb(var(--hoho-color-primary)); background:var(--record-entry-surface,rgb(var(--hoho-color-primary-soft))); color:rgb(var(--hoho-color-link)); }
 .record-entry-grid > button:disabled { opacity:.5; }
 .daily-record-options { grid-template-columns:repeat(2,minmax(0,1fr)); position:absolute; inset-inline:0; bottom:calc(100% + var(--hoho-space-2)); padding:var(--hoho-space-2); border:1px solid rgb(var(--hoho-color-border)); border-radius:var(--hoho-radius-card); background:rgb(var(--hoho-color-surface)); box-shadow:var(--hoho-shadow-floating); }
 .daily-record-options > button { border:0; padding-inline:0; }

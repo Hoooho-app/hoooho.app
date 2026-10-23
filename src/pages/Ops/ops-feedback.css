@@ -31,7 +31,7 @@
 .ops-feedback-topbar a {
   display: inline-block;
   margin-bottom: var(--hoho-space-1);
-  color: rgb(var(--hoho-color-primary));
+  color: rgb(var(--hoho-color-link));
   font-size: var(--hoho-font-size-caption);
   font-weight: 600;
 }
@@ -192,7 +192,7 @@
 .ops-feedback-status-filter button[aria-pressed='true'] {
   border-color: rgb(var(--hoho-color-primary-border));
   background: rgb(var(--hoho-color-primary-soft));
-  color: rgb(var(--hoho-color-primary));
+  color: rgb(var(--hoho-color-link));
 }
 
 .ops-feedback-field {
@@ -222,7 +222,7 @@
 
 .ops-feedback-filter-actions button {
   min-height: 32px;
-  color: rgb(var(--hoho-color-primary));
+  color: rgb(var(--hoho-color-link));
   font-size: var(--hoho-font-size-caption);
   font-weight: 600;
 }
@@ -334,7 +334,7 @@
 }
 
 .ops-feedback-queue-signals b {
-  color: rgb(var(--hoho-color-primary));
+  color: rgb(var(--hoho-color-link));
   font-weight: 700;
 }
 
@@ -505,7 +505,7 @@
 .ops-feedback-quick-actions button[aria-pressed='true'] {
   border-color: rgb(var(--hoho-color-primary-border));
   background: rgb(var(--hoho-color-primary-soft));
-  color: rgb(var(--hoho-color-primary));
+  color: rgb(var(--hoho-color-link));
 }
 
 .ops-feedback-composer > p {
@@ -768,7 +768,7 @@
     inset: 0;
     display: block;
     width: 100%;
-    background: rgb(var(--hoho-color-text-primary) / .28);
+    background: rgb(var(--hoho-color-scrim) / .28);
   }
 }
 

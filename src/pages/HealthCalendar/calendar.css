@@ -4,7 +4,7 @@
 .health-calendar__day, .health-calendar__blank { min-width: 0; min-height: 0; border-top: 1px solid rgb(var(--hoho-color-border) / .55); }
 .health-calendar__day { display: flex; flex-direction: column; align-items: stretch; padding: 1px 0; overflow: hidden; background: transparent; color: rgb(var(--hoho-color-text-primary)); font: inherit; }
 .health-calendar__date-number { display: grid; place-items: center; align-self: center; flex: 0 0 var(--hoho-space-5); width: var(--hoho-space-5); border-radius: var(--hoho-radius-pill); font-size: var(--hoho-font-size-body-small); }
-.health-calendar__day[data-today=true] .health-calendar__date-number { color: rgb(var(--hoho-color-primary)); font-weight: 600; }
+.health-calendar__day[data-today=true] .health-calendar__date-number { color: rgb(var(--hoho-color-link)); font-weight: 600; }
 .health-calendar__day[aria-current=date] .health-calendar__date-number { background: rgb(var(--hoho-color-primary)); color: rgb(var(--hoho-color-surface)); }
 .health-calendar__day:disabled { color: rgb(var(--hoho-color-disabled)); }
 .health-calendar__previews { width: 100%; max-width: 100%; min-width: 0; flex-shrink: 0; display: flex; flex-direction: column; gap: 2px; min-height: 0; margin-top: 1px; }
@@ -18,10 +18,10 @@
 .health-calendar__festival { font-size: 10px; line-height: 1; color: rgb(var(--hoho-color-text-secondary)); white-space: nowrap; }
 .health-calendar__holiday-marker { position: absolute; right: 1px; top: 1px; font-size: 10px; line-height: 1; color: rgb(var(--hoho-color-text-secondary)); }
 .health-calendar__day[data-work=true] .health-calendar__date-number, .health-calendar__day[data-work=true] .health-calendar__holiday-marker { color: rgb(var(--hoho-color-text-primary)); }
-.health-calendar__day[data-today=true] .health-calendar__date-number { color: rgb(var(--hoho-color-primary)); }
+.health-calendar__day[data-today=true] .health-calendar__date-number { color: rgb(var(--hoho-color-link)); }
 .health-calendar__day[aria-current=date] .health-calendar__date-number { color: rgb(var(--hoho-color-surface)); }
 .health-calendar__day:disabled .health-calendar__date-heading { opacity: .65; }
 .health-calendar__preview[data-tone=red] { color: rgb(var(--hoho-color-error)); background: rgb(var(--hoho-color-error) / .1); }
 .health-calendar__preview[data-tone=orange] { color: rgb(var(--hoho-color-warning)); background: rgb(var(--hoho-color-food-common-surface)); }
 .health-calendar__preview[data-tone=blue] { color: rgb(var(--hoho-color-info)); background: rgb(var(--hoho-color-info) / .1); }
-.health-calendar__preview[data-tone=teal] { color: rgb(var(--hoho-color-primary)); background: rgb(var(--hoho-color-primary-soft)); }
+.health-calendar__preview[data-tone=teal] { color: rgb(var(--hoho-color-link)); background: rgb(var(--hoho-color-primary-soft)); }

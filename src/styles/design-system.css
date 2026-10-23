@@ -98,7 +98,7 @@
     font: 600 var(--hoho-font-size-label) / var(--hoho-line-height-label) var(--hoho-font-family);
   }
 
-  .hoho-health-tag[data-tone='primary'] { background: rgb(var(--hoho-color-primary-soft)); color: rgb(var(--hoho-color-primary)); }
+  .hoho-health-tag[data-tone='primary'] { background: rgb(var(--hoho-color-primary-soft)); color: rgb(var(--hoho-color-link)); }
   .hoho-health-tag[data-tone='info'] { background: rgb(var(--hoho-color-info) / 0.08); color: rgb(var(--hoho-color-info)); }
   .hoho-health-tag[data-tone='success'] { background: rgb(var(--hoho-color-success) / 0.09); color: rgb(var(--hoho-color-success)); }
   .hoho-health-tag[data-tone='warning'] { background: rgb(var(--hoho-color-warning) / 0.09); color: rgb(var(--hoho-color-warning)); }
@@ -131,7 +131,7 @@
   .hoho-year-tabs__item:hover { color: rgb(var(--hoho-color-text-secondary)); }
 
   .hoho-year-tabs__item[data-selected='true'] {
-    color: rgb(var(--hoho-color-primary));
+    color: rgb(var(--hoho-color-link));
     font-weight: 650;
   }
 
@@ -196,15 +196,15 @@
   }
   .hoho-button[data-variant='primary']:hover:not(:disabled) { background: rgb(var(--hoho-color-action-hover)); box-shadow: inset 0 1px 0 rgb(255 255 255 / .16), 0 3px 8px rgb(39 51 50 / .1); }
   .hoho-button[data-variant='primary']:active:not(:disabled) { background: rgb(var(--hoho-color-action-active)); box-shadow: none; }
-  .hoho-button[data-variant='secondary'] { border: 1px solid rgb(var(--hoho-color-border-strong)); background: rgb(var(--hoho-color-surface)); color: rgb(var(--hoho-color-primary)); }
+  .hoho-button[data-variant='secondary'] { border: 1px solid rgb(var(--hoho-color-border-strong)); background: rgb(var(--hoho-color-surface)); color: rgb(var(--hoho-color-link)); }
   .hoho-button[data-variant='secondary']:hover:not(:disabled) { background: rgb(var(--hoho-color-primary-soft)); }
-  .hoho-button[data-variant='tertiary'] { background: rgb(var(--hoho-color-primary-soft)); color: rgb(var(--hoho-color-primary)); }
+  .hoho-button[data-variant='tertiary'] { background: rgb(var(--hoho-color-primary-soft)); color: rgb(var(--hoho-color-link)); }
   .hoho-button[data-variant='tertiary']:hover:not(:disabled) { background: rgb(var(--hoho-color-primary-border) / 0.45); }
   .hoho-button[data-variant='ghost'] { background: transparent; color: rgb(var(--hoho-color-text-secondary)); }
   .hoho-button[data-variant='ghost']:hover:not(:disabled) { background: rgb(var(--hoho-color-surface-subtle)); color: rgb(var(--hoho-color-text-primary)); }
   .hoho-button[data-variant='danger'] { border: 1px solid rgb(var(--hoho-color-error) / 0.32); background: rgb(var(--hoho-color-surface)); color: rgb(var(--hoho-color-error)); }
   .hoho-button[data-variant='danger']:hover:not(:disabled) { background: rgb(var(--hoho-color-error) / 0.06); }
-  .hoho-button[data-variant='text'] { min-height: 36px; border-radius: var(--hoho-radius-control); background: transparent; color: rgb(var(--hoho-color-primary)); }
+  .hoho-button[data-variant='text'] { min-height: 36px; border-radius: var(--hoho-radius-control); background: transparent; color: rgb(var(--hoho-color-link)); }
   .hoho-button[data-variant='text']:hover:not(:disabled) { background: rgb(var(--hoho-color-primary-soft)); }
 
   .hoho-empty-state {
@@ -222,7 +222,7 @@
     place-items: center;
     border-radius: var(--hoho-radius-pill);
     background: rgb(var(--hoho-color-primary-soft));
-    color: rgb(var(--hoho-color-primary));
+    color: rgb(var(--hoho-color-link));
   }
 
   .hoho-field { display: grid; gap: var(--hoho-space-2); }
@@ -325,7 +325,7 @@
     position: absolute;
     inset: 0;
     width: 100%;
-    background: rgb(var(--hoho-color-text-primary) / 0.24);
+    background: rgb(var(--hoho-color-scrim) / 0.24);
   }
 
   .hoho-bottom-sheet {
@@ -469,7 +469,7 @@
   .body-location-segments button[data-selected='true'] {
     background: rgb(var(--hoho-color-surface));
     box-shadow: 0 1px 3px rgb(var(--hoho-color-text-primary) / 0.1);
-    color: rgb(var(--hoho-color-primary));
+    color: rgb(var(--hoho-color-link));
   }
 
   .body-location-atlas-frame {
@@ -513,7 +513,7 @@
     place-items: center;
     border-radius: var(--hoho-radius-pill);
     background: rgb(var(--hoho-color-primary-soft));
-    color: rgb(var(--hoho-color-primary));
+    color: rgb(var(--hoho-color-link));
   }
 
   .hoho-timeline { display: grid; gap: var(--hoho-space-4); }
@@ -549,7 +549,7 @@
   }
 
   .hoho-timeline[data-level='list'] .hoho-timeline-item__label {
-    color: rgb(var(--hoho-color-primary));
+    color: rgb(var(--hoho-color-link));
     font-size: var(--hoho-font-size-body);
   }
 
