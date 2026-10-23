@@ -3,10 +3,17 @@ import { expect, test, type Browser, type Page } from '@playwright/test'
 let registrationSequence = 0
 const origin = `http://127.0.0.1:${process.env.AUTH_TEST_PORT || '4196'}`
 
+async function openLogin(page: Page) {
+  await page.goto('/login')
+  await page.locator('.hoooho-onboarding, [role="tablist"][aria-label="登录或注册"]').first().waitFor()
+  const start = page.getByRole('button', { name: '开始', exact: true })
+  if (await start.isVisible()) await start.click()
+}
+
 async function register(page: Page, nickname = `测试家长${Date.now().toString().slice(-8)}`) {
   registrationSequence += 1
   await page.context().setExtraHTTPHeaders({ 'x-forwarded-for': `198.51.100.${registrationSequence}` })
-  await page.goto('/login')
+  await openLogin(page)
   await page.getByRole('tab', { name: '注册' }).click()
   await page.getByPlaceholder('给自己起个昵称').fill(nickname)
   await page.getByPlaceholder('设置一个密码').fill('simple-password')
@@ -114,7 +121,7 @@ test('session-only login clears the remembered nickname and issues a browser-ses
 
   const reopened = await browser.newContext({ viewport: { width: 375, height: 667 } })
   const reopenedPage = await reopened.newPage()
-  await reopenedPage.goto('/login')
+  await openLogin(reopenedPage)
   await expect(reopenedPage).toHaveURL(/login/)
   await expect(reopenedPage.getByPlaceholder('输入你的昵称')).toHaveValue('')
   await reopened.close()
@@ -123,7 +130,7 @@ test('session-only login clears the remembered nickname and issues a browser-ses
 test('registration layout fits iPhone SE and email verification remains secondary', async ({ page }) => {
   for (const viewport of [{ width: 375, height: 667 }, { width: 390, height: 844 }, { width: 430, height: 932 }]) {
     await page.setViewportSize(viewport)
-    await page.goto('/login')
+    await openLogin(page)
     await expect(page.getByRole('tab', { name: '登录' })).toHaveAttribute('aria-selected', 'true')
     await expect(page.getByRole('checkbox', { name: '记住登录信息' })).toBeChecked()
     await expect(page.getByText('敏宝情况记录与就医准备', { exact: true })).toBeVisible()
