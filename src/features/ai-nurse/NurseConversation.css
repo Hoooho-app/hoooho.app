@@ -1,7 +1,7 @@
 .nurse-controls { display: flex; flex-wrap: wrap; gap: var(--hoho-space-2, 8px); }
 .nurse-turn { padding-block: var(--hoho-space-3, 12px); border-bottom: 1px solid rgb(var(--hoho-color-border)); overflow-wrap: anywhere; }
 .nurse-turn p, .nurse-notes p { white-space: pre-wrap; }
-.nurse-turn--user strong { color: rgb(var(--hoho-color-primary)); }
+.nurse-turn--user strong { color: rgb(var(--hoho-color-link)); }
 .nurse-notes input, .nurse-notes textarea { width: 100%; min-height: 44px; }
 .nurse-notes > div { padding-block: var(--hoho-space-3, 12px); }
 .symptom-input-layer {z-index:90}
@@ -19,7 +19,7 @@
 .nurse-turn--user p {background:rgb(var(--hoho-color-primary-soft))}
 .nurse-avatar {display:flex;align-items:center;justify-content:center;flex:0 0 36px;width:36px;height:36px;border-radius:var(--hoho-radius-pill);overflow:hidden;position:relative;background:rgb(var(--hoho-color-surface));border:1px solid rgb(var(--hoho-color-border))}
 .nurse-avatar--assistant img {position:absolute;width:126px;max-width:none;height:126px;left:-26px;top:-18px}
-.nurse-avatar--user {color:rgb(var(--hoho-color-primary));background:rgb(var(--hoho-color-primary-soft));font-size:var(--hoho-font-size-body);font-weight:600}
+.nurse-avatar--user {color:rgb(var(--hoho-color-link));background:rgb(var(--hoho-color-primary-soft));font-size:var(--hoho-font-size-body);font-weight:600}
 .nurse-compose {display:block;font-size:var(--hoho-font-size-caption)}
 .nurse-compose textarea {display:block;width:100%;min-height:44px;height:52px;resize:none;font-size:16px}
 .nurse-input-status {text-align:center;font-size:var(--hoho-font-size-caption);color:rgb(var(--hoho-color-text-secondary));margin:0 0 var(--hoho-space-2)}

@@ -54,6 +54,7 @@ jobs:
         run: npx playwright test --config tests/dialogue/playwright.config.ts recognition-progress.spec.ts smart-record-actions.spec.ts smart-record-exit.spec.ts --grep-invert 'saving while ASR is pending'
       - run: npx playwright test --config tests/conversation-home/playwright.config.ts
       - run: npx playwright test --config tests/conversation-home/pure-record.config.ts
+      - run: npx playwright test --config tests/conversation-home/forest.config.ts
       - uses: actions/upload-artifact@v4
         if: always()
         with:

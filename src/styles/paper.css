@@ -28,8 +28,8 @@
 }
 /* Grain is translucent: the drawer must always keep an opaque paper base. */
 body .hoho-drawer.hoho-drawer {
-  background-color: rgb(var(--hoho-color-page-background));
-  background-image: var(--hoho-page-grain);
+  background-color: rgb(var(--hoho-color-surface));
+  background-image: none;
 }
 /* Explicit material bridges also cover page CSS outside Tailwind's component layer. */
 body header.hoho-page-header, body .hoho-legacy-header, body .dietary-page-header, body .help-header,
@@ -50,8 +50,7 @@ body .dietary-card, body .medication-course-card__surface, body .med-reminder-fl
   background-image: var(--hoho-paper-grain), var(--hoho-paper-light);
 }
 /* Large neutral wrappers share the page paper rather than stacking a white slab. */
-body .dietary-card, body .visit-report, body .visit-summary-page, body .visit-reading-person,
-body .visit-subpage, body .visit-reading-card, body .med-reminder-flow {
+body .visit-report, body .visit-summary-page, body .visit-subpage {
   background-color: rgb(var(--hoho-color-page-background));
   background-image: var(--hoho-paper-grain);
 }
@@ -116,3 +115,5 @@ body .hoho-drawer--clean.hoho-drawer {
 .hoho-drawer--clean .hoho-drawer__item>span { min-width:0; white-space:normal; }
 
 .hoho-drawer--clean .hoho-drawer__item { min-height:var(--hoho-touch-target); height:auto; }
+
+body :is(.visit-reading-card,.visit-reading-person,.dietary-card,.med-reminder-flow){background-color:rgb(var(--hoho-color-surface));background-image:none}

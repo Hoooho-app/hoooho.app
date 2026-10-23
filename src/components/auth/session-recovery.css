@@ -5,18 +5,18 @@
 .session-recovery-screen__body { display: flex; flex-direction: column; align-items: center; padding: clamp(56px, 12dvh, 100px) var(--hoho-page-gutter) var(--hoho-space-10); text-align: center; }
 .session-recovery-screen__body p { max-width: 300px; }
 .session-recovery-screen__body > button { min-width: 140px; }
-.session-recovery-art { position: relative; display: grid; place-items: center; width: 156px; height: 140px; margin-bottom: var(--hoho-space-8); color: rgb(var(--hoho-color-primary)); }
+.session-recovery-art { position: relative; display: grid; place-items: center; width: 156px; height: 140px; margin-bottom: var(--hoho-space-8); color: rgb(var(--hoho-color-link)); }
 .session-recovery-art__orbit { position: absolute; width: 128px; height: 128px; border-radius: var(--hoho-radius-pill); background: rgb(var(--hoho-color-primary-soft)); }
 .session-recovery-art__paper { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: var(--hoho-space-2); width: 78px; height: 100px; padding: var(--hoho-space-4); border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-card); background: rgb(var(--hoho-color-surface-white)); transform: rotate(-7deg); }
 .session-recovery-art__paper span { width: 100%; height: var(--hoho-space-1); border-radius: var(--hoho-radius-small); background: rgb(var(--hoho-color-primary-soft)); }
 .session-recovery-art__paper span:last-child { width: 70%; }
-.session-recovery-art__plus { position: absolute; right: 0; bottom: var(--hoho-space-1); display: grid; place-items: center; width: 44px; height: 44px; border: var(--hoho-space-1) solid rgb(var(--hoho-color-background)); border-radius: var(--hoho-radius-card); color: rgb(var(--hoho-color-action-text)); background: rgb(var(--hoho-color-primary)); }
+.session-recovery-art__plus { position: absolute; right: 0; bottom: var(--hoho-space-1); display: grid; place-items: center; width: 44px; height: 44px; border: var(--hoho-space-1) solid rgb(var(--hoho-color-background)); border-radius: var(--hoho-radius-card); color: rgb(var(--hoho-color-action-text)); background: rgb(var(--hoho-color-action)); }
 .session-recovery-art__spark { position: absolute; top: 0; right: 0; }
 .session-recovery-chip-position { position: fixed; inset-inline: 0; top: calc(env(safe-area-inset-top) + 60px); z-index: 65; display: flex; justify-content: flex-end; max-width: var(--hoho-app-shell-max); margin-inline: auto; padding-inline: var(--hoho-page-gutter); pointer-events: none; }
-.session-recovery-chip { display: flex; align-items: center; gap: var(--hoho-space-1); padding: var(--hoho-space-2); border: 1px solid rgb(var(--hoho-color-primary-border)); border-radius: var(--hoho-radius-small); background: rgb(var(--hoho-color-primary-soft)); color: rgb(var(--hoho-color-primary)); font: 400 var(--hoho-font-size-caption) / var(--hoho-line-height-caption) var(--hoho-font-family); }
+.session-recovery-chip { display: flex; align-items: center; gap: var(--hoho-space-1); padding: var(--hoho-space-2); border: 1px solid rgb(var(--hoho-color-primary-border)); border-radius: var(--hoho-radius-small); background: rgb(var(--hoho-color-primary-soft)); color: rgb(var(--hoho-color-link)); font: 400 var(--hoho-font-size-caption) / var(--hoho-line-height-caption) var(--hoho-font-family); }
 .session-recovery-notice-position { position: fixed; inset-inline: 0; z-index: 85; max-width: var(--hoho-app-shell-max); padding-inline: var(--hoho-page-gutter); margin-inline: auto; pointer-events: none; }
 .session-recovery-notice { display: flex; align-items: center; gap: var(--hoho-space-3); padding: var(--hoho-space-3); border: 1px solid rgb(var(--hoho-color-border)); border-radius: var(--hoho-radius-card); background: rgb(var(--hoho-color-surface-elevated)); box-shadow: var(--hoho-shadow-floating); pointer-events: auto; }
-.session-recovery-spinner { color: rgb(var(--hoho-color-primary)); animation: session-recovery-spin 1.6s linear infinite; }
+.session-recovery-spinner { color: rgb(var(--hoho-color-link)); animation: session-recovery-spin 1.6s linear infinite; }
 .session-recovery-expiry-layer { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; padding: var(--hoho-space-4); background: rgb(var(--hoho-color-background) / .97); }
 .session-recovery-expiry-modal { position: relative; padding: var(--hoho-space-5); overflow-y: auto; max-height: min(calc(100dvh - var(--hoho-space-8)), 100%); }
 .session-recovery-login { padding: 0; min-height: 0; background: transparent; }

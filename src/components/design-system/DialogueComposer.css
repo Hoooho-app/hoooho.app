@@ -13,12 +13,12 @@
 .hoho-dialogue-composer--input-only .hoho-dialogue-hold { grid-column:2; grid-row:1; }
 .hoho-dialogue-composer--conversation{grid-template-columns:minmax(0,1fr) repeat(2,44px);gap:4px;min-height:60px;padding:6px;border:1px solid rgb(var(--hoho-color-primary)/.14);border-radius:26px;background:rgb(var(--hoho-color-surface-white));box-shadow:var(--hoho-shadow-card)}
 .hoho-dialogue-composer--conversation.has-action{grid-template-columns:minmax(0,1fr) repeat(3,44px)}
-.hoho-dialogue-composer--conversation>.hoho-button{width:44px;height:44px;min-height:44px;border:0;background:transparent;color:rgb(var(--hoho-color-primary));border-radius:50%;padding:0}
+.hoho-dialogue-composer--conversation>.hoho-button{width:44px;height:44px;min-height:44px;border:0;background:transparent;color:rgb(var(--hoho-color-link));border-radius:50%;padding:0}
 .hoho-dialogue-composer--conversation>.hoho-dialogue-hold{width:100%;border-radius:20px;color:rgb(var(--hoho-color-text-primary));background:rgb(var(--hoho-color-primary-soft));font-size:var(--hoho-font-size-card-title);font-weight:500}
-.hoho-dialogue-composer--conversation>.hoho-dialogue-hold.is-pressed{background:rgb(var(--hoho-color-primary));color:rgb(var(--hoho-color-action-text))}
+.hoho-dialogue-composer--conversation>.hoho-dialogue-hold.is-pressed{background:rgb(var(--hoho-color-action));color:rgb(var(--hoho-color-action-text))}
 .hoho-dialogue-composer--conversation>textarea{min-width:0;width:100%;min-height:24px;max-height:96px;padding:0 8px;border:0;outline:0;resize:none;background:transparent;color:inherit;font-size:16px;line-height:24px;box-shadow:none;border-radius:0;overflow-y:auto}
 .hoho-dialogue-composer--conversation:focus-within{border-color:rgb(var(--hoho-color-primary));outline:2px solid rgb(var(--hoho-color-primary)/.18);outline-offset:2px}
-.hoho-dialogue-composer--conversation>.hoho-dialogue-add[data-variant='primary']{background:rgb(var(--hoho-color-primary));color:rgb(var(--hoho-color-action-text))}
+.hoho-dialogue-composer--conversation>.hoho-dialogue-add[data-variant='primary']{background:rgb(var(--hoho-color-action));color:rgb(var(--hoho-color-action-text))}
 .hoho-dialogue-media-sources{display:grid;gap:var(--hoho-space-2);padding-bottom:var(--hoho-space-2)}
 .hoho-dialogue-media-sources>.hoho-button{min-height:52px;justify-content:flex-start;text-align:left;font-size:var(--hoho-font-size-body)}
 .hoho-dialogue-media-sources .hoho-button__content{gap:var(--hoho-space-3);justify-content:flex-start}

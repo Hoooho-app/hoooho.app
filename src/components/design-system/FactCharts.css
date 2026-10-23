@@ -22,7 +22,7 @@
 .hoho-fact-distribution figcaption strong {
   margin-left: auto;
   font-variant-numeric: tabular-nums;
-  color: rgb(var(--hoho-color-primary));
+  color: rgb(var(--hoho-color-link));
 }
 .hoho-chart-key {
   width: 7px;
@@ -33,7 +33,7 @@
 }
 .hoho-chart-tone-0 {
   stroke: rgb(var(--hoho-color-primary));
-  color: rgb(var(--hoho-color-primary));
+  color: rgb(var(--hoho-color-link));
 }
 .hoho-chart-tone-1 {
   stroke: rgb(var(--hoho-color-info));

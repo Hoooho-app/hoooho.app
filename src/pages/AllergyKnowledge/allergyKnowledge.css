@@ -8,13 +8,13 @@
 .allergy-knowledge-article>.hoho-text-page-title{margin:0 0 var(--hoho-space-6)}
 .allergy-knowledge-body{display:grid;gap:var(--hoho-space-6)}
 .allergy-knowledge-body section{display:grid;gap:var(--hoho-space-4)}
-.allergy-knowledge-body .hoho-text-section-title{font-size:var(--hoho-font-size-card-title);line-height:var(--hoho-line-height-card-title);color:rgb(var(--hoho-color-primary));margin:0}
+.allergy-knowledge-body .hoho-text-section-title{font-size:var(--hoho-font-size-card-title);line-height:var(--hoho-line-height-card-title);color:rgb(var(--hoho-color-link));margin:0}
 .allergy-knowledge-body .hoho-text-body{margin:0;color:rgb(var(--hoho-color-text-primary))}
 .allergy-knowledge-body ul{margin:0;padding-left:var(--hoho-space-5);display:grid;gap:var(--hoho-space-3);list-style:disc}
 .allergy-knowledge-sources{margin-top:var(--hoho-space-8);border-top:1px solid rgb(var(--hoho-color-border));font-size:var(--hoho-font-size-caption);color:rgb(var(--hoho-color-text-secondary))}
 .allergy-knowledge-sources summary{min-height:var(--hoho-touch-target);padding-block:var(--hoho-space-3);cursor:pointer}
 .allergy-knowledge-sources>ul{list-style:none;display:grid;gap:var(--hoho-space-5);margin:var(--hoho-space-2) 0 0;padding:0}
-.allergy-knowledge-sources a{display:flex;justify-content:space-between;align-items:flex-start;gap:var(--hoho-space-2);min-height:var(--hoho-touch-target);color:rgb(var(--hoho-color-primary));text-decoration:underline;text-underline-offset:var(--hoho-space-1)}
+.allergy-knowledge-sources a{display:flex;justify-content:space-between;align-items:flex-start;gap:var(--hoho-space-2);min-height:var(--hoho-touch-target);color:rgb(var(--hoho-color-link));text-decoration:underline;text-underline-offset:var(--hoho-space-1)}
 .allergy-knowledge-sources a>svg{flex:none}
 .allergy-knowledge-sources small{display:block;font-size:var(--hoho-font-size-caption);line-height:var(--hoho-line-height-caption)}
 .allergy-knowledge-history.hoho-button{margin-top:var(--hoho-space-5);min-height:var(--hoho-touch-target)}

@@ -15,10 +15,10 @@
 .profile-record>.hoho-button{justify-self:end}
 .profile-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--hoho-space-3)}
 .profile-source-file,.profile-original-link{display:flex;align-items:center;gap:var(--hoho-space-2);min-width:0}
-.profile-original-link{min-height:var(--hoho-touch-target);color:rgb(var(--hoho-color-primary));flex:1;font-size:var(--hoho-font-size-caption)}
+.profile-original-link{min-height:var(--hoho-touch-target);color:rgb(var(--hoho-color-link));flex:1;font-size:var(--hoho-font-size-caption)}
 .profile-original-link span{overflow-wrap:anywhere;min-width:0}.profile-original-link svg{flex-shrink:0}
 .profile-source-file>.hoho-button{flex-shrink:0}
 .profile-editor .hoho-field,.profile-editor input,.profile-editor select,.profile-editor textarea{min-width:0;max-width:100%}
 .profile-filters{display:flex;gap:var(--hoho-space-2);overflow-x:auto;padding-bottom:var(--hoho-space-1)}
 .profile-filters button{flex-shrink:0}
-.child-archive-content details>summary{cursor:pointer;min-height:var(--hoho-touch-target);display:flex;align-items:center;color:rgb(var(--hoho-color-primary))}
+.child-archive-content details>summary{cursor:pointer;min-height:var(--hoho-touch-target);display:flex;align-items:center;color:rgb(var(--hoho-color-link))}
