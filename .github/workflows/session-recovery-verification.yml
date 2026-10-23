@@ -8,14 +8,16 @@ on:
       - 'src/services/apiClient.ts'
       - 'src/store/useAppStore.ts'
       - 'src/pages/Login/**'
+      - 'src/features/welcome/**'
       - 'src/pages/Family/EditFamilyMemberPage.tsx'
       - 'tests/session-recovery/**'
+      - 'tests/welcome/**'
       - '.github/workflows/session-recovery-verification.yml'
 permissions:
   contents: read
 jobs:
   verify:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
       TZ: Asia/Shanghai
@@ -31,6 +33,7 @@ jobs:
       - run: npm run test:auth
       - run: npm run build
       - run: npx playwright test --config tests/session-recovery/playwright.config.ts --reporter=line
+      - run: npx playwright test --config tests/welcome/playwright.config.ts --reporter=line
       - uses: actions/upload-artifact@v4
         if: always()
         with:

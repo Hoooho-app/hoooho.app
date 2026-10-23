@@ -5,7 +5,7 @@ export default defineConfig({
   testDir: '.', testMatch: 'auth-account.spec.ts', workers: 1, timeout: 60000,
   use: { baseURL: origin, ...devices['iPhone SE'], trace: 'off' },
   projects: [
-    { name: 'chrome', use: { browserName: 'chromium', launchOptions: { executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe' } } },
+    { name: 'chrome', use: { browserName: 'chromium', launchOptions: { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || 'C:/Program Files/Google/Chrome/Application/chrome.exe' } } },
     { name: 'webkit', use: { browserName: 'webkit' } }
   ],
   webServer: {

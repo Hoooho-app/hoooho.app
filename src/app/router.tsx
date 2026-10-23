@@ -26,6 +26,7 @@ function visibleRoutes(routes: RouteObject[]): RouteObject[] {
 installChildBodyHistory()
 export const router = createBrowserRouter(visibleRoutes([
   { path: '/', element: <Navigate to="/nurse-station" replace /> },
+  { path: '/welcome', lazy: lazyPage(() => import('../features/welcome/WelcomePage'), 'WelcomePage') },
   { path: '/login', lazy: lazyPage(() => import('../pages/Login'), 'LoginPage') },
   { path: '/help', lazy: lazyPage(() => import('../pages/Help'), 'HelpCenterPage') },
   { path: '/medical-preparation/:shareToken', lazy: lazyPage(() => import('../pages/MedicalPreparationShared'), 'MedicalPreparationSharedPage') },
