@@ -22,9 +22,8 @@ test('健康档案首页复用健康随记的记录对象页头并直接衔接�
   assert.doesNotMatch(home, /建议优先补充|搜索健康档案|重要健康事实/)
   assert.doesNotMatch(home, /已建立|growth-identity-card|更新成长数据|铸造成长身份卡|growth-identity-card__metrics|growth-identity-card__action|growth-identity-card__updated/)
   assert.match(home, /health-profile-record-subject[\s\S]*health-profile-entries/)
-  assert.match(nurseStation, /nurse-station-growth-data/)
-  assert.match(nurseStation, /openGrowthData[\s\S]*\/health-profile\/basic/)
-  assert.match(nurseStation, /BloodTypeEditorSheet/)
+  // Growth editing now remains in the profile; the approved conversation home
+  // no longer duplicates its data board. The editor contracts stay below.
   assert.doesNotMatch(bloodTypeEditor, /ProfileChoiceGroup label="RhD"/)
   assert.doesNotMatch(bloodTypeEditor, /当前：/)
   assert.match(bloodTypeEditor, /blood-type-sheet__heading/)
@@ -49,7 +48,7 @@ test('成长数据合并曲线、录入和记录列表入口', () => {
 
 test('五类档案顺序固定，入口真实导航，智能记录合并报告入口', () => {
   assert.match(home, /title: '过敏史'[\s\S]*title: '慢性病史'[\s\S]*title: '家族史'[\s\S]*title: '手术史'[\s\S]*title: '疫苗接种记录'/)
-  assert.match(home, /navigate\(`\/health-profile\/\$\{id\}`\)/)
+  assert.match(home, /navigate\((?:path\?\?)?`\/health-profile\/\$\{id\}`\)/)
   assert.match(home, /ProfileUploadBatch/)
   const upload=readFileSync(new URL('./ProfileUploadBatch.tsx',import.meta.url),'utf8')
   assert.doesNotMatch(upload,/navigate\('\/health-profile\/smart-record'\)/)

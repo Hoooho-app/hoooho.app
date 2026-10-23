@@ -64,6 +64,21 @@ export class FrontDeskRecord {
     const context = data.contexts.filter(c => c.accountId === accountId && c.memberId === memberId&&!c.closedAt&&data.messages.some(m=>m.contextId===c.id&&m.status!=='discarded')).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || b.id.localeCompare(a.id))[0]
     return context ? this.snapshot(accountId, memberId, context.id) : null
   }
+  async history(accountId, memberId, { query = '', offset = 0 } = {}) {
+    await this.scope(accountId, memberId)
+    if (!Number.isSafeInteger(offset) || offset < 0 || offset > 100000 || typeof query !== 'string' || query.length > 100) throw fail('对话查询条件无效', 422, 'FRONT_HISTORY_INVALID')
+    const data = await this.store.read(), term = query.trim().toLocaleLowerCase()
+    await this.scope(accountId, memberId)
+    // Summaries only: originals are fetched through the existing scoped detail.
+    const items = data.contexts.filter(c => c.accountId === accountId && c.memberId === memberId).map(context => {
+      const messages = data.messages.filter(m => m.accountId === accountId && m.memberId === memberId && m.contextId === context.id && m.status !== 'discarded').sort(messageOrder)
+      const first = messages.find(m => m.kind !== 'assistant')
+      if (!first || (term && !messages.some(m => m.text.toLocaleLowerCase().includes(term) || (m.files ?? []).some(f => f.name.toLocaleLowerCase().includes(term))))) return null
+      return { id: context.id, updatedAt: context.updatedAt, title: first.text.slice(0, 80) || (first.kind === 'image' ? '图片记录' : '语音记录'), preview: (messages.at(-1)?.text ?? '').slice(0, 160), saved: Boolean(context.saved), closed: Boolean(context.closedAt), messageCount: messages.length }
+    }).filter(Boolean).sort((a,b) => b.updatedAt.localeCompare(a.updatedAt) || b.id.localeCompare(a.id))
+    const limit = 30
+    return { items: items.slice(offset, offset + limit), hasMore: items.length > offset + limit, nextOffset: offset + limit }
+  }
   async discard(accountId,memberId,id){
     await this.scope(accountId,memberId)
     await this.store.update(data=>{const message=data.messages.find(m=>m.id===id&&m.accountId===accountId&&m.memberId===memberId);if(message?.status==='completed')throw fail('这条消息已经提交，请重试找回回复',409,'FRONT_RECORD_ALREADY_SUBMITTED');return {...data,messages:data.messages.map(m=>m===message?{...m,status:'discarded'}:m)}})

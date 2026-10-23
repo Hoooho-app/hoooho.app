@@ -3,7 +3,7 @@ import { fileIdentity } from './captureDraft'
 import type { SmartRecordDraft } from './smartRecordTypes'
 import {retainSmartRecordEdits} from './smartRecordTypes'
 
-export interface FrontMessage {id:string;kind:'text'|'voice'|'image'|'assistant';text:string;at?:string;inputAt?:number;contextId:string;status:'pending'|'completed'|'failed';files?:FrontFile[];voices?:FrontFile[]}
+export interface FrontMessage {id:string;kind:'text'|'voice'|'image'|'assistant';text:string;at?:string;inputAt?:number;contextId:string;status:'pending'|'completed'|'failed'|'discarded';files?:FrontFile[];voices?:FrontFile[]}
 export interface FrontFile {name:string;mimeType:string;dataUrl:string;lastModified?:number}
 export interface FrontContext {id:string;updatedAt:string;saved?:boolean;recordResult?:SmartRecordDraft['result'];review?:SmartRecordDraft;messages:FrontMessage[]}
 export const voiceTurnId=(file:File)=>`voice:${file.name}:${file.lastModified}`
@@ -15,6 +15,7 @@ export function restoreFrontFile(file:FrontFile) {
 export function restoreFrontContext(context:FrontContext,local:CaptureDraft):CaptureDraft {
   const files:File[]=[],turns:CaptureTurn[]=[]
   for(const message of context.messages){
+    if(message.status==='discarded')continue
     const media=[...(message.files??[]),...(message.voices??[])].map(restoreFrontFile)
     files.push(...media)
     const previous=local.conversationTurns?.find(turn=>turn.id===message.id)
