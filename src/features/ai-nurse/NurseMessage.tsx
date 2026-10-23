@@ -5,8 +5,9 @@ import { userInitial } from './userInitial'
 import './NurseConversation.css'
 import {Volume2,Square} from 'lucide-react'
 import {HohoButton} from '../../components/design-system/HohoButton'
+import brandLogo from '../../assets/brand/hoooho-logo-approved.png'
 
-export function NurseMessage({ role, recorderName, children, assistantName = '值班护士', assistantAvatar, onRead, reading=false,readDisabled=false }: {
+export function NurseMessage({ role, recorderName, children, assistantName = '值班护士', assistantAvatar, onRead, reading=false,readDisabled=false, brand=false }: {
   role: 'assistant' | 'user'
   recorderName?: string
   children: ReactNode
@@ -16,7 +17,9 @@ export function NurseMessage({ role, recorderName, children, assistantName = '�
   onRead?:()=>void
   reading?:boolean
   readDisabled?:boolean
+  brand?:boolean
 }) {
+  if (brand && role === 'assistant') return <div className="nurse-turn nurse-turn--assistant nurse-turn--brand"><div className="nurse-turn__identity"><img src={brandLogo} alt="" /><span>护护</span></div><div className="nurse-turn-content">{children}</div></div>
   return <div className={`nurse-turn nurse-turn--${role}`}>
     {role === 'user'
       ? <span className="nurse-avatar nurse-avatar--user" role="img" aria-label={`${recorderName || '用户'}的头像`}>{userInitial(recorderName)}</span>

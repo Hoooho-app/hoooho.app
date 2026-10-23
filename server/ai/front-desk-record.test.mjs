@@ -139,3 +139,23 @@ test('supplier acknowledgement cannot claim that unconfirmed input was formally 
  const reply=result.context.messages.find(message=>message.kind==='assistant').text
  assert.match(reply,/内容已收到/);assert.doesNotMatch(reply,/已记录|已保存/);assert.notEqual(result.context.saved,true)
 })
+
+test('history is an owned, paginated summary of closed and current conversations without original media',async t=>{
+ const f=await setup(t)
+ const old=await f.service.submit('synthetic',f.member.id,{id:'history-old',kind:'text',text:'昨天脸颊发红'})
+ await f.service.closeSession('synthetic',f.member.id)
+ const fresh=await f.service.submit('synthetic',f.member.id,{id:'history-new',kind:'text',text:'今天睡得很好'})
+ await f.service.submit('synthetic',f.other.id,{id:'history-other',kind:'text',text:'其他孩子的记录'})
+ await f.service.store.update(data=>({...data,messages:data.messages.map(m=>m.contextId===old.context.id?{...m,files:[{name:'原始照片.jpg',dataUrl:'data:image/jpeg;base64,private'}],voices:[{dataUrl:'private-audio'}]}:m)}))
+ const before=JSON.stringify(await f.service.store.read()),history=await f.service.history('synthetic',f.member.id)
+ assert.equal(history.items.length,2)
+ assert.ok(history.items.some(i=>i.id===old.context.id&&i.closed))
+ assert.ok(history.items.some(i=>i.id===fresh.context.id&&!i.closed))
+ assert.doesNotMatch(JSON.stringify(history),/dataUrl|private-audio|private|accountId|memberId/)
+ assert.deepEqual((await f.service.history('synthetic',f.member.id,{query:'脸颊'})).items.map(i=>i.id),[old.context.id])
+ assert.equal((await f.service.history('synthetic',f.member.id,{offset:30})).items.length,0)
+ await assert.rejects(()=>f.service.history('foreign',f.member.id))
+ await assert.rejects(()=>f.service.history('synthetic',f.member.id,{offset:-1}),{code:'FRONT_HISTORY_INVALID'})
+ assert.equal(JSON.stringify(await f.service.store.read()),before)
+ assert.equal((await f.service.snapshot('synthetic',f.member.id,old.context.id)).messages[0].files[0].name,'原始照片.jpg')
+})
