@@ -42,3 +42,5 @@
 发布检查依赖：Quick search workflow 因 ubuntu-latest 已变为26.04、Playwright1.55不支持而在安装阶段失败（run40026694195）；将该workflow固定为项目已有的24.04支持基线，测试范围与业务代码不变。
 
 Quick search 恢复录音的旧测试仍点击已不存在的首页“智能记录”入口（run40026878518，8通过／1失败）；改为重新打开同一已有smart-record草稿路由，继续断言IndexedDB中迟到音频原件完整保留，不削弱数据保护断言。
+
+最终quick CI在第二次无界apt下载媒体工具阶段长时间等待（run40027578096）。采用同项目已通过的smart workflow方式：使用npm已安装的ffmpeg/ffprobe，浏览器仅在smoke检查失败时安装系统依赖，并把apt重试与超时限定到已有基线；测试命令不变。
