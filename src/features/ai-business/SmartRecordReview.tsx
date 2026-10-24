@@ -5,6 +5,7 @@ import { manualRecordField } from '../../../shared/manual-smart-record.mjs'
 import fieldLabels from '../../../shared/ai-business-field-labels.json'
 import { isKeyRecordField, recordCategoryLabels, smartRecordTimeLabel, type SmartRecordDraft, type SmartRecordItem } from './smartRecordTypes'
 import { localDateTimeValue } from '../../utils/healthOccurredAt'
+import { ProfessionalRecordSummary } from './ProfessionalRecordSummary'
 
 type Editing = {itemId:string;field:string;value:string;label:string} | {field:'new';category:string;value:string;timeText:string}
 export function SmartRecordReview({review,disabled,error,onChange}:{review:SmartRecordDraft;disabled:boolean;error:string;onChange:(review:SmartRecordDraft)=>void}){
@@ -24,7 +25,7 @@ export function SmartRecordReview({review,disabled,error,onChange}:{review:Smart
       const item:SmartRecordItem={id:`manual-${crypto.randomUUID()}`,category:editing.category,title:editing.value.trim().slice(0,24),timeText:editing.timeText.trim(),time:{resolvedStart:null,precision:'unknown'},userAdded:true,fields:[{name:manualRecordField(editing.category),value:editing.value.trim(),sources:[],editedBy:'user'}]}
       onChange({...review,items:[...review.items,item]})
     }else if('itemId' in editing){
-      onChange({...review,items:review.items.map(item=>item.id!==editing.itemId?item:editing.field==='title'?{...item,title:editing.value,titleChanged:true}:editing.field==='category'?{...item,category:editing.value,categoryChanged:true}:editing.field==='time'?{...item,timeText:editing.value,timeChanged:true}:{...item,fields:item.fields.map(field=>field.name===editing.field?{...field,value:editing.value,editedBy:'user'}:field)})})
+      onChange({...review,items:review.items.map(item=>item.id!==editing.itemId?item:editing.field==='title'?{...item,title:editing.value,titleChanged:true}:editing.field==='category'?{...item,professionalSummary:undefined,category:editing.value,categoryChanged:true}:editing.field==='time'?{...item,professionalSummary:undefined,timeText:editing.value,timeChanged:true}:{...item,professionalSummary:undefined,fields:item.fields.map(field=>field.name===editing.field?{...field,value:editing.value,editedBy:'user'}:field)})})
     }
     setEditing(null)
   }
@@ -32,10 +33,12 @@ export function SmartRecordReview({review,disabled,error,onChange}:{review:Smart
   return <div className="smart-record-review" aria-label="核对记录">
     {review.items.map(item=><HealthCard key={item.id} className="smart-record-item smart-review-card">
       <header><strong>{item.title}</strong><HohoButton variant="text" size="small" disabled={disabled} aria-label={`编辑${item.title}的名称`} onClick={()=>open({itemId:item.id,field:'title',value:item.title,label:item.category==='symptom'?'症状':'记录名称'})}>编辑</HohoButton></header>
+      <ProfessionalRecordSummary item={item}/>
       <dl>{row(item,'记录类型',recordCategoryLabels[item.category]??'其他','category')}
-        {item.fields.filter(field=>isKeyRecordField(item.category,field.name)).map(field=>row(item,item.fields.length===1||field.name==='symptom'?'原话':field.name==='durationMinutes'?'睡眠时长':(fieldLabels as Record<string,string>)[field.name]??field.name,field.value,field.name))}
+        {!item.professionalSummary&&item.fields.filter(field=>isKeyRecordField(item.category,field.name)).map(field=>row(item,item.fields.length===1||field.name==='symptom'?'原话':field.name==='durationMinutes'?'睡眠时长':(fieldLabels as Record<string,string>)[field.name]??field.name,field.value,field.name))}
         {row(item,'发生时间',smartRecordTimeLabel(item),'time')}
       </dl>
+      {item.professionalSummary&&<details className="smart-record-originals"><summary>查看和修改原始内容</summary><dl>{item.fields.filter(field=>isKeyRecordField(item.category,field.name)).map(field=>row(item,item.fields.length===1||field.name==='symptom'?'原话':(fieldLabels as Record<string,string>)[field.name]??field.name,field.value,field.name))}</dl></details>}
     </HealthCard>)}
     <HohoButton variant="secondary" disabled={disabled||review.items.length>=30} onClick={()=>open({field:'new',category:'symptom',value:'',timeText:''})}><Plus size={18} aria-hidden="true"/>新增记录</HohoButton>
     {error&&<p role="alert">{error}</p>}

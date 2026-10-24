@@ -1,7 +1,9 @@
 import { itemRecordCategories } from '../../../shared/record-categories.mjs'
 export const smartRecordCategories = itemRecordCategories
+export type ProfessionalSummary = {version:string;text:string;claims:{text:string;factIds:string[]}[]}
+export type NursingInterview = {version:string;status:'asking'|'ready'|'urgent';domain:string|null;turnCount:number;askedQuestionIds:string[];stopReason:string|null;question:{id:string;text:string;options:{label:string;value:string}[];sourceIds:string[]}|null}
 export type SmartRecordField = {name:string;value:string;editedBy?:string;sources:{quote:string}[]}
-export type SmartRecordItem = {id:string;category:string;visibilityCategories?:string[];categoriesChanged?:boolean;title:string;timeText:string|null;time:{resolvedStart:string|null;precision:string;defaulted?:boolean};fields:SmartRecordField[];categoryChanged?:boolean;timeChanged?:boolean;userAdded?:boolean;titleChanged?:boolean}
+export type SmartRecordItem = {professionalSummary?:ProfessionalSummary|null;id:string;category:string;visibilityCategories?:string[];categoriesChanged?:boolean;title:string;timeText:string|null;time:{resolvedStart:string|null;precision:string;defaulted?:boolean};fields:SmartRecordField[];categoryChanged?:boolean;timeChanged?:boolean;userAdded?:boolean;titleChanged?:boolean}
 export function smartRecordTimeLabel(item: SmartRecordItem) {
   if (item.timeText?.trim()) return item.timeText
   if (item.time.defaulted && item.time.resolvedStart && Number.isFinite(Date.parse(item.time.resolvedStart))) return `${new Date(item.time.resolvedStart).toLocaleString('zh-CN', { hour12: false, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}（录入时间）`
@@ -18,6 +20,6 @@ export function retainSmartRecordEdits(next:SmartRecordDraft,previous?:SmartReco
   return {...next,deletedItemIds:previous.deletedItemIds,items:[...next.items.filter(item=>!previous.deletedItemIds?.includes(item.id)).map(item=>{
     const old=previous.items.find(i=>evidence(i)===evidence(item))
     if(!old)return item
-    return {...item,...(old.titleChanged?{title:old.title,titleChanged:true}:{}),...(old.categoriesChanged?{visibilityCategories:old.visibilityCategories,categoriesChanged:true}:{}),...(old.categoryChanged?{category:old.category,categoryChanged:true}:{}),...(old.timeChanged?{timeText:old.timeText,timeChanged:true}:{}),fields:item.fields.map(field=>{const edited=old.fields.find(f=>f.name===field.name&&f.editedBy==='user');return edited?{...field,value:edited.value,editedBy:'user'}:field})}
+    return {...item,...(old.fields.some(f=>f.editedBy==='user')||old.timeChanged||old.categoryChanged?{professionalSummary:undefined}:{}),...(old.titleChanged?{title:old.title,titleChanged:true}:{}),...(old.categoriesChanged?{visibilityCategories:old.visibilityCategories,categoriesChanged:true}:{}),...(old.categoryChanged?{category:old.category,categoryChanged:true}:{}),...(old.timeChanged?{timeText:old.timeText,timeChanged:true}:{}),fields:item.fields.map(field=>{const edited=old.fields.find(f=>f.name===field.name&&f.editedBy==='user');return edited?{...field,value:edited.value,editedBy:'user'}:field})}
   }),...previous.items.filter(item=>item.userAdded&&!next.items.some(nextItem=>nextItem.id===item.id))]}
 }

@@ -115,6 +115,11 @@ export class RecognitionJobs {
     await this.scope(accountId,memberId)
     if(!validId(input.id)||!validId(input.input?.id)||!['front','record','structured','transcription'].includes(input.mode)||!['text','voice','image'].includes(input.input.kind)||typeof input.input.text!=='string'||input.input.text.length>15000)throw fail('识别任务内容无效',422,'RECOGNITION_INVALID')
     const item={id:input.input.id,kind:input.input.kind,text:input.input.text,inputAt:Number.isFinite(input.input.inputAt)?Math.min(input.input.inputAt,this.now()):this.now(),assetIds:input.input.assetIds??[],asrAssetId:input.input.asrAssetId??null}
+    if(input.input.answerTo!==undefined){
+      const target=input.input.answerTo
+      if(input.mode!=='front'||!target||!validId(target.contextId)||!validId(target.questionId))throw fail('问题归属无效',422,'RECOGNITION_ANSWER_INVALID')
+      item.answerTo={contextId:target.contextId,questionId:target.questionId}
+    }
     if(!Array.isArray(item.assetIds)||item.assetIds.length>12)throw fail('原件最多12份',413)
     const originals=item.assetIds.map(id=>this.asset(accountId,memberId,id));if(originals.reduce((n,a)=>n+a.bytes,0)>15*1024*1024)throw fail('原件总大小不能超过15 MB',413)
     if(item.asrAssetId){const a=this.asset(accountId,memberId,item.asrAssetId);if(a.mimeType!=='audio/wav')throw fail('转写音频格式无效',415)}
@@ -210,7 +215,7 @@ export class RecognitionJobs {
         }
         if(j.mode==='front'){
           await phase({stage:'responding'})
-          const result=await this.front.submit(j.accountId,j.memberId,{id:item.id,kind:item.kind,text,inputAt:item.inputAt,files,voiceFiles},signal)
+          const result=await this.front.submit(j.accountId,j.memberId,{id:item.id,kind:item.kind,text,inputAt:item.inputAt,files,voiceFiles,...(item.answerTo?{answerTo:item.answerTo}:{})},signal)
           await this.updateActive(id,epoch,signal,{frontDesk:{...result,context:{...result.context,review:undefined,messages:result.context.messages.map(({originalFiles,...m})=>({...m,files:(m.files??[]).map(({dataUrl,...f})=>f),voices:(m.voices??[]).map(({dataUrl,...f})=>f)}))}},contextId:result.context.id})
         }
         await this.updateActive(id,epoch,signal,{cursor:j.cursor+1})
@@ -223,7 +228,7 @@ export class RecognitionJobs {
         const context=(await this.front.snapshot(j.accountId,j.memberId,j.contextId));this.guard(id,epoch,signal)
         if(context.saved){await this.updateActive(id,epoch,signal,{state:'ready',stage:'ready',resultRevision:revision,owner:null,leaseUntil:0});return}
         const turns=context.messages.filter(m=>m.kind!=='assistant'&&m.status==='completed')
-        input={...j.options,text:turns.map(m=>m.text).filter(Boolean).join('\n'),files:turns.flatMap(m=>m.files??[]),voiceFiles:turns.flatMap(m=>m.voices??[]),id:context.review?.id,version:context.review?.version,smartRecord:true,frontDeskRecord:true}
+        input={...j.options,text:turns.map(m=>m.text).filter(Boolean).join('\n'),files:turns.flatMap(m=>m.files??[]),voiceFiles:turns.flatMap(m=>m.voices??[]),id:context.review?.id,version:context.review?.version,smartRecord:true,frontDeskRecord:true,frontContextId:context.id}
       }else{
         // Structured submissions are full snapshots; previous revisions remain
         // immutable inputs and are never concatenated into new health facts.

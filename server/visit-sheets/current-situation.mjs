@@ -1,3 +1,4 @@
+import {validateProfessionalSummary} from '../ai/business/professional-summary.mjs'
 // A view of saved, provenance-bearing facts; never parse free-form medical text.
 const clean = value => typeof value === 'string' ? value.trim() : ''
 const lines = value => Array.isArray(value) ? value.map(clean).filter(Boolean) : []
@@ -19,22 +20,24 @@ export function currentSituation(report, input, edits = {}) {
   for (const record of records) {
     const original = record.sourceText || record.content
     if (original && !raw.some(s => s.text === original)) raw.push({text:original, sourceId:`record:${record.id}`})
+    const provenance=record.aiProvenance
+    const professional=provenance?.confirmed&&provenance.category==='symptom'&&record.content===provenance.professionalSummary?.text&&validateProfessionalSummary(provenance.professionalSummary,{...provenance,id:provenance.itemId})
+    if(professional)add(symptoms,provenance.professionalSummary.text,record)
     const facts = (input.organizations ?? []).filter(o => o.recordId === record.id && (!o.sourceRecordUpdatedAt || o.sourceRecordUpdatedAt === record.updatedAt)).flatMap(o => o.healthAIOutput?.facts ?? [])
     for (const f of facts) {
       if (f.status === 'superseded' || ['future','conditional'].includes(f.temporality) || ['family_member','other_person'].includes(f.subject) || (f.subjectMemberId && f.subjectMemberId !== input.member.id) || ['quoted_text','internet_information'].includes(f.source)) continue
       const quote = clean(f.originalText || f.sourceText)
       if (!quote || !original?.includes(quote)) continue
-      if (['symptom','temperature'].includes(f.type)) add(symptoms,quote,record,f.type,f.polarity === 'negated' || f.type === 'temperature')
+      if (['symptom','temperature'].includes(f.type)&&(!professional||f.type==='temperature')) add(symptoms,quote,record,f.type,f.polarity === 'negated' || f.type === 'temperature')
       // A parent's explicitly uncertain observation retains its original wording.
       if (['concern','diagnosis'].includes(f.type) && f.bodyPart && (f.polarity === 'uncertain' || f.diagnosisCertainty === 'suspected')) add(symptoms,quote,record,'concern')
       if (f.type === 'status_change') add(changes,quote,record)
       if (f.type === 'medication' && f.medicationAction === 'taken') add(treatment,quote,record)
     }
-    const provenance = record.aiProvenance
     if (provenance?.confirmed) for (const field of provenance.fields ?? []) {
       const text = clean(field.value)
       if (!savedField(field,record)) continue
-      if (provenance.category === 'symptom' && field.name === 'symptom') add(symptoms,text,record)
+      if (!professional && provenance.category === 'symptom' && field.name === 'symptom') add(symptoms,text,record)
       if (provenance.category === 'symptom' && field.name === 'temperature') add(symptoms,text,record,'temperature',true)
       if (field.name === 'handling' && provenance.category === 'symptom') add(treatment,text,record)
     }
