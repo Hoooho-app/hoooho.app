@@ -12,7 +12,7 @@ const feedback = read('../../pages/Feedback/index.tsx')
 const about = read('../../pages/About/index.tsx')
 
 test('every direct sidebar destination is represented by the shared top-level header contract', () => {
-  for (const route of ['/nurse-station', '/health-events', '/health-profile', '/settings', '/help', '/feedback', '/about']) {
+  for (const route of ['/nurse-station', '/health-events', '/health-profile', '/help', '/feedback', '/about']) {
     assert.match(drawer, new RegExp(`to: '${route.replaceAll('/', '\\/')}'`))
   }
   assert.match(header, /aria-label="打开菜单"/)
@@ -23,7 +23,8 @@ test('every direct sidebar destination is represented by the shared top-level he
 test('sidebar uses the approved concise navigation copy', () => {
   assert.match(drawer, /label: '服务前台'[^\n]*to: '\/nurse-station'[\s\S]*label: '健康日历'[^\n]*to: '\/health-events'[\s\S]*label: '孩子档案'[^\n]*to: '\/health-profile'/)
   assert.doesNotMatch(drawer, /label: '健康随记'|label: '健康月历'/)
-  assert.match(drawer, /label: '设置'[^\n]*to: '\/settings'[\s\S]*label: '帮助'[^\n]*to: '\/help'/)
+  assert.doesNotMatch(drawer, /label: '设置'|to: '\/settings'/)
+  assert.match(drawer, /label: '帮助'[^\n]*to: '\/help'[\s\S]*label: '反馈'[^\n]*to: '\/feedback'[\s\S]*label: '关于'[^\n]*to: '\/about'/)
 })
 
 test('merged help entry removes the former guide entry', () => {

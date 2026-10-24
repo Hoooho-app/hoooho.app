@@ -1,7 +1,7 @@
 import { isProductPathVisible } from '../../../shared/product-visibility.mjs'
 import { CareHandsIcon } from '../design-system/SproutEntry'
 import {UpdateDot,useRecordUpdates} from '../../features/record-updates/RecordUpdates'
-import { Eye, CalendarDays, ClipboardList, ScanLine, Pill, ChevronDown, ChevronRight, CircleHelp, Folder, House, Info, MessageCircle, Package, Settings, UserRound, Wrench, X } from 'lucide-react'
+import { Eye, CalendarDays, ClipboardList, ScanLine, Pill, ChevronDown, ChevronRight, CircleHelp, Folder, House, Info, MessageCircle, Package, UserRound, Wrench, X } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Avatar } from '../common'
@@ -59,7 +59,6 @@ const allSidebarMenuGroups = [
     icon: Package,
     menuId: 'drawer-product-menu',
     items: [
-    { label: '设置', icon: Settings, to: '/settings' },
     { label: '帮助', icon: CircleHelp, to: '/help' },
     { label: '反馈', icon: MessageCircle, to: '/feedback' },
     { label: '关于', icon: Info, to: '/about' }
