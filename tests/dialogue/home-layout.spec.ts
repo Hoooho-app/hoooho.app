@@ -15,7 +15,7 @@ async function saveSymptom(page:any){
  await page.getByRole('button',{name:'改用文字'}).click()
  await page.getByLabel('对话输入').fill('今天头皮出现皮疹，反复抓挠')
  await page.getByRole('button',{name:'发送',exact:true}).click()
- await page.getByRole('button',{name:'直接记录',exact:true}).last().click()
+ await page.getByRole('button',{name:/^(?:先记下来|保存记录)$/}).last().click()
  await expect(page.getByRole('region',{name:'症状合并建议'})).toBeVisible()
 }
 test('home restores situation sheet and real symptom detail, filling SE and taller viewports',async({page,request},info)=>{

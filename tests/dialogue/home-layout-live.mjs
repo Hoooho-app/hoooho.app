@@ -42,7 +42,7 @@ try{
  await page.goto('/smart-record?source=front-desk');await page.getByRole('button',{name:'改用文字'}).click()
  await page.getByLabel('对话输入').fill('今天头皮发痒，反复抓挠。请记下来。')
  await page.getByRole('button',{name:'发送',exact:true}).click()
- await page.getByRole('button',{name:'直接记录',exact:true}).last().click()
+ await page.getByRole('button',{name:/^(?:先记下来|保存记录)$/}).last().click()
  const prompt=page.getByRole('region',{name:'症状合并建议'})
  await expect(prompt).toBeVisible();await expect(prompt).toContainText('原文、图片和时间都会保留')
  const before=await api(`/api/members/${memberId}/cases`);for(const item of before.active)savedIds.push(item.event.id)
