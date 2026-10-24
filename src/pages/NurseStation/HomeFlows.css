@@ -53,8 +53,8 @@
 .home-flow-card>.record-entry-actions{min-width:0;width:100%}
 @media(max-width:359px){.home-flow-card{padding:var(--hoho-space-3)}.home-symptom-dates{gap:var(--hoho-space-1)}.home-symptom-dates small+small::before{margin-right:var(--hoho-space-1)}}
 
-/* The homepage paper is more tactile; the nurse surface stays white like its footage. */
-.nurse-station-page--home{--home-paper-grain:url('/images/home-paper-grain.svg')}
+/* No texture on the light homepage; nurse footage retains its white surface. */
+.nurse-station-page--home{--home-paper-grain:none}
 .nurse-station-page--home .nurse-station-hero--compact,
 .nurse-station-page--home .home-symptom-followup{background-color:rgb(var(--hoho-color-surface));background-image:var(--home-paper-grain),linear-gradient(130deg,rgb(var(--hoho-color-surface-elevated)),rgb(var(--hoho-color-page-background)/.8))}
 .nurse-station-page--home .home-followup-paper::before,

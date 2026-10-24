@@ -1,5 +1,5 @@
 :root {
-  /* Forest canvas with light surfaces: product-owner global visual trial. */
+  /* Clean light canvas restored by the product owner; no material textures. */
   --hoho-color-primary: 72 98 83;
   --hoho-color-primary-hover: 57 80 66;
   --hoho-color-primary-active: 44 64 52;
@@ -16,18 +16,18 @@
   --hoho-color-scrim: 5 18 14;
   --hoho-color-inverse-text: 255 255 255;
   --hoho-color-secondary: 94 105 97;
-  /* Warm white actions contrast with the opening-screen forest. */
-  --hoho-color-action: 243 240 231;
-  --hoho-color-action-hover: 255 255 255;
-  --hoho-color-action-active: 226 232 221;
-  --hoho-color-action-text: 17 47 41;
-  --hoho-color-action-border: 113 128 110;
+  /* Restore the moss action palette on the light canvas. */
+  --hoho-color-action: var(--hoho-color-primary);
+  --hoho-color-action-hover: var(--hoho-color-primary-hover);
+  --hoho-color-action-active: var(--hoho-color-primary-active);
+  --hoho-color-action-text: 255 255 255;
+  --hoho-color-action-border: var(--hoho-color-primary-active);
   --hoho-color-canvas: 9 35 27;
   --hoho-color-ink: 39 51 50;
   --hoho-color-ink-secondary: 94 105 97;
   --hoho-color-ink-weak: 101 112 104;
-  --hoho-color-page-background: 9 35 27;
-  --hoho-color-background: 9 35 27;
+  --hoho-color-page-background: 244 242 237;
+  --hoho-color-background: 244 242 237;
   --hoho-color-surface: 252 251 247;
   --hoho-color-surface-subtle: 242 241 234;
   --hoho-color-surface-elevated: 255 254 250;
@@ -105,10 +105,10 @@
   --hoho-radius-pill: 999px;
 
   --hoho-shadow-none: none;
-  --hoho-shadow-card: inset 0 1px 0 rgb(255 255 255 / .95), 0 2px 4px rgb(39 51 50 / .065), 0 12px 30px rgb(0 12 8 / .22);
+  --hoho-shadow-card: inset 0 1px 0 rgb(255 255 255 / .95), 0 2px 4px rgb(39 51 50 / .065), 0 12px 30px rgb(39 51 50 / .11);
   --hoho-shadow-soft: var(--hoho-shadow-card);
-  --hoho-shadow-floating: 0 14px 40px rgb(0 12 8 / .28);
-  --hoho-shadow-overlay: 0 28px 72px rgb(0 12 8 / .4);
+  --hoho-shadow-floating: 0 14px 40px rgb(18 92 85 / .12);
+  --hoho-shadow-overlay: 0 28px 72px rgb(18 49 47 / .18);
 
   --hoho-motion-fast: 140ms;
   --hoho-motion-base: 200ms;

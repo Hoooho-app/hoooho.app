@@ -255,7 +255,7 @@ test('the in-composer pause control preserves a real task and resumes it',async(
 })
 
 
-test('compact sidebar and forest canvas carry through the shared health pages',async({page})=>{
+test('compact sidebar and clean light canvas carry through the shared health pages',async({page})=>{
  for(const width of [320,375,390,430]){
   await page.setViewportSize({width,height:680})
   await page.getByRole('button',{name:'打开菜单',exact:true}).click()
@@ -271,8 +271,8 @@ test('compact sidebar and forest canvas carry through the shared health pages',a
   await page.goto(url)
   await expect(page.locator('.app-shell:not(.session-recovery-screen)')).toBeVisible()
   expect(await page.locator('.app-shell').evaluate(e=>getComputedStyle(e).backgroundImage)).toBe('none')
-  expect(await page.locator('.app-shell').evaluate(e=>getComputedStyle(e).backgroundColor)).toBe('rgb(9, 35, 27)')
-  expect(await page.locator('meta[name="theme-color"]').getAttribute('content')).toBe('#09231b')
+  expect(await page.locator('.app-shell').evaluate(e=>getComputedStyle(e).backgroundColor)).toBe('rgb(244, 242, 237)')
+  expect(await page.locator('meta[name="theme-color"]').getAttribute('content')).toBe('#f4f2ed')
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
  }
 })

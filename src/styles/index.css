@@ -6,7 +6,7 @@
 @import './visit-summary-stability.css';
 @import './install-app.css';
 @import './paper.css';
-@import './forest.css';
+@import './light.css';
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
