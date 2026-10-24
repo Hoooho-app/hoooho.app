@@ -11,7 +11,7 @@ test('growth data hub saves, explains, preserves drafts and manages history', as
   await page.locator('input').nth(0).fill(`成长${suffix}`)
   await page.locator('input').nth(1).fill('local-test-0927')
   await page.getByRole('button', { name: '注册并进入' }).click()
-  await page.getByRole('button', { name: '添加第一个孩子' }).click()
+  await page.getByRole('button', { name: '添加孩子信息' }).click()
   await page.getByLabel('姓名').fill('小禾')
   await page.getByLabel('出生日期').fill('2024-01-15')
   await page.getByText('女', { exact: true }).click()
