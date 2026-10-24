@@ -100,7 +100,7 @@ export function buildProfessionalSummary(item, {sources}={}) {
     if(duplicate){duplicate.factIds=[...new Set([...duplicate.factIds,...factIds])];return}
     if(text)claims.push({text,factIds:[...new Set(factIds)]})
   }
-  const primary=fields.find(entry=>['symptom','chiefComplaint','quality','activity','statusRaw'].includes(entry.field.name))
+  const primary=fields.find(entry=>entry.value&&['symptom','chiefComplaint','quality','activity','statusRaw'].includes(entry.field.name))
   const location=fields.find(entry=>entry.field.name==='location')
   const localizable=primary&&/^(?:出现)?(?:红点|皮疹|发红|略发红|红肿|瘙痒|疼痛|小包|肿胀|出血)/u.test(primary.value)
   let mergedLocation=false
@@ -110,8 +110,9 @@ export function buildProfessionalSummary(item, {sources}={}) {
     else add(primary.value,[primary.id])
   }
   for(const entry of fields){
-    if(entry===primary||entry===location&&mergedLocation)continue
-    add(plainFields.has(entry.field.name)?entry.value:`${labels[entry.field.name]??entry.field.name}：${entry.value}`,[entry.id])
+    if(!entry.value||entry===primary||entry===location&&mergedLocation)continue
+    const label=['sleepAt','wakeAt'].includes(entry.field.name)&&/(?:没有|未|没).{0,8}观察|哭闹|安抚|继续睡|入睡困难|睡不着/.test(entry.value)?'睡眠观察':labels[entry.field.name]??entry.field.name
+    add(plainFields.has(entry.field.name)?entry.value:`${label}：${entry.value}`,[entry.id])
   }
   for(const answer of answers)add(answer.text,['answer:'+answer.sourceMessageId])
   const time=clean(item.timeText)

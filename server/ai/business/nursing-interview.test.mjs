@@ -48,7 +48,7 @@ test('quick options do not add an unobserved denial or change or to and',()=>{
 test('only unambiguous answers to a specific question can be interpreted',()=>{
   assert.equal(interpretNursingAnswer('resp-effort','没有').text,'家长未见孩子有明显呼吸费力')
   assert.equal(interpretNursingAnswer('skin-location','没有'),null)
-  assert.equal(interpretNursingAnswer('resp-effort','不知道'),null)
+  assert.equal(interpretNursingAnswer('resp-effort','不知道').polarity,'unknown')
   assert.equal(interpretNursingAnswer('resp-effort','没有咳嗽'),null)
 })
 test('answer evidence stays linked to one question and yields to a later relevant update',()=>{

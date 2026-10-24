@@ -37,10 +37,11 @@ try{
  const binding={contextId:turn.context.id,questionId:'resp-effort'}
  turn=await front(cough,'没有',binding);assert.equal(turn.context.id,binding.contextId)
  const second=await draft(cough,turn.context),summary=second.items.map(i=>i.professionalSummary?.text??'').join('\n')
- assert.match(summary,/家长未见孩子有明显呼吸费力/);assert.doesNotMatch(summary,/没有呕吐|已排除|呼吸正常/)
+ assert.match(summary,/家长未见孩子有明显呼吸费力/);assert.doesNotMatch(summary,/没有呕吐|已排除|呼吸正常|医生意见：(?:；|。|$)/)
  samples.push({case:'cough',summary});checks.push('short no qualifies only its bound breathing-effort question')
  const sleep=await api(`/api/members/${cough}/ai-drafts`,'POST',{text:'这两晚孩子睡觉时哭闹，安抚后能继续睡，没有观察到醒来。',smartRecord:true,frontDeskRecord:true})
  assert.ok(sleep.items.some(i=>i.category==='sleep'));assert.ok(!sleep.items.some(i=>i.category==='symptom'));assert.ok(!sleep.items.some(i=>i.fields.some(f=>/夜醒/.test(f.value))))
+ assert.ok(!sleep.items.some(i=>/入睡：没有观察|醒来：没有观察/.test(i.professionalSummary?.text??'')))
  samples.push({case:'sleep',summary:sleep.items.map(i=>i.professionalSummary?.text??i.title)});checks.push('sleep crying stays sleep without invented awakening or pain')
  result.status='PASS'
 }catch(e){result.status='FAILED';result.message=e.message;process.exitCode=1}
