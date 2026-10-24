@@ -1,8 +1,9 @@
+import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { MainAppHeader } from '../../components/navigation'
 import { SmartRecordWorkspace } from '../../features/ai-business/SmartRecordWorkspace'
 import { useAppStore } from '../../store/useAppStore'
-import { FrontDeskWelcome } from './FrontDeskWelcome'
+import { FirstChildSetup } from './FirstChildSetup'
+import { getChildMembers } from '../../features/family/currentChild'
 import './conversationHome.css'
 import { useLegacyReminderMigration } from './useLegacyReminderMigration'
 
@@ -13,6 +14,7 @@ export function NurseStationPage() {
   const accountId=useAppStore(s=>s.authUser?.id??'')
   const token=useAppStore(s=>s.authToken)??''
   useLegacyReminderMigration(accountId,memberId,token)
-  const ready=Boolean(memberId&&members.some(m=>m.id===memberId))
-  return <main className="app-shell nurse-station-page nurse-station-page--conversation">{ready?<SmartRecordWorkspace key={`${accountId}:${memberId}`} home page conversational memberId={memberId} token={token} onClose={()=>navigate('/nurse-station',{replace:true})}/>:<><MainAppHeader title="护护" conversation showInstallApp={false}/><div className="front-desk-empty"><FrontDeskWelcome empty/></div></>}</main>
+  const children=getChildMembers(members),member=children.find(m=>m.id===memberId)??children[0]
+  useEffect(()=>{if(member&&member.id!==memberId)useAppStore.getState().setCurrentMemberId(member.id)},[member?.id,memberId])
+  return <main className="app-shell nurse-station-page nurse-station-page--conversation">{member?<SmartRecordWorkspace key={`${accountId}:${member.id}`} home page conversational memberId={member.id} token={token} onClose={()=>navigate('/nurse-station',{replace:true})}/>:<FirstChildSetup key={accountId} accountId={accountId} token={token}/>}</main>
 }

@@ -44,11 +44,12 @@ export const familyMemberService = {
     avatar: string
     relationship: Extract<FamilyMemberApiDto['relationship'], 'child' | 'other'>
     primaryRecorderRelationship?: FamilyMemberApiDto['primaryRecorderRelationship']
-  }, token: string) {
+  }, token: string, signal?: AbortSignal) {
     return apiRequest<FamilyMemberApiDto>('/api/members', {
       token,
       method: 'POST',
-      body: input
+      body: input,
+      signal
     }).then((member) => rememberMember(member, token))
   },
 

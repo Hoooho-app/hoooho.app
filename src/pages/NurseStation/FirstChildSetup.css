@@ -1,0 +1,21 @@
+.first-child-setup .first-child-conversation{padding-bottom:var(--hoho-space-2)}
+.first-child-step{font-size:var(--hoho-font-size-caption)!important;color:rgb(var(--hoho-color-text-secondary));margin-bottom:var(--hoho-space-2)!important}
+.first-child-date{display:grid;gap:var(--hoho-space-3);margin-top:var(--hoho-space-3)}
+.first-child-date input{font-size:16px;min-width:0;width:100%;min-height:44px}
+.first-child-choices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--hoho-space-2);margin-top:var(--hoho-space-3)}
+.first-child-choices--relations{grid-template-columns:repeat(4,minmax(0,1fr))}
+.first-child-choices>.hoho-button{padding-inline:var(--hoho-space-1)}
+.first-child-error,.first-child-voice-error{color:rgb(var(--hoho-color-error));font-size:var(--hoho-font-size-body-small);line-height:1.6;margin-top:var(--hoho-space-2);overflow-wrap:anywhere}
+.first-child-voice-error{margin:0}
+.first-child-voice-recovery{display:flex;gap:var(--hoho-space-2);flex-wrap:wrap}
+.first-child-review{display:grid;gap:var(--hoho-space-3)}
+.first-child-avatar{display:flex;gap:var(--hoho-space-3);align-items:center;min-width:0}
+.first-child-avatar>div{display:grid;gap:var(--hoho-space-1);flex:1;min-width:0;overflow-wrap:anywhere}
+.first-child-avatar strong{font-size:var(--hoho-font-size-body);font-weight:500}
+.first-child-avatar>div>span{color:rgb(var(--hoho-color-text-secondary));font-size:var(--hoho-font-size-caption)}
+.first-child-review dl{margin:0;min-width:0}
+.first-child-review dl>div{display:grid;grid-template-columns:88px minmax(0,1fr) 44px;gap:var(--hoho-space-2);align-items:center;min-height:48px;border-top:1px solid rgb(var(--hoho-color-border))}
+.first-child-review dt{font-size:var(--hoho-font-size-caption);color:rgb(var(--hoho-color-text-secondary))}
+.first-child-review dd{margin:0;font-size:var(--hoho-font-size-body-small);overflow-wrap:anywhere}
+.first-child-review dl .hoho-button{padding:0;min-width:44px;min-height:44px}
+@media(max-width:359px){.first-child-choices--relations{grid-template-columns:repeat(2,minmax(0,1fr))}.first-child-review dl>div{grid-template-columns:72px minmax(0,1fr) 44px}}
