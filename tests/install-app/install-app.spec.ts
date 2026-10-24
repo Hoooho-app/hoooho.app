@@ -1,11 +1,12 @@
 import { expect, test, type Page } from '@playwright/test'
+import { createFirstChild, openFirstUseLogin } from '../helpers/first-child'
 
 let registrationSequence = 120
 
 async function enterApp(page: Page) {
   registrationSequence += 1
   await page.context().setExtraHTTPHeaders({ 'x-forwarded-for': `198.51.100.${registrationSequence}` })
-  await page.goto('/login')
+  await openFirstUseLogin(page)
   await page.getByRole('tab', { name: '注册' }).click()
   await page.getByPlaceholder('给自己起个昵称').fill(`安装测试${Date.now().toString().slice(-8)}`)
   await page.getByPlaceholder('设置一个密码').fill('12345678')
@@ -17,15 +18,7 @@ async function enterApp(page: Page) {
 }
 
 async function addMember(page: Page) {
-  await page.goto('/family/new')
-  await page.getByRole('textbox', { name: '姓名' }).fill('安装测试宝宝')
-  const birthday = page.getByRole('textbox', { name: '出生日期' })
-  await birthday.fill('2026-09-01')
-  if (await birthday.inputValue() !== '2026-09-01') await birthday.pressSequentially('20260901')
-  await expect(birthday).toHaveValue('2026-09-01')
-  await page.getByRole('button', { name: '女', exact: true }).click()
-  await page.getByRole('combobox', { name: '你是孩子的谁？' }).selectOption({ label: '妈妈' })
-  await page.getByRole('button', { name: '添加家庭成员', exact: true }).click()
+  await createFirstChild(page, { name: '安装测试宝宝', birthday: '2026-09-01', gender: 'female' })
 }
 
 async function expectNoHorizontalOverflow(page: Page) {

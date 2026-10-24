@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { createFirstChild, openFirstUseLogin } from '../helpers/first-child'
 import { exactAgeInMonths, growthValueAtZScore } from '../../src/features/health-profile/utils/childGrowthReference'
 
 const today = () => new Date().toLocaleDateString('sv-SE')
@@ -6,19 +7,12 @@ const today = () => new Date().toLocaleDateString('sv-SE')
 test('growth data hub saves, explains, preserves drafts and manages history', async ({ page }, testInfo) => {
   test.skip(!!process.env.GROWTH_LIVE_BASE_URL, 'Real persistence acceptance runs only against isolated local data')
   const suffix = Date.now().toString().slice(-8)
-  await page.goto('/login')
+  await openFirstUseLogin(page)
   await page.getByRole('tab', { name: '注册' }).click()
   await page.locator('input').nth(0).fill(`成长${suffix}`)
   await page.locator('input').nth(1).fill('local-test-0927')
   await page.getByRole('button', { name: '注册并进入' }).click()
-  await page.getByRole('button', { name: '添加孩子信息' }).click()
-  await page.getByLabel('姓名').fill('小禾')
-  await page.getByLabel('出生日期').fill('2024-01-15')
-  await page.getByText('女', { exact: true }).click()
-  await page.getByLabel('你是孩子的谁？').selectOption({ label: '妈妈' })
-  const created = page.waitForResponse((response) => response.url().includes('/api/members') && response.request().method() === 'POST')
-  await page.getByRole('button', { name: '添加家庭成员' }).click()
-  expect((await created).ok()).toBe(true)
+  await createFirstChild(page, { name: '小禾', birthday: '2024-01-15', gender: 'female' })
 
   await page.goto('/health-profile/basic')
   await expect(page.getByRole('heading', { name: '成长数据' })).toBeVisible()

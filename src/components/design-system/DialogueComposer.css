@@ -13,6 +13,9 @@
 .hoho-dialogue-composer--input-only .hoho-dialogue-hold { grid-column:2; grid-row:1; }
 .hoho-dialogue-composer--conversation{grid-template-columns:minmax(0,1fr) repeat(2,44px);gap:4px;min-height:60px;padding:6px;border:1px solid rgb(var(--hoho-color-primary)/.14);border-radius:26px;background:rgb(var(--hoho-color-surface-white));box-shadow:var(--hoho-shadow-card)}
 .hoho-dialogue-composer--conversation.has-action{grid-template-columns:minmax(0,1fr) repeat(3,44px)}
+.hoho-dialogue-composer.without-attachments{grid-template-columns:44px minmax(0,1fr)}
+.hoho-dialogue-composer--conversation.without-attachments{grid-template-columns:minmax(0,1fr) 44px}
+.hoho-dialogue-composer--conversation.without-attachments.has-action{grid-template-columns:minmax(0,1fr) repeat(2,44px)}
 .hoho-dialogue-composer--conversation>.hoho-button{width:44px;height:44px;min-height:44px;border:0;background:transparent;color:rgb(var(--hoho-color-link));border-radius:50%;padding:0}
 .hoho-dialogue-composer--conversation>.hoho-dialogue-hold{width:100%;border-radius:20px;color:rgb(var(--hoho-color-text-primary));background:rgb(var(--hoho-color-primary-soft));font-size:var(--hoho-font-size-card-title);font-weight:500}
 .hoho-dialogue-composer--conversation>.hoho-dialogue-hold.is-pressed{background:rgb(var(--hoho-color-action));color:rgb(var(--hoho-color-action-text))}

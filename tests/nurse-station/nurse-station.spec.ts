@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
+import { createFirstChild, openFirstUseLogin } from '../helpers/first-child'
 
 let registrationSequence = 0
 const pageTokens = new WeakMap<Page, string>()
@@ -6,7 +7,7 @@ const pageTokens = new WeakMap<Page, string>()
 async function registerAccount(page: Page) {
   registrationSequence += 1
   await page.context().setExtraHTTPHeaders({ 'x-forwarded-for': `198.51.100.${registrationSequence}` })
-  await page.goto('/login')
+  await openFirstUseLogin(page)
   await page.getByRole('tab', { name: '注册' }).click()
   await page.getByPlaceholder('给自己起个昵称').fill(`护士站测试${Date.now().toString().slice(-8)}`)
   await page.getByPlaceholder('设置一个密码').fill('12345678')
@@ -27,13 +28,7 @@ async function fillDateInput(input: Locator, isoDate: string) {
 
 async function registerMember(page: Page) {
   await registerAccount(page)
-  await page.goto('/family/new')
-  await page.getByRole('textbox', { name: '姓名' }).fill('123')
-  await fillDateInput(page.getByRole('textbox', { name: '出生日期' }), '2026-09-01')
-  await page.getByRole('button', { name: '男', exact: true }).click()
-  await page.getByRole('combobox', { name: '你是孩子的谁？' }).selectOption({ label: '妈妈' })
-  await page.getByRole('button', { name: '添加家庭成员', exact: true }).click()
-  await page.goto('/nurse-station')
+  await createFirstChild(page, { name: '123', birthday: '2026-09-01', gender: 'male' })
 }
 
 async function createReminder(page: Page, input: { name: string; days: number; times: string[]; startOffsetDays?: number }) {

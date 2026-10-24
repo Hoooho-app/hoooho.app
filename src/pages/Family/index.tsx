@@ -1,9 +1,10 @@
-import { useLocation, useNavigate } from 'react-router-dom'
+import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { APP_HOME_PATH } from '../../components/navigation/navigationState'
 import { adaptFamilyMember } from '../../services/healthEventDetailAdapter'
 import { useAppStore } from '../../store/useAppStore'
 import type { FamilyMemberApiDto } from '../../types'
 import { EditFamilyMemberPage } from './EditFamilyMemberPage'
+import { getChildMembers } from '../../features/family/currentChild'
 
 export { EditFamilyMemberPage }
 
@@ -12,6 +13,7 @@ export function AddFamilyMemberPage() {
   const location = useLocation()
   const addMember = useAppStore((state) => state.addMember)
   const setCurrentMemberId = useAppStore((state) => state.setCurrentMemberId)
+  const members = useAppStore((state) => state.members)
 
   const onCreated = (created: FamilyMemberApiDto) => {
     addMember(adaptFamilyMember(created))
@@ -25,5 +27,7 @@ export function AddFamilyMemberPage() {
     navigate(returnTo, { replace: true })
   }
 
-  return <EditFamilyMemberPage key="create" create onCreated={onCreated} />
+  return getChildMembers(members).length > 0
+    ? <EditFamilyMemberPage key="create" create onCreated={onCreated} />
+    : <Navigate to={APP_HOME_PATH} replace />
 }

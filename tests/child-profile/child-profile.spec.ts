@@ -3,6 +3,7 @@ import { mkdir } from 'node:fs/promises'
 import path from 'node:path'
 import { TokenService } from '../../server/auth/token-service.mjs'
 import { childAvatarAssetPaths } from '../../src/generated/childAvatarAssets'
+import { createFirstChild } from '../helpers/first-child'
 
 const accountId = 'child-profile-account'
 const token = new TokenService('child-profile-e2e-secret', 60 * 60_000).create({ id: accountId })
@@ -538,9 +539,12 @@ test('孩子资料完整交互、持久化、响应式和删除失败恢复', as
   expect(runtimeErrors).toEqual(['Failed to load resource: the server responded with a status of 503 (Service Unavailable)'])
 })
 
-test('添加家庭成员使用空白孩子资料表单并一次保存头像和记录者', async ({ page, request }, testInfo) => {
+test('添加第二个孩子使用空白资料表单并一次保存头像和记录者', async ({ page, request }, testInfo) => {
   const account = `blank-child-${testInfo.project.name}`
   const authToken = new TokenService('child-profile-e2e-secret', 60 * 60_000).create({ id: account })
+  const seed = await request.post('/api/members', { headers: { Authorization: 'Bearer ' + authToken }, data: { name: '已有孩子（虚构）', birthday: '2024-01-01', gender: 'male', relationship: 'child' } })
+  expect(seed.ok()).toBe(true)
+  const seedId = (await seed.json()).id
   await prepareAccount(page, authToken, account)
   let createdId = ''
   let createAttempts = 0
@@ -615,6 +619,7 @@ test('添加家庭成员使用空白孩子资料表单并一次保存头像和�
     await expect(page.getByRole('button', { name: '删除孩子资料' })).toBeVisible()
   } finally {
     if (createdId) await request.delete('/api/members/' + createdId, { headers: { Authorization: 'Bearer ' + authToken } })
+    await request.delete('/api/members/' + seedId, { headers: { Authorization: 'Bearer ' + authToken } })
   }
 })
 
@@ -634,18 +639,12 @@ test('真实入口允许编辑在上海当天出生的新建孩子', async ({ pa
       const now = new Date()
       return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
     })
-    await page.getByRole('textbox', { name: '姓名' }).fill('凌晨宝宝')
-    await page.getByLabel('出生日期').fill(localToday)
-    await page.getByRole('button', { name: '女', exact: true }).click()
-    const createResponsePromise = page.waitForResponse((response) => (
-      response.url().endsWith('/api/members') && response.request().method() === 'POST'
-    ))
-    await page.getByRole('button', { name: '添加家庭成员' }).click()
-    const created = await (await createResponsePromise).json()
+    const created = await createFirstChild(page, { name: '凌晨宝宝', birthday: localToday, gender: 'female' })
     memberId = created.id
     expect(created).toMatchObject({ birthday: localToday, relationship: 'child', isSelf: false, avatar: 'girl-age0-east-asian' })
     await expect(page).toHaveURL(/\/nurse-station$/)
-    await expect(page.getByText(/女\s*·\s*0天/)).toBeVisible()
+    // The conversation homepage keeps profile details in the existing child sheet.
+    await expect(page.locator('.hoho-reception video')).toBeVisible()
     const tutorialClose = page.getByRole('button', { name: '关闭教程' })
     if (await tutorialClose.isVisible()) await tutorialClose.click()
     await page.getByRole('button', { name: '打开菜单' }).click()
