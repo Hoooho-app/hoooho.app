@@ -52,7 +52,7 @@ test('前台护士站成为默认首页且健康随记保持独立', () => {
 test('零成员在护士站内分流且不会预先创建空健康事件', () => {
   const welcome = read('../NurseStation/FrontDeskWelcome.tsx')
   assert.match(station, /<FrontDeskWelcome empty/)
-  assert.match(welcome, /添加第一个孩子/)
+  assert.match(welcome, /添加孩子信息/)
   assert.match(welcome, /navigate\('\/family\/new'/)
   assert.doesNotMatch(page, /familyMemberService\.createSelf|createSelfAndRecord/)
   assert.match(page, /entryState\.familyMemberCount === 0/)
