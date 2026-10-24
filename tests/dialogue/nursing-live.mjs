@@ -67,6 +67,9 @@ try{
  const draft=await api(`/api/members/${second.id}/ai-drafts`,'POST',{text:raw,smartRecord:true,frontDeskRecord:true,frontContextId:answer.context.id})
  assert.match(draft.items.map(i=>i.professionalSummary?.text??'').join('\n'),/家长未见孩子有明显呼吸费力/)
  checks.push('real provider plus bound short answer retains the specific negative observation')
+ const sleep=await api(`/api/members/${second.id}/ai-drafts`,'POST',{text:'这两晚孩子睡觉时哭闹，安抚后能继续睡，没有观察到醒来。',smartRecord:true,frontDeskRecord:true})
+ assert.ok(sleep.items.some(i=>i.category==='sleep'));assert.ok(!sleep.items.some(i=>i.category==='symptom'));assert.ok(!sleep.items.some(i=>i.fields.some(f=>/夜醒/.test(f.value))))
+ checks.push('sleep-only crying stays a sleep observation without an invented awakening or pain')
  assert.deepEqual(errors,[]);result.status='PASS'
 }catch(e){result.status='FAILED';result.message=e.message;process.exitCode=1}
 finally{
