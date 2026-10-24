@@ -117,7 +117,7 @@ export function buildProfessionalSummary(item, {sources}={}) {
   const time=clean(item.timeText)
   let addedTime=false
   if(time){
-    const timeSupported=item.timeEditedBy==='user'||item.fields.some(f=>(f.sources??[]).some(ref=>clean(ref.quote).includes(time)))||Array.isArray(sources)&&sources.some(s=>typeof s.text==='string'&&s.text.includes(time)&&item.fields.some(f=>f.sources?.some(ref=>ref.sourceId===s.id&&ref.page===s.page)))
+    const timeSupported=item.timeEditedBy==='user'||(item.timeSources??[]).some(ref=>clean(ref.quote).includes(time)&&(!sources||sources.some(s=>s.id===ref.sourceId&&s.page===ref.page&&s.text.includes(ref.quote))))||item.fields.some(f=>(f.sources??[]).some(ref=>clean(ref.quote).includes(time)))||Array.isArray(sources)&&sources.some(s=>typeof s.text==='string'&&s.text.includes(time)&&item.fields.some(f=>f.sources?.some(ref=>ref.sourceId===s.id&&ref.page===s.page)))
     if(!timeSupported)return null
     const normalizedTime=normalizeObservation(time)
     if(!claims.some(claim=>claim.text.includes(normalizedTime))){claims.unshift({text:normalizedTime,factIds:[`${item.id}:time`]});addedTime=true}
