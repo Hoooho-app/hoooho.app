@@ -109,3 +109,16 @@ test('a bound answer cannot silently split from an overfull original context',as
   assert.equal(restored.messages.find(m=>m.id==='long').text,text)
   assert.equal(restored.interview.question.id,'resp-effort')
 })
+
+test('a separately quoted time retains its proof through save and doctor-facing summary validation',async t=>{
+ const f=await fixture(t),account='synthetic-nursing'
+ f.business.model.structured=async()=>({value:{items:[{category:'symptom',title:'小腿红点',timeText:'昨天',subject:'current',archiveCategory:null,relationKey:null,fields:[{name:'symptom',value:'起了红点',quote:'小腿起了红点',sourceId:'input',page:1},{name:'location',value:'小腿',quote:'小腿起了红点',sourceId:'input',page:1}]}]},diagnostics:{provider:'synthetic'}})
+ const preview=await f.business.prepare(account,f.member.id,{text:'昨天小腿起了红点',smartRecord:true,frontDeskRecord:true})
+ assert.match(preview.items[0].professionalSummary.text,/昨天/)
+ const saved=await f.business.save(account,f.member.id,preview.id,{version:preview.version,confirmed:true})
+ const record=await f.business.records.getOwnedRecord(account,saved.result.records[0].recordId)
+ assert.equal(record.content,preview.items[0].professionalSummary.text)
+ assert.equal(record.aiProvenance.timeSources[0].quote,'昨天')
+ const projected=currentSituation({focusSourceIds:[`record:${record.id}`],complaintSourceId:`record:${record.id}`,sources:[{id:`record:${record.id}`}],focus:{mode:'source'},photoKey:'none',reading:{onset:'',change:'',description:'',sourceIds:[]}},{records:[record],organizations:[],member:{id:f.member.id}})
+ assert.ok(JSON.stringify(projected).includes(record.content))
+})

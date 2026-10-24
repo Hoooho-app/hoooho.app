@@ -1,9 +1,10 @@
 // Live-provider acceptance: isolated synthetic records only, fixed official origin.
 import assert from 'node:assert/strict'
 import {randomUUID} from 'node:crypto'
-import {mkdir,writeFile,readFile} from 'node:fs/promises'
+import {mkdir,writeFile} from 'node:fs/promises'
 import {chromium,expect} from '@playwright/test'
-const base='https://hoooho.com',out='outputs/nursing-record-production'
+const base='https://hoooho.com',out='outputs/nursing-record-production',expectedCommit=process.argv[3]
+assert.match(expectedCommit??'',/^[a-f0-9]{40}$/)
 if(process.argv[2]!==base)throw new Error('Pass the official Production origin explicitly')
 await mkdir(out,{recursive:true})
 let token,browser;const cookies=new Map(),members=[],checks=[],errors=[]
@@ -15,14 +16,14 @@ async function api(route,method='GET',data){
 }
 try{
  assert.equal((await api('/api/health')).status,'ok')
- const local=await readFile('dist/index.html','utf8'),live=await (await fetch(base)).text()
- const entry=local.match(/src="([^" ]+\/index-[^" ]+\.js)"/)?.[1];assert.ok(entry&&live.includes(entry),'deployed entry must match the verified local build')
- checks.push('matching deployed frontend build')
+ const live=await (await fetch(base)).text(),entry=live.match(/src="([^" ]+\/index-[^" ]+\.js)"/)?.[1]
+ assert.ok(entry,'deployed frontend entry exists')
+ const bundle=await (await fetch(base+entry)).text();assert.ok(bundle.includes(expectedCommit),'deployed frontend must contain the accepted commit')
+ checks.push('matching deployed frontend commit')
  const session=await api('/api/auth/register','POST',{nickname:`护理验收${randomUUID().slice(0,8)}`,password:randomUUID(),idempotencyKey:randomUUID()});token=session.token
  const member=await api('/api/members','POST',{name:'护理记录验收（虚构）',relationship:'child',birthday:'2024-01-01',gender:'female'});members.push(member.id)
  await api('/api/auth/current-member','POST',{memberId:member.id})
- const proxy=process.env.HTTPS_PROXY?new URL(process.env.HTTPS_PROXY):null
- browser=await chromium.launch({executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE,args:['--no-sandbox'],...(proxy?{proxy:{server:proxy.origin,...(proxy.username?{username:decodeURIComponent(proxy.username),password:decodeURIComponent(proxy.password)}:{})}}:{})})
+ browser=await chromium.launch({executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE,args:['--no-sandbox']})
  const context=await browser.newContext({viewport:{width:390,height:844},timezoneId:'Asia/Shanghai',serviceWorkers:'block'})
  await context.addCookies([...cookies].map(([name,value])=>({name,value,domain:'hoooho.com',path:'/',secure:true,httpOnly:true,sameSite:'Lax'})))
  const page=await context.newPage();page.setDefaultTimeout(120000);page.on('pageerror',e=>errors.push(e.message))
