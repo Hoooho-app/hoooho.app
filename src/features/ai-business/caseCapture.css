@@ -50,6 +50,11 @@
 .smart-record-thumbnail{display:block;width:100%;min-height:44px;padding:0;border:0;background:transparent;cursor:zoom-in}
 .smart-record-thumbnail .is-expanded{max-height:none;width:100%}
 .smart-record-media{display:grid;gap:var(--hoho-space-2);min-width:0}
+.smart-record-summary-list,.smart-professional-summary{display:grid;gap:var(--hoho-space-2);min-width:0}
+.smart-professional-summary>p{margin:0;white-space:pre-wrap;overflow-wrap:anywhere;line-height:var(--hoho-line-height-body,1.6)}
+.smart-interview-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--hoho-space-2);min-width:0}
+.smart-interview-options>.hoho-button{min-height:44px;white-space:normal;min-width:0}
+.smart-record-originals>summary{min-height:44px;display:flex;align-items:center;cursor:pointer;color:rgb(var(--hoho-color-link))}
 .smart-record-page .hoho-dialogue-text textarea{border-radius:0;box-shadow:none!important;outline:none}
 .smart-record-page .hoho-dialogue-text:focus-within{border-color:rgb(var(--hoho-color-primary));outline:2px solid rgb(var(--hoho-color-primary)/.3);outline-offset:2px}
 .smart-record-saved{display:grid;gap:var(--hoho-space-3);min-width:0}

@@ -17,7 +17,7 @@ test.beforeEach(async({page,request})=>{
  await expect(page.getByRole('button',{name:'核对记录',exact:true})).toBeEnabled()
 })
 test('automatic review, direct save ends input, exact record opens over its month',async({page})=>{
- await page.getByRole('button',{name:'直接记录',exact:true}).click()
+ await page.getByRole('button',{name:/^(?:先记下来|保存记录)$/}).click()
  await expect(page.getByRole('button',{name:'查看',exact:true})).toBeVisible()
  await expect(page.getByLabel('对话输入')).toHaveCount(0)
  expect(await page.evaluate(()=>(window as any).__speechCalls)).toBe(0)
@@ -35,6 +35,7 @@ test('full review edits one field, adds and deletes cards, saves together',async
  await page.getByRole('button',{name:/编辑.*的名称/}).click()
  await page.getByRole('dialog').getByRole('textbox',{name:'症状',exact:true}).fill('脸颊观察')
  await page.getByRole('button',{name:'确定',exact:true}).click()
+ await page.getByText('查看和修改原始内容',{exact:true}).click()
  await page.getByRole('button',{name:/编辑.*的原话/}).click()
  await page.getByRole('dialog').getByRole('textbox',{name:'原话',exact:true}).fill('昨天脸颊发红，没有发痒')
  await page.getByRole('button',{name:'确定',exact:true}).click()

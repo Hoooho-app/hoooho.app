@@ -48,9 +48,9 @@ test('supplement saves to the same symptom and opens its process above other fol
  const saved=await seed(request,'头皮发红',30);await seed(request,'脚踝发痒',1)
  const text='今天头皮发痒，抓挠后发红，没有发热'
  await supplement(page,saved.eventId,text)
- await page.getByRole('button',{name:'直接记录',exact:true}).last().click()
+ await page.getByRole('button',{name:/^(?:先记下来|保存记录)$/}).last().click()
  await expect(page.getByText('已保存，可在症状跟进的变化过程查看。',{exact:true})).toBeVisible()
- const records=await(await request.get(`/api/events/${saved.eventId}/records`,{headers})).json();const record=records.find((r:any)=>r.content.includes(text));expect(record).toBeTruthy();expect(record.content).toContain('症状原话：')
+ const records=await(await request.get(`/api/events/${saved.eventId}/records`,{headers})).json();const record=records.find((r:any)=>r.sourceText===text);expect(record).toBeTruthy();expect(record.content).toBe(record.aiProvenance.professionalSummary.text);expect(record.content).toContain('瘙痒');expect(record.sourceText).toBe(text)
  await page.getByRole('button',{name:'查看',exact:true}).click();await expect(page).toHaveURL(/\/cases\?/)
  expect(new URL(page.url()).searchParams.get('eventId')).toBe(saved.eventId);expect(new URL(page.url()).searchParams.get('recordId')).toBe(record.id)
  const card=page.locator('.case-followup-card').first();await expect(card).toHaveAttribute('data-case-id',saved.eventId)

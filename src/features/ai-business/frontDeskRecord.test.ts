@@ -19,3 +19,12 @@ test('已正式保存的记录找回不变成下一次整理材料；媒体字�
  const saved=restoreFrontContext(context,local());assert.equal(saved.text,'');assert.deepEqual(saved.files,[])
  const restored=restoreFrontContext({...context,saved:false},local());assert.equal(await restored.files[0].text(),'bytes');assert.equal(restored.files[0].lastModified,42);assert.equal(restored.conversationTurns?.[0].fileKeys?.[0],fileIdentity(restored.files[0]))
 })
+test('focused question identity and short-answer binding survive restore but disappear after save',()=>{
+ const interview={version:'test',status:'asking' as const,domain:'respiratory',turnCount:1,askedQuestionIds:['resp-effort'],stopReason:null,question:{id:'resp-effort',text:'呼吸是否费力？',options:[{label:'没注意',value:'暂时没注意'}],sourceIds:['rch-assessment']}}
+ const context={id:'cough',updatedAt:'2026-10-24T08:00:00Z',interview,messages:[{id:'answer',kind:'voice' as const,text:'没有',contextId:'cough',status:'completed' as const,answerTo:{contextId:'cough',questionId:'resp-effort'}}]}
+ const restored=restoreFrontContext(context,local())
+ assert.equal(restored.nursingInterview?.question?.id,'resp-effort')
+ assert.deepEqual(restored.conversationTurns?.[0].answerTo,{contextId:'cough',questionId:'resp-effort'})
+ assert.equal(restored.conversationInput,'还没发送的中文')
+ assert.equal(restoreFrontContext({...context,saved:true},restored).nursingInterview,undefined)
+})
