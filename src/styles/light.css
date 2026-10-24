@@ -1,0 +1,7 @@
+/* Clean light restoration: keep only independent readability repairs. */
+body :is(input,textarea)::placeholder{color:rgb(var(--hoho-color-text-weak));opacity:1}
+body .growth-header-add{white-space:nowrap;padding-inline:7px}
+body :is(.growth-header-add,.growth-empty-state button,.reassurance-primary,.growth-editor-sheet>button,.growth-summary-actions button:first-child){background:rgb(var(--hoho-color-action));color:rgb(var(--hoho-color-action-text))}
+body .growth-interpretation{background-color:rgb(var(--hoho-color-surface))}
+body :where(button,a,input,select,textarea):focus-visible{outline:2px solid rgb(var(--hoho-color-primary));outline-offset:2px}
+body :is(.growth-empty-state p,.growth-loading,.growth-retry){color:rgb(var(--hoho-color-text-secondary))}

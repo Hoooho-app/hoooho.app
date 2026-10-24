@@ -7,7 +7,7 @@ let memberId:string
 
 test.beforeEach(async({page,request},info)=>{
  if(info.title.startsWith('login')){await page.addInitScript(()=>localStorage.setItem('hoooho:welcome:seen:v1','true'));return}
- const created=await request.post('/api/members',{headers,data:{name:'深绿视觉（虚构）',relationship:'child',birthday:'2024-01-01',gender:'female'}})
+ const created=await request.post('/api/members',{headers,data:{name:'浅色视觉（虚构）',relationship:'child',birthday:'2024-01-01',gender:'female'}})
  expect(created.ok()).toBe(true);memberId=(await created.json()).id
  await page.addInitScript(({token,memberId})=>{sessionStorage.setItem('hoooho-auth-token',token);localStorage.setItem('hoooho-app',JSON.stringify({state:{authUser:{id:'visit-test'},currentMemberId:memberId,members:[],profile:null},version:5}))},{token,memberId})
 })
@@ -25,10 +25,10 @@ async function readable(locator:Locator){
  expect((Math.max(a,b)+.05)/(Math.min(a,b)+.05),JSON.stringify(colors)).toBeGreaterThanOrEqual(4.5)
 }
 
-test('forest canvas and light surfaces cover navigation, forms and shared pages',async({page},info)=>{
+test('clean light canvas and light surfaces cover navigation, forms and shared pages',async({page},info)=>{
  const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message))
  await page.goto('/nurse-station');await expect(page.getByRole('button',{name:'按住说话',exact:true})).toBeEnabled()
- expect(await page.locator('.smart-record-home').evaluate(e=>getComputedStyle(e).backgroundColor)).toBe('rgb(9, 35, 27)')
+ expect(await page.locator('.smart-record-home').evaluate(e=>getComputedStyle(e).backgroundColor)).toBe('rgb(244, 242, 237)')
  expect(await page.locator('.smart-record-home').evaluate(e=>getComputedStyle(e).backgroundImage)).toBe('none')
  await readable(page.getByRole('heading',{name:/护护/}).first());await readable(page.getByRole('button',{name:'按住说话',exact:true}))
  await page.screenshot({path:info.outputPath('home-390.png')})
@@ -61,7 +61,7 @@ test('forest canvas and light surfaces cover navigation, forms and shared pages'
  expect(errors).toEqual([])
 })
 
-test('login keeps readable light form above the global green canvas',async({page},info)=>{
+test('login keeps readable light form above the global light canvas',async({page},info)=>{
  await page.goto('/login');await expect(page.getByRole('heading',{name:'欢迎使用 Hoooho',exact:true})).toBeVisible()
  await readable(page.getByRole('heading').first());await readable(page.getByRole('button',{name:'登录',exact:true}));await noOverflow(page)
  await page.screenshot({path:info.outputPath('login-390.png')})

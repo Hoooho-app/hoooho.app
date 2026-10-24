@@ -1,3 +1,5 @@
+> 状态：用户于2026-10-24要求恢复浅色且不加纹理；本页仅保留历史试版记录。当前规范见 [light-canvas-restore-20261024.md](./light-canvas-restore-20261024.md)。
+
 # 深绿背景与浅色浮层：全局视觉试版
 
 基线`5b2f2c0353d2e823fe825dc815d4c4c7c4895783`，分支`feat/forest-surface-global-20261024`；开始时工作区干净。

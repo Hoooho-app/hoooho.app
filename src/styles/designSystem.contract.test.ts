@@ -14,21 +14,21 @@ test('V2 exposes the required design foundations', async () => {
     '--hoho-app-shell-max', '--hoho-content-compact', '--hoho-content-wide'
   ]) assert.match(tokens, new RegExp(token))
   assert.match(tokens, /--hoho-color-primary:\s*72 98 83/)
-  assert.match(tokens, /--hoho-color-page-background:\s*9 35 27/)
-  assert.match(tokens, /--hoho-color-background:\s*9 35 27/)
+  assert.match(tokens, /--hoho-color-page-background:\s*244 242 237/)
+  assert.match(tokens, /--hoho-color-background:\s*244 242 237/)
   assert.match(tokens, /--hoho-color-text-primary:\s*39 51 50/)
   assert.match(tokens, /--hoho-radius-control:\s*10px/)
-  assert.match(html, /name="theme-color" content="#09231b"/)
+  assert.match(html, /name="theme-color" content="#f4f2ed"/)
 })
 
-test('global user page foundation uses the forest canvas and light surfaces', async () => {
+test('global user page foundation uses the clean light canvas and light surfaces', async () => {
   const tokens = await read('./tokens.css')
   const styles = await read('./index.css')
   const polish = await read('./product-polish.css')
   const settings = await read('./settings.css')
   const guide = await read('./guide.css')
-  assert.match(tokens, /--hoho-color-page-background:\s*9 35 27/)
-  assert.match(tokens, /--hoho-color-background:\s*9 35 27/)
+  assert.match(tokens, /--hoho-color-page-background:\s*244 242 237/)
+  assert.match(tokens, /--hoho-color-background:\s*244 242 237/)
   assert.match(tokens, /--hoho-color-surface:\s*252 251 247/)
   assert.match(styles, /html, body, #root\s*\{[^}]*background:\s*rgb\(var\(--hoho-color-page-background\)\)/s)
   assert.match(styles, /\.app-shell\s*\{[^}]*background:\s*rgb\(var\(--hoho-color-page-background\)\)/s)
