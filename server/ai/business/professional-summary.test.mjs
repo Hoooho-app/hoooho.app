@@ -117,3 +117,11 @@ test('quick unknown retains uncertainty while removing recording instructions',(
   assert.equal(normalizeObservation('暂时没注意具体外观，先按已经说过的情况记录。'),'具体外观未观察')
   assert.equal(normalizeObservation('右腿出现红点\n先按已经说过的情况记录，不再追问。'),'右腿出现红点')
 })
+test('bound unknown has a named target, emptied answer fields have no labels, and sleep observations are not clock times',()=>{
+ const unknown={...interpretNursingAnswer('skin-appearance','没注意'),sourceMessageId:'a',questionId:'skin-appearance',questionText:'变化看起来是什么样？',answerText:'没注意'}
+ const skin=buildProfessionalSummary(item([fact('symptom','小腿红点'),fact('doctorStatement','没注意')],{answerObservations:[unknown]}))
+ assert.equal(skin.text,'小腿红点；变化的具体外观暂不清楚。')
+ assert.doesNotMatch(skin.text,/医生意见|；没注意/)
+ const sleep=buildProfessionalSummary(item([fact('quality','睡觉时哭闹'),fact('sleepAt','没有观察到醒来')],{category:'sleep'}))
+ assert.equal(sleep.text,'睡觉时哭闹；睡眠观察：没有观察到醒来。')
+})

@@ -106,7 +106,13 @@ export function nursingInterview({text,latestText,previous,requestedQuestionId,m
 // Only unambiguous short replies to a persisted question can be expanded.
 // Other utterances remain literal source text for the normal extraction path.
 export function interpretNursingAnswer(questionId,answer) {
+  if(typeof questionId!=='string')return null
   const raw=String(answer??'').trim().replace(/[。！!，,\s]+$/u,'')
+  const unknownTargets={'skin-location':'变化的具体部位','skin-appearance':'变化的具体外观','skin-sensation':'孩子的具体感受或相关动作','resp-effort':'目前呼吸是否明显费力','cough-pattern':'咳嗽的规律','fever-measurement':'是否已测体温','fever-state':'精神和反应的变化','stool-count':'稀便的具体次数','bowel-urine':'这段时间尿量的变化','vomit-course':'吐与吃喝的先后经过','pain-location':'不适的具体部位','pain-impact':'不适对日常状态的影响','urinary-change':'尿的次数、量或颜色变化','injury-function':'受伤部位的活动情况','injury-course':'受伤经过','sleep-awakening':'哭闹时是否清醒','oral-observation':'是否存在口腔不适','sleep-consolation':'安抚后的变化','behaviour-change':'具体行为变化','handling-response':'处理后的变化'}
+  if(/^(?:我也|我|暂时)?(?:不知道|不清楚|没注意|没留意|记不清|不记得)$/.test(raw)){
+    const target=unknownTargets[questionId]??(questionId.endsWith('-onset')?'具体开始时间':null)
+    return target?{version:NURSING_KNOWLEDGE_VERSION,text:`${target}暂不清楚`,polarity:'unknown'}:null
+  }
   const polarity=/^(?:没有|没|没有啊|没看到|没发现|不会)$/.test(raw)?'no':/^(?:有|有的|有啊|是|是的|会)$/.test(raw)?'yes':null
   const meanings={
     'resp-effort':{yes:'家长观察到孩子呼吸明显费力',no:'家长未见孩子有明显呼吸费力'},
@@ -125,7 +131,8 @@ export function nursingAnswerObservations(messages=[]) {
     if(!message.answerTo||!message.answerQuestion||message.kind==='assistant'||message.status!=='completed')return []
     const interpretation=interpretNursingAnswer(message.answerTo.questionId,message.text)
     if(!interpretation)return []
-    if(messages.slice(index+1).some(m=>m.kind!=='assistant'&&m.status==='completed'&&superseding[message.answerTo.questionId]?.test(m.text)))return []
+    const relevant=superseding[message.answerTo.questionId]??nodes.find(n=>n.id===message.answerTo.questionId)?.known??(message.answerTo.questionId.endsWith('-onset')?onset:null)
+    if(messages.slice(index+1).some(m=>m.kind!=='assistant'&&m.status==='completed'&&relevant?.test(m.text)))return []
     return [{...interpretation,sourceMessageId:message.id,answerText:message.text,questionId:message.answerTo.questionId,questionText:message.answerQuestion.text,domain:message.answerQuestion.domain}]
   })
 }

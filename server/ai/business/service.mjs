@@ -331,7 +331,7 @@ export class AIBusinessService {
     const parentNarration = !draft.documents.length || item.fields.every(f=>f.sources?.length&&f.sources.every(s=>s.sourceId==='input'))
     if(draft.smartRecord&&parentNarration&&!item.timeText&&!item.timeEditedBy)item.time={...item.time,resolvedStart:new Date(draft.selectedOccurredAt??draft.referenceNow).toISOString(),resolvedEnd:null,precision:'exact',source:'recorded_time',defaulted:true}
     for(const f of item.fields.filter(f=>['sleepAt','wakeAt'].includes(f.name))){delete f.resolvedValue;const resolved=resolveItemTime({timeText:f.value},{referenceNow:draft.referenceNow,timezone:draft.timezone});if(resolved.precision==='exact')f.resolvedValue=resolved.resolvedStart}
-    const forJournal={...item,fields:item.fields.map(f=>({...f,value:f.resolvedValue??f.value}))}
+    const forJournal={...item,fields:item.fields.filter(f=>!draft.frontDeskRecord||!['sleepAt','wakeAt'].includes(f.name)||f.resolvedValue).map(f=>({...f,value:f.resolvedValue??f.value}))}
     item.journal=buildJournal(forJournal)
     if(draft.frontDeskRecord&&!draft.manualOriginal&&!item.manualAdded){
       item.timeSources=item.timeText?(draft.sources??[]).filter(source=>source.text.includes(item.timeText)&&item.fields.some(f=>f.sources?.some(ref=>ref.sourceId===source.id&&ref.page===source.page))).slice(0,3).map(source=>({sourceId:source.id,page:source.page,quote:item.timeText})):[]

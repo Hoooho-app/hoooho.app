@@ -122,3 +122,11 @@ test('a separately quoted time retains its proof through save and doctor-facing 
  const projected=currentSituation({focusSourceIds:[`record:${record.id}`],complaintSourceId:`record:${record.id}`,sources:[{id:`record:${record.id}`}],focus:{mode:'source'},photoKey:'none',reading:{onset:'',change:'',description:'',sourceIds:[]}},{records:[record],organizations:[],member:{id:f.member.id}})
  assert.ok(JSON.stringify(projected).includes(record.content))
 })
+test('unobserved awakenings and settling behaviour cannot become structured sleep clock times',async t=>{
+ const f=await fixture(t),account='synthetic-nursing',raw='夜间睡眠，睡觉时哭闹，安抚后能继续睡，没有观察到醒来'
+ f.business.model.structured=async()=>({value:{items:[{category:'sleep',title:'睡眠观察',timeText:null,subject:'current',archiveCategory:null,relationKey:null,fields:[['sleepKind','夜间睡眠'],['quality','睡觉时哭闹'],['sleepAt','没有观察到醒来'],['wakeAt','安抚后能继续睡']].map(([name,value])=>({name,value,quote:value,sourceId:'input',page:1}))}]},diagnostics:{provider:'synthetic'}})
+ const preview=await f.business.prepare(account,f.member.id,{text:raw,smartRecord:true,frontDeskRecord:true})
+ assert.equal(preview.items[0].journal.sleep,undefined)
+ assert.doesNotMatch(preview.items[0].professionalSummary.text,/入睡：|醒来：/)
+ assert.match(preview.items[0].professionalSummary.text,/没有观察到醒来/)
+})
