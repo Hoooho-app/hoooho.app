@@ -3,9 +3,11 @@ import {abortable} from '../../services/abortable'
 import {fileBytes} from './draftFiles'
 import {recordingToWav} from './recordingAudio'
 import type {SmartRecordDraft} from './smartRecordTypes'
-import type {FrontContext} from './frontDeskRecord'
+import type {FrontContext,FrontResultKind} from './frontDeskRecord'
 export type RecognitionState='queued'|'running'|'publishing'|'paused'|'failed'|'ready'|'needs_review'|'discarded'
-export interface RecognitionJob {id:string;draftId?:string;state:RecognitionState;stage:string;seq:number;inputRevision:number;resultRevision:number;createdAt:string;processingStartedAt?:string;updatedAt:string;inputStates?:{id:string;status:'pending'|'completed'|'failed';text:string}[];unresolvedInputs?:{id:string;code:string;message:string}[];progress?:{completed:number;total:number;reused?:boolean}|null;transcript?:{inputId:string;text:string};frontDesk?:{context:FrontContext;messageId:string;replyId:string};review?:SmartRecordDraft|null;error?:{code:string;message:string}|null}
+export interface CompletedRecordOperation {operationId:string;type:'query'|'export'|'delete';targetId:string;targetVersion:number;state:'completed';snapshot:{inputText:string;items:SmartRecordDraft['items'];sources?:SmartRecordDraft['sources']};fileName?:string;text?:string}
+export type RecognitionOperationReceipt={operationId:string;type:string;targetId:string;targetVersion:number;state:'saved';savedDraft:SmartRecordDraft;recordIds:string[]}|CompletedRecordOperation
+export interface RecognitionJob {resultKind?:FrontResultKind;operationReceipt?:RecognitionOperationReceipt;id:string;draftId?:string;state:RecognitionState;stage:string;seq:number;inputRevision:number;resultRevision:number;createdAt:string;processingStartedAt?:string;updatedAt:string;inputStates?:{id:string;status:'pending'|'completed'|'failed';text:string}[];unresolvedInputs?:{id:string;code:string;message:string}[];progress?:{completed:number;total:number;reused?:boolean}|null;transcript?:{inputId:string;text:string};frontDesk?:{context:FrontContext;messageId:string;replyId:string};review?:SmartRecordDraft|null;error?:{code:string;message:string}|null}
 export const recognitionUrl=(memberId:string)=>`/api/members/${encodeURIComponent(memberId)}/recognition-jobs`
 export const recognitionActive=(job?:RecognitionJob|null)=>!!job&&['queued','running','publishing'].includes(job.state)
 export function recognitionStatusUrl(memberId:string,id:string,previous?:RecognitionJob|null){

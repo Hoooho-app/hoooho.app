@@ -1,6 +1,9 @@
 import { recordCategoryLabels, type SmartRecordDraft } from './smartRecordTypes'
 
 export interface SavedRecordGuide { id:string; memberId:string; eventId:string; recordId:string; category?:string; sectionId?:string; entryId?:string; text:string; dismissed?:boolean; followUpEnabled?:boolean; at:number }
+export function dismissSavedRecordGuide(guides:SavedRecordGuide[],id:string):SavedRecordGuide[] {
+  return guides.map(guide=>guide.id===id?{...guide,dismissed:true}:guide)
+}
 export function savedRecordGuides(draft:SmartRecordDraft, memberId:string):SavedRecordGuide[] {
   if(draft.state!=='saved')return []
   return (draft.result?.records??[]).filter(r=>r.recordId&&r.eventId&&(!r.memberId||r.memberId===memberId)).flatMap(record=>{

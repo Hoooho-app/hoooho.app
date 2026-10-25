@@ -17,7 +17,7 @@ import { buildOccurrences } from '../../server/medication-reminders/medication-r
 if (process.env.VISIT_AI_TEST === '1') {
   const { createServer } = await import('node:http')
   let delayMs=400
-  let mode = 'success', calls = 0,asrCalls=0,speechCalls=0,transcript='今天没有呕吐',draftItems=null,ocrText=null,summaryOutput=null
+  let mode = 'success', calls = 0,asrCalls=0,speechCalls=0,transcript='今天没有呕吐',draftItems=null,ocrText=null,summaryOutput=null,frontReply=null
   const nativeFetch = globalThis.fetch
   process.env.OPENAI_API_KEY = 'fixture-only-not-a-real-key'
   process.env.AI_MODEL = 'fixture-summary-model'
@@ -41,7 +41,7 @@ if (process.env.VISIT_AI_TEST === '1') {
     if (body.text.format.name === 'hoooho_nurse_v1') return fixtureResponse({usage:{input_tokens:30,output_tokens:30},output:[{content:[{type:'output_text',text:JSON.stringify(nurseFixtureOutput(body))}]}]})
     if (isCurrentSituationTransport(body)) return fixtureResponse({output:[{content:[{type:'output_text',text:JSON.stringify(currentSituationFixtureOutput(body,summaryOutput))}]}]})
     if(body.text.format.name==='symptom_media_observations')return fixtureResponse({output:[{content:[{type:'output_text',text:JSON.stringify({observations:[{frame:0,text:'合成可见表现：局部发红'}],questions:['请核对人物、部位与原件日期']})}]}]})
-    if(body.text.format.name==='hoooho_front_desk_reply'){const input=JSON.parse(body.input),last=input.history.at(-1),contextId=last?.id??'new',knowledge=input.nursingKnowledge?.find(k=>k.contextId===contextId),asked=last?.interview?.askedQuestionIds??[];return fixtureResponse({output:[{content:[{type:'output_text',text:JSON.stringify({reply:input.latest.kind==='image'?'我看到了图片里的测试图形。':'这次观察收到了，可以接着补充。',contextId,action:'record',questionId:knowledge?.nodes.find(n=>!asked.includes(n.id))?.id??null,emergency:{currentChild:false,quote:''}})}]}]})}
+    if(body.text.format.name==='hoooho_front_desk_reply'){const input=JSON.parse(body.input),last=input.history.at(-1),contextId=last?.id??'new',knowledge=input.nursingKnowledge?.find(k=>k.contextId===contextId),asked=last?.interview?.askedQuestionIds??[];const replace=value=>value==='@latest'?input.latest.id:value==='@context'?(input.conversation?.activeContextId??contextId):Array.isArray(value)?value.map(replace):value&&typeof value==='object'?Object.fromEntries(Object.entries(value).map(([k,v])=>[k,replace(v)])):value;return fixtureResponse({output:[{content:[{type:'output_text',text:JSON.stringify(frontReply?replace(frontReply):{reply:input.latest.kind==='image'?'我看到了图片里的测试图形。':'这次观察收到了，可以接着补充。',contextId,action:'record',questionId:knowledge?.nodes.find(n=>!asked.includes(n.id))?.id??null,emergency:{currentChild:false,quote:''}})}]}]})}
     if(body.text.format.name==='hoooho_business'){
       if(body.text.format.schema.properties.text)return fixtureResponse({output:[{content:[{type:'output_text',text:JSON.stringify(Array.isArray(ocrText)?ocrText:{text:ocrText??'测试机构\n2026-09-29\n红细胞 4.2 mmol/L 参考3.5-5.5',status:'readable'})}]}]})
       const data=JSON.parse(body.input),first=data.sources[0]
@@ -82,7 +82,8 @@ if (process.env.VISIT_AI_TEST === '1') {
     if(controlUrl.pathname==='/delay')delayMs=Math.max(0,Math.min(10000,Number(controlUrl.searchParams.get('ms'))||0))
     if(controlUrl.pathname==='/voice')transcript=controlUrl.searchParams.get('text')??''
     if(controlUrl.pathname==='/draft-data'&&req.method==='POST'){const chunks=[];for await(const c of req)chunks.push(c);const data=JSON.parse(Buffer.concat(chunks).toString());draftItems=data.items??null;ocrText=data.ocrText??null;summaryOutput=data.summaryOutput??null}
-    if (req.url === '/success') mode = 'success'
+    if(controlUrl.pathname==='/front-reply-data'&&req.method==='POST'){const chunks=[];for await(const c of req)chunks.push(c);frontReply=JSON.parse(Buffer.concat(chunks).toString())}
+    if (req.url === '/success') {mode = 'success';frontReply=null}
     if (req.url === '/failure') mode = 'failure'
     res.setHeader('Content-Type', 'application/json')
     res.end(JSON.stringify({ mode, calls,asrCalls,speechCalls }))

@@ -1,14 +1,16 @@
 import {startAITiming} from '../../services/aiTiming'
+import {hasVisibleConversationText} from '../../../shared/conversation-input.mjs'
 import { Fragment, useEffect, useRef, useState } from 'react'
 import { ArrowDown, Check, Mic, Search, Stethoscope, X } from 'lucide-react'
 import { useBlocker, useNavigate } from 'react-router-dom'
-import { savedRecordUrl, savedRecordGuides, type SavedRecordGuide } from './savedRecordGuide'
+import { dismissSavedRecordGuide,savedRecordUrl, savedRecordGuides, type SavedRecordGuide } from './savedRecordGuide'
 import { BottomSheetSurface, HohoButton, DialogueComposer, Typography } from '../../components/design-system'
 import { useAppStore } from '../../store/useAppStore'
 import { localDateTimeValue, localDateTimeToIso } from '../../utils/healthOccurredAt'
 import { appendCaptureTurn,beginCaptureFinalization,captureDraft, checkpointCaptureDraft, fileIdentity, hasCaptureContent, pendingCaptureCancellations, retainedCaptureDrafts, type CaptureDraft, type CaptureTurn } from './captureDraft'
 import {ProfessionalRecordSummary} from './ProfessionalRecordSummary'
-import {restoreFrontContext, restoreFrontFile, type FrontContext} from './frontDeskRecord'
+import {recordOperationTurn,restoreFrontContext, restoreFrontFile, type FrontContext} from './frontDeskRecord'
+import {confirmRawSaveTarget,frontHasOriginalFiles,frontOriginalsConfirmed,rawSaveTargetMatches} from './frontOriginalSave'
 import {RecordMedia} from './RecordMedia'
 import {FrontDeskVideoRecorder} from './FrontDeskVideoRecorder'
 import { fileDataUrl } from './CaseCaptureWorkspace'
@@ -18,7 +20,7 @@ import { NurseMessage } from '../ai-nurse/NurseMessage'
 import { SmartRecordReview } from './SmartRecordReview'
 import { getLocalDateKey } from '../../utils/localCalendarDate'
 import { journalOccurrenceAt } from '../../../shared/journal-occurrence.mjs'
-import {apiRequest} from '../../services/apiClient'
+import {apiRequest,ApiRequestError} from '../../services/apiClient'
 import {mapWithConcurrency} from '../../services/concurrentTasks'
 import { WebPageHeader } from '../../components/common'
 import { useVisibleViewport } from '../../hooks/useVisibleViewport'
@@ -64,6 +66,8 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
   const openingRecord=useRef(false)
   const rawFinalizing=useRef(false),liveVoicePreview=useRef(new Map<string,string>())
   const completedGuideIds=useRef(new Set<string>())
+  const presentedDraft=useRef<{id:string;version:number}>()
+  const subjectConfirming=useRef(false)
   local.files.forEach(file=>visibleMedia.current.set(fileIdentity(file),file))
   const frontUrl=`/api/members/${encodeURIComponent(memberId)}/front-desk-record`
   const recorderName=useAppStore(s=>s.accountProfile?.nickname||s.authUser?.nickname||s.profile?.nickname)
@@ -175,7 +179,7 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
     }).catch(()=>undefined)
     return()=>{active=false}
   },[ready,key,local.smartReview?.id,Boolean(resumeChoices)])
-  function assertWork(epoch:number){if(epoch!==workEpoch.current||leaving.current||!mounted.current)throw new DOMException('Closed','AbortError')}
+  function assertWork(epoch:number){if(epoch!==workEpoch.current||leaving.current||!mounted.current||memberId!==useAppStore.getState().currentMemberId||accountId!==(useAppStore.getState().authUser?.id??'guest'))throw new DOMException('Closed','AbortError')}
   async function uploadFiles(files:File[],epoch:number,signal:AbortSignal,audio?:File){
     const sources=[...files.map(file=>({file,identity:fileIdentity(file),asr:false})),...(audio?[{file:audio,identity:`asr:${fileIdentity(audio)}`,asr:true}]:[])]
     const ids=await mapWithConcurrency(sources,2,async source=>{
@@ -204,11 +208,11 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
       const {assetIds,asrAssetId}=await uploadFiles(files,epoch,controller.signal,audio&&!turn?.text?audio:undefined);assertWork(epoch)
       const occurredAt=input.capturedAt??new Date().toISOString()
       if(Date.parse(occurredAt)>Date.now())throw new Error('发生时间不能晚于现在')
-      const body={id,mode:page&&!eventId?'front':'record',scopeKey:page&&!eventId?'front':`record:${eventId??'new'}`,input:{id:turn?.id??crypto.randomUUID(),kind:turn?.kind??'text',...(turn?.continuationId?{contextId:turn.continuationId}:{}),text:turn?.text??input.text,inputAt:turn?.at??Date.now(),assetIds,asrAssetId,...(turn?.answerTo?{answerTo:turn.answerTo}:{})},options:{initialText:(!page||eventId)&&!current.current.recognitionSnapshot?(turn?.text&&input.text.endsWith(turn.text)?input.text.slice(0,-turn.text.length).trim():input.text):undefined,task:'record',eventId:input.eventId||null,smartRecord:true,frontDeskRecord:page,confirmOccurrenceTime:false,followUp:home?Boolean(input.followUpEnabled):page||!conversational,selectedOccurredAt:occurredAt,timezone:Intl.DateTimeFormat().resolvedOptions().timeZone,id:input.smartReview?.id,version:input.smartReview?.version}}
+      const body={id,mode:page&&!eventId?'front':'record',scopeKey:page&&!eventId?'front':`record:${eventId??'new'}`,input:{id:turn?.id??crypto.randomUUID(),kind:turn?.kind??'text',...(turn?.continuationId?{contextId:turn.continuationId}:{}),text:turn?.text??input.text,inputAt:turn?.at??Date.now(),assetIds,asrAssetId,...(turn?.answerTo?{answerTo:turn.answerTo}:{}),...(turn?.presentedDraft?{presentedDraft:turn.presentedDraft}:{}),...(turn?.expectedContextVersion!==undefined?{expectedContextVersion:turn.expectedContextVersion}:{})},options:{initialText:(!page||eventId)&&!current.current.recognitionSnapshot?(turn?.text&&input.text.endsWith(turn.text)?input.text.slice(0,-turn.text.length).trim():input.text):undefined,task:'record',eventId:input.eventId||null,smartRecord:true,frontDeskRecord:page,confirmOccurrenceTime:false,followUp:home?Boolean(input.followUpEnabled):page||!conversational,selectedOccurredAt:occurredAt,timezone:Intl.DateTimeFormat().resolvedOptions().timeZone,id:input.smartReview?.id,version:input.smartReview?.version}}
       assertWork(epoch)
       const accepted=await request<RecognitionJob>(recognitionUrl(memberId),'POST',body)
       assertWork(epoch)
-      await persist({...current.current,recognitionSnapshot:accepted,pendingVoice:audio===current.current.pendingVoice?undefined:current.current.pendingVoice,smartReview:current.current.smartReview?{...current.current.smartReview,state:'changed'}:undefined})
+      await persist({...current.current,recognitionSnapshot:accepted,pendingVoice:current.current.pendingVoice,...(!page||eventId?{smartReview:current.current.smartReview?{...current.current.smartReview,state:'changed'}:undefined}:{})})
     }catch(e){
       if(epoch!==workEpoch.current||leaving.current||!mounted.current)return
       // A lost acknowledgement does not prove that creation failed. Read the
@@ -232,8 +236,9 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
   }
   async function taskCommand(type:'pause'|'resume'|'retry'|'use_text'){
     if(commandLock.current||!current.current.recognitionJobId)return
+    const epoch=workEpoch.current,id=current.current.recognitionJobId
     commandLock.current=true;setCommandBusy(true);setError('')
-    try{const snapshot=await recognitionCommand(memberId,credentials.current,current.current.recognitionJobId,type);await persist({...current.current,recognitionSnapshot:snapshot})}catch{setError('操作尚未确认，原内容保留，请重试')}finally{commandLock.current=false;if(mounted.current)setCommandBusy(false)}
+    try{const snapshot=await recognitionCommand(memberId,credentials.current,id,type);assertWork(epoch);if(current.current.recognitionJobId!==id||snapshot.seq<(current.current.recognitionSnapshot?.seq??0)||snapshot.inputRevision<(current.current.recognitionSnapshot?.inputRevision??0))return;await persist({...current.current,recognitionSnapshot:snapshot})}catch{if(epoch===workEpoch.current&&mounted.current&&!leaving.current&&current.current.recognitionJobId===id&&memberId===useAppStore.getState().currentMemberId&&accountId===(useAppStore.getState().authUser?.id??'guest'))setError('操作尚未确认，原内容保留，请重试')}finally{commandLock.current=false;if(mounted.current)setCommandBusy(false)}
   }
   useEffect(()=>{
     if(!ready||!local.recognitionJobId)return
@@ -245,24 +250,35 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
       let failed=false
       try{
         const snapshot=await waitForRecognitionJob(memberId,credentials.current,id,current.current.recognitionSnapshot,controller.signal)
-        if(!active||current.current.recognitionJobId!==id||leaving.current)return
+        if(!active||current.current.recognitionJobId!==id||leaving.current||memberId!==useAppStore.getState().currentMemberId||accountId!==(useAppStore.getState().authUser?.id??'guest'))return
+        const returnedContext=snapshot.frontDesk?.context
+        if(returnedContext&&returnedContext.id===current.current.frontContextId&&(returnedContext.version??0)<(current.current.frontContextVersion??0)&&snapshot.seq<=(current.current.recognitionSnapshot?.seq??0))return
         if(snapshot.seq>lastSeq.current&&snapshot.seq>=(current.current.recognitionSnapshot?.seq??0)&&snapshot.inputRevision>=(current.current.recognitionSnapshot?.inputRevision??0)){
           let next={...current.current,recognitionSnapshot:snapshot}
           if(snapshot.inputStates)next={...next,conversationTurns:next.conversationTurns?.map(turn=>{const input=snapshot.inputStates?.find(i=>i.id===turn.id);return input?{...turn,text:input.text,status:input.status}:turn})}
-          if(snapshot.transcript){const transcript=snapshot.transcript;next={...next,conversationTurns:next.conversationTurns?.map(t=>t.id===transcript.inputId?{...t,text:transcript.text,status:'pending'}:t),pendingVoice:undefined}}
-          if(snapshot.frontDesk){const context=snapshot.frontDesk.context;next={...next,nursingInterview:context.saved?undefined:context.interview,conversationTurns:next.conversationTurns?.map(t=>{const message=context.messages.find(m=>m.id===t.id);return message&&message.status!=='discarded'?{...t,text:message.text,status:message.status}:t})}}
-          if(snapshot.review&&snapshot.resultRevision===snapshot.inputRevision&&['ready','needs_review'].includes(snapshot.state)){
-            if(snapshot.frontDesk){
-              const provided=snapshot.frontDesk.context,complete=provided.review?.id===snapshot.review.id&&provided.review?.version===snapshot.review.version&&provided.messages.every(message=>[...message.files??[],...message.voices??[]].every(file=>typeof file.dataUrl==='string'))
-              const context=complete?provided:await request<FrontContext>(`${frontUrl}/contexts/${provided.id}`,'GET')
-              if(!active||current.current.recognitionJobId!==id||leaving.current||snapshot.seq<(current.current.recognitionSnapshot?.seq??0)||snapshot.inputRevision<(current.current.recognitionSnapshot?.inputRevision??0))return
-              [...context.previousMessages??[],...context.messages].flatMap(message=>[...message.files??[],...message.voices??[]]).map(restoreFrontFile).forEach(file=>visibleMedia.current.set(fileIdentity(file),file))
-              const restored=restoreFrontContext(context,current.current),old=(current.current.conversationTurns??[]).filter(t=>!restored.conversationTurns?.some(s=>s.id===t.id))
-              next={...restored,pendingVoice:undefined,recognitionSnapshot:snapshot,conversationTurns:[...old,...restored.conversationTurns??[]]}
-            }else next={...next,recognitionSnapshot:snapshot,text:snapshot.review.inputText,smartReview:retainSmartRecordEdits(snapshot.review,current.current.smartReview),aiDraftId:snapshot.review.id,conversationTurns:next.conversationTurns}
-            if(snapshot.review.state==='ready'&&!page&&snapshot.review.items.length)setStage('review')
+          if(snapshot.transcript){const transcript=snapshot.transcript;next={...next,conversationTurns:next.conversationTurns?.map(t=>t.id===transcript.inputId?{...t,text:transcript.text,status:'pending'}:t),pendingVoice:next.pendingVoice&&voiceId(next.pendingVoice)===transcript.inputId?undefined:next.pendingVoice}}
+          const finalRevision=snapshot.resultRevision===snapshot.inputRevision&&['ready','needs_review'].includes(snapshot.state)
+          const failedFrontContext=Boolean(snapshot.frontDesk&&snapshot.state==='failed')
+          if(snapshot.frontDesk&&(finalRevision||failedFrontContext)){
+            const provided=snapshot.frontDesk.context
+            const complete=(!snapshot.review||provided.review?.id===snapshot.review.id&&provided.review?.version===snapshot.review.version)&&[...provided.previousMessages??[],...provided.messages].every(message=>[...message.files??[],...message.voices??[]].every(file=>typeof file.dataUrl==='string'))
+            const context=complete?provided:await request<FrontContext>(`${frontUrl}/contexts/${provided.id}`,'GET')
+            if(!active||current.current.recognitionJobId!==id||leaving.current||memberId!==useAppStore.getState().currentMemberId||accountId!==(useAppStore.getState().authUser?.id??'guest')||snapshot.seq<(current.current.recognitionSnapshot?.seq??0)||snapshot.inputRevision<(current.current.recognitionSnapshot?.inputRevision??0))return
+            [...context.previousMessages??[],...context.messages].flatMap(message=>[...message.files??[],...message.voices??[]]).map(restoreFrontFile).forEach(file=>visibleMedia.current.set(fileIdentity(file),file))
+            const restored=restoreFrontContext(failedFrontContext?{...context,resultKind:'partial',understanding:{...context.understanding,recordChanges:[]}}:context,current.current),old=(current.current.conversationTurns??[]).filter(t=>!restored.conversationTurns?.some(s=>s.id===t.id))
+            const ownVoice=restored.pendingVoice&&snapshot.inputStates?.some(input=>input.id===voiceId(restored.pendingVoice!)&&input.status==='completed')
+            next={...restored,...(ownVoice?{pendingVoice:undefined}:{}),recognitionSnapshot:snapshot,conversationTurns:[...old,...restored.conversationTurns??[]]}
+          }else if(snapshot.review&&finalRevision){
+            next={...next,recognitionSnapshot:snapshot,text:snapshot.review.inputText,smartReview:retainSmartRecordEdits(snapshot.review,current.current.smartReview),aiDraftId:snapshot.review.id,conversationTurns:next.conversationTurns}
           }
-          if(active&&!leaving.current&&snapshot.seq>=(current.current.recognitionSnapshot?.seq??0)){await persist(next);lastSeq.current=snapshot.seq;if(['ready','needs_review','failed','discarded','paused'].includes(snapshot.state)){operationTimings.current.get(id)?.finish(snapshot.state==='needs_review'?'needs_review':snapshot.state==='ready'?'ready':snapshot.state==='failed'?'failed':'cancelled');operationTimings.current.delete(id)}}
+          if(snapshot.review?.state==='ready'&&finalRevision&&!page&&snapshot.review.items.length)setStage('review')
+          const saved=snapshot.operationReceipt?.state==='saved'?snapshot.operationReceipt.savedDraft:undefined
+          const operation=recordOperationTurn(snapshot.operationReceipt)
+          if(operation&&!next.conversationTurns?.some(turn=>turn.operationResult?.operationId===operation.operationResult?.operationId))next={...next,conversationTurns:[...next.conversationTurns??[],operation]}
+          const guides=saved?.state==='saved'?savedRecordGuides(saved,memberId):[]
+          const appended=guides.filter(guide=>!next.savedGuides?.some(old=>old.id===guide.id))
+          if(appended.length){next={...next,savedGuides:[...next.savedGuides??[],...appended]};if(next.smartReview?.id===saved!.id&&next.smartReview.version<=saved!.version)next={...next,smartReview:undefined,aiDraftId:undefined}}
+          if(active&&!leaving.current&&memberId===useAppStore.getState().currentMemberId&&accountId===(useAppStore.getState().authUser?.id??'guest')&&snapshot.seq>=(current.current.recognitionSnapshot?.seq??0)){await persist(next);if(appended.length){onSaved?.(`已保存 ${saved?.result?.count??0} 条记录`);window.dispatchEvent(new Event('hoooho-data-changed'))}lastSeq.current=snapshot.seq;if(['ready','needs_review','failed','discarded','paused'].includes(snapshot.state)){operationTimings.current.get(id)?.finish(snapshot.state==='needs_review'?'needs_review':snapshot.state==='ready'?'ready':snapshot.state==='failed'?'failed':'cancelled');operationTimings.current.delete(id)}}
         }
         setProgressError('')
       }catch{failed=true;if(active&&!leaving.current&&!controller?.signal.aborted)setProgressError('暂时无法获取处理进度，原内容仍保留；连接恢复后会继续查询')}
@@ -277,12 +293,20 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
     const value=current.current
     return value.frontContextId&&value.nursingInterview?.status==='asking'&&value.nursingInterview.question?{contextId:value.frontContextId,questionId:value.nursingInterview.question.id}:undefined
   }
+  function turnIntent(){return {...(presentedDraft.current?{presentedDraft:{...presentedDraft.current}}:{}),...(current.current.frontContextVersion!==undefined?{expectedContextVersion:current.current.frontContextVersion}:{})}}
+  useEffect(()=>{
+    const candidate=local.smartReview
+    const edited=Boolean(candidate?.deletedItemIds?.length||candidate?.items.some(item=>item.userAdded||item.titleChanged||item.categoryChanged||item.categoriesChanged||item.timeChanged||item.fields.some(field=>field.editedBy==='user')))
+    if(!candidate?.items.length||candidate.state!=='ready'||edited){presentedDraft.current=undefined;return}
+    const answering=local.nursingInterview?.status==='asking'&&local.nursingInterview.question
+    if(!completed&&(stage==='review'||!jobBusy&&!localStage&&!dialogueBusy&&!answering))presentedDraft.current={id:candidate.id,version:candidate.version}
+  },[local.smartReview,local.nursingInterview,stage,completed,jobBusy,localStage,dialogueBusy])
   const voiceId=(file:File)=>`voice:${file.lastModified}:${file.size}`
   const voice=useSmartRecordVoice({memberId,token,livePreview:home,autoTranscribe:false,onFinalizationStart:()=>beginCaptureFinalization(key),pendingVoice:local.pendingVoice,pendingTranscript:local.voiceTranscript,onRecorded:async (file,previewText)=>{
     if(previewText)liveVoicePreview.current.set(voiceId(file),previewText)
-    const turn:CaptureTurn={continuationId:current.current.resumeContextId,answerTo:questionTarget(),id:voiceId(file),text:'',at:file.lastModified,kind:'voice',role:'user',fileKeys:[fileIdentity(file)],status:'pending'}
+    const turn:CaptureTurn={continuationId:current.current.resumeContextId,answerTo:questionTarget(),...turnIntent(),id:voiceId(file),text:'',at:file.lastModified,kind:'voice',role:'user',fileKeys:[fileIdentity(file)],status:'pending'}
     setLocalStage('uploading')
-    await persist({...current.current,smartReview:current.current.smartReview?{...current.current.smartReview,state:'changed'}:undefined,capturedAt:current.current.capturedAt??new Date().toISOString(),pendingVoice:file,files:[...current.current.files,file],conversationTurns:[...current.current.conversationTurns??[],turn]})
+    await persist({...current.current,rawSaveTarget:undefined,...(!page||eventId?{smartReview:current.current.smartReview?{...current.current.smartReview,state:'changed'}:undefined}:{}),capturedAt:current.current.capturedAt??new Date().toISOString(),pendingVoice:file,files:[...current.current.files,file],conversationTurns:[...current.current.conversationTurns??[],turn]})
     if(!leaving.current)void submitTurn(turn).catch(()=>undefined)
   },onTranscript:async()=>undefined})
   useEffect(()=>{
@@ -291,8 +315,61 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
     return()=>cancelAnimationFrame(frame)
   },[home,voice.state,voice.liveText])
   voiceBusy.current=voice.busy
-  async function sendText(answer?:string){if(sendLock.current||pending.current||voice.state==='listening'||voice.state==='requesting')return;sendLock.current=true;try{const text=(answer??current.current.conversationInput)?.trim();if(!text)return;setLocalStage('uploading');if(page&&!eventId){const turn:CaptureTurn={continuationId:current.current.resumeContextId,answerTo:questionTarget(),id:crypto.randomUUID(),text,at:Date.now(),kind:'text',role:'user',status:'pending'};await persist({...current.current,smartReview:current.current.smartReview?{...current.current.smartReview,state:'changed'}:undefined,capturedAt:current.current.capturedAt??new Date().toISOString(),conversationInput:answer===undefined?'':current.current.conversationInput,conversationTurns:[...current.current.conversationTurns??[],turn]});void submitTurn(turn).catch(()=>undefined)}else{const turn:CaptureTurn={continuationId:current.current.resumeContextId,answerTo:questionTarget(),id:crypto.randomUUID(),text,at:Date.now(),kind:'text',role:'user',status:'pending'},next=appendCaptureTurn({...current.current,capturedAt:current.current.capturedAt??new Date().toISOString()},text,turn.id);await persist({...next,conversationTurns:next.conversationTurns?.map(t=>t.id===turn.id?turn:t)});void submitTurn(turn).catch(()=>undefined)}}catch(e){setError(e instanceof Error?e.message:'内容暂未保存，请再试一次')}finally{sendLock.current=false}}
-  const review=local.smartReview,canSave=review?.state==='ready'&&review.inputText===local.text&&!local.pendingVoice&&!jobBusy&&!job?.unresolvedInputs?.length&&!localStage&&(!job||job.resultRevision===job.inputRevision&&['ready','needs_review'].includes(job.state))
+  async function sendText(answer?:string){if(sendLock.current||pending.current||voice.state==='listening'||voice.state==='requesting')return;sendLock.current=true;try{const text=(answer??current.current.conversationInput)?.trim();if(!text||!hasVisibleConversationText(text))return;setLocalStage('uploading');if(page&&!eventId){const turn:CaptureTurn={continuationId:current.current.resumeContextId,answerTo:questionTarget(),...turnIntent(),id:crypto.randomUUID(),text,at:Date.now(),kind:'text',role:'user',status:'pending'};await persist({...current.current,rawSaveTarget:undefined,...(!page||eventId?{smartReview:current.current.smartReview?{...current.current.smartReview,state:'changed'}:undefined}:{}),capturedAt:current.current.capturedAt??new Date().toISOString(),conversationInput:answer===undefined?'':current.current.conversationInput,conversationTurns:[...current.current.conversationTurns??[],turn]});void submitTurn(turn).catch(()=>undefined)}else{const turn:CaptureTurn={continuationId:current.current.resumeContextId,answerTo:questionTarget(),...turnIntent(),id:crypto.randomUUID(),text,at:Date.now(),kind:'text',role:'user',status:'pending'},next=appendCaptureTurn({...current.current,capturedAt:current.current.capturedAt??new Date().toISOString()},text,turn.id);await persist({...next,conversationTurns:next.conversationTurns?.map(t=>t.id===turn.id?turn:t)});void submitTurn(turn).catch(()=>undefined)}}catch(e){setError(e instanceof Error?e.message:'内容暂未保存，请再试一次')}finally{sendLock.current=false}}
+  const review=local.smartReview
+  const rawContext=job?.frontDesk?.context
+  const rawContextMatches=Boolean(rawContext&&rawContext.id===local.frontContextId&&rawContext.version===local.frontContextVersion&&!rawContext.saved&&rawContext.messages.some(message=>message.kind!=='assistant'&&message.status!=='discarded')&&!local.conversationTurns?.some(turn=>turn.role!=='assistant'&&['pending','transcribing'].includes(turn.status??'')&&!rawContext.messages.some(message=>message.id===turn.id)))
+  const subjectPending=Boolean(review?.subjectConfirmed===false||review?.items.some(item=>item.subjectConfirmed===false))
+  const subjectCanConfirm=!review?.frontSubject||['unknown','current'].includes(review.frontSubject.kind)
+  const rawSubject=local.frontSubject??rawContext?.subject
+  const rawSubjectConfirmed=!page||Boolean(eventId)||Boolean(rawContextMatches&&frontOriginalsConfirmed(rawContext,memberId))
+  const rawIntentMatches=rawSaveTargetMatches(local.rawSaveTarget,rawContext,memberId)
+  const rawReceiptRecovery=Boolean(local.rawSaveTarget?.state==='requested'&&local.rawSaveTarget.memberId===memberId&&local.rawSaveTarget.contextId===rawContext?.id&&rawContext.saved&&local.rawSaveTarget.originalsVersion===(rawContext.originalsVersion??0))
+  const rawCanOffer=page&&!eventId&&rawContextMatches&&!jobBusy&&!localStage&&(job?.state==='failed'||!review?.items.length&&['ready','needs_review'].includes(job?.state??'')&&frontHasOriginalFiles(rawContext))
+  const contextSubjectPending=page&&!eventId&&rawContextMatches&&rawIntentMatches&&!rawSubjectConfirmed
+  const contextSubjectCanConfirm=!rawSubject||['unknown','current'].includes(rawSubject.kind)
+  const canSave=review?.state==='ready'&&review.inputText===local.text&&!subjectPending&&!local.pendingVoice&&!jobBusy&&!job?.unresolvedInputs?.length&&!localStage&&(!job||job.resultRevision===job.inputRevision&&['ready','needs_review'].includes(job.state))
+  async function confirmSubject(){
+    const before=current.current.smartReview,epoch=workEpoch.current,contextId=current.current.frontContextId,contextVersion=current.current.frontContextVersion
+    const beforeContext=current.current.recognitionSnapshot?.frontDesk?.context,contextMessages=beforeContext?.messages
+    const confirmDraft=before?.state==='ready'&&before.items.length&&(!page||Boolean(eventId)||!contextId||contextVersion===undefined)
+    if(subjectConfirming.current||pending.current||busy||jobBusy||localStage||confirmDraft&&before.frontSubject&&!['unknown','current'].includes(before.frontSubject.kind)||!confirmDraft&&(!contextId||contextVersion===undefined||!contextSubjectCanConfirm))return
+    subjectConfirming.current=true;pending.current=true;setBusy(true);setError('')
+    try{
+      if(confirmDraft){
+        const confirmed=await request<SmartRecordDraft>(`${url}/${before.id}`,'PATCH',{version:before.version,subjectConfirmed:true})
+        assertWork(epoch)
+        if(current.current.smartReview?.id!==before.id||current.current.smartReview.version!==before.version)return
+        await persist({...current.current,smartReview:retainSmartRecordEdits(confirmed,current.current.smartReview)})
+      }else{
+        const confirmed=await request<FrontContext>(`${frontUrl}/contexts/${contextId}`,'POST',{action:'confirm_subject',expectedVersion:contextVersion})
+        assertWork(epoch)
+        if(current.current.frontContextId!==contextId||current.current.frontContextVersion!==contextVersion)return
+        const restored=restoreFrontContext(confirmed,current.current),snapshot=current.current.recognitionSnapshot,front=snapshot?.frontDesk
+        restored.rawSaveTarget=confirmRawSaveTarget(current.current.rawSaveTarget,beforeContext,confirmed,memberId)
+        if(snapshot&&front&&front.context.id===contextId)restored.recognitionSnapshot={...snapshot,frontDesk:{...front,context:confirmed}}
+        await persist(restored)
+      }
+    }catch(e){
+      if(!confirmDraft&&contextId&&contextVersion!==undefined&&e instanceof ApiRequestError&&e.code==='FRONT_CONTEXT_CHANGED'){
+        try{
+          const confirmed=await request<FrontContext>(`${frontUrl}/contexts/${contextId}`,'GET')
+          assertWork(epoch)
+          const identities=(messages:FrontContext['messages'])=>JSON.stringify(messages.map(message=>[message.id,message.kind,message.text,message.status]))
+          const subject=confirmed.subject??confirmed.frontSubject
+          if(confirmed.id===contextId&&!confirmed.saved&&(confirmed.version??0)>contextVersion&&subject?.kind==='current'&&subject.memberId===memberId&&subject.confirmed===true&&(!current.current.rawSaveTarget||frontOriginalsConfirmed(confirmed,memberId))&&contextMessages&&identities(confirmed.messages)===identities(contextMessages)&&current.current.frontContextId===contextId&&current.current.frontContextVersion===contextVersion){
+            const restored=restoreFrontContext(confirmed,current.current),snapshot=current.current.recognitionSnapshot,front=snapshot?.frontDesk
+            restored.rawSaveTarget=confirmRawSaveTarget(current.current.rawSaveTarget,beforeContext,confirmed,memberId)
+            if(snapshot&&front&&front.context.id===contextId)restored.recognitionSnapshot={...snapshot,frontDesk:{...front,context:confirmed}}
+            await persist(restored);return
+          }
+        }catch{/* Only an exact confirmed context can repair a lost acknowledgement. */}
+      }
+      if(mounted.current&&epoch===workEpoch.current)setError(e instanceof Error?e.message:'记录对象尚未确认，原内容仍保留，请重试')
+    }
+    finally{subjectConfirming.current=false;pending.current=false;if(mounted.current)setBusy(false)}
+  }
+  const subjectConfirmation=subjectPending&&review?.items.length||contextSubjectPending?((contextSubjectPending?contextSubjectCanConfirm:subjectCanConfirm)?<HohoButton variant="text" size="small" disabled={busy||jobBusy||voice.busy||!!localStage||dialogueBusy} onClick={()=>void confirmSubject()}>这是{memberName||'当前孩子'}的记录</HohoButton>:<p className="hoho-text-caption" role="status">这份资料的对象与当前成员不一致，请切换到对应成员后继续。</p>):null
   const pickFiles=(files:FileList|null,origin:'capture'|'library'='library')=>{
     if(!files?.length)return
     const selected=Array.from(files).map(file=>{
@@ -310,8 +387,8 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
     const next=[...current.current.files,...selected]
     if(next.length>12||next.reduce((sum,f)=>sum+f.size,0)>15*1024*1024){setError('最多12份原件，总大小15 MB');return}
     setLocalStage('uploading')
-    const turn:CaptureTurn={continuationId:current.current.resumeContextId,answerTo:questionTarget(),id:crypto.randomUUID(),text:'',at:Date.now(),kind:'image',role:'user',fileKeys:selected.map(fileIdentity),status:'pending'}
-    void persist({...current.current,smartReview:current.current.smartReview?{...current.current.smartReview,state:'changed'}:undefined,files:next,conversationTurns:[...current.current.conversationTurns??[],turn]}).then(()=>submitTurn(turn)).catch(()=>undefined)
+    const turn:CaptureTurn={continuationId:current.current.resumeContextId,answerTo:questionTarget(),...turnIntent(),id:crypto.randomUUID(),text:'',at:Date.now(),kind:'image',role:'user',fileKeys:selected.map(fileIdentity),status:'pending'}
+    void persist({...current.current,rawSaveTarget:undefined,...(!page||eventId?{smartReview:current.current.smartReview?{...current.current.smartReview,state:'changed'}:undefined}:{}),files:next,conversationTurns:[...current.current.conversationTurns??[],turn]}).then(()=>submitTurn(turn)).catch(()=>undefined)
   }
   async function acknowledgeSave(saved:SmartRecordDraft){
     const guides=savedRecordGuides(saved,memberId)
@@ -326,7 +403,7 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
     if(draftId&&page&&!eventId&&savedContextId)await request(`${frontUrl}/contexts/${savedContextId}`,'POST',{draftId})
     if(page||conversational){
       if(home){followScroll.current=true;followingUntil.current=performance.now()+450;setShowJump(false)}
-      await persist({...current.current,nursingInterview:undefined,followUpEnabled:false,text:'',files:raw?[]:current.current.files.filter(file=>file===current.current.pendingVoice),...(raw?{pendingVoice:undefined,rawSavedGuide:undefined}:{}),smartReview:undefined,aiDraftId:undefined,recognitionJobId:undefined,recognitionSnapshot:undefined,recognitionAssets:undefined,...(eventId?{conversationTurns:[],capturedAt:undefined}:{}),savedGuides:[...(current.current.savedGuides??[]),...guides.filter(guide=>!current.current.savedGuides?.some(old=>old.id===guide.id))]})
+      await persist({...current.current,rawSaveTarget:undefined,nursingInterview:undefined,followUpEnabled:false,text:'',files:raw?[]:current.current.files.filter(file=>file===current.current.pendingVoice),...(raw?{pendingVoice:undefined,rawSavedGuide:undefined}:{}),smartReview:undefined,aiDraftId:undefined,recognitionJobId:undefined,recognitionSnapshot:undefined,recognitionAssets:undefined,...(eventId?{conversationTurns:[],capturedAt:undefined}:{}),savedGuides:[...(current.current.savedGuides??[]),...guides.filter(guide=>!current.current.savedGuides?.some(old=>old.id===guide.id))]})
       hiddenTurns.current.clear()
       setStage('conversation');setStatus('');setCompleted(!home)
     }else await captureDraft(key,null)
@@ -346,26 +423,49 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
     void finishRawSave(current.current,guide).catch(()=>setError('原话已保存，点击查看即可打开。')).finally(()=>{rawFinalizing.current=false;pending.current=false;if(mounted.current)setBusy(false)})
   },[ready,local.rawSavedGuide?.id])
   async function saveOriginal(){
-    if(pending.current||busy||jobBusy||localStage||voice.busy)return
+    if(!ready||pending.current||busy||jobBusy||localStage||voice.busy)return
+    const originalSource=current.current,context=originalSource.recognitionSnapshot?.frontDesk?.context,target=originalSource.rawSaveTarget
+    if(page&&!eventId&&!originalSource.rawSavedGuide){
+      if(!rawSaveTargetMatches(target,context,memberId)&&!rawReceiptRecovery){
+        if(!rawCanOffer||!context?.version)return
+        await persist({...originalSource,rawSaveTarget:{memberId,contextId:context.id,contextVersion:context.version,originalsVersion:context.originalsVersion??0,state:'requested'}});return
+      }
+      if(!rawSubjectConfirmed&&!rawReceiptRecovery)return
+      if(target?.state==='failed'){await persist({...originalSource,rawSaveTarget:{...target,state:'requested'}});return}
+    }
     pending.current=true;setBusy(true);setError('')
     const source=current.current,jobId=source.recognitionJobId
     let guide=source.rawSavedGuide
     try{
       await writes.current.catch(()=>undefined)
       if(!guide){
-        const inputs=source.recognitionSnapshot?.inputStates?.map(input=>input.text).filter(Boolean)??[]
-        const text=page&&!eventId?(inputs.join('\n')||source.conversationTurns?.filter(turn=>turn.role!=='assistant'&&['failed','pending'].includes(turn.status??'')).map(turn=>turn.text).filter(Boolean).join('\n')||source.text):[source.text,...inputs.filter(text=>!source.text.includes(text))].filter(Boolean).join('\n')
-        const result=await caseService.capture(memberId,credentials.current,{requestId:`raw:${jobId??source.requestId}`,followUp:Boolean(eventId),text,files:await Promise.all(source.files.map(async file=>({name:file.name,mimeType:file.type,dataUrl:await fileDataUrl(file)}))),occurredAt:source.capturedAt??new Date().toISOString(),timeUnknown:true,identity:source.files.some(file=>!file.type.startsWith('audio/'))?'pending':'parent',...(eventId?{eventId}:{}),journal:{categories:['other'],timePrecision:'unknown'}})
-        guide={id:`raw:${result.recordId}`,memberId,eventId:result.eventId,recordId:result.recordId,category:'other',text:'原话已保存，可在健康随记查看。',at:Date.now()}
+        let savedContext:FrontContext|undefined
+        if(page&&!eventId){
+          const target=source.rawSaveTarget
+          if(!target||target.memberId!==memberId)throw new Error('请先确认这份记录属于谁。')
+          await persist({...current.current,rawSaveTarget:{...target,state:'saving'}})
+          const result=await request<{savedDraft:SmartRecordDraft;context:FrontContext}>(`${frontUrl}/contexts/${target.contextId}`,'POST',{action:'save_original',expectedVersion:target.contextVersion,confirmed:true})
+          guide=savedRecordGuides(result.savedDraft,memberId)[0]
+          if(result.savedDraft.state!=='saved'||!guide)throw new Error('保存结果尚未确认，原件仍保留，请重试')
+          savedContext=result.context
+        }else{
+          const inputs=source.recognitionSnapshot?.inputStates?.map(input=>input.text).filter(Boolean)??[]
+          const text=[source.text,...inputs.filter(text=>!source.text.includes(text))].filter(Boolean).join('\n'),files=source.files
+          const result=await caseService.capture(memberId,credentials.current,{requestId:`raw:${jobId??source.requestId}`,followUp:Boolean(eventId),text,files:await Promise.all(files.map(async file=>({name:file.name,mimeType:file.type,dataUrl:await fileDataUrl(file)}))),occurredAt:source.capturedAt??new Date().toISOString(),timeUnknown:true,identity:files.some(file=>!file.type.startsWith('audio/'))?'pending':'parent',...(eventId?{eventId}:{}),journal:{categories:['other'],timePrecision:'unknown'}})
+          guide={id:`raw:${result.recordId}`,memberId,eventId:result.eventId,recordId:result.recordId,category:'other',text:'原话已保存，可在健康随记查看。',at:Date.now()}
+        }
         // Formal-save acknowledgement is checkpointed before any cancellation
         // or source cleanup. Reopening finalizes this result, never saves twice.
         rawFinalizing.current=true
-        await persist({...source,rawSavedGuide:guide})
+        await persist({...source,...(savedContext?{frontContextId:savedContext.id,frontContextVersion:savedContext.version,frontSubject:savedContext.subject}:{}),rawSavedGuide:guide})
       }
       await finishRawSave(source,guide)
-    }catch(e){if(mounted.current)setError(guide?'原话已保存，点击查看即可打开。':e instanceof Error?e.message:'原话未保存，内容仍保留，请重试')}
+    }catch(e){if(!guide&&source.rawSaveTarget&&current.current.rawSaveTarget?.contextId===source.rawSaveTarget.contextId)await persist({...current.current,rawSaveTarget:{...source.rawSaveTarget,state:'failed'}}).catch(()=>undefined);if(mounted.current)setError(guide?'原话已保存，点击查看即可打开。':e instanceof Error?e.message:'原话未保存，内容仍保留，请重试')}
     finally{rawFinalizing.current=false;pending.current=false;if(mounted.current)setBusy(false)}
   }
+  useEffect(()=>{
+    if(local.rawSaveTarget?.state==='requested'&&(rawIntentMatches&&rawSubjectConfirmed||rawReceiptRecovery)&&!busy&&!jobBusy&&!localStage&&!voice.busy&&!pending.current)void saveOriginal()
+  },[ready,local.rawSaveTarget,rawIntentMatches,rawSubjectConfirmed,rawReceiptRecovery,busy,jobBusy,localStage,voice.busy])
   async function viewSavedRecord(guide:SavedRecordGuide){
     if(guide.memberId!==useAppStore.getState().currentMemberId)return
     setError('')
@@ -386,6 +486,12 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
       const params=new URLSearchParams({memberId,eventId:guide.eventId,recordId:guide.recordId,view:'month',...(day?{day,month:day.slice(0,7)}:{})})
       navigate(`/health-events?${params}`,{state:{calendarIdentity:`${accountId}:${memberId}`}})
     }catch{if(mounted.current)setError('这条记录已不存在或暂不可访问')}
+  }
+  function downloadRecord(turn:CaptureTurn){
+    const result=turn.operationResult
+    if(memberId!==useAppStore.getState().currentMemberId||accountId!==(useAppStore.getState().authUser?.id??'guest')||result?.state!=='completed'||result.type!=='export'||!result.fileName||!result.text)return
+    const href=URL.createObjectURL(new Blob([result.text],{type:'text/plain;charset=utf-8'})),link=document.createElement('a')
+    link.href=href;link.download=result.fileName;link.click();setTimeout(()=>URL.revokeObjectURL(href),1000)
   }
   async function save(){
     if(pending.current||!canSave||!review||jobBusy)return
@@ -418,7 +524,8 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
   const conversationFooter=<DialogueComposer variant={home?'conversation':'default'} initialTyping={Boolean(local.conversationInput?.trim())} placeholder={home?'孩子今天怎么样？':undefined} expandedFeedback liveTranscript={home?voice.liveText:undefined} liveStatus={voice.liveUnavailable?'实时文字暂不可用，松开后完整转写':'正在听你说'} feedbackHint={home?(voice.liveUnavailable?'录音继续，松开后整理':'边说边显示文字，松开后整理'):'松开后显示文字'} discardOnBlur={!page} directPhoto={page} text={local.conversationInput??''} onTextChange={conversationInput=>change({conversationInput})} maxLength={5000} disabled={!ready||pending.current||completed||!!resumeChoices||exitOpen||!!local.rawSavedGuide} voiceDisabled={!!local.rawSavedGuide} allowTextWhileProcessing audioLevel={voice.audioLevel} requesting={voice.state==='requesting'} listening={voice.state==='listening'} processing={voice.state==='transcribing'} onStart={()=>{void voice.start()}} onStop={voice.stop} onDiscard={voice.discard} onPhoto={source=>({camera,album,video:videoCamera,file:filePicker}[source]).current?.click()} onSend={()=>void sendText()}/>
   const saveBlocked=busy||jobBusy||!!localStage||voice.busy||!canSave||!review?.items.length||!!review.documentWarnings?.length||!!review.unmappedRows?.length||review.sources?.some(s=>s.status==='uncertain')
   const reviewFooter=<div className="smart-record-review-footer">
-    {!!saveBlocked&&!busy&&Boolean(review?.items.length)&&<p role="status">{review?.inputText!==local.text||review?.state!=='ready'?'内容有更新，请返回对话重新整理后再保存。':local.pendingVoice?'录音仍需处理，请返回对话。':review?.documentWarnings?.length||review?.unmappedRows?.length||review?.sources?.some(s=>s.status==='uncertain')?'有资料尚需核对，请返回对话查看提示。':'请先确认每条记录的发生时间；不记得也可以填写。'}</p>}
+    {subjectConfirmation}
+    {!!saveBlocked&&!busy&&Boolean(review?.items.length)&&<p role="status">{review?.inputText!==local.text||review?.state!=='ready'?'内容有更新，请返回对话重新整理后再保存。':subjectPending?'请先确认这份记录属于谁。':local.pendingVoice?'录音仍需处理，请返回对话。':review?.documentWarnings?.length||review?.unmappedRows?.length||review?.sources?.some(s=>s.status==='uncertain')?'有资料尚需核对，请返回对话查看提示。':'请先确认每条记录的发生时间；不记得也可以填写。'}</p>}
     <HohoButton fullWidth loading={busy} disabled={!!saveBlocked} onClick={()=>void save()}>保存</HohoButton>
     {!page&&<HohoButton fullWidth variant="text" disabled={busy} onClick={()=>setStage('conversation')}>返回对话继续补充</HohoButton>}
   </div>
@@ -433,7 +540,7 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
     }catch{if(mounted.current)setError('跟进尚未确认，请重试。已保存的记录仍然保留。')}
     finally{trackingLock.current=false;if(mounted.current)setTrackingEvent(null)}
   }
-  const savedBubble=(guide:SavedRecordGuide)=><NurseMessage conversation={home} key={guide.id} role="assistant"><div className="smart-record-saved" data-save-id={guide.id}><p><Check size={18} aria-hidden="true"/>{guide.text}</p>{!guide.dismissed&&<div className="smart-record-saved-actions"><HohoButton disabled={busy} onClick={()=>void viewSavedRecord(guide)}>查看</HohoButton>{home&&guide.category==='symptom'&&(guide.followUpEnabled?<span className="hoho-text-caption" role="status">症状跟进已启用</span>:<HohoButton disabled={busy||trackingEvent!==null} loading={trackingEvent===guide.eventId} onClick={()=>void enableSavedFollowup(guide)}>启用症状跟进</HohoButton>)}</div>}</div></NurseMessage>
+  const savedBubble=(guide:SavedRecordGuide)=><NurseMessage conversation={home} key={guide.id} role="assistant"><div className="smart-record-saved" data-save-id={guide.id}><p><Check size={18} aria-hidden="true"/>{guide.text}</p>{!guide.dismissed&&<><div className="smart-record-saved-actions"><HohoButton disabled={busy} onClick={()=>void viewSavedRecord(guide)}>查看记录</HohoButton><HohoButton variant="secondary" disabled={busy} onClick={()=>change({savedGuides:dismissSavedRecordGuide(current.current.savedGuides??[],guide.id)})}>知道了</HohoButton></div>{home&&guide.category==='symptom'&&(guide.followUpEnabled?<span className="hoho-text-caption" role="status">症状跟进已启用</span>:<HohoButton variant="text" size="small" disabled={busy||trackingEvent!==null} loading={trackingEvent===guide.eventId} onClick={()=>void enableSavedFollowup(guide)}>启用症状跟进</HohoButton>)}</>}</div></NurseMessage>
   const visibleTurns:(CaptureTurn & {savedGuide?:SavedRecordGuide})[]=[...(local.conversationTurns??(local.text?[{id:'legacy',text:local.text}]:[])),...(local.savedGuides??[]).filter(guide=>guide.memberId===memberId).map(guide=>({id:guide.id,text:'',at:guide.at,savedGuide:guide}))]
   const recordActions=(turn?:CaptureTurn)=>{
     const stale=Boolean(turn&&turn.id!==local.conversationTurns?.filter(item=>item.role==='assistant').at(-1)?.id)
@@ -443,8 +550,8 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
     const answering=interview?.status==='asking'&&interview.question
     const answerDisabled=!ready||busy||voice.busy||dialogueBusy||jobBusy||Boolean(localStage)
     const disabled=answerDisabled||!canSave||Boolean(turn?.reviewId&&turn.reviewId!==review?.id)
-    if(!count&&!answering)return interview?.domain?<div className="smart-record-actions"><p role="status">原始描述已保留，暂未整理出可保存的记录。可以继续补充，也可以先保存原话。</p><HohoButton fullWidth variant="secondary" disabled={answerDisabled} onClick={()=>void saveOriginal()}>先保存原话</HohoButton></div>:null
-    if(answering){
+    if(!count&&!interview?.question?.options.length)return null
+    if(answering&&interview.question!.options.length){
       const options=interview.question!.options,unknown=options.find(option=>option.label==='没注意')
       const choices=home&&options.length>4?[...options.filter(option=>option!==unknown).slice(0,3),unknown??options[3]]:options
       return <div className="smart-record-actions"><div className="smart-interview-options" aria-label="回答当前问题">{choices.map(option=><HohoButton key={option.value} variant="secondary" disabled={answerDisabled} onClick={()=>void sendText(option.value)}>{option.label}</HohoButton>)}</div></div>
@@ -452,6 +559,7 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
     const finish=()=>count&&canSave&&!saveBlocked?void save():void sendText('先按已经说过的情况记录，不再追问。')
     return <div className="smart-record-actions">
       {count>0&&<div className="smart-record-summary-list">{review!.items.map(item=><ProfessionalRecordSummary key={item.id} item={item} document={home}/>)}</div>}
+      {subjectConfirmation}
       {count>0?<div className="smart-record-action-buttons" aria-label="记录操作">
         <HohoButton fullWidth variant="secondary" disabled={answerDisabled||Boolean(saveBlocked)} loading={busy} onClick={()=>void save()}>立即保存</HohoButton>
         <HohoButton fullWidth variant="secondary" disabled={disabled} onClick={()=>setStage('review')}>核对记录</HohoButton>
@@ -461,7 +569,7 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
   const [homeNotice,setHomeNotice]=useState('')
   const newConversation=async()=>{
     if(!ready||busy||dialogueBusy||jobBusy||localStage||voice.busy||pending.current)return
-    pending.current=true;setBusy(true);setError('')
+    pending.current=true;setBusy(true);setError('');workEpoch.current++;uploadAbort.current?.abort()
     try{
       await initialization.current;await writes.current
       const previous=current.current
@@ -497,7 +605,8 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
     finally{openingRecord.current=false}
   }
   const homeShortcuts=<RecordEntryActions conversation disabled={!ready||busy||voice.busy||dialogueBusy||jobBusy||!!localStage} identity={`${accountId}:${memberId}`} onSmartRecord={()=>undefined} onRecord={(category,kind)=>void openRecordEntry(category,kind)}/>
-  const timeline=visibleTurns.filter(turn=>completed?Boolean(turn.savedGuide&&completedGuideIds.current.has(turn.savedGuide.id)):Boolean(home&&turn.savedGuide)||!turn.savedGuide&&turn.id!==job?.frontDesk?.replyId&&(!page||!hiddenTurns.current.has(turn.id))).sort((a,b)=>(a.at??0)-(b.at??0))
+  const timeline=visibleTurns.filter(turn=>completed?Boolean(turn.savedGuide&&completedGuideIds.current.has(turn.savedGuide.id)):Boolean((home||page&&!eventId)&&turn.savedGuide)||!turn.savedGuide&&turn.id!==job?.frontDesk?.replyId&&(!page||!hiddenTurns.current.has(turn.id))).sort((a,b)=>(a.at??0)-(b.at??0))
+  const processingLabel=localStage==='uploading'?'接收中':localStage==='converting'||job?.stage==='converting'||job?.stage==='transcribing'?'转写中':job?.stage==='reading'?'读图中':['organizing','publishing'].includes(job?.stage??'')?'整理中':'理解中'
   const body=<>
     {resumeChoices ? <div className="smart-record-resume">
       <Typography variant="sectionTitle">上次还有未保存的草稿</Typography>
@@ -513,17 +622,17 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
       {!completed&&!home&&<NurseMessage role="assistant"><p>{greeting}</p></NurseMessage>}
       {timeline.map((turn,index)=><Fragment key={turn.id}>
         {home&&showConversationTime(turn.at,timeline[index-1]?.at)&&<time className="conversation-time" dateTime={conversationTime(turn.at)!.iso}>{conversationTime(turn.at)!.label}</time>}
-        {turn.savedGuide?savedBubble(turn.savedGuide):<NurseMessage conversation={home} key={turn.id} role={turn.role??'user'} recorderName={recorderName}>{turn.text||liveVoicePreview.current.get(turn.id)?<p>{turn.text||liveVoicePreview.current.get(turn.id)}</p>:home&&turn.kind==='voice'?<div className="front-desk-voice-original"><Mic size={18} aria-hidden="true"/><span>{turn.status==='failed'?'语音原件已保留':turn.status==='completed'?'语音记录':'语音 · 正在转写'}</span></div>:null}{turn.role==='assistant'&&recordActions(turn)}{turn.fileKeys?.map(id=>visibleMedia.current.get(id)).filter((f):f is File=>!!f&&!f.type.startsWith('audio/')).map(file=><RecordMedia key={fileIdentity(file)} file={file}/>)}{turn.status==='transcribing'&&<p role="status">正在识别语音…</p>}{turn.status==='pending'&&!job&&<p role="status">正在提交这条消息…</p>}{turn.status==='failed'&&<><p role="alert">{turn.kind==='image'?(turn.errorCode==='FRONT_IMAGE_PROCESSING_FAILED'||turn.errorCode==='FILE_READ_FAILED'?'图片处理失败':'图片对话未完成'):turn.kind==='voice'?'转写文字的对话发送未完成':'文字对话发送未完成'}：{turn.error||'连接中断'}。原内容已保留。</p><HohoButton variant="secondary" disabled={dialogueBusy||busy} onClick={()=>void submitTurn({...turn,status:'pending',error:undefined}).catch(()=>undefined)}>重试这条消息</HohoButton><HohoButton variant="secondary" disabled={dialogueBusy||busy} onClick={()=>void discardTurn(turn)}>移除这条未成功的消息</HohoButton>{!job&&<HohoButton variant="secondary" disabled={dialogueBusy||busy} onClick={()=>void saveOriginal()}>先保存原话</HohoButton>}</>}</NurseMessage>}
+        {turn.savedGuide?savedBubble(turn.savedGuide):<NurseMessage conversation={home} key={turn.id} role={turn.role??'user'} recorderName={recorderName}>{turn.text||liveVoicePreview.current.get(turn.id)?<p>{turn.text||liveVoicePreview.current.get(turn.id)}</p>:home&&turn.kind==='voice'?<div className="front-desk-voice-original"><Mic size={18} aria-hidden="true"/><span>{turn.status==='failed'?'语音原件已保留':turn.status==='completed'?'语音记录':'语音 · 正在转写'}</span></div>:null}{turn.operationResult?.type==='export'&&<HohoButton variant="text" size="small" onClick={()=>downloadRecord(turn)}>下载记录</HohoButton>}{turn.role==='assistant'&&!turn.operationResult&&recordActions(turn)}{turn.fileKeys?.map(id=>visibleMedia.current.get(id)).filter((f):f is File=>!!f&&!f.type.startsWith('audio/')).map(file=><RecordMedia key={fileIdentity(file)} file={file}/>)}{turn.status==='transcribing'&&<p role="status">正在识别语音…</p>}{turn.status==='pending'&&!job&&<p role="status">正在提交这条消息…</p>}{turn.status==='failed'&&<><p role="alert">{turn.kind==='image'?(turn.errorCode==='FRONT_IMAGE_PROCESSING_FAILED'||turn.errorCode==='FILE_READ_FAILED'?'图片处理失败':'图片对话未完成'):turn.kind==='voice'?'转写文字的对话发送未完成':'文字对话发送未完成'}：{turn.error||'连接中断'}。原内容已保留。</p><HohoButton variant="secondary" disabled={dialogueBusy||busy} onClick={()=>void submitTurn({...turn,status:'pending',error:undefined}).catch(()=>undefined)}>重试这条消息</HohoButton><HohoButton variant="secondary" disabled={dialogueBusy||busy} onClick={()=>void discardTurn(turn)}>移除这条未成功的消息</HohoButton>{!job&&<HohoButton variant="secondary" disabled={dialogueBusy||busy||!rawSubjectConfirmed} onClick={()=>void saveOriginal()}>先保存原话</HohoButton>}</>}</NurseMessage>}
       </Fragment>)}
       {!job&&(!page||eventId)&&!!local.files.filter(f=>!f.type.startsWith('audio/')).length&&<NurseMessage conversation={home} role="user" recorderName={recorderName}>{local.files.filter(f=>!f.type.startsWith('audio/')).map((file,i)=><div key={`${file.name}:${i}`} className="dialogue-file"><span>{file.name}</span><HohoButton variant="text" aria-label={`移除图片${i+1}`} disabled={busy||voice.busy} onClick={()=>change({files:local.files.filter(f=>f!==file),smartReview:review?{...review,state:'changed'}:undefined})}><X size={16}/></HohoButton></div>)}</NurseMessage>}
-      {local.rawSavedGuide&&<NurseMessage conversation={home} role="assistant"><p>原话已保存</p><HohoButton onClick={()=>void viewSavedRecord(local.rawSavedGuide!)}>查看</HohoButton></NurseMessage>}
-      {home&&!local.rawSavedGuide&&!completed&&(jobBusy||localStage)&&<><NurseMessage conversation role="assistant"><p>嗯，我了解了，我整理一下。</p></NurseMessage><FrontDeskProcessing separate job={job} onStop={()=>void taskCommand('pause')} disabled={commandBusy||busy}/></>}
-      {!local.rawSavedGuide&&!completed&&(job||localStage)&&!(home&&(jobBusy||localStage))&&<NurseMessage conversation={home} role="assistant">{jobBusy||!!localStage?<FrontDeskProcessing/>:job?.frontDesk?.context.messages.find(m=>m.id===job.frontDesk?.replyId)?.text&&<p>{job.frontDesk.context.messages.find(m=>m.id===job.frontDesk?.replyId)?.text}</p>}{(!review?.items.length||!['ready','needs_review'].includes(job?.state??'')||!!job?.unresolvedInputs?.length)&&<RecognitionProgress overview onSaveOriginal={()=>void saveOriginal()} job={job} localStage={localStage} onCommand={type=>void taskCommand(type)} commandBusy={commandBusy||busy}/>}
+      {local.rawSavedGuide&&<NurseMessage conversation={home} role="assistant"><p>{local.rawSavedGuide.text}</p><HohoButton onClick={()=>void viewSavedRecord(local.rawSavedGuide!)}>查看记录</HohoButton></NurseMessage>}
+      {home&&!local.rawSavedGuide&&!completed&&(jobBusy||localStage)&&<><FrontDeskProcessing separate statusText={processingLabel} job={job} onStop={()=>void taskCommand('pause')} disabled={commandBusy||busy}/></>}
+      {!local.rawSavedGuide&&!completed&&(job||localStage)&&!(home&&(jobBusy||localStage))&&<NurseMessage conversation={home} role="assistant">{jobBusy||!!localStage?<FrontDeskProcessing statusText={processingLabel}/>:job?.frontDesk?.context.messages.find(m=>m.id===job.frontDesk?.replyId)?.text&&<p>{job.frontDesk.context.messages.find(m=>m.id===job.frontDesk?.replyId)?.text}</p>}{contextSubjectPending&&!review?.items.length&&subjectConfirmation}{(!review?.items.length||!['ready','needs_review'].includes(job?.state??'')||!!job?.unresolvedInputs?.length)&&<RecognitionProgress overview onSaveOriginal={rawCanOffer?()=>void saveOriginal():undefined} saveOriginalLabel={frontHasOriginalFiles(rawContext)?'保存原件':'先保存原话'} job={job} localStage={localStage} onCommand={type=>void taskCommand(type)} commandBusy={commandBusy||busy}/>}
       {!jobBusy&&!localStage&&recordActions()}</NurseMessage>}
       {(!ready||voice.state==='listening'||voice.state==='requesting'||busy)&&!jobBusy&&!localStage&&<NurseMessage conversation={home} role="assistant"><p role="status">{!ready?'我在找回刚才的内容，请稍等。':voice.state==='listening'?'我在听，松开后整理这一段。':voice.state==='requesting'?'正在打开麦克风。':status||'正在保存…'}</p></NurseMessage>}
       {(error||progressError||voice.error)&&<NurseMessage conversation={home} role="assistant"><p role="alert">{error||progressError||voice.error}。你刚才的内容还在，可以再试一次。</p></NurseMessage>}
       {originalsNeedReview&&<NurseMessage conversation={home} role="assistant"><p>有语音原件无法读取或格式不一致。文字和其他资料还在；可以明确移除问题原件后整理文字，也可以重新录音。</p>{local.files.filter(file=>file.type.startsWith('audio/')).map(file=><HohoButton key={`${file.name}:${file.lastModified}`} variant="text" disabled={busy||voice.busy} onClick={()=>{change({files:current.current.files.filter(f=>f!==file),pendingVoice:current.current.pendingVoice===file?undefined:current.current.pendingVoice,smartReview:review?{...review,state:'changed'}:undefined});setOriginalsNeedReview(false);setError('')}}>移除语音原件：{file.name}</HohoButton>)}</NurseMessage>}
-      {local.pendingVoice&&!localStage&&!jobBusy&&<NurseMessage conversation={home} role="assistant"><p>{voice.unreadable?'这份录音已经无法读取，可以移除后重新录音。你说过的文字仍然保留。':'这段录音还在，要我再听一次吗？'}</p>{voice.unreadable?<HohoButton variant="text" disabled={busy||voice.busy} onClick={()=>void persist({...current.current,pendingVoice:undefined,files:current.current.files.filter(file=>file!==current.current.pendingVoice)}).then(()=>{voice.clearError();setError('')}).catch(()=>undefined)}>移除无法读取的录音</HohoButton>:<HohoButton variant="text" disabled={busy||voice.busy} onClick={()=>{const file=current.current.pendingVoice;if(file)void submitTurn({id:voiceId(file),text:'',at:file.lastModified,kind:'voice',role:'user',fileKeys:[fileIdentity(file)],status:'pending'})}}>再试一次</HohoButton>}{!voice.unreadable&&<HohoButton variant="text" disabled={busy||voice.busy} onClick={()=>change({pendingVoice:undefined})}>继续用文字补充</HohoButton>}</NurseMessage>}
+      {local.pendingVoice&&!localStage&&!jobBusy&&<NurseMessage conversation={home} role="assistant"><p>{voice.unreadable?'这份录音已经无法读取，可以移除后重新录音。你说过的文字仍然保留。':'这段录音还在，要我再听一次吗？'}</p>{voice.unreadable?<HohoButton variant="text" disabled={busy||voice.busy} onClick={()=>void persist({...current.current,pendingVoice:undefined,files:current.current.files.filter(file=>file!==current.current.pendingVoice)}).then(()=>{voice.clearError();setError('')}).catch(()=>undefined)}>移除无法读取的录音</HohoButton>:<HohoButton variant="text" disabled={busy||voice.busy} onClick={()=>{const file=current.current.pendingVoice;if(file)void submitTurn({...turnIntent(),id:voiceId(file),text:'',at:file.lastModified,kind:'voice',role:'user',fileKeys:[fileIdentity(file)],status:'pending'})}}>再试一次</HohoButton>}{!voice.unreadable&&<HohoButton variant="text" disabled={busy||voice.busy} onClick={()=>change({pendingVoice:undefined})}>继续用文字补充</HohoButton>}</NurseMessage>}
       {!job&&!page&&!local.conversationTurns?.some(turn=>turn.role==='assistant')&&!!review?.items.length&&<NurseMessage conversation={home} role="assistant">{recordActions()}</NurseMessage>}
       {error&&review?.state==='failed'&&<HohoButton variant="text" disabled={busy||voice.busy||dialogueBusy} onClick={()=>void (job?taskCommand('retry'):prepare())}>重试</HohoButton>}
       {!!review?.unmappedRows?.length&&<NurseMessage conversation={home} role="assistant"><p>还有这些内容没有整理完整，请补充或更正后让我再试一次：{review.unmappedRows.map(row=>row.text).join('；')}</p></NurseMessage>}

@@ -65,7 +65,7 @@ test('discarded session is not restored or offered to the model; other members a
  assert.deepEqual(JSON.parse(f.calls.at(-1).input[0].content[0].text).history,[])
  assert.equal((await f.service.latest('synthetic',f.member.id)).id,next.context.id)
 })
-test('discard waits for an outstanding reply so its late completion cannot revive a session',async t=>{
+test('discard cancels an outstanding reply so its late completion cannot revive a session',async t=>{
  const f=await setup(t)
  let entered,release
  const started=new Promise(resolve=>{entered=resolve}),gate=new Promise(resolve=>{release=resolve})
@@ -73,7 +73,8 @@ test('discard waits for an outstanding reply so its late completion cannot reviv
  const sending=f.service.submit('synthetic',f.member.id,{id:'slow',kind:'text',text:'今天头皮发痒'})
  await started
  const closing=f.service.closeSession('synthetic',f.member.id)
- release();await sending;await closing
+ const result=sending.catch(error=>{assert.ok(error.name==='AbortError'||error.code==='FRONT_RECORD_CLOSED');return null})
+ release();await result;await closing
  assert.equal(await f.service.latest('synthetic',f.member.id),null)
 })
 test('durable per-message retry, scope isolation, latest update ordering and independent new intents',async t=>{

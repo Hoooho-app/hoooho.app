@@ -1,5 +1,6 @@
 import { interpretNursingAnswer } from './nursing-interview.mjs'
 import { clinicalAssertions, clinicalContext } from '../../../shared/clinical-evidence.mjs'
+import {frontDeskQuestionClaims} from './front-desk-answer-context.mjs'
 
 export const PROFESSIONAL_SUMMARY_VERSION = 'professional-summary-v1'
 
@@ -92,7 +93,8 @@ export function buildProfessionalSummary(item, {sources}={}) {
     if(sources&&!sources.some(s=>typeof s.text==='string'&&s.text.includes(answer.answerText)))return null
   }
   const withoutShortAnswers=value=>answers.length||retired.length?value.split(/\r?\n/).filter(line=>![...answers,...retired].some(a=>line.trim()===a.answerText.trim())).join('，'):value
-  const fields=item.fields.map((field,index)=>({field,id:`${item.id}:field:${index}`,value:observationalFields.has(field.name)?normalizeObservation(withoutShortAnswers(field.value)):clean(withoutShortAnswers(field.value))}))
+  const questionClaims=frontDeskQuestionClaims(item,sources)
+  const fields=item.fields.map((field,index)=>({field,id:`${item.id}:field:${index}`,value:questionClaims.some(claim=>claim.answerText===field.value.trim()&&(field.sources??[]).some(ref=>ref.sourceId===claim.sourceId))?'':observationalFields.has(field.name)?normalizeObservation(withoutShortAnswers(field.value)):clean(withoutShortAnswers(field.value))}))
   const claims=[]
   const add=(text,factIds)=>{
     text=clean(text)
@@ -115,6 +117,7 @@ export function buildProfessionalSummary(item, {sources}={}) {
     add(plainFields.has(entry.field.name)?entry.value:`${label}：${entry.value}`,[entry.id])
   }
   for(const answer of answers)add(answer.text,['answer:'+answer.sourceMessageId])
+  for(const claim of questionClaims)add(claim.text,claim.factIds)
   const time=clean(item.timeText)
   let addedTime=false
   if(time){
