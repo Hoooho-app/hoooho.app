@@ -84,14 +84,14 @@ function verified(field, sources) {
 // additionally bind every quote to this draft rather than trusting loose IDs.
 export function buildProfessionalSummary(item, {sources}={}) {
   if(!item||typeof item.id!=='string'||!Array.isArray(item.fields)||!item.fields.length||item.fields.length>50||item.fields.some(f=>!verified(f,sources)))return null
-  const answers=item.answerObservations??[]
-  if(!Array.isArray(answers)||answers.length>3)return null
-  for(const answer of answers){
+  const answers=item.answerObservations??[],retired=item.supersededAnswers??[]
+  if(!Array.isArray(answers)||answers.length>3||!Array.isArray(retired)||retired.length>3)return null
+  for(const answer of [...answers,...retired]){
     const expected=interpretNursingAnswer(answer.questionId,answer.answerText)
     if(!expected||expected.version!==answer.version||expected.text!==answer.text||typeof answer.sourceMessageId!=='string'||!answer.questionText)return null
     if(sources&&!sources.some(s=>typeof s.text==='string'&&s.text.includes(answer.answerText)))return null
   }
-  const withoutShortAnswers=value=>answers.length?value.split(/\r?\n/).filter(line=>!answers.some(a=>line.trim()===a.answerText.trim())).join('，'):value
+  const withoutShortAnswers=value=>answers.length||retired.length?value.split(/\r?\n/).filter(line=>![...answers,...retired].some(a=>line.trim()===a.answerText.trim())).join('，'):value
   const fields=item.fields.map((field,index)=>({field,id:`${item.id}:field:${index}`,value:observationalFields.has(field.name)?normalizeObservation(withoutShortAnswers(field.value)):clean(withoutShortAnswers(field.value))}))
   const claims=[]
   const add=(text,factIds)=>{

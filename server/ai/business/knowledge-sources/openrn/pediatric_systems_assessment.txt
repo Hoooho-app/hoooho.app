@@ -1,0 +1,256 @@
+Source: Ernstmeyer, K. and Christman, E. (Eds.). (2025). Nursing Health Promotion. Open RN | WisTech Open.
+Original section: https://wtcs.pressbooks.pub/healthpromo/chapter/16-3-general-assessment-of-body-systems/
+License: Creative Commons Attribution 4.0 International, https://creativecommons.org/licenses/by/4.0/ , except where otherwise noted.
+License declaration: https://wtcs.pressbooks.pub/healthpromo/front-matter/introduction/
+Selection: 16.3 General Assessment of Body Systems: narrative text; tables and media excluded
+Changes: HTML converted to plain text; navigation, media, figures, tables and interactive material omitted. No translation. Source links/footnote markers may remain.
+No endorsement by WisTech Open/Open RN is implied. Professional educational reference; not clinically certified for Hoooho.
+Retrieved: 2026-10-25
+
+16.3 General Assessment of Body Systems
+
+This section discusses a wide range of childhood disorders that affect various body systems, including the gastrointestinal, integumentary, neurological, cardiovascular, and musculoskeletal systems, as well as the eyes and ears. When a nurse is assessing a disorder originating in a specific body system, manifestations may be found across other body systems as well. A synopsis of possible abnormal findings that may be found on assessment is discussed in this section. View information on assessment of the respiratory system in the “Focused Assessment for Respiratory Disorders” section of the “Childhood Respiratory Disorders” chapter.
+
+Gastrointestinal System
+
+Table 16.3a describes abnormal findings across body systems that may be found during assessment of a child with a gastrointestinal disorder.
+
+Review additional information on how to assess the gastrointestinal system in the “Abdominal Assessment” chapter of the Open RN Nursing Skills.
+
+Read additional information about common laboratory and diagnostic tests for gastrointestinal disorders in the “General Assessment of the Gastrointestinal System” section of the “Gastrointestinal Alterations” chapter of Open RN Health Alterations.
+
+Life Span Considerations
+
+When assessing a pediatric client, there are some key differences to consider regarding the gastrointestinal system[2]:
+
+- Eating and elimination patterns of infants require special consideration based on the stage of development. Ask parents about feeding habits. Is the baby being breastfed or formula fed? If formula fed, how does the child tolerate the formula?
+
+- To assess for urine output in infants and toddlers, assess the frequency of wet diapers and the daily number of wet diapers. In hospitalized infants and toddlers, the diapers may be weighed for precise measurements of urine output. Urine output can be used to assess hydration status.
+
+- Note that the expected abdominal contour of an infant is called protuberant, which means bulging. The expected abdominal contour of a child is protuberant until about the age of four.
+
+- Assess the umbilical cord of the neonate; it should dry and fall off on its own within two weeks of life.
+
+- Respiratory movement can be observed in the abdomen of the infant.
+
+- Children often cannot provide additional information other than “My stomach hurts.” Other reported symptoms by children or their parents/caregivers may include decreased school attendance due to abdominal discomfort.
+
+Integumentary System
+
+Table 16.3b describes abnormal findings across body systems that may be found during assessment of a child with a disorder affecting the integumentary system.
+
+Review information on assessing the integumentary system in the “Integumentary Assessment” chapter and assessing wounds in the “Wound Care” chapter of Open RN Nursing Skills.
+
+Life Span Considerations
+
+Please keep the following in mind when assessing the integumentary system of a pediatric client[5],[6]:
+
+- When assessing the skin of an infant, some may have acne similar to that of a teenage client.
+
+- Upon assessment, the skin of a neonate may feel rougher than the skin of older infants.
+
+Neurological System
+
+Table 16.3d describes abnormal findings across body systems that may be found during assessment of a child with a disorder affecting the nervous system.
+
+Review additional information on how to assess the neurological system in the “Neurological Assessment” chapter of Open RN Nursing Skills.
+
+Read additional information about common laboratory and diagnostic tests for neurological disorders in the “General Nervous System Assessment” section of the “Nervous System Alterations” chapter of Open RN Health Alterations.
+
+Life Span Considerations
+
+In regard to assessment of the nervous system, there are some key differences in the pediatric population that must be considered[9]:
+
+- The anterior fontanel of an infant remains open until 12-18 months of age. The posterior fontanelle of an infant closes between two to three months of age.
+
+- Motor and sensory functions in the infant continue to develop in the first year of life so this must be taken into consideration when assessing clients less than one year of age.
+
+- The nurse must be aware of reflexes that are specific to newborns, as well as the timing for when they should disappear.
+
+Cardiovascular System
+
+Table 16.3e describes abnormal findings across body systems that may be found during assessment of a child with a cardiovascular disorder.
+
+Review additional information on how to assess the cardiovascular system in the “Cardiovascular Assessment” chapter of Open RN Nursing Skills.
+
+Read additional information about common laboratory and diagnostic tests for cardiovascular disorders in the “General Cardiovascular System Assessment” section of the “Cardiovascular System Alterations” chapter of Open RN Health Alterations.
+
+Life Span Considerations
+
+Here are some differences that may be noted in the assessment of the cardiovascular system of a pediatric client[11]:
+
+- Until the ductus arteriosus closes, a murmur may be heard in newborn clients for the first few days of life.
+
+- The apical pulse should be used to assess heart rate in children. Once the pediatric client reaches adolescence, a radial pulse can be used.
+
+- Heart rate steadily decreases with age, reaching levels similar to adults after six years of age.
+
+Eyes & Ears
+
+Table 16.3f describes abnormal findings that may be found during assessment of a child with an eye or ear disorder.
+
+Review additional information on assessing the eyes and ears in the “Eye and Ear Assessment” chapter of Open RN Nursing Skills.
+
+Read more about diagnostic tests of the eyes and ears in the “Medical Specialties, Diagnostic Testing, and Procedures Related to the Sensory System” section of the “Sensory System Terminology” chapter of Open RN Medical Terminology.
+
+Life Span Considerations
+
+When performing an eye and ear assessment on a pediatric client there are some key differences to consider[14],[15]:
+
+- A Snellen chart is typically used to assess for visual impairment in adults and children who can read. However, other methods may be necessary for children who cannot yet read.
+
+- When assessing the ear of a younger child, the ear should be pulled back and down to inspect the auditory canal and eardrum. In an older child, the ear should be brought up and back to adequately examine the auditory canal and eardrum.
+
+Musculoskeletal System
+
+Table 16.3g describes abnormal findings that may be found during assessment of a child with a musculoskeletal disorder.
+
+Review additional information on how to assess the musculoskeletal system in the “Musculoskeletal Assessment” chapter of the Open RN Nursing Skills.
+
+Read additional information about common laboratory and diagnostic tests for musculoskeletal disorders in the “General Musculoskeletal System Assessment” section of the “Musculoskeletal System Alterations” chapter of Open RN Health Alterations.
+
+Life Span Considerations
+
+When the musculoskeletal system of a pediatric client is assessed, there are some key differences to consider[17],[18]:
+
+- Infants should be assessed for the presence of a “click” in their hips, as this can indicate issues within the hip joint.
+
+- Although kyphosis is abnormal for adults, it is considered normal in an infant’s spine.
+
+- When compared to adults, infants have increased external rotation of the hips.
+
+- The knees of infants are bow-legged, and the knees of toddlers are knock-kneed.
+
+- Ernstmeyer, K., & Christman, E. (Eds.). (2023). Nursing skills 2e. ↵
+
+- Ernstmeyer, K., & Christman, E. (Eds.). (2024). Health alterations. https://wtcs.pressbooks.pub/healthalts/ ↵
+
+- Ernstmeyer, K., & Christman, E. (Eds.). (2023). Nursing skills 2e. ↵
+
+- Ernstmeyer, K., & Christman, E. (Eds.). (2023). Nursing skills 2e. ↵
+
+- Leo, P. (n.d.). How does infant skin differ from adult skin? Medscape. https://www.medscape.org/viewarticle/743529 ↵
+
+- King, A., Balaji, S., & Keswani, S. G. (2013). Biology and function of fetal and pediatric skin. Facial Plastic Surgery Clinics of North America, 21(1), 1–6. https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3654382/ ↵
+
+- Ernstmeyer, K., & Christman, E. (Eds.). (2023). Nursing skills 2e. ↵
+
+- Cleveland Clinic. (2024). Brain stem. ↵
+
+- Ernstmeyer, K., & Christman, E. (Eds.). (2023). Nursing skills 2e. https://wtcs.pressbooks.pub/nursingskills/ ↵
+
+- Ernstmeyer, K., & Christman, E. (Eds.). (2023). Nursing skills 2e. ↵
+
+- Ernstmeyer, K., & Christman, E. (Eds.). (2023). Nursing skills 2e. https://wtcs.pressbooks.pub/nursingskills/ ↵
+
+- National Institute on Deafness and Other Communication Disorders. (2022). Ear infections in children. ↵
+
+- Ernstmeyer, K., & Christman, E. (Eds.). (2023). Nursing skills 2e. ↵
+
+- Ernstmeyer, K., & Christman, E. (Eds.). (2023). Nursing skills 2e. https://wtcs.pressbooks.pub/nursingskills/ ↵
+
+- My American Nurse. (2009). Pediatric ear assessment guidelines for general practice nurses. https://www.myamericannurse.com/pediatric-ear-assessment-guidelines-for-general-practice-nurses/ ↵
+
+- Ernstmeyer, K., & Christman, E. (Eds.). (2023). Nursing skills 2e. ↵
+
+- Ernstmeyer, K., & Christman, E. (Eds.). (2023). Nursing skills 2e. https://wtcs.pressbooks.pub/nursingskills/ ↵
+
+- Physiopedia. (n.d.). Paediatric musculoskeletal development. https://www.physio-pedia.com/Paediatric_Musculoskeletal_Development ↵
+
+definition
+
+Bulging.
+
+×Close definition
+
+Occurs when bilirubin builds up faster in the blood than the liver can conjugate it for excretion from the body.
+
+×Close definition
+
+Small red spots caused by bleeding under the skin.
+
+×Close definition
+
+Localized collection of pus.
+
+×Close definition
+
+Fluid-filled blister no more than five mm in diameter.
+
+×Close definition
+
+Deep, pus-filled abscess generally formed from multiple furuncles.
+
+×Close definition
+
+Dried fluids from a lesion on the surface of the skin.
+
+×Close definition
+
+Encapsulated sac filled with fluid, semi-solid matter, or gas, typically located just below the upper layers of skin.
+
+×Close definition
+
+An infection of the hair follicle, usually due to bacterial infection.
+
+×Close definition
+
+Pus-filled abscess due to infection of a hair follicle.
+
+×Close definition
+
+Smooth spots of discoloration on the skin.
+
+×Close definition
+
+Small, raised bumps on the skin, such as a mosquito bite.
+
+×Close definition
+
+Lesion that resembles a cyst but with a less-defined boundary.
+
+×Close definition
+
+Pus-producing; also called suppurative.
+
+×Close definition
+
+Fluid- or pus-filled bumps on the skin, such as acne.
+
+×Close definition
+
+Any suppurative (pus-producing) infection of the skin.
+
+×Close definition
+
+Producing pus; purulent.
+
+×Close definition
+
+Break in the skin or open sore such as a venous ulcer.
+
+×Close definition
+
+Small, fluid-filled lesion, such as a herpes blister.
+
+×Close definition
+
+Swollen, inflamed skin that itches or burns, often from an allergic reaction.
+
+×Close definition
+
+Awareness of body movement and position.
+
+×Close definition
+
+Feeling like the room is spinning.
+
+×Close definition
+
+Excessive earwax.
+
+×Close definition
+
+Ringing in the ears.
+
+×Close definition

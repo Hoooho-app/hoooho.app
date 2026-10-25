@@ -65,7 +65,8 @@ test('time-of-night background cannot hide cough, and multiple active concerns r
  assert.equal(mixed.domain,'respiratory')
  assert.equal(mixed.nodes[0].id,'resp-effort')
  assert.equal(nursingInterview({text:'小腿红点，还有咳嗽',latestText:'还有咳嗽',requestedQuestionId:'resp-effort',member:{}}).domain,'respiratory')
- assert.ok(nursingKnowledgeFor('孩子白天摸嘴，不愿吃硬的').nodes.some(n=>n.id==='oral-observation'))
+ assert.equal(nursingKnowledgeFor('孩子白天摸嘴，不愿吃硬的').domain,'oral')
+ assert.equal(nursingKnowledgeFor('孩子白天摸嘴，不愿吃硬的').nodes.some(n=>n.id==='oral-observation'),false,'已知吃硬食回避不重复提问')
 })
 test('only relevant authored observation cards and actual handling responses enter retrieval',()=>{
  const knowledge=nursingKnowledgeFor('今天小腿红点，涂了药')

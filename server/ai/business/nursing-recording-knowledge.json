@@ -1,5 +1,5 @@
 {
-  "version": "observation-recording-cards-20261024-v1",
+  "version": "observation-recording-cards-20261025-v2",
   "kind": "product_authored_recording_framework",
   "reviewStatus": "pending_clinical_review",
   "usage": "Only retrieve cards relevant to the current concern. These are observation and documentation priorities, not a checklist to ask in full, diagnostic criteria or treatment advice.",
@@ -28,6 +28,8 @@
         "出现重要异常线索时结束普通追因并进入既有提示路径"
       ],
       "sourceIds": [
+        "openrn-pediatric-assessment",
+        "openrn-pediatric-systems",
         "rch-assessment",
         "who-imci"
       ]
@@ -56,6 +58,8 @@
         "需要专业处理的信息不被普通问答预算拖延"
       ],
       "sourceIds": [
+        "openrn-pediatric-assessment",
+        "openrn-pediatric-systems",
         "rch-assessment"
       ]
     },
@@ -83,12 +87,15 @@
         "主要内容已够形成一条记录时不继续穷举接触物和原因"
       ],
       "sourceIds": [
+        "openrn-pediatric-assessment",
+        "openrn-pediatric-systems",
         "rch-assessment",
         "rch-pain"
       ]
     },
     "bowel": {
       "focusObservations": [
+        "先区分便稀、便硬、排便减少或费力，不自动把排便变化都视为稀便",
         "家长描述的便便性状和实际次数",
         "开始时间及和平时相比的变化",
         "与当前情况相关且已观察的饮水和排尿变化",
@@ -111,8 +118,12 @@
         "相关重要异常进入既有提示路径而非继续普通补问"
       ],
       "sourceIds": [
+        "openrn-pediatric-assessment",
+        "openrn-pediatric-systems",
         "who-imci",
-        "rch-assessment"
+        "rch-assessment",
+        "openrn-constipation",
+        "openrn-diarrhea"
       ]
     },
     "vomit": {
@@ -139,6 +150,8 @@
         "不为查清原因继续追问完整饮食清单"
       ],
       "sourceIds": [
+        "openrn-pediatric-assessment",
+        "openrn-pediatric-systems",
         "who-imci",
         "rch-assessment"
       ]
@@ -167,6 +180,8 @@
         "不为找出病因不停更换身体部位排查"
       ],
       "sourceIds": [
+        "openrn-pediatric-assessment",
+        "openrn-pediatric-systems",
         "rch-pain",
         "rch-assessment"
       ]
@@ -195,6 +210,8 @@
         "不为补齐所有尿液属性要求额外操作"
       ],
       "sourceIds": [
+        "openrn-pediatric-assessment",
+        "openrn-pediatric-systems",
         "rch-assessment"
       ]
     },
@@ -222,6 +239,8 @@
         "重要异常按既有提示路径处理"
       ],
       "sourceIds": [
+        "openrn-pediatric-assessment",
+        "openrn-pediatric-systems",
         "rch-assessment",
         "rch-pain"
       ]
@@ -250,6 +269,8 @@
         "信息已够时收尾，不强迫补完整入睡醒来时间"
       ],
       "sourceIds": [
+        "openrn-pediatric-assessment",
+        "openrn-pediatric-systems",
         "rch-assessment",
         "rch-pain"
       ]
@@ -278,7 +299,84 @@
         "重要反应异常线索进入既有提示路径"
       ],
       "sourceIds": [
+        "openrn-pediatric-assessment",
+        "openrn-pediatric-systems",
         "rch-assessment"
+      ]
+    },
+    "eye": {
+      "focusObservations": [
+        "侧别与已经看到的发红、分泌物、流泪或揉眼动作",
+        "孩子自述与家长观察区分",
+        "已知时间过程及受影响情况"
+      ],
+      "summaryPriority": [
+        "侧别与已经看到的发红、分泌物、流泪或揉眼动作",
+        "孩子自述与家长观察区分",
+        "已知时间过程及受影响情况"
+      ],
+      "forbiddenInference": [
+        "发红不直接命名结膜炎",
+        "不凭照片排除损伤",
+        "不引导撑开眼皮或进行检查"
+      ],
+      "stopWhen": [
+        "已有足够观察形成有限记录",
+        "不清楚或不愿继续时保留未知，不继续穷举病因"
+      ],
+      "sourceIds": [
+        "openrn-pediatric-assessment",
+        "openrn-pediatric-systems"
+      ]
+    },
+    "ear": {
+      "focusObservations": [
+        "侧别和实际看到的摸耳、拉耳动作或流出物",
+        "孩子原话与家长推测区分",
+        "已知时间过程"
+      ],
+      "summaryPriority": [
+        "侧别和实际看到的摸耳、拉耳动作或流出物",
+        "孩子原话与家长推测区分",
+        "已知时间过程"
+      ],
+      "forbiddenInference": [
+        "拉耳不改写成耳痛或中耳炎",
+        "不生成耳镜检查所见",
+        "不要求插入器械"
+      ],
+      "stopWhen": [
+        "已有足够观察形成有限记录",
+        "不清楚或不愿继续时保留未知，不继续穷举病因"
+      ],
+      "sourceIds": [
+        "openrn-pediatric-assessment",
+        "openrn-pediatric-systems"
+      ]
+    },
+    "oral": {
+      "focusObservations": [
+        "已经看到的嘴唇、牙龈或口内变化",
+        "吃喝刷牙时的动作或明确自述",
+        "已知时间及日常影响"
+      ],
+      "summaryPriority": [
+        "已经看到的嘴唇、牙龈或口内变化",
+        "吃喝刷牙时的动作或明确自述",
+        "已知时间及日常影响"
+      ],
+      "forbiddenInference": [
+        "摸嘴不直接改写疼痛",
+        "不凭月龄推定出牙或蛀牙",
+        "不让家长操作专业口腔检查"
+      ],
+      "stopWhen": [
+        "已有足够观察形成有限记录",
+        "不清楚或不愿继续时保留未知，不继续穷举病因"
+      ],
+      "sourceIds": [
+        "openrn-pediatric-assessment",
+        "openrn-pediatric-systems"
       ]
     }
   },

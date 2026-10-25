@@ -1,0 +1,358 @@
+{
+  "scope": "Synthetic source/provenance and interaction policy boundaries; not exhaustive triage or clinical certification.",
+  "urgent": [
+    {
+      "id": "current-breathing",
+      "text": "孩子现在呼吸困难",
+      "expected": true,
+      "currentChild": true,
+      "quote": "孩子现在呼吸困难"
+    },
+    {
+      "id": "current-no-consciousness",
+      "text": "孩子现在没有意识了",
+      "expected": true,
+      "currentChild": true,
+      "quote": "孩子现在没有意识了"
+    },
+    {
+      "id": "current-convulsion",
+      "text": "孩子现在一直抽搐",
+      "expected": true,
+      "currentChild": true,
+      "quote": "孩子现在一直抽搐"
+    },
+    {
+      "id": "current-unresponsive",
+      "text": "孩子现在没有反应",
+      "expected": true,
+      "currentChild": true,
+      "quote": "孩子现在没有反应"
+    },
+    {
+      "id": "current-lips",
+      "text": "孩子现在嘴唇发紫",
+      "expected": true,
+      "currentChild": true,
+      "quote": "孩子现在嘴唇发紫"
+    },
+    {
+      "id": "neg-effort",
+      "text": "孩子现在没有呼吸费力",
+      "expected": false,
+      "currentChild": true,
+      "quote": "孩子现在没有呼吸费力"
+    },
+    {
+      "id": "neg-effort-unseen",
+      "text": "孩子现在未见呼吸费力",
+      "expected": false,
+      "currentChild": true,
+      "quote": "孩子现在未见呼吸费力"
+    },
+    {
+      "id": "neg-effort-observed",
+      "text": "没有发现孩子呼吸费力",
+      "expected": false,
+      "currentChild": true,
+      "quote": "没有发现孩子呼吸费力"
+    },
+    {
+      "id": "neg-no-consciousness",
+      "text": "孩子不是没有意识",
+      "expected": false,
+      "currentChild": true,
+      "quote": "孩子不是没有意识"
+    },
+    {
+      "id": "neg-consciousness-abnormal",
+      "text": "孩子没有意识异常",
+      "expected": false,
+      "currentChild": true,
+      "quote": "孩子没有意识异常"
+    },
+    {
+      "id": "neg-awareness-loss",
+      "text": "孩子没有意识丧失",
+      "expected": false,
+      "currentChild": true,
+      "quote": "孩子没有意识丧失"
+    },
+    {
+      "id": "neg-reaction-abnormal",
+      "text": "孩子没有反应异常",
+      "expected": false,
+      "currentChild": true,
+      "quote": "孩子没有反应异常"
+    },
+    {
+      "id": "ordinary-slow-understanding",
+      "text": "孩子没有反应过来",
+      "expected": false,
+      "currentChild": true,
+      "quote": "孩子没有反应过来"
+    },
+    {
+      "id": "neg-convulsion",
+      "text": "孩子没有抽搐",
+      "expected": false,
+      "currentChild": true,
+      "quote": "孩子没有抽搐"
+    },
+    {
+      "id": "neg-unresponsive",
+      "text": "孩子不是没有反应",
+      "expected": false,
+      "currentChild": true,
+      "quote": "孩子不是没有反应"
+    },
+    {
+      "id": "self-person",
+      "text": "我现在呼吸困难",
+      "expected": false,
+      "currentChild": true,
+      "quote": "我现在呼吸困难"
+    },
+    {
+      "id": "self-caregiver",
+      "text": "家长自己现在喘不过气",
+      "expected": false,
+      "currentChild": true,
+      "quote": "家长自己现在喘不过气"
+    },
+    {
+      "id": "reported-child",
+      "text": "孩子说我现在喘不过气",
+      "expected": true,
+      "currentChild": true,
+      "quote": "孩子说我现在喘不过气"
+    },
+    {
+      "id": "other-person",
+      "text": "哥哥现在叫不醒",
+      "expected": false,
+      "currentChild": true,
+      "quote": "哥哥现在叫不醒"
+    },
+    {
+      "id": "other-inherited",
+      "text": "哥哥现在叫不醒，呼吸困难",
+      "expected": false,
+      "currentChild": true,
+      "quote": "哥哥现在叫不醒，呼吸困难"
+    },
+    {
+      "id": "conditional",
+      "text": "如果孩子现在叫不醒怎么办",
+      "expected": false,
+      "currentChild": true,
+      "quote": "如果孩子现在叫不醒怎么办"
+    },
+    {
+      "id": "future",
+      "text": "明天孩子呼吸困难怎么办",
+      "expected": false,
+      "currentChild": true,
+      "quote": "明天孩子呼吸困难怎么办"
+    },
+    {
+      "id": "worry",
+      "text": "担心孩子现在呼吸困难",
+      "expected": false,
+      "currentChild": true,
+      "quote": "担心孩子现在呼吸困难"
+    },
+    {
+      "id": "uncertain",
+      "text": "孩子现在不确定是否呼吸困难",
+      "expected": false,
+      "currentChild": true,
+      "quote": "孩子现在不确定是否呼吸困难"
+    },
+    {
+      "id": "history-resolved",
+      "text": "孩子昨天叫不醒，现在正常了",
+      "expected": false,
+      "currentChild": true,
+      "quote": "孩子昨天叫不醒，现在正常了"
+    },
+    {
+      "id": "history",
+      "text": "孩子昨天叫不醒",
+      "expected": false,
+      "currentChild": true,
+      "quote": "孩子昨天叫不醒"
+    },
+    {
+      "id": "new-current-after-history",
+      "text": "孩子昨天叫不醒，现在又叫不醒",
+      "expected": true,
+      "currentChild": true,
+      "quote": "孩子昨天叫不醒，现在又叫不醒"
+    },
+    {
+      "id": "recent-resolved",
+      "text": "孩子刚刚抽搐，现在已经好了",
+      "expected": false,
+      "currentChild": true,
+      "quote": "孩子刚刚抽搐，现在已经好了"
+    },
+    {
+      "id": "recent-ongoing",
+      "text": "孩子刚刚开始一直抽搐",
+      "expected": true,
+      "currentChild": true,
+      "quote": "孩子刚刚开始一直抽搐"
+    },
+    {
+      "id": "model-false",
+      "text": "孩子现在呼吸困难",
+      "expected": false,
+      "currentChild": false,
+      "quote": "孩子现在呼吸困难"
+    },
+    {
+      "id": "model-quote-cherry-pick",
+      "text": "孩子现在没有呼吸困难",
+      "expected": false,
+      "currentChild": true,
+      "quote": "呼吸困难"
+    },
+    {
+      "id": "model-quote-absent",
+      "text": "孩子现在咳嗽",
+      "expected": false,
+      "currentChild": true,
+      "quote": "呼吸困难"
+    },
+    {
+      "id": "ordinary",
+      "text": "孩子今天咳嗽",
+      "expected": false,
+      "currentChild": true,
+      "quote": "孩子今天咳嗽"
+    }
+  ],
+  "response": [
+    {
+      "text": "不确定",
+      "kind": "unknown"
+    },
+    {
+      "text": "没观察过",
+      "kind": "unknown"
+    },
+    {
+      "text": "这个我不知道",
+      "kind": "unknown"
+    },
+    {
+      "text": "不太清楚",
+      "kind": "unknown"
+    },
+    {
+      "text": "不太知道",
+      "kind": "unknown"
+    },
+    {
+      "text": "不知道呀",
+      "kind": "unknown"
+    },
+    {
+      "text": "没注意过",
+      "kind": "unknown"
+    },
+    {
+      "text": "没看出来",
+      "kind": "unknown"
+    },
+    {
+      "text": "我也说不准",
+      "kind": "unknown"
+    },
+    {
+      "text": "不知道",
+      "kind": "unknown"
+    },
+    {
+      "text": "没留意",
+      "kind": "unknown"
+    },
+    {
+      "text": "暂时没注意目前呼吸是否费力，先按已经说过的情况记录。",
+      "kind": "unknown"
+    },
+    {
+      "text": "先记下来",
+      "kind": "finished"
+    },
+    {
+      "text": "我想先记录",
+      "kind": "finished"
+    },
+    {
+      "text": "不用继续问了",
+      "kind": "finished"
+    },
+    {
+      "text": "先这样吧",
+      "kind": "finished"
+    },
+    {
+      "text": "谢谢",
+      "kind": "finished"
+    },
+    {
+      "text": "先按已经说过的情况记录，不再追问。",
+      "kind": "finished"
+    },
+    {
+      "text": "“不知道”是什么意思",
+      "kind": "none"
+    },
+    {
+      "text": "妈妈不知道",
+      "kind": "none"
+    },
+    {
+      "text": "哥哥不确定",
+      "kind": "none"
+    },
+    {
+      "text": "如果我不知道怎么办",
+      "kind": "none"
+    },
+    {
+      "text": "明天我不知道该看什么",
+      "kind": "none"
+    },
+    {
+      "text": "我准备说不知道",
+      "kind": "none"
+    },
+    {
+      "text": "不知道，今天吃了半个苹果",
+      "kind": "none"
+    },
+    {
+      "text": "不知道几点开始，但现在呼吸费力",
+      "kind": "none"
+    },
+    {
+      "text": "孩子说不知道是哪里疼",
+      "kind": "none"
+    },
+    {
+      "text": "如果宝宝好了就先记下来",
+      "kind": "none"
+    },
+    {
+      "text": "明天再记下来",
+      "kind": "none"
+    },
+    {
+      "text": "妈妈说先记下来",
+      "kind": "none"
+    }
+  ]
+}

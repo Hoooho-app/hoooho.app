@@ -1,0 +1,771 @@
+{
+  "version": "independent-semantic-adjudication-20261025-v1",
+  "status": "read_only_product_semantic_review_not_clinical_certification",
+  "originalProposal": {
+    "path": "/workspace/scratch/974534409098/nursing-v2-scenarios-proposal.json",
+    "sha256": "583d275b13195ab8cba25c5346de27c01f597a6024bd943413c971599c7d7960",
+    "untouched": true
+  },
+  "reviewedSourceHashes": {
+    "server/ai/business/nursing-interview.mjs": "24f069eb0d2512d0e1af1baab814d760fbb599485002874f7b2803e3c0bb74c8",
+    "server/ai/business/nursing-question-library.json": "17764f3e91587537b4af2116fa7706ac8b68e1f3b359e68c42ce4b9bc4b9032a",
+    "server/ai/business/nursing-slot-evidence.mjs": "5e69751de4949ffc3eca34f1ef854fb684d2f07ebabfdb66af5bb19667c67399",
+    "server/ai/business/nursing-observation-context.mjs": "113ffcb53eec1d9f758fbdf75b0a225e49f882493c96d8278fecfbb85e5d28cd",
+    "server/ai/business/fixtures/nursing-v2-scenarios.json": "276a333c824f7abe44f6480f7f1325dfe04902bd711074092320a43a02aac817",
+    "server/ai/business/nursing-v2-boundary.test.mjs": "57d36f4963fa8c5681328787608e0d3520cd54c343de82d40ca0f162d6ed3565"
+  },
+  "scope": "独立修正提案里会重复已知/未知或把不确定哭闹当疼痛的预期；不修改原提案，不通过迁就当前输出获得通过率。",
+  "acceptanceInterpretation": [
+    "先对比knowledge.domain的主主题，再单独看interview.question.domain；跨域关联的一问不是自动改主记录。",
+    "requiredAnyQuestionIds是语义上可接受的一问候选，非清单。allowReady=true表示已有事实可先形成记录，不应强制为了凑字段发问。",
+    "明确要求停止或不知/未观察的当前答案必须停止；本文件不取消原案的显式停止断言。",
+    "概念到ID仅是映射，必须满足condition；禁止把不同未知字段、重复已知字段粗暴算同义。",
+    "未知和否定必须保留；不会表达的婴儿不得使用孩子说/自报评分等选项。",
+    "100条是独立语义场景；3个年龄版本是年龄适配压力变体，不应声称300条独立临床案例。",
+    "本次只静态阅读并调用确定性本地函数；未运行模型、ASR或生产服务。"
+  ],
+  "caseOverrides": [
+    {
+      "caseId": "P01",
+      "classification": "proposal_correction",
+      "rationale": "唯一肯定事实是一直哭；疼痛是家长不知道是否存在的假设。原案pain主域及强制定位痛处会把假设抬高为症状。可中性询问哭闹情境或安抚后变化，原文疼痛疑问保留。",
+      "originalExpectedDomain": "pain",
+      "originalRequiredConcepts": [
+        "pain-location"
+      ],
+      "adjudicated": {
+        "expectedDomains": [
+          "behaviour"
+        ],
+        "acceptableNextQuestionDomains": [
+          "behaviour"
+        ],
+        "requiredAnyQuestionIds": [
+          "cry-context",
+          "behaviour-consolation"
+        ],
+        "forbiddenQuestionIds": [
+          "pain-location",
+          "pain-impact"
+        ],
+        "allowReady": false,
+        "preserveOriginalFactAssertions": true
+      },
+      "remainingImplementationConcern": null
+    },
+    {
+      "caseId": "P03",
+      "classification": "proposal_correction",
+      "rationale": "抱起哭、放下停已经给出动作情境，算不算疼仍未确认，不能建立已确认疼痛域。可直接记录，也可用不预设疼痛的清醒/睡眠情境问题补一项；不要求把婴儿定位、评分。",
+      "originalExpectedDomain": "pain",
+      "originalRequiredConcepts": [
+        "pain-observable-context"
+      ],
+      "adjudicated": {
+        "expectedDomains": [
+          "behaviour"
+        ],
+        "acceptableNextQuestionDomains": [
+          "behaviour"
+        ],
+        "requiredAnyQuestionIds": [
+          "cry-context",
+          "behaviour-consolation"
+        ],
+        "forbiddenQuestionIds": [
+          "pain-location",
+          "pain-impact"
+        ],
+        "allowReady": true,
+        "preserveOriginalFactAssertions": true
+      },
+      "remainingImplementationConcern": "若当前仍从“不知道算不算疼”激活pain，属于真实极性/主域缺陷。"
+    },
+    {
+      "caseId": "L03",
+      "classification": "proposal_correction",
+      "rationale": "闭着眼不等于已经入睡，后来睡稳也不能反推哭时处于睡眠。原案只允许sleep且强制停止过严；中性问哭时处于睡前、睡中还是清醒可增加信息，保留行为与睡眠背景均可。若已有足够原始观察，允许先记录。",
+      "originalExpectedDomain": "sleep",
+      "originalRequiredConcepts": [],
+      "adjudicated": {
+        "expectedDomains": [
+          "behaviour",
+          "sleep"
+        ],
+        "acceptableNextQuestionDomains": [
+          "behaviour",
+          "sleep"
+        ],
+        "requiredAnyQuestionIds": [
+          "cry-context"
+        ],
+        "forbiddenQuestionIds": [
+          "sleep-awakening",
+          "oral-observation"
+        ],
+        "allowReady": true,
+        "preserveOriginalFactAssertions": true
+      },
+      "remainingImplementationConcern": "不得从叫他不太理推导已确认意识异常；也不应把安抚后变化当作已发生的处理，因未说做过安抚。"
+    },
+    {
+      "caseId": "F08",
+      "classification": "proposal_correction",
+      "rationale": "家长已把反应慢具体化为与平时叫他转头相比的变化，再泛问精神/反应会重复。是否测量及测量信息尚未说明，可补该事实缺口；不以此宣称反应慢无需专业关注。重要观察仍应走独立已审规则。",
+      "originalExpectedDomain": "fever",
+      "originalRequiredConcepts": [
+        "general-response-detail"
+      ],
+      "adjudicated": {
+        "expectedDomains": [
+          "fever"
+        ],
+        "acceptableNextQuestionDomains": [
+          "fever"
+        ],
+        "requiredAnyQuestionIds": [
+          "fever-measurement",
+          "fever-site"
+        ],
+        "forbiddenQuestionIds": [
+          "fever-state"
+        ],
+        "allowReady": false,
+        "preserveOriginalFactAssertions": true
+      },
+      "remainingImplementationConcern": null
+    },
+    {
+      "caseId": "B06",
+      "classification": "proposal_correction",
+      "rationale": "已经几天没便便清楚表达排便间隔变化；不应再问主要是次数少、费力还是变硬。最近一次大概时间可作自愿精度澄清，也可保留“几天”先记录，不强制精确日期。",
+      "originalExpectedDomain": "bowel",
+      "originalRequiredConcepts": [
+        "constipation-pattern"
+      ],
+      "adjudicated": {
+        "expectedDomains": [
+          "bowel"
+        ],
+        "acceptableNextQuestionDomains": [
+          "bowel"
+        ],
+        "requiredAnyQuestionIds": [
+          "stool-last-time"
+        ],
+        "forbiddenQuestionIds": [
+          "stool-count",
+          "constipation-pattern"
+        ],
+        "allowReady": true,
+        "preserveOriginalFactAssertions": true
+      },
+      "remainingImplementationConcern": null
+    },
+    {
+      "caseId": "B07",
+      "classification": "proposal_correction",
+      "rationale": "今天排出硬颗粒且用力已经说明性状、发生日期与排便动作。原案要求再问排便影响是重复；今天便便也已给出最近一次排便日期，不能改为追问这一字段来凑过关。允许先形成完整可用记录。",
+      "originalExpectedDomain": "bowel",
+      "originalRequiredConcepts": [
+        "defecation-impact"
+      ],
+      "adjudicated": {
+        "expectedDomains": [
+          "bowel"
+        ],
+        "acceptableNextQuestionDomains": [
+          "bowel"
+        ],
+        "requiredAnyQuestionIds": [],
+        "forbiddenQuestionIds": [
+          "stool-count",
+          "constipation-pattern",
+          "bowel-impact",
+          "stool-last-time",
+          "bowel-onset"
+        ],
+        "allowReady": true,
+        "preserveOriginalFactAssertions": true
+      },
+      "remainingImplementationConcern": "若仍问最近一次排便或已描述的用力反应，属于真实重复问题，不因原案也有错而放行。"
+    },
+    {
+      "caseId": "B08",
+      "classification": "proposal_correction",
+      "rationale": "一坐马桶就哭已经描述排便相关行为，不应再次问排便时有什么动作。最近实际排便时间或已见便便性状仍可澄清；stool-change仅可用于未说明的性状，不能再次要求复述哭闹/排不出。",
+      "originalExpectedDomain": "bowel",
+      "originalRequiredConcepts": [
+        "defecation-behaviour"
+      ],
+      "adjudicated": {
+        "expectedDomains": [
+          "bowel"
+        ],
+        "acceptableNextQuestionDomains": [
+          "bowel"
+        ],
+        "requiredAnyQuestionIds": [
+          "stool-last-time",
+          "stool-change"
+        ],
+        "forbiddenQuestionIds": [
+          "stool-count",
+          "bowel-impact"
+        ],
+        "allowReady": true,
+        "preserveOriginalFactAssertions": true
+      },
+      "remainingImplementationConcern": "若采用泛constipation-pattern或stool-change，其问法应聚焦尚未知的一项；不能要求确认便秘诊断。"
+    },
+    {
+      "caseId": "I05",
+      "classification": "proposal_correction",
+      "rationale": "手部位置、热杯接触、发红及冲水后不变均已明确。原案要求injury-location是错误重复；若还问一项，可询问家长已观察的自然活动差别，不能要求孩子试动作。",
+      "originalExpectedDomain": "injury",
+      "originalRequiredConcepts": [
+        "injury-location"
+      ],
+      "adjudicated": {
+        "expectedDomains": [
+          "injury"
+        ],
+        "acceptableNextQuestionDomains": [
+          "injury"
+        ],
+        "requiredAnyQuestionIds": [
+          "injury-function"
+        ],
+        "forbiddenQuestionIds": [
+          "injury-location",
+          "injury-surface",
+          "handling-response",
+          "skin-location",
+          "skin-appearance"
+        ],
+        "allowReady": false,
+        "preserveOriginalFactAssertions": true
+      },
+      "remainingImplementationConcern": "同一受伤过程的发红不得因跨分句另开皮肤部位/外观问题。"
+    },
+    {
+      "caseId": "I07",
+      "classification": "proposal_correction",
+      "rationale": "脚上划痕已提供位置和表面外观，来源不知道也已说明。触碰缩脚属于观察到的回避反应，不等于孩子自述疼痛；自然活动或何时注意到仍可能有新信息，不应再问外观或受伤原因。",
+      "originalExpectedDomain": "injury",
+      "originalRequiredConcepts": [
+        "injury-surface"
+      ],
+      "adjudicated": {
+        "expectedDomains": [
+          "injury"
+        ],
+        "acceptableNextQuestionDomains": [
+          "injury"
+        ],
+        "requiredAnyQuestionIds": [
+          "injury-function",
+          "injury-onset"
+        ],
+        "forbiddenQuestionIds": [
+          "injury-location",
+          "injury-surface",
+          "injury-course"
+        ],
+        "allowReady": true,
+        "preserveOriginalFactAssertions": true
+      },
+      "remainingImplementationConcern": null
+    },
+    {
+      "caseId": "L04",
+      "classification": "proposal_correction",
+      "rationale": "醒后哭已经确认醒来，回避硬食已明确回答进食躲避。原案硬性要求oral-observation会重复。可补家长已看到的口部外观，或醒后安抚情况；也可先记录两类关联观察。",
+      "originalExpectedDomain": "sleep",
+      "originalRequiredConcepts": [
+        "oral-observation"
+      ],
+      "adjudicated": {
+        "expectedDomains": [
+          "sleep",
+          "oral"
+        ],
+        "acceptableNextQuestionDomains": [
+          "oral",
+          "sleep"
+        ],
+        "requiredAnyQuestionIds": [
+          "oral-appearance",
+          "sleep-consolation"
+        ],
+        "forbiddenQuestionIds": [
+          "oral-observation",
+          "sleep-awakening"
+        ],
+        "allowReady": true,
+        "preserveOriginalFactAssertions": true
+      },
+      "remainingImplementationConcern": "关注主题可为睡眠，但下一问来自oral并不等于改写主记录；应区分主主题和提问所属域。"
+    },
+    {
+      "caseId": "E03",
+      "classification": "proposal_correction",
+      "rationale": "左侧已知，红不红没看清为明确未知，不应把同一外观再问一遍。可问已留意的实际影响或时间，也可保留未确认外观先记录；不得推断瘙痒/发红。",
+      "originalExpectedDomain": "eye",
+      "originalRequiredConcepts": [
+        "eye-appearance"
+      ],
+      "adjudicated": {
+        "expectedDomains": [
+          "eye"
+        ],
+        "acceptableNextQuestionDomains": [
+          "eye"
+        ],
+        "requiredAnyQuestionIds": [
+          "eye-impact",
+          "eye-onset"
+        ],
+        "forbiddenQuestionIds": [
+          "eye-side",
+          "eye-appearance"
+        ],
+        "allowReady": true,
+        "preserveOriginalFactAssertions": true
+      },
+      "remainingImplementationConcern": "婴儿版本不得提供“孩子说看不清”的自述选项，重要内容不靠不适龄自述补齐。"
+    },
+    {
+      "caseId": "O01",
+      "classification": "proposal_correction",
+      "rationale": "嘴里已经给出广义口腔内位置，白点仅疑似且照片不清。原案要求在嘴唇/牙龈/嘴里面再选会重复广义位置或要求猜测；不强求更精细部位，时间或已注意的吃喝影响可选，亦可先记录。",
+      "originalExpectedDomain": "oral",
+      "originalRequiredConcepts": [
+        "oral-location"
+      ],
+      "adjudicated": {
+        "expectedDomains": [
+          "oral"
+        ],
+        "acceptableNextQuestionDomains": [
+          "oral"
+        ],
+        "requiredAnyQuestionIds": [
+          "oral-onset",
+          "oral-observation"
+        ],
+        "forbiddenQuestionIds": [
+          "oral-location",
+          "oral-appearance"
+        ],
+        "allowReady": true,
+        "preserveOriginalFactAssertions": true
+      },
+      "remainingImplementationConcern": "oral-observation仅在询问尚未知的实际影响时可用，不能据模糊白点推断溃疡、鹅口疮或龋齿。"
+    },
+    {
+      "caseId": "O03",
+      "classification": "proposal_correction",
+      "rationale": "上面一颗牙已经提供可用位置，哪颗不知道不能迫填编号；刷牙疼也已明确。原案oral-impact若仅重复刷牙关系无新信息。未提到的吃喝/活动影响或开始时间可以补，或者直接记录。",
+      "originalExpectedDomain": "oral",
+      "originalRequiredConcepts": [
+        "oral-impact"
+      ],
+      "adjudicated": {
+        "expectedDomains": [
+          "oral"
+        ],
+        "acceptableNextQuestionDomains": [
+          "oral",
+          "pain"
+        ],
+        "requiredAnyQuestionIds": [
+          "pain-impact",
+          "oral-onset"
+        ],
+        "forbiddenQuestionIds": [
+          "oral-location",
+          "oral-observation"
+        ],
+        "allowReady": true,
+        "preserveOriginalFactAssertions": true
+      },
+      "remainingImplementationConcern": "pain-impact作下一问可接受，主记录仍应保留口部/牙齿主题；不能因提问模块名把牙痛变成无部位全身痛。"
+    },
+    {
+      "caseId": "R03",
+      "classification": "proposal_overly_specific",
+      "rationale": "鼻堵伴咳嗽否定。原案只允许鼻部吃睡影响过窄，询问家长可见的当前呼吸费力也与鼻堵相关，尤其要保留婴儿的观察表达；但绝不能因否定句有咳字开放咳嗽专属问题。",
+      "originalExpectedDomain": "respiratory",
+      "originalRequiredConcepts": [
+        "nasal-impact"
+      ],
+      "adjudicated": {
+        "expectedDomains": [
+          "respiratory"
+        ],
+        "acceptableNextQuestionDomains": [
+          "respiratory"
+        ],
+        "requiredAnyQuestionIds": [
+          "nasal-impact",
+          "resp-effort"
+        ],
+        "forbiddenQuestionIds": [
+          "cough-pattern",
+          "cough-impact"
+        ],
+        "allowReady": false,
+        "preserveOriginalFactAssertions": true
+      },
+      "remainingImplementationConcern": "否定咳嗽触发咳嗽问题是真实缺陷，不能用本次放宽resp-effort掩盖。"
+    },
+    {
+      "caseId": "R08",
+      "classification": "proposal_overly_specific",
+      "rationale": "喘的含义尚未明确；直接问家长能看到的呼吸费力属于一种合理聚焦观察，不必强制唯一的声音分类题。仍须保留孩子说喘的原精度，不自动命名喘鸣。",
+      "originalExpectedDomain": "respiratory",
+      "originalRequiredConcepts": [
+        "breathing-description"
+      ],
+      "adjudicated": {
+        "expectedDomains": [
+          "respiratory"
+        ],
+        "acceptableNextQuestionDomains": [
+          "respiratory"
+        ],
+        "requiredAnyQuestionIds": [
+          "resp-effort"
+        ],
+        "forbiddenQuestionIds": [
+          "cough-pattern",
+          "cough-impact"
+        ],
+        "allowReady": false,
+        "preserveOriginalFactAssertions": true
+      },
+      "remainingImplementationConcern": "可另补一个中性breathing-description工具，帮助区分声音与费力；这是有价值的库补充，不等于必须先问完整鉴别问卷。"
+    },
+    {
+      "caseId": "S03",
+      "classification": "proposal_correction",
+      "rationale": "脸部轻微发红与触碰回避均已给出。原案强制再问泛外观会重复已知发红；除非专门澄清尚未观察的形态且确有价值，否则可问开始时间或先记录。不能由回避自动写疼。",
+      "originalExpectedDomain": "skin",
+      "originalRequiredConcepts": [
+        "skin-appearance"
+      ],
+      "adjudicated": {
+        "expectedDomains": [
+          "skin"
+        ],
+        "acceptableNextQuestionDomains": [
+          "skin"
+        ],
+        "requiredAnyQuestionIds": [
+          "skin-onset"
+        ],
+        "forbiddenQuestionIds": [
+          "skin-location",
+          "skin-sensation",
+          "skin-appearance"
+        ],
+        "allowReady": true,
+        "preserveOriginalFactAssertions": true
+      },
+      "remainingImplementationConcern": "若外观题只是再列发红/小包让家长重说，不能视为有新信息。"
+    },
+    {
+      "caseId": "U02",
+      "classification": "proposal_requiredness_correction",
+      "rationale": "频次增多、今天开始、量和颜色未观察均已明确。原案强制再补排尿行为超出了每次记录的必要要求，可先记录；但有一个不预设疼痛的排尿行为观察问题仍很有价值，单列库缺口。",
+      "originalExpectedDomain": "urinary",
+      "originalRequiredConcepts": [
+        "urination-behaviour"
+      ],
+      "adjudicated": {
+        "expectedDomains": [
+          "urinary"
+        ],
+        "acceptableNextQuestionDomains": [
+          "urinary"
+        ],
+        "requiredAnyQuestionIds": [],
+        "forbiddenQuestionIds": [
+          "urinary-change",
+          "urinary-appearance",
+          "urinary-onset"
+        ],
+        "allowReady": true,
+        "preserveOriginalFactAssertions": true
+      },
+      "remainingImplementationConcern": "库缺少排尿时行为/自述观察节点；不要用重复次数量色替代该节点。"
+    },
+    {
+      "caseId": "U04",
+      "classification": "proposal_requiredness_correction",
+      "rationale": "刚才看到尿偏红已足够保留这条观察；未说疼不是已确认无痛。原案强制尿变化经过并无必须继续的依据，可先记录，不强制寻找病因或重复颜色。",
+      "originalExpectedDomain": "urinary",
+      "originalRequiredConcepts": [
+        "urination-course"
+      ],
+      "adjudicated": {
+        "expectedDomains": [
+          "urinary"
+        ],
+        "acceptableNextQuestionDomains": [
+          "urinary"
+        ],
+        "requiredAnyQuestionIds": [],
+        "forbiddenQuestionIds": [
+          "urinary-change",
+          "urinary-appearance",
+          "pain-location",
+          "urinary-onset"
+        ],
+        "allowReady": true,
+        "preserveOriginalFactAssertions": true
+      },
+      "remainingImplementationConcern": null
+    },
+    {
+      "caseId": "U03",
+      "classification": "proposal_alias_and_scope",
+      "rationale": "尿布比平时轻已经描述家长感知的量变化；没数片数也已明确，不能再泛问次数/量/颜色哪项变化。开始注意到的时间尚未知，可补这项或先记录。",
+      "originalExpectedDomain": "urinary",
+      "originalRequiredConcepts": [
+        "urination-course"
+      ],
+      "adjudicated": {
+        "expectedDomains": [
+          "urinary"
+        ],
+        "acceptableNextQuestionDomains": [
+          "urinary"
+        ],
+        "requiredAnyQuestionIds": [
+          "urinary-onset"
+        ],
+        "forbiddenQuestionIds": [
+          "urinary-change"
+        ],
+        "allowReady": true,
+        "preserveOriginalFactAssertions": true
+      },
+      "remainingImplementationConcern": "若urinary-change仍出现，说明量变化口语没有被识别，不应算作允许的同义问题。"
+    },
+    {
+      "caseId": "V07",
+      "classification": "proposal_overly_specific",
+      "rationale": "这是保姆报告吐奶，家长不在场且图不清。原案仅允许重新描述吐出动作过窄；可澄清消息里提到的经过/时间，或先记录二手信息，不能逼家长补未看到外观。",
+      "originalExpectedDomain": "vomit",
+      "originalRequiredConcepts": [
+        "vomit-observable-course"
+      ],
+      "adjudicated": {
+        "expectedDomains": [
+          "vomit"
+        ],
+        "acceptableNextQuestionDomains": [
+          "vomit"
+        ],
+        "requiredAnyQuestionIds": [
+          "vomit-course",
+          "vomit-observed",
+          "vomit-onset"
+        ],
+        "forbiddenQuestionIds": [
+          "vomit-appearance"
+        ],
+        "allowReady": true,
+        "preserveOriginalFactAssertions": true
+      },
+      "remainingImplementationConcern": "题干应允许“保姆有没有提到”，不把父母转述改为父母亲见。"
+    },
+    {
+      "caseId": "A04",
+      "classification": "genuine_implementation_constraint",
+      "rationale": "碰耳躲开是肯定观察；分不清是嫌碰还是疼不是已确认疼痛。未知侧别或已见耳外观可以补，不能改为pain-location优先，更不能要求婴儿自述。",
+      "originalExpectedDomain": "ear",
+      "originalRequiredConcepts": [
+        "ear-location"
+      ],
+      "adjudicated": {
+        "expectedDomains": [
+          "ear"
+        ],
+        "acceptableNextQuestionDomains": [
+          "ear"
+        ],
+        "requiredAnyQuestionIds": [
+          "ear-side",
+          "ear-appearance"
+        ],
+        "forbiddenQuestionIds": [
+          "pain-location",
+          "pain-impact",
+          "ear-observation"
+        ],
+        "allowReady": true,
+        "preserveOriginalFactAssertions": true
+      },
+      "remainingImplementationConcern": "ear-observation现题仅列摸拉/流出物，不能把已说的碰触回避改成这两种未经报告的表现。"
+    }
+  ],
+  "semanticAliasMap": {
+    "eye-location": {
+      "nodeIds": [
+        "eye-side"
+      ],
+      "condition": "只用于未知哪一侧；已知左/右时不可要求该节点。"
+    },
+    "ear-location": {
+      "nodeIds": [
+        "ear-side"
+      ],
+      "condition": "只用于未知哪一侧；耳部已知不代表侧别已知。"
+    },
+    "ear-discharge-observation": {
+      "nodeIds": [
+        "ear-observation"
+      ],
+      "condition": "材料来源/经过尚未知且问题不把黄色材料强制写为耳道流液。"
+    },
+    "fever-measurement-method": {
+      "nodeIds": [
+        "fever-site"
+      ],
+      "condition": "已量过，只补尚未知部位；不是重新询问是否量过。"
+    },
+    "stool-appearance": {
+      "nodeIds": [
+        "stool-change"
+      ],
+      "condition": "仅当问题实际聚焦未知的便便性状；不得重复已明确频次/哭闹/用力。"
+    },
+    "vomit-observable-course": {
+      "nodeIds": [
+        "vomit-observed",
+        "vomit-course"
+      ],
+      "condition": "只补仍未说明的动作或先后关系；刚喝完奶已回答进食先后，不能再问吃喝后吗。"
+    },
+    "behaviour-observable-context": {
+      "nodeIds": [
+        "cry-context"
+      ],
+      "condition": "只有清醒/睡前/睡中情境确实未知时；不代表必须重复已说明的抱起/喂后动作。"
+    },
+    "oral-impact": {
+      "nodeIds": [
+        "pain-impact"
+      ],
+      "condition": "限明确口部疼痛或不适，且所问吃喝/活动影响未知；保留主主题oral。"
+    },
+    "loose-stool-count": {
+      "nodeIds": [
+        "stool-count"
+      ],
+      "condition": "禁止项同义；便秘场景不应出现。"
+    },
+    "onset": {
+      "nodeIds": [
+        "{domain}-onset"
+      ],
+      "condition": "按当前主主题展开；已知或明确未知起点都不应重复。"
+    }
+  },
+  "realMissingOrIncorrectBehavior": [
+    {
+      "id": "genuine-pain-inference",
+      "cases": [
+        "P03",
+        "A04"
+      ],
+      "priority": "fidelity",
+      "requirement": "不知道算不算疼/分不清是嫌碰还是疼不能激活已确认pain；保留哭闹/耳部回避观察。",
+      "acceptableNodeIds": [
+        "cry-context",
+        "behaviour-consolation",
+        "ear-side",
+        "ear-appearance"
+      ],
+      "note": "这不是为了适配实现的预期修正；若仍pain-location优先，需修。"
+    },
+    {
+      "id": "genuine-known-surface",
+      "cases": [
+        "I05"
+      ],
+      "priority": "fidelity",
+      "requirement": "手、发红、冲水后不变跨分句仍属同一受伤；禁止因切成skin分句重复问部位/发红。",
+      "acceptableNodeIds": [
+        "injury-function"
+      ],
+      "note": "无需为副主题配额生成独立皮肤访谈。"
+    },
+    {
+      "id": "genuine-unknown-eye-self-report",
+      "cases": [
+        "E03"
+      ],
+      "priority": "age_appropriateness",
+      "requirement": "10月龄孩子的eye-impact不能提供“孩子自述看不清”的快捷答案。",
+      "acceptableNodeIds": [
+        "eye-impact",
+        "eye-onset"
+      ],
+      "note": "年龄参数化应检查选项，不只检查domain。"
+    },
+    {
+      "id": "useful-urination-behaviour-gap",
+      "cases": [
+        "U02"
+      ],
+      "priority": "usefulness_gap_not_clinical_failure",
+      "requirement": "频次等已知后，可用家长已观察的排尿动作/回避或孩子自述不适补充；不应只剩重复次数量色或以无节点为由证明访谈完整。",
+      "proposedNodeIds": [
+        "urination-behaviour"
+      ],
+      "note": "记录可以先完成；不把该问题升级为所有尿频病例必须问的医学门槛。"
+    },
+    {
+      "id": "useful-specific-behaviour-gap",
+      "cases": [
+        "H06"
+      ],
+      "priority": "usefulness_gap_not_clinical_failure",
+      "requirement": "已经明确今天较少说话，不要泛问这次具体哪里不对劲；可问尚未知的一项互动/日常影响，或先保留现有观察。",
+      "proposedNodeIds": [
+        "behaviour-impact"
+      ],
+      "note": "不按少说话推断精神疾病、意识障碍或疼痛。"
+    },
+    {
+      "id": "useful-breathing-description-gap",
+      "cases": [
+        "R08"
+      ],
+      "priority": "optional_library_improvement",
+      "requirement": "孩子说喘且家长分不清时，可使用中性描述题区分家长看见/听见的表现；resp-effort也是允许的聚焦一问。",
+      "proposedNodeIds": [
+        "breathing-description"
+      ],
+      "note": "不为得到确定医学术语继续追问。"
+    },
+    {
+      "id": "stool-appearance-specificity",
+      "cases": [
+        "B03",
+        "B04"
+      ],
+      "priority": "question_specificity_review",
+      "requirement": "stool-change不能无条件等价stool-appearance；如频次已说或主要关心不确定红色内容，题干应指向尚未知性状，避免再让家长在次数/软硬/排便行为中重述已知。",
+      "acceptableNodeIds": [
+        "stool-change"
+      ],
+      "note": "保留颜色及原因不确定，不确诊血便或食物原因。"
+    }
+  ],
+  "notOverridden": "未列案例保留原提案要求；root已修正的R03/S04/F02/I01/B07问题仍应按独立原意检查，不因代码更新自动认定通过。"
+}

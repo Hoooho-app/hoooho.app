@@ -1,0 +1,2959 @@
+{
+  "suite": "Hoooho broad pediatric observation semantic regression proposal",
+  "version": "proposal-2026-10-25",
+  "status": "review_ready_not_executed_not_clinically_certified",
+  "scope": "100项独立语义场景，用于观察记录、聚焦提问、停止逻辑、主语/时间/否定/引用边界；不是诊断、治疗、临床分诊覆盖或专业认证。",
+  "expectedDomainDefinition": "当前选定孩子的活动观察主题；纯历史、假设、其他主体或知识/产品讨论不激活当前健康访谈。mentioned facts仍应按其真实性质保留。",
+  "questionRequirementSemantics": "当expectedAction为ask_one_focused_question时，requiredQuestionConcepts表示当前一问的可接受候选，取其中一个即可，不是全部询问清单；空数组表示只约束禁止项与停止条件。若asked/state/unknown已消除该缺口，应以停止/不重复规则为先。",
+  "questionIdNotes": "尽量沿用现有ID；鼻部、便秘、眼/耳/口及其他扩展概念不是在暗示当前实现已有这些节点。root可映射最终节点ID。",
+  "globalForbiddenQuestionText": [
+    "麻烦说清楚点",
+    "为什么重视",
+    "还有什么症状",
+    "把所有症状都说一下"
+  ],
+  "globalRules": [
+    "普通场景0至3轮，每次一个可观察重点，足够就记录。",
+    "未知不等于阴性；否定、他人、历史、假设、计划、引用讨论分别处理。",
+    "专业摘要允许受证据约束的术语规范化，不得增加事实或诊断。",
+    "性别和月龄只有确实影响观察与表达方式时才改变问题，不按年龄/性别猜病。",
+    "已明确处理后反应、明确未观察、计划处理、他人处理、否定处理均不触发重复处理反应问题。",
+    "重要观察路线仅作独立语义边界用例，须另经临床规则审核，不能声称完整医学安全覆盖。"
+  ],
+  "conceptCatalog": {
+    "onset": "变化开始时间；实际实现可映射为各domain-onset，不重复已知或明确未知的时间。",
+    "resp-effort": "家长能观察的当前呼吸费力情况。",
+    "cough-pattern": "明确有咳嗽时的出现情境或规律；纯鼻部症状禁用。",
+    "cough-impact": "明确咳嗽对睡眠、吃喝或活动的一项主要影响。",
+    "nasal-impact": "鼻部变化对吃奶、吃喝或睡眠的一个可观察影响。",
+    "nasal-appearance": "鼻涕或鼻部变化的实际可见描述。",
+    "nasal-laterality": "鼻部表现是一侧还是两侧。",
+    "breathing-description": "澄清家长或孩子说的喘具体是声音、费力还是其他感受，不要求医学命名。",
+    "fever-measurement": "区分摸着热与是否已测；已明确未测不重复。",
+    "fever-measurement-method": "已报数值时缺少的测量部位/方法。",
+    "fever-measurement-detail": "转述测量中尚未取得的事实；不可让家长猜数值。",
+    "fever-state": "与平时相比的精神、反应等一般状态。",
+    "general-response-detail": "将已有笼统反应变化转为具体观察，不重复整体提问。",
+    "skin-location": "皮肤变化部位。",
+    "skin-appearance": "皮肤变化外观；看不清则保留未知或照片。",
+    "skin-sensation": "区分孩子说痒疼与家长看见抓挠回避。",
+    "skin-change": "范围或形态实际变化。",
+    "stool-count": "已明确稀便时实际次数；不是所有大便相关记录的默认问题。",
+    "stool-appearance": "便便性状、颜色等实际可见描述。",
+    "bowel-urine": "与稀便等当前情境有关的排尿变化，未观察可留空。",
+    "constipation-pattern": "排便间隔与和平时相比的变化。",
+    "defecation-impact": "排便时实际影响，疼痛自述与用力行为分开。",
+    "defecation-behaviour": "难排便时可见动作、排便经过或回避；不自动下诊断。",
+    "urinary-change": "尿次数、量或颜色中最有价值且已观察的一项。",
+    "urination-behaviour": "排尿时自述与哭闹/回避等行为。",
+    "urination-course": "排尿变化的经过或相对平时差别。",
+    "urinary-appearance": "确认家长所见颜色或材料，不强制诊断为血尿。",
+    "vomit-course": "吐与吃喝的先后经过或次数。",
+    "vomit-observable-course": "家长可描述的流出或吐出经过，不要求分辨医学类别。",
+    "vomit-appearance": "吐出内容的实际可见性状。",
+    "injury-location": "具体受伤部位；范围不精确允许保留。",
+    "injury-function": "当前使用/活动和往常区别，不用能动排除损伤。",
+    "injury-course": "已知受伤经过，明确不知道则不重复。",
+    "injury-surface": "可见伤处表面情况，不做深度诊断。",
+    "pain-location": "自述或保护/指向某部位的动作，行为不等于确诊疼痛。",
+    "pain-impact": "对一项最明显日常功能的影响。",
+    "pain-observable-context": "不会表达时出现哭闹/回避的具体动作情境。",
+    "sleep-awakening": "睡眠相关哭闹时是否明确醒着。",
+    "sleep-consolation": "安抚后能否平静/再入睡的具体观察。",
+    "sleep-observable-context": "已知清醒状态后仍有价值的一项可见经过，不强查睡眠病因。",
+    "oral-observation": "有口部或进食线索时的躲避/不适观察，不是按年龄固定排牙病。",
+    "behaviour-change": "将不对劲转为一个与平时不同的动作或反应。",
+    "behaviour-course": "已知具体行为后问时间或变化经过。",
+    "behaviour-observable-context": "不会表达时行为变化出现的情境。",
+    "eye-location": "眼部哪侧或具体可见位置。",
+    "eye-impact": "眼部表现对睁眼/活动等实际影响，不要求诊断。",
+    "eye-appearance": "家长看见的红、肿等外观。",
+    "eye-discharge": "实际分泌物描述。",
+    "ear-observation": "耳部自述和牵拉、回避等行为分开。",
+    "ear-discharge-observation": "可见材料的位置及经过，来源不明则保留。",
+    "oral-location": "口腔或口周实际可见位置，不强制牙位编号。",
+    "oral-impact": "口部表现与吃喝/刷牙等活动的实际关系。",
+    "handling-response": "仅在当前孩子明确已做处理且反应尚未提及/未声明不清楚时触发，先后不等于药效。",
+    "subject-confirmation": "只确认记录对象，不把他人健康信息写入当前孩子。",
+    "ear-appearance": "耳外部实际可见的红肿、破损或其他变化，不据此诊断。",
+    "ear-location": "哪侧耳或耳部哪里，允许未知。",
+    "oral-appearance": "家长已经看到或方便描述的口部外观，不要求强行检查或诊断牙病。",
+    "behaviour-impact": "已知具体行为变化后，对日常互动/活动的一项实际影响。"
+  },
+  "fixtureLimitations": [
+    "文本案例为原创产品测试提案，无真实儿童资料。",
+    "required/forbidden含未实现概念，需产品与专业审阅者解决分歧后转成可执行断言。",
+    "纯历史记录可用于归档，但不启动当前症状的问答。",
+    "未对模型、ASR或生产服务执行。"
+  ],
+  "cases": [
+    {
+      "id": "R01",
+      "text": "孩子最近总咳嗽，咳的时候听着挺厉害。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "respiratory",
+      "requiredQuestionConcepts": [
+        "resp-effort"
+      ],
+      "forbiddenQuestionConcepts": [
+        "nasal-laterality"
+      ],
+      "expectedAction": "ask_one_focused_question",
+      "stop": {
+        "expected": false,
+        "reason": null
+      },
+      "requiredFactConcepts": [
+        "current cough"
+      ],
+      "forbiddenFactConcepts": [
+        "pneumonia diagnosis",
+        "wheeze inferred from severity"
+      ]
+    },
+    {
+      "id": "R02",
+      "text": "昨晚开始咳，躺下以后多，呼吸看着和平时一样。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "respiratory",
+      "requiredQuestionConcepts": [
+        "cough-impact"
+      ],
+      "forbiddenQuestionConcepts": [
+        "resp-effort",
+        "cough-pattern",
+        "onset"
+      ],
+      "expectedAction": "ask_one_focused_question",
+      "stop": {
+        "expected": false,
+        "reason": null
+      },
+      "requiredFactConcepts": [
+        "cough since last night",
+        "more when lying down",
+        "caregiver reports breathing unchanged"
+      ],
+      "forbiddenFactConcepts": []
+    },
+    {
+      "id": "R03",
+      "text": "鼻子堵得厉害，没有咳嗽。",
+      "member": {
+        "ageMonths": 8
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "respiratory",
+      "requiredQuestionConcepts": [
+        "nasal-impact"
+      ],
+      "forbiddenQuestionConcepts": [
+        "cough-pattern",
+        "stool-count"
+      ],
+      "expectedAction": "ask_one_focused_question",
+      "stop": {
+        "expected": false,
+        "reason": null
+      },
+      "requiredFactConcepts": [
+        "nasal obstruction",
+        "cough absent"
+      ],
+      "forbiddenFactConcepts": [
+        "positive cough",
+        "asthma diagnosis"
+      ]
+    },
+    {
+      "id": "R04",
+      "text": "孩子鼻涕比平时多，就是不知道该怎么描述。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "respiratory",
+      "requiredQuestionConcepts": [
+        "nasal-appearance"
+      ],
+      "forbiddenQuestionConcepts": [
+        "cough-pattern"
+      ],
+      "expectedAction": "ask_one_focused_question",
+      "stop": {
+        "expected": false,
+        "reason": null
+      },
+      "requiredFactConcepts": [
+        "increased nasal discharge"
+      ],
+      "forbiddenFactConcepts": [
+        "purulent discharge without description",
+        "infection diagnosis"
+      ]
+    },
+    {
+      "id": "R05",
+      "text": "今天左边鼻孔一直流清鼻涕，吃喝睡觉和平时差不多，先记这些。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "respiratory",
+      "requiredQuestionConcepts": [],
+      "forbiddenQuestionConcepts": [
+        "cough-pattern",
+        "nasal-laterality",
+        "nasal-appearance",
+        "onset"
+      ],
+      "expectedAction": "ready_to_record",
+      "stop": {
+        "expected": true,
+        "reason": "user_finished"
+      },
+      "requiredFactConcepts": [
+        "left-sided clear nasal discharge",
+        "onset today",
+        "daily function reported unchanged"
+      ],
+      "forbiddenFactConcepts": []
+    },
+    {
+      "id": "R06",
+      "text": "奶奶说孩子午睡起来咳了几声，我没亲眼看到。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "reported_observation",
+      "expectedDomain": "respiratory",
+      "requiredQuestionConcepts": [
+        "resp-effort"
+      ],
+      "forbiddenQuestionConcepts": [
+        "cough-pattern",
+        "onset"
+      ],
+      "expectedAction": "ask_one_focused_question",
+      "stop": {
+        "expected": false,
+        "reason": null
+      },
+      "requiredFactConcepts": [
+        "reported by grandmother",
+        "after nap",
+        "qualitative few coughs"
+      ],
+      "forbiddenFactConcepts": [
+        "direct caregiver observation",
+        "exact cough count"
+      ]
+    },
+    {
+      "id": "R07",
+      "text": "上个月咳过几天，现在已经完全不咳了，帮我补到历史里。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "historical_only",
+      "expectedDomain": null,
+      "requiredQuestionConcepts": [],
+      "forbiddenQuestionConcepts": [
+        "resp-effort",
+        "cough-pattern",
+        "onset"
+      ],
+      "expectedAction": "record_history_without_current_interview",
+      "stop": {
+        "expected": true,
+        "reason": "historical_only"
+      },
+      "requiredFactConcepts": [
+        "historical cough",
+        "currently cough absent"
+      ],
+      "forbiddenFactConcepts": [
+        "current cough episode"
+      ]
+    },
+    {
+      "id": "R08",
+      "text": "孩子说喘，我也分不清他说的是气不够还是嗓子有声音。",
+      "member": {
+        "ageMonths": 72
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "respiratory",
+      "requiredQuestionConcepts": [
+        "breathing-description"
+      ],
+      "forbiddenQuestionConcepts": [
+        "cough-pattern"
+      ],
+      "expectedAction": "ask_one_focused_question",
+      "stop": {
+        "expected": false,
+        "reason": null
+      },
+      "requiredFactConcepts": [
+        "child reports ambiguous breathlessness wording"
+      ],
+      "forbiddenFactConcepts": [
+        "confirmed wheeze",
+        "confirmed respiratory diagnosis"
+      ]
+    },
+    {
+      "id": "R09",
+      "text": "孩子咳嗽，我打算晚上再给他用以前的药，现在还没用。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "observation_with_treatment_plan",
+      "expectedDomain": "respiratory",
+      "requiredQuestionConcepts": [
+        "resp-effort"
+      ],
+      "forbiddenQuestionConcepts": [
+        "handling-response"
+      ],
+      "expectedAction": "ask_one_focused_question",
+      "stop": {
+        "expected": false,
+        "reason": null
+      },
+      "requiredFactConcepts": [
+        "current cough",
+        "medication is only planned"
+      ],
+      "forbiddenFactConcepts": [
+        "medication already administered",
+        "response to medication"
+      ]
+    },
+    {
+      "id": "R10",
+      "text": "昨晚咳了几声，今天不咳了，呼吸和玩耍都和平时一样，先整理出来。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "respiratory",
+      "requiredQuestionConcepts": [],
+      "forbiddenQuestionConcepts": [
+        "resp-effort",
+        "cough-pattern",
+        "onset"
+      ],
+      "expectedAction": "ready_to_record",
+      "stop": {
+        "expected": true,
+        "reason": "user_finished"
+      },
+      "requiredFactConcepts": [
+        "cough last night",
+        "reported resolution today",
+        "reported breathing and activity unchanged"
+      ],
+      "forbiddenFactConcepts": [
+        "new active cough today"
+      ]
+    },
+    {
+      "id": "F01",
+      "text": "摸孩子额头热热的，还没量。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "fever",
+      "requiredQuestionConcepts": [
+        "fever-state"
+      ],
+      "forbiddenQuestionConcepts": [
+        "fever-measurement"
+      ],
+      "expectedAction": "ask_one_focused_question",
+      "stop": {
+        "expected": false,
+        "reason": null
+      },
+      "requiredFactConcepts": [
+        "tactile warmth",
+        "temperature not measured"
+      ],
+      "forbiddenFactConcepts": [
+        "numeric temperature",
+        "no fever"
+      ]
+    },
+    {
+      "id": "F02",
+      "text": "刚量了体温，我记得是三十八点二。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "fever",
+      "requiredQuestionConcepts": [
+        "fever-measurement-method",
+        "fever-state"
+      ],
+      "forbiddenQuestionConcepts": [
+        "fever-measurement"
+      ],
+      "expectedAction": "ask_one_focused_question",
+      "stop": {
+        "expected": false,
+        "reason": null
+      },
+      "requiredFactConcepts": [
+        "reported temperature 38.2",
+        "measurement method unknown"
+      ],
+      "forbiddenFactConcepts": [
+        "axillary method inferred"
+      ]
+    },
+    {
+      "id": "F03",
+      "text": "今天腋温38.2度，孩子还愿意玩和喝水，先记录这一次。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "fever",
+      "requiredQuestionConcepts": [],
+      "forbiddenQuestionConcepts": [
+        "fever-measurement",
+        "fever-state",
+        "onset"
+      ],
+      "expectedAction": "ready_to_record",
+      "stop": {
+        "expected": true,
+        "reason": "user_finished"
+      },
+      "requiredFactConcepts": [
+        "axillary temperature 38.2 degrees Celsius",
+        "measured today",
+        "willing to play and drink"
+      ],
+      "forbiddenFactConcepts": [
+        "clinically safe assessment"
+      ]
+    },
+    {
+      "id": "F04",
+      "text": "保姆说上午量着有点烧，数值她还没发我。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "reported_observation",
+      "expectedDomain": "fever",
+      "requiredQuestionConcepts": [
+        "fever-state"
+      ],
+      "forbiddenQuestionConcepts": [
+        "onset",
+        "fever-measurement-detail"
+      ],
+      "expectedAction": "ask_one_focused_question",
+      "stop": {
+        "expected": false,
+        "reason": null
+      },
+      "requiredFactConcepts": [
+        "reported by caregiver",
+        "numeric value pending"
+      ],
+      "forbiddenFactConcepts": [
+        "specific temperature fabricated",
+        "direct parent measurement"
+      ]
+    },
+    {
+      "id": "F05",
+      "text": "昨天问你发热要怎么记录，今天孩子没有发热。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "negative_observation_and_prior_discussion",
+      "expectedDomain": null,
+      "requiredQuestionConcepts": [],
+      "forbiddenQuestionConcepts": [
+        "fever-measurement",
+        "fever-state"
+      ],
+      "expectedAction": "record_negative_without_new_interview",
+      "stop": {
+        "expected": true,
+        "reason": "no_current_positive_concern"
+      },
+      "requiredFactConcepts": [
+        "current fever denied"
+      ],
+      "forbiddenFactConcepts": [
+        "active fever based on quoted topic"
+      ]
+    },
+    {
+      "id": "F06",
+      "text": "孩子发烧，吃过一次药后我没再量，也没注意有什么变化。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "fever",
+      "requiredQuestionConcepts": [
+        "fever-state"
+      ],
+      "forbiddenQuestionConcepts": [
+        "handling-response"
+      ],
+      "expectedAction": "ask_one_focused_question",
+      "stop": {
+        "expected": false,
+        "reason": null
+      },
+      "requiredFactConcepts": [
+        "medication reportedly given",
+        "post-treatment temperature and change unknown"
+      ],
+      "forbiddenFactConcepts": [
+        "fever reduced",
+        "drug ineffective"
+      ]
+    },
+    {
+      "id": "F07",
+      "text": "孩子发热，我不知道他现在精神怎样，我不在旁边，先把保姆发来的消息记下。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "reported_observation",
+      "expectedDomain": "fever",
+      "requiredQuestionConcepts": [],
+      "forbiddenQuestionConcepts": [
+        "fever-state",
+        "handling-response"
+      ],
+      "expectedAction": "ready_to_record",
+      "stop": {
+        "expected": true,
+        "reason": "user_finished"
+      },
+      "requiredFactConcepts": [
+        "caregiver not with child",
+        "general state not observed by parent"
+      ],
+      "forbiddenFactConcepts": [
+        "normal general state"
+      ]
+    },
+    {
+      "id": "F08",
+      "text": "孩子发热，精神我刚才说不清楚，就是平时叫他会转头，今天反应比平时慢。",
+      "member": {
+        "ageMonths": 10
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "fever",
+      "requiredQuestionConcepts": [
+        "general-response-detail"
+      ],
+      "forbiddenQuestionConcepts": [
+        "fever-state"
+      ],
+      "expectedAction": "ask_one_focused_question",
+      "stop": {
+        "expected": false,
+        "reason": null
+      },
+      "requiredFactConcepts": [
+        "caregiver observes slower response than usual"
+      ],
+      "forbiddenFactConcepts": [
+        "altered consciousness diagnosis",
+        "request infant verbal pain score"
+      ]
+    },
+    {
+      "id": "S01",
+      "text": "孩子身上起了一些东西。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "skin",
+      "requiredQuestionConcepts": [
+        "skin-location"
+      ],
+      "forbiddenQuestionConcepts": [
+        "handling-response"
+      ],
+      "expectedAction": "ask_one_focused_question",
+      "stop": {
+        "expected": false,
+        "reason": null
+      },
+      "requiredFactConcepts": [
+        "nonspecific visible skin change"
+      ],
+      "forbiddenFactConcepts": [
+        "rash morphology inferred",
+        "allergy diagnosis"
+      ]
+    },
+    {
+      "id": "S02",
+      "text": "两条小腿上有红点，今天上午才看到。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "skin",
+      "requiredQuestionConcepts": [
+        "skin-sensation"
+      ],
+      "forbiddenQuestionConcepts": [
+        "skin-location",
+        "skin-appearance",
+        "onset"
+      ],
+      "expectedAction": "ask_one_focused_question",
+      "stop": {
+        "expected": false,
+        "reason": null
+      },
+      "requiredFactConcepts": [
+        "red dots on both lower legs",
+        "noticed this morning"
+      ],
+      "forbiddenFactConcepts": []
+    },
+    {
+      "id": "S03",
+      "text": "宝宝脸有点红，一碰那里他就躲开。",
+      "member": {
+        "ageMonths": 6
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "skin",
+      "requiredQuestionConcepts": [
+        "skin-appearance"
+      ],
+      "forbiddenQuestionConcepts": [
+        "child-self-report",
+        "skin-sensation"
+      ],
+      "expectedAction": "ask_one_focused_question",
+      "stop": {
+        "expected": false,
+        "reason": null
+      },
+      "requiredFactConcepts": [
+        "facial redness",
+        "withdrawal when touched"
+      ],
+      "forbiddenFactConcepts": [
+        "confirmed pain",
+        "confirmed itching"
+      ]
+    },
+    {
+      "id": "S04",
+      "text": "孩子说手背痒，我看到他一直挠，但没拍清楚。",
+      "member": {
+        "ageMonths": 60
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "skin",
+      "requiredQuestionConcepts": [
+        "skin-appearance"
+      ],
+      "forbiddenQuestionConcepts": [
+        "skin-location",
+        "skin-sensation"
+      ],
+      "expectedAction": "ask_one_focused_question",
+      "stop": {
+        "expected": false,
+        "reason": null
+      },
+      "requiredFactConcepts": [
+        "child-reported itching of hand dorsum",
+        "observed scratching",
+        "image unclear"
+      ],
+      "forbiddenFactConcepts": [
+        "erosion inferred from unclear photo"
+      ]
+    },
+    {
+      "id": "S05",
+      "text": "后背昨天发红，今天范围没变，没有破皮也没有渗液，不想再问了。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "skin",
+      "requiredQuestionConcepts": [],
+      "forbiddenQuestionConcepts": [
+        "skin-location",
+        "skin-appearance",
+        "skin-change",
+        "onset"
+      ],
+      "expectedAction": "ready_to_record",
+      "stop": {
+        "expected": true,
+        "reason": "user_finished"
+      },
+      "requiredFactConcepts": [
+        "back redness since yesterday",
+        "range unchanged",
+        "skin break and exudate denied"
+      ],
+      "forbiddenFactConcepts": []
+    },
+    {
+      "id": "S06",
+      "text": "今天手臂红了一片，涂过润肤的，后来我没看了。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "skin",
+      "requiredQuestionConcepts": [
+        "skin-sensation"
+      ],
+      "forbiddenQuestionConcepts": [
+        "handling-response",
+        "skin-location",
+        "skin-appearance",
+        "onset"
+      ],
+      "expectedAction": "ask_one_focused_question",
+      "stop": {
+        "expected": false,
+        "reason": null
+      },
+      "requiredFactConcepts": [
+        "arm redness",
+        "emollient applied",
+        "post-application change unobserved"
+      ],
+      "forbiddenFactConcepts": [
+        "improvement after emollient"
+      ]
+    },
+    {
+      "id": "S07",
+      "text": "孩子手臂有小包，姐姐的腿上也有，我先只给孩子记手臂这条。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "current_child_with_other_subject",
+      "expectedDomain": "skin",
+      "requiredQuestionConcepts": [
+        "skin-sensation"
+      ],
+      "forbiddenQuestionConcepts": [
+        "skin-location",
+        "skin-appearance"
+      ],
+      "expectedAction": "ask_one_focused_question",
+      "stop": {
+        "expected": false,
+        "reason": null
+      },
+      "requiredFactConcepts": [
+        "target child arm bumps",
+        "sister leg change belongs to other subject"
+      ],
+      "forbiddenFactConcepts": [
+        "sister leg findings assigned to child"
+      ]
+    },
+    {
+      "id": "S08",
+      "text": "最近孩子总抓肚子，但我没看到红点，也没听他说痒。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "skin",
+      "requiredQuestionConcepts": [
+        "skin-appearance"
+      ],
+      "forbiddenQuestionConcepts": [
+        "skin-location",
+        "skin-sensation"
+      ],
+      "expectedAction": "ask_one_focused_question",
+      "stop": {
+        "expected": false,
+        "reason": null
+      },
+      "requiredFactConcepts": [
+        "observed abdominal scratching",
+        "no red dots seen",
+        "itching not confirmed"
+      ],
+      "forbiddenFactConcepts": [
+        "confirmed pruritus",
+        "visible rash fabricated"
+      ],
+      "reviewNote": "可以确认皮肤是否有其他可见变化；不能把否定红点当作所有皮肤外观均已明确。"
+    },
+    {
+      "id": "B01",
+      "text": "今天拉得有点稀。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "bowel",
+      "requiredQuestionConcepts": [
+        "stool-count"
+      ],
+      "forbiddenQuestionConcepts": [
+        "constipation-pattern"
+      ],
+      "expectedAction": "ask_one_focused_question",
+      "stop": {
+        "expected": false,
+        "reason": null
+      },
+      "requiredFactConcepts": [
+        "loose stool today"
+      ],
+      "forbiddenFactConcepts": [
+        "infectious diarrhea diagnosis"
+      ]
+    },
+    {
+      "id": "B02",
+      "text": "昨晚到现在拉了两次水样便，尿量没留意。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "bowel",
+      "requiredQuestionConcepts": [],
+      "forbiddenQuestionConcepts": [
+        "stool-count",
+        "bowel-urine",
+        "onset"
+      ],
+      "expectedAction": "ready_to_record",
+      "stop": {
+        "expected": true,
+        "reason": "known_key_facts_remaining_unobserved"
+      },
+      "requiredFactConcepts": [
+        "two watery stools since last night",
+        "urine output unobserved"
+      ],
+      "forbiddenFactConcepts": [
+        "urine output normal"
+      ]
+    },
+    {
+      "id": "B03",
+      "text": "这次便便里好像有红的，但我不确定是不是吃的火龙果。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "bowel",
+      "requiredQuestionConcepts": [
+        "stool-appearance"
+      ],
+      "forbiddenQuestionConcepts": [
+        "stool-count",
+        "diagnostic-cause-question"
+      ],
+      "expectedAction": "ask_one_focused_question",
+      "stop": {
+        "expected": false,
+        "reason": null
+      },
+      "requiredFactConcepts": [
+        "uncertain red material in stool",
+        "food attribution is caregiver hypothesis"
+      ],
+      "forbiddenFactConcepts": [
+        "confirmed blood in stool",
+        "food definitely caused color"
+      ]
+    },
+    {
+      "id": "B04",
+      "text": "这两天便便比平时次数多，具体几次没数。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "bowel",
+      "requiredQuestionConcepts": [
+        "stool-appearance"
+      ],
+      "forbiddenQuestionConcepts": [
+        "stool-count",
+        "onset"
+      ],
+      "expectedAction": "ask_one_focused_question",
+      "stop": {
+        "expected": false,
+        "reason": null
+      },
+      "requiredFactConcepts": [
+        "increased frequency over two days",
+        "exact count unknown"
+      ],
+      "forbiddenFactConcepts": [
+        "specific count fabricated"
+      ]
+    },
+    {
+      "id": "B05",
+      "text": "孩子稀便，我不知道尿量有没有变。先按已经说的记下来。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "bowel",
+      "requiredQuestionConcepts": [],
+      "forbiddenQuestionConcepts": [
+        "bowel-urine",
+        "stool-count"
+      ],
+      "expectedAction": "ready_to_record",
+      "stop": {
+        "expected": true,
+        "reason": "user_finished"
+      },
+      "requiredFactConcepts": [
+        "loose stool",
+        "urine change unknown"
+      ],
+      "forbiddenFactConcepts": []
+    },
+    {
+      "id": "B06",
+      "text": "已经几天没拉便便了。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "bowel",
+      "requiredQuestionConcepts": [
+        "constipation-pattern"
+      ],
+      "forbiddenQuestionConcepts": [
+        "stool-count",
+        "loose-stool-count"
+      ],
+      "expectedAction": "ask_one_focused_question",
+      "stop": {
+        "expected": false,
+        "reason": null
+      },
+      "requiredFactConcepts": [
+        "several days without bowel movement"
+      ],
+      "forbiddenFactConcepts": [
+        "loose stools",
+        "exact last-stool date inferred"
+      ]
+    },
+    {
+      "id": "B07",
+      "text": "今天便便硬硬的小颗粒，拉的时候很用力。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "bowel",
+      "requiredQuestionConcepts": [
+        "defecation-impact"
+      ],
+      "forbiddenQuestionConcepts": [
+        "stool-count",
+        "stool-appearance",
+        "constipation-pattern",
+        "onset"
+      ],
+      "expectedAction": "ask_one_focused_question",
+      "stop": {
+        "expected": false,
+        "reason": null
+      },
+      "requiredFactConcepts": [
+        "hard pellet-like stool today",
+        "observed straining"
+      ],
+      "forbiddenFactConcepts": [
+        "confirmed anal pain",
+        "constipation etiology"
+      ]
+    },
+    {
+      "id": "B08",
+      "text": "孩子说想拉又拉不出来，一坐马桶就哭。",
+      "member": {
+        "ageMonths": 48
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "bowel",
+      "requiredQuestionConcepts": [
+        "defecation-behaviour"
+      ],
+      "forbiddenQuestionConcepts": [
+        "stool-count",
+        "loose-stool-count"
+      ],
+      "expectedAction": "ask_one_focused_question",
+      "stop": {
+        "expected": false,
+        "reason": null
+      },
+      "requiredFactConcepts": [
+        "child reports urge with difficulty passing stool",
+        "crying on toilet"
+      ],
+      "forbiddenFactConcepts": [
+        "confirmed pain site",
+        "withholding behavior diagnosed"
+      ]
+    },
+    {
+      "id": "B09",
+      "text": "宝宝三天没拉，平时也不是每天拉，我先想记下间隔。",
+      "member": {
+        "ageMonths": 3
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "bowel",
+      "requiredQuestionConcepts": [],
+      "forbiddenQuestionConcepts": [
+        "stool-count",
+        "loose-stool-count",
+        "onset"
+      ],
+      "expectedAction": "ready_to_record",
+      "stop": {
+        "expected": true,
+        "reason": "user_finished"
+      },
+      "requiredFactConcepts": [
+        "reported three-day interval",
+        "usual stool not daily"
+      ],
+      "forbiddenFactConcepts": [
+        "normality judgment from interval alone",
+        "disease diagnosis from interval alone"
+      ]
+    },
+    {
+      "id": "B10",
+      "text": "便便之前硬，今天软了，吃的药是前天用过的，不知道有没有关系。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "bowel",
+      "requiredQuestionConcepts": [],
+      "forbiddenQuestionConcepts": [
+        "stool-count",
+        "handling-response",
+        "diagnostic-cause-question"
+      ],
+      "expectedAction": "ready_to_record",
+      "stop": {
+        "expected": true,
+        "reason": "sufficient_information"
+      },
+      "requiredFactConcepts": [
+        "stool consistency changed hard to soft",
+        "medication preceded change",
+        "causality uncertain"
+      ],
+      "forbiddenFactConcepts": [
+        "drug efficacy confirmed",
+        "new watery stool fabricated"
+      ]
+    },
+    {
+      "id": "U01",
+      "text": "孩子尿尿的时候就哭。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "urinary",
+      "requiredQuestionConcepts": [
+        "urinary-change"
+      ],
+      "forbiddenQuestionConcepts": [
+        "stool-count"
+      ],
+      "expectedAction": "ask_one_focused_question",
+      "stop": {
+        "expected": false,
+        "reason": null
+      },
+      "requiredFactConcepts": [
+        "crying during urination"
+      ],
+      "forbiddenFactConcepts": [
+        "confirmed dysuria",
+        "urinary tract infection diagnosis"
+      ]
+    },
+    {
+      "id": "U02",
+      "text": "今天小便次数多了，量和颜色我没看。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "urinary",
+      "requiredQuestionConcepts": [
+        "urination-behaviour"
+      ],
+      "forbiddenQuestionConcepts": [
+        "urinary-change",
+        "onset"
+      ],
+      "expectedAction": "ask_one_focused_question",
+      "stop": {
+        "expected": false,
+        "reason": null
+      },
+      "requiredFactConcepts": [
+        "increased urination frequency today",
+        "amount and color unobserved"
+      ],
+      "forbiddenFactConcepts": [
+        "all urine attributes abnormal"
+      ]
+    },
+    {
+      "id": "U03",
+      "text": "尿布比平时轻一些，但我没数换了几片。",
+      "member": {
+        "ageMonths": 7
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "urinary",
+      "requiredQuestionConcepts": [
+        "urination-course"
+      ],
+      "forbiddenQuestionConcepts": [
+        "exact-diaper-count-repeat"
+      ],
+      "expectedAction": "ask_one_focused_question",
+      "stop": {
+        "expected": false,
+        "reason": null
+      },
+      "requiredFactConcepts": [
+        "caregiver impression diapers lighter",
+        "diaper count unknown"
+      ],
+      "forbiddenFactConcepts": [
+        "numeric urine volume",
+        "dehydration diagnosis"
+      ]
+    },
+    {
+      "id": "U04",
+      "text": "刚才尿有点红色，没有说尿的时候疼。",
+      "member": {
+        "ageMonths": 72
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "urinary",
+      "requiredQuestionConcepts": [
+        "urination-course"
+      ],
+      "forbiddenQuestionConcepts": [
+        "pain-location",
+        "onset"
+      ],
+      "expectedAction": "ask_one_focused_question",
+      "stop": {
+        "expected": false,
+        "reason": null
+      },
+      "requiredFactConcepts": [
+        "reported reddish urine",
+        "pain not reported"
+      ],
+      "forbiddenFactConcepts": [
+        "confirmed hematuria",
+        "pain positively inferred"
+      ]
+    },
+    {
+      "id": "U05",
+      "text": "孩子说尿尿刺刺的，今天开始，尿的颜色没变化，先记这几个。",
+      "member": {
+        "ageMonths": 84
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "urinary",
+      "requiredQuestionConcepts": [],
+      "forbiddenQuestionConcepts": [
+        "urinary-change",
+        "onset",
+        "child-self-report-repeat"
+      ],
+      "expectedAction": "ready_to_record",
+      "stop": {
+        "expected": true,
+        "reason": "user_finished"
+      },
+      "requiredFactConcepts": [
+        "child reports stinging during urination",
+        "onset today",
+        "caregiver reports urine color unchanged"
+      ],
+      "forbiddenFactConcepts": [
+        "infection diagnosis"
+      ]
+    },
+    {
+      "id": "U06",
+      "text": "妹妹尿尿挺正常，是哥哥说尿疼，别记到妹妹这里。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "other_subject",
+      "expectedDomain": null,
+      "requiredQuestionConcepts": [],
+      "forbiddenQuestionConcepts": [
+        "urinary-change",
+        "pain-location"
+      ],
+      "expectedAction": "confirm_subject_without_health_interview",
+      "stop": {
+        "expected": true,
+        "reason": "other_subject"
+      },
+      "requiredFactConcepts": [
+        "target child urination reported normal",
+        "brother reports urinary pain"
+      ],
+      "forbiddenFactConcepts": [
+        "brother symptoms assigned to target child"
+      ]
+    },
+    {
+      "id": "U07",
+      "text": "小便这件事我只看到了他哭。你问的次数和颜色我都没注意。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "urinary",
+      "requiredQuestionConcepts": [],
+      "forbiddenQuestionConcepts": [
+        "urinary-change"
+      ],
+      "expectedAction": "ready_to_record",
+      "stop": {
+        "expected": true,
+        "reason": "unknown_answer"
+      },
+      "requiredFactConcepts": [
+        "crying associated with urination",
+        "frequency and color unobserved"
+      ],
+      "forbiddenFactConcepts": [],
+      "latestText": "次数和颜色我都没注意，先记这些。",
+      "previous": {
+        "status": "asking",
+        "askedQuestionIds": [
+          "urinary-change"
+        ]
+      }
+    },
+    {
+      "id": "V01",
+      "text": "孩子刚才吐了。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "vomit",
+      "requiredQuestionConcepts": [
+        "vomit-course"
+      ],
+      "forbiddenQuestionConcepts": [
+        "stool-count"
+      ],
+      "expectedAction": "ask_one_focused_question",
+      "stop": {
+        "expected": false,
+        "reason": null
+      },
+      "requiredFactConcepts": [
+        "vomiting reported just now"
+      ],
+      "forbiddenFactConcepts": [
+        "cause inferred"
+      ]
+    },
+    {
+      "id": "V02",
+      "text": "刚喝完奶，嘴角流出来一点，我分不清是吐还是溢出来。",
+      "member": {
+        "ageMonths": 2
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "vomit",
+      "requiredQuestionConcepts": [
+        "vomit-observable-course"
+      ],
+      "forbiddenQuestionConcepts": [
+        "vomit-course",
+        "diagnostic-subtype-question"
+      ],
+      "expectedAction": "ask_one_focused_question",
+      "stop": {
+        "expected": false,
+        "reason": null
+      },
+      "requiredFactConcepts": [
+        "small amount came from mouth after milk",
+        "caregiver unsure how to classify"
+      ],
+      "forbiddenFactConcepts": [
+        "forcefully vomiting inferred",
+        "clinical subtype confirmed"
+      ]
+    },
+    {
+      "id": "V03",
+      "text": "今天饭后吐了两次，吐完又能喝一点水。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "vomit",
+      "requiredQuestionConcepts": [
+        "vomit-appearance"
+      ],
+      "forbiddenQuestionConcepts": [
+        "vomit-course",
+        "onset"
+      ],
+      "expectedAction": "ask_one_focused_question",
+      "stop": {
+        "expected": false,
+        "reason": null
+      },
+      "requiredFactConcepts": [
+        "two episodes after meal today",
+        "able to drink some water afterward"
+      ],
+      "forbiddenFactConcepts": [
+        "normal hydration conclusion"
+      ]
+    },
+    {
+      "id": "V04",
+      "text": "他吐出来的颜色我没看到，次数也没数，先保留这件事。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "vomit",
+      "requiredQuestionConcepts": [],
+      "forbiddenQuestionConcepts": [
+        "vomit-appearance",
+        "vomit-count-repeat"
+      ],
+      "expectedAction": "ready_to_record",
+      "stop": {
+        "expected": true,
+        "reason": "user_finished"
+      },
+      "requiredFactConcepts": [
+        "vomiting reported",
+        "color and count unobserved"
+      ],
+      "forbiddenFactConcepts": []
+    },
+    {
+      "id": "V05",
+      "text": "咳了一阵以后吐了一次，之后没有再吐，我主要想记这阵咳。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "respiratory",
+      "requiredQuestionConcepts": [
+        "resp-effort"
+      ],
+      "forbiddenQuestionConcepts": [
+        "vomit-course",
+        "vomit-count-repeat"
+      ],
+      "expectedAction": "ask_one_focused_question",
+      "stop": {
+        "expected": false,
+        "reason": null
+      },
+      "requiredFactConcepts": [
+        "vomiting once after cough bout",
+        "no repeat vomiting reported"
+      ],
+      "forbiddenFactConcepts": [
+        "independent GI cause diagnosed"
+      ]
+    },
+    {
+      "id": "V06",
+      "text": "上次吃坏东西吐过，那是去年，现在没有吐，想补一条旧记录。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "historical_only",
+      "expectedDomain": null,
+      "requiredQuestionConcepts": [],
+      "forbiddenQuestionConcepts": [
+        "vomit-course",
+        "vomit-appearance"
+      ],
+      "expectedAction": "record_history_without_current_interview",
+      "stop": {
+        "expected": true,
+        "reason": "historical_only"
+      },
+      "requiredFactConcepts": [
+        "historical vomiting",
+        "current vomiting denied",
+        "food cause only caregiver account"
+      ],
+      "forbiddenFactConcepts": [
+        "current vomiting"
+      ]
+    },
+    {
+      "id": "V07",
+      "text": "保姆发消息说宝宝吐奶了，照片里看不清，我也没在现场。",
+      "member": {
+        "ageMonths": 4
+      },
+      "semanticMode": "reported_observation_with_unclear_image",
+      "expectedDomain": "vomit",
+      "requiredQuestionConcepts": [
+        "vomit-observable-course"
+      ],
+      "forbiddenQuestionConcepts": [
+        "infer-image-detail"
+      ],
+      "expectedAction": "ask_one_focused_question",
+      "stop": {
+        "expected": false,
+        "reason": null
+      },
+      "requiredFactConcepts": [
+        "reported by caregiver",
+        "image unclear",
+        "parent not present"
+      ],
+      "forbiddenFactConcepts": [
+        "amount fabricated",
+        "specific color inferred from unclear image"
+      ]
+    },
+    {
+      "id": "I01",
+      "text": "刚才摔了一下，现在手不太肯动。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "injury",
+      "requiredQuestionConcepts": [
+        "injury-surface"
+      ],
+      "forbiddenQuestionConcepts": [
+        "injury-course",
+        "onset"
+      ],
+      "expectedAction": "ask_one_focused_question",
+      "stop": {
+        "expected": false,
+        "reason": null
+      },
+      "requiredFactConcepts": [
+        "fall just now",
+        "reluctance to move hand"
+      ],
+      "forbiddenFactConcepts": [
+        "fracture diagnosis",
+        "no injury because not crying"
+      ]
+    },
+    {
+      "id": "I02",
+      "text": "膝盖碰到桌角，破了一小块皮。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "injury",
+      "requiredQuestionConcepts": [
+        "injury-function"
+      ],
+      "forbiddenQuestionConcepts": [
+        "injury-course",
+        "injury-location",
+        "injury-surface"
+      ],
+      "expectedAction": "ask_one_focused_question",
+      "stop": {
+        "expected": false,
+        "reason": null
+      },
+      "requiredFactConcepts": [
+        "knee hit table corner",
+        "small skin abrasion"
+      ],
+      "forbiddenFactConcepts": [
+        "deep wound inferred"
+      ]
+    },
+    {
+      "id": "I03",
+      "text": "腿上有个淤青，不知道什么时候碰的。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "injury",
+      "requiredQuestionConcepts": [
+        "injury-function"
+      ],
+      "forbiddenQuestionConcepts": [
+        "injury-course",
+        "onset"
+      ],
+      "expectedAction": "ask_one_focused_question",
+      "stop": {
+        "expected": false,
+        "reason": null
+      },
+      "requiredFactConcepts": [
+        "leg bruise",
+        "mechanism and onset unknown"
+      ],
+      "forbiddenFactConcepts": [
+        "invented fall event"
+      ]
+    },
+    {
+      "id": "I04",
+      "text": "今天下午摔到左手，没看到伤口，拿玩具和平时一样，就记下来。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "injury",
+      "requiredQuestionConcepts": [],
+      "forbiddenQuestionConcepts": [
+        "injury-function",
+        "injury-course",
+        "injury-location",
+        "onset"
+      ],
+      "expectedAction": "ready_to_record",
+      "stop": {
+        "expected": true,
+        "reason": "user_finished"
+      },
+      "requiredFactConcepts": [
+        "fall to left hand this afternoon",
+        "no visible wound reported",
+        "toy grasp unchanged"
+      ],
+      "forbiddenFactConcepts": [
+        "injury excluded",
+        "normal imaging inferred"
+      ]
+    },
+    {
+      "id": "I05",
+      "text": "手被热杯子碰了一下，有点红，我用水冲过，冲完还是一样红。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "injury",
+      "requiredQuestionConcepts": [
+        "injury-location"
+      ],
+      "forbiddenQuestionConcepts": [
+        "handling-response",
+        "injury-course",
+        "injury-surface"
+      ],
+      "expectedAction": "ask_one_focused_question",
+      "stop": {
+        "expected": false,
+        "reason": null
+      },
+      "requiredFactConcepts": [
+        "hot cup contact",
+        "redness",
+        "water rinsing already done",
+        "redness unchanged afterward"
+      ],
+      "forbiddenFactConcepts": [
+        "burn depth diagnosis",
+        "rinsing treatment advice"
+      ]
+    },
+    {
+      "id": "I06",
+      "text": "如果孩子以后摔到头，是不是要拍照给你？现在没有摔。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "hypothetical_only",
+      "expectedDomain": null,
+      "requiredQuestionConcepts": [],
+      "forbiddenQuestionConcepts": [
+        "injury-function",
+        "injury-course",
+        "injury-location"
+      ],
+      "expectedAction": "no_current_health_interview",
+      "stop": {
+        "expected": true,
+        "reason": "hypothetical"
+      },
+      "requiredFactConcepts": [
+        "hypothetical question only"
+      ],
+      "forbiddenFactConcepts": [
+        "current head injury"
+      ]
+    },
+    {
+      "id": "I07",
+      "text": "宝宝脚上有一道划痕，我也不知道怎么来的，碰到时他会缩脚。",
+      "member": {
+        "ageMonths": 9
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "injury",
+      "requiredQuestionConcepts": [
+        "injury-surface"
+      ],
+      "forbiddenQuestionConcepts": [
+        "injury-course",
+        "child-self-report"
+      ],
+      "expectedAction": "ask_one_focused_question",
+      "stop": {
+        "expected": false,
+        "reason": null
+      },
+      "requiredFactConcepts": [
+        "foot scratch",
+        "unknown mechanism",
+        "withdraws foot when touched"
+      ],
+      "forbiddenFactConcepts": [
+        "self-reported pain",
+        "exact pain score"
+      ]
+    },
+    {
+      "id": "P01",
+      "text": "孩子一直哭，我不知道是不是哪里疼。",
+      "member": {
+        "ageMonths": 14
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "pain",
+      "requiredQuestionConcepts": [
+        "pain-location"
+      ],
+      "forbiddenQuestionConcepts": [
+        "diagnostic-cause-question"
+      ],
+      "expectedAction": "ask_one_focused_question",
+      "stop": {
+        "expected": false,
+        "reason": null
+      },
+      "requiredFactConcepts": [
+        "persistent crying",
+        "pain uncertain"
+      ],
+      "forbiddenFactConcepts": [
+        "confirmed pain",
+        "abdominal pain inferred"
+      ]
+    },
+    {
+      "id": "P02",
+      "text": "孩子说肚子疼，指的是肚脐周围。",
+      "member": {
+        "ageMonths": 72
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "pain",
+      "requiredQuestionConcepts": [
+        "pain-impact"
+      ],
+      "forbiddenQuestionConcepts": [
+        "pain-location",
+        "child-report-location-repeat"
+      ],
+      "expectedAction": "ask_one_focused_question",
+      "stop": {
+        "expected": false,
+        "reason": null
+      },
+      "requiredFactConcepts": [
+        "child reports periumbilical pain"
+      ],
+      "forbiddenFactConcepts": [
+        "appendicitis diagnosis"
+      ]
+    },
+    {
+      "id": "P03",
+      "text": "三个月宝宝一抱起来就哭，放下又停，我不知道算不算疼。",
+      "member": {
+        "ageMonths": 3
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "pain",
+      "requiredQuestionConcepts": [
+        "pain-observable-context"
+      ],
+      "forbiddenQuestionConcepts": [
+        "child-self-report",
+        "pain-score-self-report"
+      ],
+      "expectedAction": "ask_one_focused_question",
+      "stop": {
+        "expected": false,
+        "reason": null
+      },
+      "requiredFactConcepts": [
+        "crying with lifting",
+        "settles when put down",
+        "pain uncertain"
+      ],
+      "forbiddenFactConcepts": [
+        "pain score fabricated",
+        "pain diagnosis"
+      ]
+    },
+    {
+      "id": "P04",
+      "text": "今天走路说脚底疼，坐下不说疼，能指出右脚。",
+      "member": {
+        "ageMonths": 60
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "pain",
+      "requiredQuestionConcepts": [],
+      "forbiddenQuestionConcepts": [
+        "pain-location",
+        "onset",
+        "pain-impact"
+      ],
+      "expectedAction": "ready_to_record",
+      "stop": {
+        "expected": true,
+        "reason": "sufficient_information"
+      },
+      "requiredFactConcepts": [
+        "right sole pain reported during walking today",
+        "not reported when sitting"
+      ],
+      "forbiddenFactConcepts": [
+        "pain severity score fabricated"
+      ]
+    },
+    {
+      "id": "P05",
+      "text": "孩子头疼，刚才说错了，不是肚子疼。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "correction",
+      "expectedDomain": "pain",
+      "requiredQuestionConcepts": [
+        "pain-impact"
+      ],
+      "forbiddenQuestionConcepts": [
+        "pain-location",
+        "abdominal-specific-question"
+      ],
+      "expectedAction": "ask_one_focused_question",
+      "stop": {
+        "expected": false,
+        "reason": null
+      },
+      "requiredFactConcepts": [
+        "corrected to headache",
+        "previous abdominal pain label retracted"
+      ],
+      "forbiddenFactConcepts": [
+        "two independent positive pain complaints"
+      ]
+    },
+    {
+      "id": "P06",
+      "text": "孩子说背疼，但吃喝、玩耍和睡觉没变。我只想先记这条。",
+      "member": {
+        "ageMonths": 96
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "pain",
+      "requiredQuestionConcepts": [],
+      "forbiddenQuestionConcepts": [
+        "pain-impact",
+        "pain-location"
+      ],
+      "expectedAction": "ready_to_record",
+      "stop": {
+        "expected": true,
+        "reason": "user_finished"
+      },
+      "requiredFactConcepts": [
+        "child reports back pain",
+        "daily functions reported unchanged"
+      ],
+      "forbiddenFactConcepts": [
+        "pain absent because function unchanged"
+      ]
+    },
+    {
+      "id": "P07",
+      "text": "我自己牙疼，不是孩子，刚才选错记录对象了。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "other_subject",
+      "expectedDomain": null,
+      "requiredQuestionConcepts": [],
+      "forbiddenQuestionConcepts": [
+        "pain-location",
+        "oral-observation"
+      ],
+      "expectedAction": "confirm_subject_without_health_interview",
+      "stop": {
+        "expected": true,
+        "reason": "other_subject"
+      },
+      "requiredFactConcepts": [
+        "adult self tooth pain",
+        "wrong selected subject"
+      ],
+      "forbiddenFactConcepts": [
+        "tooth pain assigned to child"
+      ]
+    },
+    {
+      "id": "L01",
+      "text": "这两晚睡得不踏实，总哭。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "sleep",
+      "requiredQuestionConcepts": [
+        "sleep-awakening"
+      ],
+      "forbiddenQuestionConcepts": [
+        "oral-observation",
+        "diagnostic-cause-question"
+      ],
+      "expectedAction": "ask_one_focused_question",
+      "stop": {
+        "expected": false,
+        "reason": null
+      },
+      "requiredFactConcepts": [
+        "sleep disturbance and crying over two nights"
+      ],
+      "forbiddenFactConcepts": [
+        "night waking inferred before confirmation",
+        "caries inferred from age"
+      ]
+    },
+    {
+      "id": "L02",
+      "text": "昨晚醒了两次，抱一会就又睡着了。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "sleep",
+      "requiredQuestionConcepts": [],
+      "forbiddenQuestionConcepts": [
+        "sleep-awakening",
+        "sleep-consolation",
+        "sleep-interval-start-end",
+        "oral-observation",
+        "onset"
+      ],
+      "expectedAction": "ready_to_record",
+      "stop": {
+        "expected": true,
+        "reason": "sufficient_information"
+      },
+      "requiredFactConcepts": [
+        "two waking events last night",
+        "returned to sleep after holding"
+      ],
+      "forbiddenFactConcepts": [
+        "complete sleep interval fabricated"
+      ]
+    },
+    {
+      "id": "L03",
+      "text": "哭的时候闭着眼，我叫他也不太理，但后来自己睡稳了。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "sleep",
+      "requiredQuestionConcepts": [],
+      "forbiddenQuestionConcepts": [
+        "sleep-awakening",
+        "sleep-consolation",
+        "oral-observation",
+        "sleep-observable-context"
+      ],
+      "expectedAction": "ready_to_record",
+      "stop": {
+        "expected": true,
+        "reason": "sufficient_information"
+      },
+      "requiredFactConcepts": [
+        "eyes closed during sleep-associated crying",
+        "later settled spontaneously"
+      ],
+      "forbiddenFactConcepts": [
+        "confirmed fully awake",
+        "night terror diagnosis"
+      ]
+    },
+    {
+      "id": "L04",
+      "text": "最近夜里醒后哭，白天老摸嘴，吃硬一点的东西会躲开。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "sleep",
+      "requiredQuestionConcepts": [
+        "oral-observation"
+      ],
+      "forbiddenQuestionConcepts": [
+        "sleep-awakening",
+        "diagnostic-cause-question"
+      ],
+      "expectedAction": "ask_one_focused_question",
+      "stop": {
+        "expected": false,
+        "reason": null
+      },
+      "requiredFactConcepts": [
+        "crying after waking",
+        "touches mouth during daytime",
+        "avoids hard food"
+      ],
+      "forbiddenFactConcepts": [
+        "confirmed tooth pain",
+        "caries diagnosis"
+      ],
+      "reviewNote": "口部问题仅由已出现的口部/进食行为线索触发，不因月龄单独触发。"
+    },
+    {
+      "id": "L05",
+      "text": "夜里咳嗽把自己咳醒了，主要想记咳嗽这件事。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "respiratory",
+      "requiredQuestionConcepts": [
+        "resp-effort"
+      ],
+      "forbiddenQuestionConcepts": [
+        "sleep-awakening",
+        "sleep-interval-start-end",
+        "oral-observation"
+      ],
+      "expectedAction": "ask_one_focused_question",
+      "stop": {
+        "expected": false,
+        "reason": null
+      },
+      "requiredFactConcepts": [
+        "cough explicitly stated main concern",
+        "cough-associated awakening"
+      ],
+      "forbiddenFactConcepts": [
+        "independent duplicate cough records"
+      ]
+    },
+    {
+      "id": "L06",
+      "text": "最近晚上醒，我不知道原因，具体几次也没数。别再问了，先记录。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "sleep",
+      "requiredQuestionConcepts": [],
+      "forbiddenQuestionConcepts": [
+        "sleep-awakening",
+        "sleep-consolation",
+        "oral-observation",
+        "sleep-interval-start-end"
+      ],
+      "expectedAction": "ready_to_record",
+      "stop": {
+        "expected": true,
+        "reason": "user_finished"
+      },
+      "requiredFactConcepts": [
+        "night waking",
+        "cause and count unknown"
+      ],
+      "forbiddenFactConcepts": [
+        "exact waking count",
+        "automatic dental hypothesis"
+      ]
+    },
+    {
+      "id": "H01",
+      "text": "今天孩子感觉不太对劲，说不上来。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "behaviour",
+      "requiredQuestionConcepts": [
+        "behaviour-change"
+      ],
+      "forbiddenQuestionConcepts": [
+        "diagnostic-cause-question"
+      ],
+      "expectedAction": "ask_one_focused_question",
+      "stop": {
+        "expected": false,
+        "reason": null
+      },
+      "requiredFactConcepts": [
+        "caregiver nonspecific concern"
+      ],
+      "forbiddenFactConcepts": [
+        "altered consciousness inferred"
+      ]
+    },
+    {
+      "id": "H02",
+      "text": "平时吃完就玩，今天一直坐着，叫他能看我，就是不愿玩。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "behaviour",
+      "requiredQuestionConcepts": [],
+      "forbiddenQuestionConcepts": [
+        "behaviour-change",
+        "general-response-detail",
+        "onset",
+        "behaviour-course"
+      ],
+      "expectedAction": "ready_to_record",
+      "stop": {
+        "expected": true,
+        "reason": "sufficient_information"
+      },
+      "requiredFactConcepts": [
+        "less play than usual today",
+        "responds by looking at caregiver"
+      ],
+      "forbiddenFactConcepts": [
+        "unresponsive inferred"
+      ]
+    },
+    {
+      "id": "H03",
+      "text": "我觉得他没精神，但我其实刚到家，还没仔细看，先记我的担心。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "behaviour",
+      "requiredQuestionConcepts": [],
+      "forbiddenQuestionConcepts": [
+        "behaviour-change"
+      ],
+      "expectedAction": "ready_to_record",
+      "stop": {
+        "expected": true,
+        "reason": "user_finished"
+      },
+      "requiredFactConcepts": [
+        "caregiver impression with limited observation",
+        "caregiver worry"
+      ],
+      "forbiddenFactConcepts": [
+        "confirmed reduced consciousness",
+        "normal state inferred"
+      ]
+    },
+    {
+      "id": "H04",
+      "text": "宝宝今天比平时爱哭，喂完也哭，但抱着能平静。",
+      "member": {
+        "ageMonths": 5
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "behaviour",
+      "requiredQuestionConcepts": [
+        "behaviour-observable-context"
+      ],
+      "forbiddenQuestionConcepts": [
+        "child-self-report",
+        "sleep-consolation",
+        "onset"
+      ],
+      "expectedAction": "ask_one_focused_question",
+      "stop": {
+        "expected": false,
+        "reason": null
+      },
+      "requiredFactConcepts": [
+        "more crying than usual today",
+        "crying after feeding",
+        "calms when held"
+      ],
+      "forbiddenFactConcepts": [
+        "abdominal pain inferred",
+        "hunger or colic diagnosis"
+      ]
+    },
+    {
+      "id": "H05",
+      "text": "姐姐说她今天心情不好，妹妹看着和平时一样，我先不记妹妹的症状。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "other_subject_with_negative_target",
+      "expectedDomain": null,
+      "requiredQuestionConcepts": [],
+      "forbiddenQuestionConcepts": [
+        "behaviour-change",
+        "pain-location"
+      ],
+      "expectedAction": "no_current_health_interview",
+      "stop": {
+        "expected": true,
+        "reason": "other_subject"
+      },
+      "requiredFactConcepts": [
+        "older sibling reports low mood",
+        "target child reported unchanged"
+      ],
+      "forbiddenFactConcepts": [
+        "mood symptom assigned to target child"
+      ]
+    },
+    {
+      "id": "H06",
+      "text": "今天不像平时那么愿意讲话，问他也说没什么，不知道具体哪里不舒服。",
+      "member": {
+        "ageMonths": 108
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "behaviour",
+      "requiredQuestionConcepts": [
+        "behaviour-impact"
+      ],
+      "forbiddenQuestionConcepts": [
+        "forced-body-location",
+        "diagnostic-cause-question"
+      ],
+      "expectedAction": "ask_one_focused_question",
+      "stop": {
+        "expected": false,
+        "reason": null
+      },
+      "requiredFactConcepts": [
+        "less speech than baseline today",
+        "no specific discomfort identified"
+      ],
+      "forbiddenFactConcepts": [
+        "psychiatric diagnosis",
+        "confirmed pain"
+      ]
+    },
+    {
+      "id": "E01",
+      "text": "孩子眼屎比平时多。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "eye",
+      "requiredQuestionConcepts": [
+        "eye-location"
+      ],
+      "forbiddenQuestionConcepts": [
+        "cough-pattern",
+        "pain-location"
+      ],
+      "expectedAction": "ask_one_focused_question",
+      "stop": {
+        "expected": false,
+        "reason": null
+      },
+      "requiredFactConcepts": [
+        "increased eye discharge"
+      ],
+      "forbiddenFactConcepts": [
+        "conjunctivitis diagnosis"
+      ]
+    },
+    {
+      "id": "E02",
+      "text": "今天右眼有点红，没有说疼，也没有看到分泌物。",
+      "member": {
+        "ageMonths": 72
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "eye",
+      "requiredQuestionConcepts": [
+        "eye-impact"
+      ],
+      "forbiddenQuestionConcepts": [
+        "eye-location",
+        "eye-discharge",
+        "onset"
+      ],
+      "expectedAction": "ask_one_focused_question",
+      "stop": {
+        "expected": false,
+        "reason": null
+      },
+      "requiredFactConcepts": [
+        "right eye redness today",
+        "pain not reported",
+        "no discharge observed"
+      ],
+      "forbiddenFactConcepts": [
+        "pain absent as clinical conclusion",
+        "infection diagnosis"
+      ]
+    },
+    {
+      "id": "E03",
+      "text": "宝宝总揉左眼，红不红我没看清。",
+      "member": {
+        "ageMonths": 10
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "eye",
+      "requiredQuestionConcepts": [
+        "eye-appearance"
+      ],
+      "forbiddenQuestionConcepts": [
+        "child-self-report",
+        "eye-location"
+      ],
+      "expectedAction": "ask_one_focused_question",
+      "stop": {
+        "expected": false,
+        "reason": null
+      },
+      "requiredFactConcepts": [
+        "observed left eye rubbing",
+        "redness unknown"
+      ],
+      "forbiddenFactConcepts": [
+        "confirmed itching",
+        "visible redness fabricated"
+      ]
+    },
+    {
+      "id": "E04",
+      "text": "两只眼今天早晨有黄色黏的东西，擦掉后又有，先记下。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "eye",
+      "requiredQuestionConcepts": [],
+      "forbiddenQuestionConcepts": [
+        "eye-location",
+        "eye-discharge",
+        "onset",
+        "handling-response"
+      ],
+      "expectedAction": "ready_to_record",
+      "stop": {
+        "expected": true,
+        "reason": "user_finished"
+      },
+      "requiredFactConcepts": [
+        "both eyes",
+        "yellow sticky discharge this morning",
+        "returns after wiping"
+      ],
+      "forbiddenFactConcepts": [
+        "bacterial cause confirmed"
+      ]
+    },
+    {
+      "id": "E05",
+      "text": "昨天在说明书上看到“眼红”两个字，孩子并没有眼睛红。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "quoted_discussion_with_negative_target",
+      "expectedDomain": null,
+      "requiredQuestionConcepts": [],
+      "forbiddenQuestionConcepts": [
+        "eye-location",
+        "eye-appearance",
+        "eye-discharge"
+      ],
+      "expectedAction": "no_current_health_interview",
+      "stop": {
+        "expected": true,
+        "reason": "quoted_discussion"
+      },
+      "requiredFactConcepts": [
+        "quoted term only",
+        "eye redness denied"
+      ],
+      "forbiddenFactConcepts": [
+        "active eye symptom"
+      ]
+    },
+    {
+      "id": "A01",
+      "text": "孩子最近老扯右耳朵，也不说疼。",
+      "member": {
+        "ageMonths": 20
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "ear",
+      "requiredQuestionConcepts": [
+        "ear-appearance"
+      ],
+      "forbiddenQuestionConcepts": [
+        "pain-location",
+        "child-self-report"
+      ],
+      "expectedAction": "ask_one_focused_question",
+      "stop": {
+        "expected": false,
+        "reason": null
+      },
+      "requiredFactConcepts": [
+        "right ear pulling",
+        "pain not confirmed"
+      ],
+      "forbiddenFactConcepts": [
+        "ear pain confirmed",
+        "otitis diagnosis"
+      ]
+    },
+    {
+      "id": "A02",
+      "text": "今天左耳外面看着有黄色的东西，我不知道从哪里来的。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "ear",
+      "requiredQuestionConcepts": [
+        "ear-discharge-observation"
+      ],
+      "forbiddenQuestionConcepts": [
+        "ear-location",
+        "onset"
+      ],
+      "expectedAction": "ask_one_focused_question",
+      "stop": {
+        "expected": false,
+        "reason": null
+      },
+      "requiredFactConcepts": [
+        "yellow material seen outside left ear today",
+        "source uncertain"
+      ],
+      "forbiddenFactConcepts": [
+        "ear canal discharge confirmed",
+        "earwax subtype asserted"
+      ]
+    },
+    {
+      "id": "A03",
+      "text": "孩子说右耳疼，从今天下午开始，碰那里会躲，先整理。",
+      "member": {
+        "ageMonths": 84
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "ear",
+      "requiredQuestionConcepts": [],
+      "forbiddenQuestionConcepts": [
+        "ear-location",
+        "pain-location",
+        "onset"
+      ],
+      "expectedAction": "ready_to_record",
+      "stop": {
+        "expected": true,
+        "reason": "user_finished"
+      },
+      "requiredFactConcepts": [
+        "right ear pain self-reported",
+        "onset this afternoon",
+        "withdraws when touched"
+      ],
+      "forbiddenFactConcepts": [
+        "otitis diagnosis"
+      ]
+    },
+    {
+      "id": "A04",
+      "text": "宝宝碰耳朵就躲，但我分不清是嫌我碰，还是疼。",
+      "member": {
+        "ageMonths": 8
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "ear",
+      "requiredQuestionConcepts": [
+        "ear-location"
+      ],
+      "forbiddenQuestionConcepts": [
+        "child-self-report",
+        "pain-score-self-report"
+      ],
+      "expectedAction": "ask_one_focused_question",
+      "stop": {
+        "expected": false,
+        "reason": null
+      },
+      "requiredFactConcepts": [
+        "withdraws on ear touch",
+        "pain uncertain"
+      ],
+      "forbiddenFactConcepts": [
+        "confirmed ear pain",
+        "infection diagnosis"
+      ]
+    },
+    {
+      "id": "O01",
+      "text": "嘴里好像有个白点，拍不清楚。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "oral",
+      "requiredQuestionConcepts": [
+        "oral-location"
+      ],
+      "forbiddenQuestionConcepts": [
+        "dental-caries-question",
+        "infer-image-detail"
+      ],
+      "expectedAction": "ask_one_focused_question",
+      "stop": {
+        "expected": false,
+        "reason": null
+      },
+      "requiredFactConcepts": [
+        "possible white spot in mouth",
+        "unclear image"
+      ],
+      "forbiddenFactConcepts": [
+        "oral ulcer diagnosis",
+        "thrush diagnosis"
+      ]
+    },
+    {
+      "id": "O02",
+      "text": "孩子今天不肯咬硬的东西，软的还愿意吃，没有说哪里疼。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "oral",
+      "requiredQuestionConcepts": [
+        "oral-appearance"
+      ],
+      "forbiddenQuestionConcepts": [
+        "confirmed-tooth-pain-question",
+        "diagnostic-cause-question",
+        "onset",
+        "oral-observation"
+      ],
+      "expectedAction": "ask_one_focused_question",
+      "stop": {
+        "expected": false,
+        "reason": null
+      },
+      "requiredFactConcepts": [
+        "avoids hard food today",
+        "accepts soft food",
+        "pain not localized"
+      ],
+      "forbiddenFactConcepts": [
+        "tooth pain confirmed",
+        "caries diagnosis"
+      ]
+    },
+    {
+      "id": "O03",
+      "text": "刷牙时他说上面一颗牙疼，我不知道是哪颗。",
+      "member": {
+        "ageMonths": 72
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "oral",
+      "requiredQuestionConcepts": [
+        "oral-impact"
+      ],
+      "forbiddenQuestionConcepts": [
+        "child-report-location-repeat",
+        "exact-tooth-number-required"
+      ],
+      "expectedAction": "ask_one_focused_question",
+      "stop": {
+        "expected": false,
+        "reason": null
+      },
+      "requiredFactConcepts": [
+        "child reports upper tooth pain while brushing",
+        "exact tooth unknown"
+      ],
+      "forbiddenFactConcepts": [
+        "specific tooth number fabricated"
+      ]
+    },
+    {
+      "id": "O04",
+      "text": "宝宝嘴角破了一点，昨天开始，吃奶时没有看到躲开，先记这一条。",
+      "member": {
+        "ageMonths": 9
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "oral",
+      "requiredQuestionConcepts": [],
+      "forbiddenQuestionConcepts": [
+        "oral-location",
+        "oral-impact",
+        "onset",
+        "child-self-report"
+      ],
+      "expectedAction": "ready_to_record",
+      "stop": {
+        "expected": true,
+        "reason": "user_finished"
+      },
+      "requiredFactConcepts": [
+        "small break at mouth corner since yesterday",
+        "no observed avoidance during milk feeding"
+      ],
+      "forbiddenFactConcepts": [
+        "no pain clinical conclusion",
+        "cause diagnosis"
+      ]
+    },
+    {
+      "id": "O05",
+      "text": "书上说两岁可能有蛀牙，我只是问问记录功能，孩子现在没说嘴疼。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "general_discussion_only",
+      "expectedDomain": null,
+      "requiredQuestionConcepts": [],
+      "forbiddenQuestionConcepts": [
+        "oral-observation",
+        "dental-caries-question",
+        "age-based-cause-hunt"
+      ],
+      "expectedAction": "no_current_health_interview",
+      "stop": {
+        "expected": true,
+        "reason": "general_discussion"
+      },
+      "requiredFactConcepts": [
+        "general discussion of oral topic",
+        "no reported current mouth pain"
+      ],
+      "forbiddenFactConcepts": [
+        "active dental disease",
+        "age-based caries probability"
+      ]
+    },
+    {
+      "id": "X01",
+      "text": "这个红色按钮看着不舒服，今天能把界面改一下吗？",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "no_health_chatter",
+      "expectedDomain": null,
+      "requiredQuestionConcepts": [],
+      "forbiddenQuestionConcepts": [
+        "skin-location",
+        "pain-location",
+        "eye-appearance",
+        "onset"
+      ],
+      "expectedAction": "no_current_health_interview",
+      "stop": {
+        "expected": true,
+        "reason": "no_health_content"
+      },
+      "requiredFactConcepts": [
+        "interface feedback"
+      ],
+      "forbiddenFactConcepts": [
+        "child symptom from UI adjective"
+      ]
+    },
+    {
+      "id": "X02",
+      "text": "睡眠卡片保存不了，咳嗽入口点了也没反应。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "product_bug_report",
+      "expectedDomain": null,
+      "requiredQuestionConcepts": [],
+      "forbiddenQuestionConcepts": [
+        "sleep-awakening",
+        "resp-effort",
+        "cough-pattern"
+      ],
+      "expectedAction": "no_current_health_interview",
+      "stop": {
+        "expected": true,
+        "reason": "no_health_content"
+      },
+      "requiredFactConcepts": [
+        "product bug report"
+      ],
+      "forbiddenFactConcepts": [
+        "active sleep or cough symptoms"
+      ]
+    },
+    {
+      "id": "X03",
+      "text": "要是以后孩子吐了或者尿少了，我该怎么在这里记？现在没有这些事。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "hypothetical_only",
+      "expectedDomain": null,
+      "requiredQuestionConcepts": [],
+      "forbiddenQuestionConcepts": [
+        "vomit-course",
+        "urinary-change",
+        "bowel-urine"
+      ],
+      "expectedAction": "no_current_health_interview",
+      "stop": {
+        "expected": true,
+        "reason": "hypothetical"
+      },
+      "requiredFactConcepts": [
+        "hypothetical product usage question"
+      ],
+      "forbiddenFactConcepts": [
+        "current vomiting",
+        "current reduced urine"
+      ]
+    },
+    {
+      "id": "X04",
+      "text": "我在读“儿童发热护理”这一节，帮我解释这句文字。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "quoted_educational_discussion",
+      "expectedDomain": null,
+      "requiredQuestionConcepts": [],
+      "forbiddenQuestionConcepts": [
+        "fever-measurement",
+        "fever-state"
+      ],
+      "expectedAction": "no_current_health_interview",
+      "stop": {
+        "expected": true,
+        "reason": "quoted_discussion"
+      },
+      "requiredFactConcepts": [
+        "discussion of source text"
+      ],
+      "forbiddenFactConcepts": [
+        "child currently has fever"
+      ]
+    },
+    {
+      "id": "X05",
+      "text": "孩子现在不发热、不咳嗽、没吐，只想补齐以前的资料。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "negative_observation_and_archive_request",
+      "expectedDomain": null,
+      "requiredQuestionConcepts": [],
+      "forbiddenQuestionConcepts": [
+        "fever-measurement",
+        "resp-effort",
+        "vomit-course"
+      ],
+      "expectedAction": "record_negative_without_new_interview",
+      "stop": {
+        "expected": true,
+        "reason": "no_current_positive_concern"
+      },
+      "requiredFactConcepts": [
+        "current fever cough vomiting denied"
+      ],
+      "forbiddenFactConcepts": [
+        "positive fever cough vomiting"
+      ]
+    },
+    {
+      "id": "X06",
+      "text": "等会儿可能要给哥哥擦药，但还没有做，妹妹这里什么也没处理。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "other_subject_and_future_plan",
+      "expectedDomain": null,
+      "requiredQuestionConcepts": [],
+      "forbiddenQuestionConcepts": [
+        "handling-response",
+        "skin-location"
+      ],
+      "expectedAction": "no_current_health_interview",
+      "stop": {
+        "expected": true,
+        "reason": "other_subject"
+      },
+      "requiredFactConcepts": [
+        "brother treatment only planned",
+        "target child no treatment done"
+      ],
+      "forbiddenFactConcepts": [
+        "target child treatment performed",
+        "response to medication"
+      ]
+    },
+    {
+      "id": "X07",
+      "text": "孩子左手今天出现红点，涂药后淡了一点。先整理，不要继续问。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "skin",
+      "requiredQuestionConcepts": [],
+      "forbiddenQuestionConcepts": [
+        "handling-response",
+        "skin-location",
+        "skin-appearance",
+        "onset"
+      ],
+      "expectedAction": "ready_to_record",
+      "stop": {
+        "expected": true,
+        "reason": "user_finished"
+      },
+      "requiredFactConcepts": [
+        "left hand red dots today",
+        "less prominent after application per caregiver"
+      ],
+      "forbiddenFactConcepts": [
+        "drug efficacy proven",
+        "cause confirmed"
+      ]
+    },
+    {
+      "id": "X08",
+      "text": "孩子说肚子疼。你刚才问影响吃饭吗，我回答“没有”，不是说肚子不疼了。",
+      "member": {
+        "ageMonths": 60
+      },
+      "semanticMode": "bound_answer_scope",
+      "expectedDomain": "pain",
+      "requiredQuestionConcepts": [],
+      "forbiddenQuestionConcepts": [
+        "pain-impact",
+        "pain-location"
+      ],
+      "expectedAction": "ready_to_record",
+      "stop": {
+        "expected": true,
+        "reason": "sufficient_information"
+      },
+      "requiredFactConcepts": [
+        "abdominal pain remains present",
+        "no eating impact reported"
+      ],
+      "forbiddenFactConcepts": [
+        "pain negated by answer to impact question"
+      ],
+      "latestText": "没有影响吃饭，不是说肚子不疼了。",
+      "previous": {
+        "status": "asking",
+        "askedQuestionIds": [
+          "pain-location",
+          "pain-impact"
+        ]
+      }
+    },
+    {
+      "id": "X09",
+      "text": "今天流鼻涕，颜色不清楚，吃喝没看出变化，我已经回答过三次了。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "current_observation",
+      "expectedDomain": "respiratory",
+      "requiredQuestionConcepts": [],
+      "forbiddenQuestionConcepts": [
+        "nasal-appearance",
+        "nasal-impact",
+        "cough-pattern",
+        "onset"
+      ],
+      "expectedAction": "ready_to_record",
+      "stop": {
+        "expected": true,
+        "reason": "question_budget"
+      },
+      "requiredFactConcepts": [
+        "nasal discharge today",
+        "color unknown",
+        "no observed feeding change"
+      ],
+      "forbiddenFactConcepts": [],
+      "previous": {
+        "status": "asking",
+        "askedQuestionIds": [
+          "nasal-appearance",
+          "nasal-impact",
+          "respiratory-onset"
+        ]
+      }
+    },
+    {
+      "id": "X10",
+      "text": "孩子现在喘不过气，嘴唇看起来发青，我就在旁边看到的。",
+      "member": {
+        "ageMonths": 30
+      },
+      "semanticMode": "current_important_observation",
+      "expectedDomain": "respiratory",
+      "requiredQuestionConcepts": [],
+      "forbiddenQuestionConcepts": [
+        "cough-pattern",
+        "onset",
+        "ordinary-cause-hunt"
+      ],
+      "expectedAction": "important_observation_route",
+      "stop": {
+        "expected": true,
+        "reason": "important_observation"
+      },
+      "requiredFactConcepts": [
+        "current direct observation of breathing difficulty wording",
+        "caregiver reports bluish lips"
+      ],
+      "forbiddenFactConcepts": [
+        "routine record-only closure",
+        "wait-until-tomorrow advice",
+        "disease diagnosis"
+      ],
+      "reviewNote": "仅检验当前主体/时间和明显重要观察能中止普通访谈；不构成完整临床分诊标准或认证。"
+    }
+  ],
+  "counts": {
+    "total": 100,
+    "byExpectedDomain": {
+      "respiratory": 13,
+      "null": 15,
+      "fever": 7,
+      "skin": 9,
+      "bowel": 10,
+      "urinary": 6,
+      "vomit": 5,
+      "injury": 6,
+      "pain": 7,
+      "sleep": 5,
+      "behaviour": 5,
+      "eye": 4,
+      "ear": 4,
+      "oral": 4
+    },
+    "bySemanticMode": {
+      "current_observation": 76,
+      "reported_observation": 3,
+      "historical_only": 2,
+      "observation_with_treatment_plan": 1,
+      "negative_observation_and_prior_discussion": 1,
+      "current_child_with_other_subject": 1,
+      "other_subject": 2,
+      "reported_observation_with_unclear_image": 1,
+      "hypothetical_only": 2,
+      "correction": 1,
+      "other_subject_with_negative_target": 1,
+      "quoted_discussion_with_negative_target": 1,
+      "general_discussion_only": 1,
+      "no_health_chatter": 1,
+      "product_bug_report": 1,
+      "quoted_educational_discussion": 1,
+      "negative_observation_and_archive_request": 1,
+      "other_subject_and_future_plan": 1,
+      "bound_answer_scope": 1,
+      "current_important_observation": 1
+    }
+  },
+  "expansionGuidance": [
+    "Age variants must change the expected communication/answer options: preverbal observed behavior, verbal child report, or age unknown; do not merely prefix age text.",
+    "Polarity variants must change which fact is positive and whether a question should activate; preserve unrelated positive concerns.",
+    "Temporal variants must distinguish an active observation, resolved history, and a future hypothetical, with corresponding expectedDomain/action changes.",
+    "Subject variants must bind the same observed fact to current child, sibling, or adult and change record attachment/confirmation expectations.",
+    "Handling variants must distinguish already done, not done, planned, other-person handling, response already known, and response explicitly unobserved.",
+    "Expansion must retain an independent semantic test intent and review expected assertions; generated count alone is not coverage."
+  ]
+}

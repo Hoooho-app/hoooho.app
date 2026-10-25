@@ -31,9 +31,10 @@ test('bound voice no survives professional preview, save, replay and doctor-faci
   const answer={id:'voice-answer',kind:'voice',text:'没有',answerTo:{contextId:first.context.id,questionId:'resp-effort'}}
   const second=await f.front.submit(account,f.member.id,answer)
   assert.equal(second.context.id,first.context.id,'a model choosing new cannot reset a bound question')
-  assert.equal(second.context.interview.turnCount,1,'the known night pattern and onset need no extra question')
+  assert.equal(second.context.interview.turnCount,2,'a remaining impact question is useful without repeating the known pattern and onset')
+  assert.equal(second.context.interview.question.id,'cough-impact')
   const replay=await f.front.submit(account,f.member.id,answer)
-  assert.equal(replay.context.interview.turnCount,1)
+  assert.equal(replay.context.interview.turnCount,2)
   assert.equal(replay.context.messages.filter(m=>m.id==='voice-answer').length,1)
   const raw=second.context.messages.filter(m=>m.kind!=='assistant').map(m=>m.text).join('\n')
   let review=await f.business.prepare(account,f.member.id,{text:raw,smartRecord:true,frontDeskRecord:true,frontContextId:second.context.id})
@@ -129,4 +130,47 @@ test('unobserved awakenings and settling behaviour cannot become structured slee
  assert.equal(preview.items[0].journal.sleep,undefined)
  assert.doesNotMatch(preview.items[0].professionalSummary.text,/入睡：|醒来：/)
  assert.match(preview.items[0].professionalSummary.text,/没有观察到醒来/)
+})
+
+for(const [raw,value] of [['看起来不太像过敏。','过敏'],['不太像有明显发烧。','发烧'],['可能是有点发烧。','发烧'],['好像有点发烧。','发烧'],['我怀疑孩子发烧。','发烧'],['感觉像过敏。','过敏'],['保姆说孩子吐了。','吐了']])test('full-source uncertainty or reporter survives preview and persistence: '+raw,async t=>{
+ const f=await fixture(t),account='synthetic-nursing'
+ f.business.model.structured=async()=>({value:{items:[{category:'symptom',title:'观察',timeText:null,subject:'current',archiveCategory:null,relationKey:null,fields:[{name:'symptom',value,quote:raw,sourceId:'input',page:1}]}]},diagnostics:{provider:'synthetic-fault-injection'}})
+ const preview=await f.business.prepare(account,f.member.id,{text:raw,smartRecord:true,frontDeskRecord:true})
+ assert.ok(preview.items[0].professionalSummary.text.includes(raw.replace(/。$/u,'')),preview.items[0].professionalSummary.text)
+ const saved=await f.business.save(account,f.member.id,preview.id,{version:preview.version,confirmed:true})
+ const record=await f.business.records.getOwnedRecord(account,saved.result.records[0].recordId)
+ assert.equal(record.content,preview.items[0].professionalSummary.text)
+ assert.equal(record.sourceText,raw)
+})
+
+test('a provider cannot disable live-narration grounding by selecting an archive category',async t=>{
+ const f=await fixture(t),raw='看起来不太像过敏。',account='synthetic-nursing'
+ f.business.model.structured=async()=>({value:{items:[{category:'symptom',title:'观察',timeText:null,subject:'current',archiveCategory:'allergy',relationKey:null,fields:[{name:'symptom',value:'过敏',quote:raw,sourceId:'input',page:1}]}]},diagnostics:{provider:'synthetic-fault-injection'}})
+ const preview=await f.business.prepare(account,f.member.id,{text:raw,smartRecord:true,frontDeskRecord:true})
+ assert.match(preview.items[0].professionalSummary.text,/不太像过敏/)
+})
+
+for(const clipped of [true,false])test('a retired choice cannot be persisted, clipped='+clipped,async t=>{
+ const f=await fixture(t),account='synthetic-nursing'
+ const first=await f.front.submit(account,f.member.id,{id:'retire-start',kind:'text',text:'孩子呼吸声和平时不一样'})
+ const second=await f.front.submit(account,f.member.id,{id:'retire-choice',kind:'text',text:'家长现在看到孩子呼吸明显费力。',answerTo:{contextId:first.context.id,questionId:'resp-effort'}})
+ f.front.model.structured=async()=>({value:{reply:'收到',contextId:second.context.id,action:'record',questionId:null,emergency:{currentChild:false,quote:''}}})
+ const third=await f.front.submit(account,f.member.id,{id:'retire-fix',kind:'text',text:'说错了，刚才没看清'})
+ const raw=third.context.messages.filter(m=>m.kind!=='assistant').map(m=>m.text).join('\n')
+ f.business.model.structured=async()=>({value:{items:[{category:'symptom',title:'观察',timeText:null,subject:'current',archiveCategory:null,relationKey:null,fields:[['symptom',clipped?'呼吸声和平时不一样':raw.slice(0,raw.indexOf('\n说错了')).replace(/。$/u,''),clipped?'孩子呼吸声和平时不一样':raw],['reaction','呼吸明显费力','家长现在看到孩子呼吸明显费力。'],['correction','说错了，刚才没看清','说错了，刚才没看清']].map(([name,value,quote])=>({name,value,quote,sourceId:'input',page:1}))}]},diagnostics:{provider:'synthetic-fault-injection'}})
+ await assert.rejects(()=>f.business.prepare(account,f.member.id,{text:raw,smartRecord:true,frontDeskRecord:true,frontContextId:third.context.id}),error=>error.code==='AI_EVIDENCE_MISMATCH'&&error.validation.rule==='superseded_answer')
+ assert.equal((await f.business.records.repository.findByAccountId(account)).length,0)
+})
+
+for(const c of [
+ {raw:'昨天去公园。今天老扯右耳朵。',timeText:'昨天',fields:[['symptom','老扯右耳朵','今天老扯右耳朵']],code:'AI_TIME_CONFLICT'},
+ {raw:'哥哥咳嗽。他今天还发烧。',timeText:'今天',fields:[['symptom','发烧','他今天还发烧']],code:'AI_EVIDENCE_MISMATCH'},
+ {raw:'昨天老扯左耳朵。今天老扯右耳朵。',timeText:'昨天',fields:[['symptom','老扯左耳朵','昨天老扯左耳朵'],['reaction','老扯右耳朵','今天老扯右耳朵']],code:'AI_TIME_CONFLICT'}
+])test('fault injection cannot borrow another observation date or child: '+c.raw,async t=>{
+ const f=await fixture(t),account='synthetic-nursing'
+ f.business.model.structured=async()=>({value:{items:[{category:'symptom',title:'观察',timeText:c.timeText,subject:'current',archiveCategory:null,relationKey:null,fields:c.fields.map(([name,value,quote])=>({name,value,quote,sourceId:'input',page:1}))}]},diagnostics:{provider:'synthetic-fault-injection'}})
+ await assert.rejects(()=>f.business.prepare(account,f.member.id,{text:c.raw,smartRecord:true,frontDeskRecord:true}),{code:c.code})
+ const draft=await f.business.latest(account,f.member.id)
+ assert.equal(draft.state,'failed');assert.equal(draft.inputText,c.raw)
+ assert.equal((await f.business.records.repository.findByAccountId(account)).length,0)
 })

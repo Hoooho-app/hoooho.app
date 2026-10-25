@@ -1,0 +1,21 @@
+{
+  "id": "OPENRN_16_7_CONSTIPATION_2025",
+  "title": "16.7 Constipation",
+  "selection": "Nursing Assessments subsection only",
+  "url": "https://wtcs.pressbooks.pub/healthpromo/chapter/16-7-constipation/",
+  "year": 2025,
+  "editors": [
+    "Kimberly Ernstmeyer",
+    "Elizabeth Christman"
+  ],
+  "publisher": "WisTech Open",
+  "license": "CC-BY-4.0",
+  "license_url": "https://creativecommons.org/licenses/by/4.0/",
+  "license_declaration_url": "https://wtcs.pressbooks.pub/healthpromo/front-matter/introduction/",
+  "changes": "Selected text subsection; HTML to plain text; no figures or scales copied; no translation; source footnote markers retained",
+  "retrieved_at": "2026-10-25",
+  "clinical_review": "pending",
+  "production_retrieval_enabled": false,
+  "text": "- Assess the bowel habits of the client, including the frequency and the amount of stool passed as baseline data and throughout the course of treatment.\n\n- Monitor for the development of complications, such as fecal impaction, anal fissures, or hemorrhoids.\n\n- Assess for factors that may contribute to the client’s constipation such as dietary intake, perineal trauma, or stress.\n\n- Assess stool characteristics using the Bristol Stool Scale, as this allows for consistency among caregivers. See Figure 16.12[15] for a depiction of the Bristol Stool Scale.\n\n- Assess the client’s abdomen for the presence of bowel sounds and distention. Bowel sounds are often decreased in those with constipation. Distension often occurs in those with chronic constipation.",
+  "limits": "Professional assessment source. Use parent-observable facts; no physical maneuvers, diagnostic threshold, automated diagnosis or treatment advice."
+}

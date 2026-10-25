@@ -1,0 +1,658 @@
+{
+  "version": "pediatric-observation-sources-20261025-v2",
+  "checked_at": "2026-10-25",
+  "clinicalReviewStatus": "pending_clinical_review",
+  "sources": [
+    {
+      "id": "openrn-pediatric-assessment",
+      "title": "14.5 Applying the Nursing Process and the Clinical Judgment Model to Caring for an Ill or Hospitalized Pediatric Client",
+      "book": "Nursing Health Promotion",
+      "year": 2025,
+      "editors": [
+        "Kimberly Ernstmeyer",
+        "Elizabeth Christman"
+      ],
+      "publisher": "WisTech Open",
+      "series": "Open RN",
+      "url": "https://wtcs.pressbooks.pub/healthpromo/chapter/14-5-applying-the-nursing-process-to-caring-for-an-ill-or-hospitalized-pediatric-client/",
+      "license": "CC-BY-4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "license_declaration_url": "https://wtcs.pressbooks.pub/healthpromo/front-matter/introduction/",
+      "selection": "14.5 Assessment: History, Physical Examination and General Survey only",
+      "file": "knowledge-sources/openrn/pediatric_assessment_general_survey.txt",
+      "sha256": "cfce72a55ac3afd3e1ba80d11bd6d2a7dfe2519160e73290b637e4cbb51c18a3",
+      "bytes": 8062,
+      "retrieved_at": "2026-10-25",
+      "rights_status": "publisher_CC_BY_4_0_except_noted_material",
+      "commercial_adaptation_permitted_under_license": true,
+      "clinical_review": "pending",
+      "production_retrieval_enabled": false,
+      "excluded": [
+        "tables",
+        "figures",
+        "images",
+        "video",
+        "audio",
+        "interactive content",
+        "NANDA/NIC diagnostic taxonomies",
+        "Wong-Baker/NIPS/FLACC instruments",
+        "adult vital sign thresholds"
+      ],
+      "use_boundary": "Curated parent-report and directly observable facts only. No diagnostic labels, medication/treatment, home examination maneuvers, or unreviewed triage thresholds.",
+      "evidenceRole": "licensed_educational_method_reference",
+      "archiveOnly": true
+    },
+    {
+      "id": "openrn-pediatric-respiratory",
+      "title": "15.3 Focused Assessment for Respiratory Disorders",
+      "book": "Nursing Health Promotion",
+      "year": 2025,
+      "editors": [
+        "Kimberly Ernstmeyer",
+        "Elizabeth Christman"
+      ],
+      "publisher": "WisTech Open",
+      "series": "Open RN",
+      "url": "https://wtcs.pressbooks.pub/healthpromo/chapter/15-3-focused-assessment-for-respiratory-disorders/",
+      "license": "CC-BY-4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "license_declaration_url": "https://wtcs.pressbooks.pub/healthpromo/front-matter/introduction/",
+      "selection": "15.3 Focused Assessment for Respiratory Disorders: narrative text; tables and media excluded",
+      "file": "knowledge-sources/openrn/pediatric_respiratory_assessment.txt",
+      "sha256": "bd8891f2fe200abbd75e7c43d9ac9d85e419275c681296db6738b01975dee862",
+      "bytes": 4404,
+      "retrieved_at": "2026-10-25",
+      "rights_status": "publisher_CC_BY_4_0_except_noted_material",
+      "commercial_adaptation_permitted_under_license": true,
+      "clinical_review": "pending",
+      "production_retrieval_enabled": false,
+      "excluded": [
+        "tables",
+        "figures",
+        "images",
+        "video",
+        "audio",
+        "interactive content",
+        "NANDA/NIC diagnostic taxonomies",
+        "Wong-Baker/NIPS/FLACC instruments",
+        "adult vital sign thresholds"
+      ],
+      "use_boundary": "Curated parent-report and directly observable facts only. No diagnostic labels, medication/treatment, home examination maneuvers, or unreviewed triage thresholds.",
+      "evidenceRole": "licensed_educational_method_reference",
+      "archiveOnly": true
+    },
+    {
+      "id": "openrn-pediatric-systems",
+      "title": "16.3 General Assessment of Body Systems",
+      "book": "Nursing Health Promotion",
+      "year": 2025,
+      "editors": [
+        "Kimberly Ernstmeyer",
+        "Elizabeth Christman"
+      ],
+      "publisher": "WisTech Open",
+      "series": "Open RN",
+      "url": "https://wtcs.pressbooks.pub/healthpromo/chapter/16-3-general-assessment-of-body-systems/",
+      "license": "CC-BY-4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "license_declaration_url": "https://wtcs.pressbooks.pub/healthpromo/front-matter/introduction/",
+      "selection": "16.3 General Assessment of Body Systems: narrative text; tables and media excluded",
+      "file": "knowledge-sources/openrn/pediatric_systems_assessment.txt",
+      "sha256": "8c008b323903a6214bb8675f1894d681b4fc04618b7d09e781803c6fdb19049a",
+      "bytes": 12170,
+      "retrieved_at": "2026-10-25",
+      "rights_status": "publisher_CC_BY_4_0_except_noted_material",
+      "commercial_adaptation_permitted_under_license": true,
+      "clinical_review": "pending",
+      "production_retrieval_enabled": false,
+      "excluded": [
+        "tables",
+        "figures",
+        "images",
+        "video",
+        "audio",
+        "interactive content",
+        "NANDA/NIC diagnostic taxonomies",
+        "Wong-Baker/NIPS/FLACC instruments",
+        "adult vital sign thresholds"
+      ],
+      "use_boundary": "Curated parent-report and directly observable facts only. No diagnostic labels, medication/treatment, home examination maneuvers, or unreviewed triage thresholds.",
+      "evidenceRole": "licensed_educational_method_reference",
+      "archiveOnly": true
+    },
+    {
+      "id": "openrn-constipation",
+      "title": "16.7 Constipation — Nursing Assessments",
+      "book": "Nursing Health Promotion",
+      "year": 2025,
+      "editors": [
+        "Kimberly Ernstmeyer",
+        "Elizabeth Christman"
+      ],
+      "publisher": "WisTech Open",
+      "url": "https://wtcs.pressbooks.pub/healthpromo/chapter/16-7-constipation/",
+      "license": "CC-BY-4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "license_declaration_url": "https://wtcs.pressbooks.pub/healthpromo/front-matter/introduction/",
+      "file": "knowledge-sources/openrn/16-7-constipation_nursing_assessments.json",
+      "sha256": "b38d52bdcf36100438cfebb0c698e5cf993f685dfcbd427074269badd4f38802",
+      "retrieved_at": "2026-10-25",
+      "clinical_review": "pending",
+      "production_retrieval_enabled": false,
+      "archiveOnly": true,
+      "evidenceRole": "licensed_educational_method_reference",
+      "changes": "Selected assessment prose only; no diagnosis taxonomy, figures or treatment; original content with attribution retained.",
+      "bytes": 1710
+    },
+    {
+      "id": "openrn-diarrhea",
+      "title": "16.9 Diarrhea — Nursing Assessments",
+      "book": "Nursing Health Promotion",
+      "year": 2025,
+      "editors": [
+        "Kimberly Ernstmeyer",
+        "Elizabeth Christman"
+      ],
+      "publisher": "WisTech Open",
+      "url": "https://wtcs.pressbooks.pub/healthpromo/chapter/16-9-diarrhea/",
+      "license": "CC-BY-4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "license_declaration_url": "https://wtcs.pressbooks.pub/healthpromo/front-matter/introduction/",
+      "file": "knowledge-sources/openrn/16-9-diarrhea_nursing_assessments.json",
+      "sha256": "17e1f7c6929c97e5cb1047d80b4a5c3e9964c93284cb92182a4e567789afcea2",
+      "retrieved_at": "2026-10-25",
+      "clinical_review": "pending",
+      "production_retrieval_enabled": false,
+      "archiveOnly": true,
+      "evidenceRole": "licensed_educational_method_reference",
+      "changes": "Selected assessment prose only; no diagnosis taxonomy, figures or treatment; original content with attribution retained.",
+      "bytes": 1602
+    },
+    {
+      "id": "rch-assessment",
+      "publisher": "The Royal Children's Hospital Melbourne",
+      "title": "Nursing assessment",
+      "page_updated": "2022-11",
+      "checked_at": "2026-10-25",
+      "url": "https://www.rch.org.au/rchcpg/hospital_clinical_guideline_index/Nursing_assessment/",
+      "verified_sections": [
+        "Approach to physical assessment",
+        "Primary assessment",
+        "Focused Assessment: Respiratory/Gastrointestinal/Renal/Musculoskeletal/Skin/Eye/ENT",
+        "Evaluation"
+      ],
+      "access": "official_HTML_read_verified",
+      "rights_status": "prior_written_permission_for_nonpersonal_copy_storage_adaptation_or_republication",
+      "permission_urls": [
+        "https://www.rch.org.au/terms-and-conditions/",
+        "https://www.rch.org.au/clinicalguide/guideline_index/Citing_our_guidelines/"
+      ],
+      "full_text_downloaded": false,
+      "production_retrieval_enabled": false,
+      "clinical_adaptation_review": "pending",
+      "archiveOnly": true,
+      "evidenceRole": "link_method_reference_only"
+    },
+    {
+      "id": "rch-observations",
+      "publisher": "The Royal Children's Hospital Melbourne",
+      "title": "Observation and continuous monitoring",
+      "page_updated": "2023-11",
+      "checked_at": "2026-10-25",
+      "url": "https://www.rch.org.au/rchcpg/hospital_clinical_guideline_index/Observation_and_continuous_monitoring/",
+      "verified_sections": [
+        "Introduction",
+        "Clinical Observations",
+        "Parent/Carer Clinical Concern"
+      ],
+      "access": "official_HTML_read_verified",
+      "rights_status": "prior_written_permission_for_nonpersonal_copy_storage_adaptation_or_republication",
+      "permission_urls": [
+        "https://www.rch.org.au/terms-and-conditions/",
+        "https://www.rch.org.au/clinicalguide/guideline_index/Citing_our_guidelines/"
+      ],
+      "full_text_downloaded": false,
+      "production_retrieval_enabled": false,
+      "clinical_adaptation_review": "pending",
+      "archiveOnly": true,
+      "evidenceRole": "link_method_reference_only"
+    },
+    {
+      "id": "rch-pain",
+      "publisher": "The Royal Children's Hospital Melbourne",
+      "title": "Pain assessment and measurement",
+      "page_updated": "2022-08",
+      "checked_at": "2026-10-25",
+      "url": "https://www.rch.org.au/rchcpg/hospital_clinical_guideline_index/Pain_assessment_and_measurement/",
+      "verified_sections": [
+        "Assessment",
+        "Key considerations"
+      ],
+      "access": "official_HTML_read_verified",
+      "rights_status": "prior_written_permission_for_nonpersonal_copy_storage_adaptation_or_republication",
+      "permission_urls": [
+        "https://www.rch.org.au/terms-and-conditions/",
+        "https://www.rch.org.au/clinicalguide/guideline_index/Citing_our_guidelines/"
+      ],
+      "full_text_downloaded": false,
+      "production_retrieval_enabled": false,
+      "clinical_adaptation_review": "pending",
+      "archiveOnly": true,
+      "evidenceRole": "link_method_reference_only"
+    },
+    {
+      "id": "rch-handover",
+      "publisher": "The Royal Children's Hospital Melbourne",
+      "title": "Nursing clinical handover",
+      "page_updated": "2023-10",
+      "checked_at": "2026-10-25",
+      "url": "https://www.rch.org.au/rchcpg/hospital_clinical_guideline_index/Nursing_clinical_handover/",
+      "verified_sections": [
+        "Management Responsibilities: ISBAR",
+        "Individual Patient Handover",
+        "Parent/carer involvement"
+      ],
+      "access": "official_HTML_read_verified",
+      "rights_status": "prior_written_permission_for_nonpersonal_copy_storage_adaptation_or_republication",
+      "permission_urls": [
+        "https://www.rch.org.au/terms-and-conditions/",
+        "https://www.rch.org.au/clinicalguide/guideline_index/Citing_our_guidelines/"
+      ],
+      "full_text_downloaded": false,
+      "production_retrieval_enabled": false,
+      "clinical_adaptation_review": "pending",
+      "archiveOnly": true,
+      "evidenceRole": "link_method_reference_only"
+    },
+    {
+      "id": "rch-documentation",
+      "publisher": "The Royal Children's Hospital Melbourne",
+      "title": "Nursing Documentation Principles",
+      "page_updated": "2023-02",
+      "checked_at": "2026-10-25",
+      "url": "https://www.rch.org.au/rchcpg/hospital_clinical_guideline_index/nursing-documentation-principles/",
+      "verified_sections": [
+        "Assess",
+        "Implement and evaluate",
+        "Real time progress note"
+      ],
+      "access": "official_HTML_read_verified",
+      "rights_status": "prior_written_permission_for_nonpersonal_copy_storage_adaptation_or_republication",
+      "permission_urls": [
+        "https://www.rch.org.au/terms-and-conditions/",
+        "https://www.rch.org.au/clinicalguide/guideline_index/Citing_our_guidelines/"
+      ],
+      "full_text_downloaded": false,
+      "production_retrieval_enabled": false,
+      "clinical_adaptation_review": "pending",
+      "archiveOnly": true,
+      "evidenceRole": "link_method_reference_only"
+    },
+    {
+      "id": "rch-temperature",
+      "publisher": "The Royal Children's Hospital Melbourne",
+      "title": "Temperature management",
+      "page_updated": "2024-10",
+      "checked_at": "2026-10-25",
+      "url": "https://www.rch.org.au/rchcpg/hospital_clinical_guideline_index/Temperature_management/",
+      "verified_sections": [
+        "Assessment",
+        "Family Centred Care"
+      ],
+      "access": "official_HTML_read_verified",
+      "rights_status": "prior_written_permission_for_nonpersonal_copy_storage_adaptation_or_republication",
+      "permission_urls": [
+        "https://www.rch.org.au/terms-and-conditions/",
+        "https://www.rch.org.au/clinicalguide/guideline_index/Citing_our_guidelines/"
+      ],
+      "full_text_downloaded": false,
+      "production_retrieval_enabled": false,
+      "clinical_adaptation_review": "pending",
+      "archiveOnly": true,
+      "evidenceRole": "link_method_reference_only"
+    },
+    {
+      "id": "rch-respiratory",
+      "publisher": "The Royal Children's Hospital Melbourne",
+      "title": "Assessment of severity of respiratory conditions",
+      "page_updated": "2024-09",
+      "checked_at": "2026-10-25",
+      "url": "https://www.rch.org.au/clinicalguide/guideline_index/Assessment_of_severity_of_respiratory_conditions/",
+      "verified_sections": [
+        "Key points",
+        "Assessment",
+        "Signs of increased work of breathing"
+      ],
+      "access": "official_HTML_read_verified",
+      "rights_status": "prior_written_permission_for_nonpersonal_copy_storage_adaptation_or_republication",
+      "permission_urls": [
+        "https://www.rch.org.au/terms-and-conditions/",
+        "https://www.rch.org.au/clinicalguide/guideline_index/Citing_our_guidelines/"
+      ],
+      "full_text_downloaded": false,
+      "production_retrieval_enabled": false,
+      "clinical_adaptation_review": "pending",
+      "archiveOnly": true,
+      "evidenceRole": "link_method_reference_only"
+    },
+    {
+      "id": "rch-fever",
+      "publisher": "The Royal Children's Hospital Melbourne",
+      "title": "Febrile child",
+      "page_updated": "2026-10",
+      "checked_at": "2026-10-25",
+      "url": "https://www.rch.org.au/clinicalguide/guideline_index/febrile_child/",
+      "verified_sections": [
+        "Assessment: History",
+        "Red flag features"
+      ],
+      "access": "official_HTML_read_verified",
+      "rights_status": "prior_written_permission_for_nonpersonal_copy_storage_adaptation_or_republication",
+      "permission_urls": [
+        "https://www.rch.org.au/terms-and-conditions/",
+        "https://www.rch.org.au/clinicalguide/guideline_index/Citing_our_guidelines/"
+      ],
+      "full_text_downloaded": false,
+      "production_retrieval_enabled": false,
+      "clinical_adaptation_review": "pending",
+      "archiveOnly": true,
+      "evidenceRole": "link_method_reference_only"
+    },
+    {
+      "id": "rch-constipation",
+      "publisher": "The Royal Children's Hospital Melbourne",
+      "title": "Constipation",
+      "page_updated": "2020-03",
+      "checked_at": "2026-10-25",
+      "url": "https://www.rch.org.au/clinicalguide/guideline_index/Constipation/",
+      "verified_sections": [
+        "Assessment: History",
+        "Background"
+      ],
+      "access": "official_HTML_read_verified",
+      "rights_status": "prior_written_permission_for_nonpersonal_copy_storage_adaptation_or_republication",
+      "permission_urls": [
+        "https://www.rch.org.au/terms-and-conditions/",
+        "https://www.rch.org.au/clinicalguide/guideline_index/Citing_our_guidelines/"
+      ],
+      "full_text_downloaded": false,
+      "production_retrieval_enabled": false,
+      "clinical_adaptation_review": "pending",
+      "archiveOnly": true,
+      "evidenceRole": "link_method_reference_only"
+    },
+    {
+      "id": "rch-urinary",
+      "publisher": "The Royal Children's Hospital Melbourne",
+      "title": "Urinary tract infection",
+      "page_updated": "2025-10",
+      "checked_at": "2026-10-25",
+      "url": "https://www.rch.org.au/clinicalguide/guideline_index/Urinary_tract_infection/",
+      "verified_sections": [
+        "Assessment: History",
+        "Background: requires urine sample"
+      ],
+      "access": "official_HTML_read_verified",
+      "rights_status": "prior_written_permission_for_nonpersonal_copy_storage_adaptation_or_republication",
+      "permission_urls": [
+        "https://www.rch.org.au/terms-and-conditions/",
+        "https://www.rch.org.au/clinicalguide/guideline_index/Citing_our_guidelines/"
+      ],
+      "full_text_downloaded": false,
+      "production_retrieval_enabled": false,
+      "clinical_adaptation_review": "pending",
+      "archiveOnly": true,
+      "evidenceRole": "link_method_reference_only"
+    },
+    {
+      "id": "rch-wound",
+      "publisher": "The Royal Children's Hospital Melbourne",
+      "title": "Wound assessment and management",
+      "page_updated": "2023-02",
+      "checked_at": "2026-10-25",
+      "url": "https://www.rch.org.au/rchcpg/hospital_clinical_guideline_index/Wound_assessment_and_management/",
+      "verified_sections": [
+        "Wound Assessment",
+        "Documentation"
+      ],
+      "access": "official_HTML_read_verified",
+      "rights_status": "prior_written_permission_for_nonpersonal_copy_storage_adaptation_or_republication",
+      "permission_urls": [
+        "https://www.rch.org.au/terms-and-conditions/",
+        "https://www.rch.org.au/clinicalguide/guideline_index/Citing_our_guidelines/"
+      ],
+      "full_text_downloaded": false,
+      "production_retrieval_enabled": false,
+      "clinical_adaptation_review": "pending",
+      "archiveOnly": true,
+      "evidenceRole": "link_method_reference_only"
+    },
+    {
+      "id": "rch-eye",
+      "publisher": "The Royal Children's Hospital Melbourne",
+      "title": "Acute red eye",
+      "page_updated": "2022-10",
+      "checked_at": "2026-10-25",
+      "url": "https://www.rch.org.au/clinicalguide/guideline_index/Acute_red_eye/",
+      "verified_sections": [
+        "Key points",
+        "Assessment: History"
+      ],
+      "access": "official_HTML_read_verified",
+      "rights_status": "prior_written_permission_for_nonpersonal_copy_storage_adaptation_or_republication",
+      "permission_urls": [
+        "https://www.rch.org.au/terms-and-conditions/",
+        "https://www.rch.org.au/clinicalguide/guideline_index/Citing_our_guidelines/"
+      ],
+      "full_text_downloaded": false,
+      "production_retrieval_enabled": false,
+      "clinical_adaptation_review": "pending",
+      "archiveOnly": true,
+      "evidenceRole": "link_method_reference_only"
+    },
+    {
+      "id": "rch-ear",
+      "publisher": "The Royal Children's Hospital Melbourne",
+      "title": "Acute otitis media",
+      "page_updated": "2021-06",
+      "checked_at": "2026-10-25",
+      "url": "https://www.rch.org.au/clinicalguide/guideline_index/acute_otitis_media/",
+      "verified_sections": [
+        "Key points",
+        "Assessment: History"
+      ],
+      "access": "official_HTML_read_verified",
+      "rights_status": "prior_written_permission_for_nonpersonal_copy_storage_adaptation_or_republication",
+      "permission_urls": [
+        "https://www.rch.org.au/terms-and-conditions/",
+        "https://www.rch.org.au/clinicalguide/guideline_index/Citing_our_guidelines/"
+      ],
+      "full_text_downloaded": false,
+      "production_retrieval_enabled": false,
+      "clinical_adaptation_review": "pending",
+      "archiveOnly": true,
+      "evidenceRole": "link_method_reference_only"
+    },
+    {
+      "id": "rch-oral",
+      "publisher": "The Royal Children's Hospital Melbourne",
+      "title": "Dental conditions - non traumatic",
+      "page_updated": "2024-06",
+      "checked_at": "2026-10-25",
+      "url": "https://www.rch.org.au/clinicalguide/guideline_index/Dental_conditions_non_traumatic/",
+      "verified_sections": [
+        "Assessment: Dental history",
+        "Examination"
+      ],
+      "access": "official_HTML_read_verified",
+      "rights_status": "prior_written_permission_for_nonpersonal_copy_storage_adaptation_or_republication",
+      "permission_urls": [
+        "https://www.rch.org.au/terms-and-conditions/",
+        "https://www.rch.org.au/clinicalguide/guideline_index/Citing_our_guidelines/"
+      ],
+      "full_text_downloaded": false,
+      "production_retrieval_enabled": false,
+      "clinical_adaptation_review": "pending",
+      "archiveOnly": true,
+      "evidenceRole": "link_method_reference_only"
+    },
+    {
+      "id": "rch-crying",
+      "publisher": "The Royal Children's Hospital Melbourne",
+      "title": "Unsettled or crying babies",
+      "page_updated": "2025-10",
+      "checked_at": "2026-10-25",
+      "url": "https://www.rch.org.au/clinicalguide/guideline_index/crying_baby_infant_distress/",
+      "verified_sections": [
+        "Key points",
+        "History",
+        "Red flags"
+      ],
+      "access": "official_HTML_read_verified",
+      "rights_status": "prior_written_permission_for_nonpersonal_copy_storage_adaptation_or_republication",
+      "permission_urls": [
+        "https://www.rch.org.au/terms-and-conditions/",
+        "https://www.rch.org.au/clinicalguide/guideline_index/Citing_our_guidelines/"
+      ],
+      "full_text_downloaded": false,
+      "production_retrieval_enabled": false,
+      "clinical_adaptation_review": "pending",
+      "archiveOnly": true,
+      "evidenceRole": "link_method_reference_only"
+    },
+    {
+      "id": "rch-consciousness",
+      "publisher": "The Royal Children's Hospital Melbourne",
+      "title": "Altered conscious state",
+      "page_updated": "2022-11",
+      "checked_at": "2026-10-25",
+      "url": "https://www.rch.org.au/clinicalguide/guideline_index/Altered_conscious_state/",
+      "verified_sections": [
+        "Assessment: History",
+        "Management",
+        "Consider consultation"
+      ],
+      "access": "official_HTML_read_verified",
+      "rights_status": "prior_written_permission_for_nonpersonal_copy_storage_adaptation_or_republication",
+      "permission_urls": [
+        "https://www.rch.org.au/terms-and-conditions/",
+        "https://www.rch.org.au/clinicalguide/guideline_index/Citing_our_guidelines/"
+      ],
+      "full_text_downloaded": false,
+      "production_retrieval_enabled": false,
+      "clinical_adaptation_review": "pending",
+      "archiveOnly": true,
+      "evidenceRole": "link_method_reference_only"
+    },
+    {
+      "id": "who-imci",
+      "publisher": "World Health Organization",
+      "title": "Integrated Management of Childhood Illness (IMCI) set of distance learning modules",
+      "published": "2014-11-18",
+      "url": "https://www.who.int/publications/i/item/9789241506823",
+      "verified_sections": [
+        "General danger signs",
+        "Sick young infant",
+        "Cough or difficult breathing",
+        "Diarrhoea",
+        "Fever",
+        "Ear problems"
+      ],
+      "rights_status": "All rights reserved; no commercial integration licence verified",
+      "access": "official publication page and module download links verified; binary fetch failed",
+      "full_text_downloaded": false,
+      "production_retrieval_enabled": false,
+      "archiveOnly": true,
+      "evidenceRole": "link_method_reference_only"
+    },
+    {
+      "id": "who-etat-2016",
+      "publisher": "World Health Organization",
+      "title": "Paediatric emergency triage, assessment and treatment: care of critically-ill children",
+      "published": "2016-01-01",
+      "url": "https://www.who.int/publications/i/item/9789241510219",
+      "verified_sections": [
+        "Overview: airway/breathing, circulation, consciousness/convulsions, dehydration",
+        "Limited update: oxygen, IV fluids, anticonvulsants"
+      ],
+      "rights_status": "All rights reserved; no commercial integration licence verified",
+      "access": "official publication page verified; binary fetch failed",
+      "full_text_downloaded": false,
+      "production_retrieval_enabled": false,
+      "use_limit": "Historical limited clinical update, not complete current pediatric triage rulebook; no treatment/dosing import.",
+      "archiveOnly": true,
+      "evidenceRole": "link_method_reference_only"
+    }
+  ],
+  "curatedEvidence": [
+    {
+      "id": "child-report-and-behaviour",
+      "sourceId": "openrn-pediatric-assessment",
+      "section": "14.5 Assessment — History; General Survey",
+      "domains": [
+        "fever",
+        "pain",
+        "sleep",
+        "behaviour",
+        "skin",
+        "injury",
+        "eye",
+        "ear",
+        "oral",
+        "urinary",
+        "bowel",
+        "vomit"
+      ],
+      "text": "幼儿记录主要来自家长或照护者，同时区分孩子自己表达与家长观察。围绕主诉记录当前表现、相关既往背景及已经做过的处理；总体观察可具体描述活动、回应、舒适程度和行为。不会表达的孩子可保留家长熟悉的动作与平时差别。不要据这些观察自动命名病因。",
+      "language": "zh-CN",
+      "changes": "Hoooho selected Chinese paraphrase for observation/documentation; clinical hypotheses, examinations, thresholds and treatment excluded.",
+      "production_retrieval_enabled": true
+    },
+    {
+      "id": "respiratory-observation",
+      "sourceId": "openrn-pediatric-respiratory",
+      "section": "15.3 Focused Assessment; Life Span Considerations (caregiver report only)",
+      "domains": [
+        "respiratory"
+      ],
+      "text": "儿童呼吸方面的记录应区分家长听到或看到的表现及其对吃喝、活动等日常状态的实际影响。根据孩子表达能力，主观信息可以来自照护者。鼻部变化与咳嗽分别记录，不把声音或行为直接改写成医学诊断；没有观察或测量的信息保持未知。",
+      "language": "zh-CN",
+      "changes": "Hoooho selected Chinese paraphrase; neonatal numbers, rate thresholds, pain instruments and professional examination methods excluded.",
+      "production_retrieval_enabled": true
+    },
+    {
+      "id": "hard-stool-observation",
+      "sourceId": "openrn-constipation",
+      "section": "16.7 Nursing Assessments",
+      "domains": [
+        "bowel"
+      ],
+      "variant": "hard-stool",
+      "text": "排便困难的记录可聚焦家长已知的排便频次、便便软硬、排出时表现及相对平时的变化。排便少、便硬和排便费力分别保留，不以单个天数或单一表现自动确定诊断，不套用稀便次数问题。",
+      "language": "zh-CN",
+      "changes": "Hoooho selected Chinese paraphrase for history/observable events; examination and diagnostic criteria omitted.",
+      "production_retrieval_enabled": true
+    },
+    {
+      "id": "loose-stool-observation",
+      "sourceId": "openrn-diarrhea",
+      "section": "16.9 Nursing Assessments",
+      "domains": [
+        "bowel",
+        "vomit"
+      ],
+      "variant": "loose-stool",
+      "text": "便便变稀的记录可保留已知次数、性状、发生经过和相关吃喝、排尿或湿尿布变化。次数没有数清或尿量未观察应明确留为未知，不把呕吐或用药的次数用作排便次数，不从描述推断病因或脱水等级。",
+      "language": "zh-CN",
+      "changes": "Hoooho selected Chinese paraphrase; invasive assessment, diagnoses, severity thresholds and treatment omitted.",
+      "production_retrieval_enabled": true
+    }
+  ],
+  "policy": {
+    "rawArchivesSentToModel": false,
+    "maxCuratedEvidencePerRequest": 2,
+    "clinicalReviewRequiredForDiagnosticOrTreatmentRules": true,
+    "attribution": "Nursing Health Promotion © 2025 WisTech Open, edited by Kimberly Ernstmeyer and Elizabeth Christman. CC BY 4.0 except noted material. Selected paraphrases/translations by Hoooho; no endorsement implied.",
+    "license_url": "https://creativecommons.org/licenses/by/4.0/"
+  }
+}
