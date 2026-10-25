@@ -85,12 +85,9 @@ body header.hoho-main-header--conversation{padding-inline:var(--hoho-space-4);ba
 
 .front-desk-processing .idle-nurse-visual[data-reduced-motion="true"] .idle-nurse-visual__idle-video{opacity:1}
 
-/* The front desk has one action palette; existing review edit/delete controls keep theirs. */
+/* Preserve the front desk bubble backgrounds independently of button variants. */
 body .smart-record-home .nurse-turn--assistant>.nurse-turn-content{background:rgb(var(--hoho-color-primary-soft));border-color:rgb(var(--hoho-color-primary-border))}
 body .smart-record-home .nurse-turn--user>.nurse-turn-content{background:rgb(var(--hoho-color-surface-white));border-color:rgb(var(--hoho-color-border))}
-body .smart-record-home :is(.nurse-conversation .hoho-button:not([aria-label^="移除图片"]),.smart-record-review-footer .hoho-button,.front-desk-followup__actions .hoho-button,.front-desk-followup__error .hoho-button,.front-desk-processing--separate>.hoho-button,.hoho-main-header--conversation .hoho-button,.hoho-main-header--conversation>button,.hoho-dialogue-composer>.hoho-button,.record-entry-grid>button,.daily-record-options>button,.front-desk-menu>button,.front-desk-jump-wrap>.hoho-button){background:rgb(var(--hoho-color-action));color:rgb(var(--hoho-color-action-text));border:1px solid rgb(var(--hoho-color-action-border));border-radius:var(--hoho-radius-control);box-shadow:none}
-body .smart-record-home :is(.nurse-conversation .hoho-button:not([aria-label^="移除图片"]),.smart-record-review-footer .hoho-button,.front-desk-followup__actions .hoho-button,.front-desk-followup__error .hoho-button,.front-desk-processing--separate>.hoho-button,.hoho-main-header--conversation .hoho-button,.hoho-main-header--conversation>button,.hoho-dialogue-composer>.hoho-button,.record-entry-grid>button,.daily-record-options>button,.front-desk-menu>button,.front-desk-jump-wrap>.hoho-button):hover:not(:disabled){background:rgb(var(--hoho-color-action-hover))}
-body .smart-record-home :is(.nurse-conversation .hoho-button:not([aria-label^="移除图片"]),.record-entry-grid>button,.daily-record-options>button,.hoho-dialogue-composer>.hoho-button):active:not(:disabled){background:rgb(var(--hoho-color-action-active))}
 .smart-record-home .smart-record-saved-actions{display:flex;align-items:center;flex-wrap:wrap;gap:var(--hoho-space-2)}
 .smart-record-home .smart-record-saved-actions>.hoho-button{flex:1;min-width:0}
 .smart-record-home .smart-record-saved-actions>span{flex-basis:100%}
