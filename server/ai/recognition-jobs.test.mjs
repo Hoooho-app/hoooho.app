@@ -364,7 +364,7 @@ async function semanticReadyInteractionFixture(f){
   if(input.task==='professional-summary-verify'){
    f.calls.push(input.task)
    const data=JSON.parse(input.input)
-   return {value:{items:data.candidates.map(c=>({itemId:c.itemId,titleSupported:true,complete:true,problems:[],claims:c.claims.map((_,index)=>({index,supported:true}))}))},diagnostics:{provider:'synthetic'}}
+   return {value:{items:data.candidates.map(c=>({itemId:c.itemId,titleSupported:true,complete:true,missingFacts:[],problems:[],claims:c.claims.map((_,index)=>({index,supported:true}))}))},diagnostics:{provider:'synthetic'}}
   }
   return original(input)
  }
