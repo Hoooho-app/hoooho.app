@@ -113,3 +113,16 @@ test('独立随记遇到已有跟进中的相同记录不取消原事项跟进',
  await service.save('synthetic',member.id,draft.id,{version:draft.version,confirmed:true})
  assert.equal((await service.events.get('synthetic',id)).caseTracking,true)
 })
+
+test('症状跟进由明确点击启用，修改草稿不创建事实，重复保存不重复记录',async t=>{
+ const {service,member}=await setup(t)
+ let draft=await service.prepare('synthetic',member.id,{text:raw,smartRecord:true,followUp:false})
+ assert.equal(draft.followUp,false)
+ await assert.rejects(()=>service.edit('synthetic',member.id,draft.id,{version:draft.version,changes:[{followUp:'true'}]}))
+ draft=await service.edit('synthetic',member.id,draft.id,{version:draft.version,changes:[{followUp:true}]})
+ assert.equal(draft.followUp,true)
+ const saved=await service.save('synthetic',member.id,draft.id,{version:draft.version,confirmed:true})
+ const symptom=saved.result.records.find(r=>r.category==='symptom')??saved.result.records[0]
+ assert.equal((await service.events.get('synthetic',symptom.eventId)).caseTracking,true)
+ assert.deepEqual((await service.save('synthetic',member.id,draft.id,{version:saved.version,confirmed:true})).result,saved.result)
+})

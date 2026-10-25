@@ -30,7 +30,7 @@ test('clean light canvas and light surfaces cover navigation, forms and shared p
  await page.goto('/nurse-station');await expect(page.getByRole('button',{name:'按住说话',exact:true})).toBeEnabled()
  expect(await page.locator('.smart-record-home').evaluate(e=>getComputedStyle(e).backgroundColor)).toBe('rgb(244, 242, 237)')
  expect(await page.locator('.smart-record-home').evaluate(e=>getComputedStyle(e).backgroundImage)).toBe('none')
- await readable(page.getByRole('heading',{name:/护护/}).first());await readable(page.getByRole('button',{name:'按住说话',exact:true}))
+ await readable(page.getByRole('heading',{name:'前台',exact:true}).first());await readable(page.getByRole('button',{name:'按住说话',exact:true}))
  await page.screenshot({path:info.outputPath('home-390.png')})
  await page.getByRole('button',{name:'打开菜单',exact:true}).click()
  await expect(page.getByRole('dialog',{name:'侧边栏菜单'}).getByText('辅助工具',{exact:true})).toHaveCount(0)

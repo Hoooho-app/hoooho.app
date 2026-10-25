@@ -39,7 +39,7 @@ function SetupComposer({ accountId, token, field, text, typing, onTypingChange, 
   const sending = useRef(false)
   const voice = useDialogueVoice(firstChildVoiceKey(accountId, field), token, async transcript => {
     if (useAppStore.getState().authUser?.id === accountId) onAnswer(field, transcript)
-  })
+  },{livePreview:true})
   useEffect(() => { onBusy(voice.busy); return () => onBusy(false) }, [voice.busy, onBusy])
   const send = async () => {
     if (sending.current || voice.busy || !text.trim()) return
@@ -52,7 +52,7 @@ function SetupComposer({ accountId, token, field, text, typing, onTypingChange, 
   return <>
     {voice.error && <p className="first-child-voice-error" role="alert">{voice.error}</p>}
     {voice.pendingVoice && !voice.busy && <div className="first-child-voice-recovery"><HohoButton variant="text" onClick={() => void voice.retry()}>重新识别语音</HohoButton><HohoButton variant="text" onClick={() => void voice.discardPending()}>删除这段语音</HohoButton></div>}
-    <DialogueComposer variant="conversation" initialTyping={typing} onTypingChange={onTypingChange} voiceDisabled={!!voice.pendingVoice} text={text} onTextChange={onTextChange} onSend={() => void send()} onStart={() => void voice.start()} onStop={voice.stop} onDiscard={voice.discard} listening={voice.state === 'listening'} requesting={voice.state === 'requesting'} processing={voice.state === 'transcribing'} audioLevel={voice.audioLevel} expandedFeedback feedbackHint="松开后识别你的回答" placeholder={`输入${childSetupLabels[field]}…`} maxLength={240}/>
+    <DialogueComposer variant="conversation" initialTyping={typing} onTypingChange={onTypingChange} voiceDisabled={!!voice.pendingVoice} text={text} onTextChange={onTextChange} onSend={() => void send()} onStart={() => void voice.start()} onStop={voice.stop} onDiscard={voice.discard} listening={voice.state === 'listening'} requesting={voice.state === 'requesting'} processing={voice.state === 'transcribing'} audioLevel={voice.audioLevel} expandedFeedback liveTranscript={voice.liveText} liveStatus={voice.liveUnavailable?'实时文字暂不可用，松开后完整转写':'正在听你说'} feedbackHint={voice.liveUnavailable?'松开后完整识别你的回答':'边说边显示文字'} placeholder={`输入${childSetupLabels[field]}…`} maxLength={240}/>
   </>
 }
 
@@ -123,7 +123,7 @@ export function FirstChildSetup({ accountId, token }: { accountId: string; token
     }
   }
   return <section className="smart-record-page smart-record-home first-child-setup" aria-label="添加孩子信息" style={{ top: viewport.top, height: viewport.height }}>
-    <MainAppHeader title="护护" conversation showInstallApp={false}/>
+    <MainAppHeader title="前台" conversation showInstallApp={false}/>
     <div className="smart-record-page__body">
       <div className="front-desk-welcome front-desk-welcome--empty"><ReceptionSurface media={<img className="front-desk-welcome__image" src={reportImage} alt="手机拍摄包含孩子个人信息的记录报告单" width={384} height={256} loading="eager" fetchPriority="high" decoding="async"/>} title="先认识一下孩子" description="聊几句，把基本信息记清楚。"/></div>
       <div className="nurse-conversation first-child-conversation" aria-label="孩子信息对话">
