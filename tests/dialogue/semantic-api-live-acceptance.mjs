@@ -1,3 +1,4 @@
+import {cleanupSyntheticMember} from './synthetic-acceptance-cleanup.mjs'
 import {authenticateSyntheticAccount} from './synthetic-acceptance-account.mjs'
 // One-shot real-provider verification against the already deployed binary.
 // Only this fresh synthetic account/member/records are mutated or removed.
@@ -16,7 +17,7 @@ const REPORT = 'outputs/nursing-record-production/semantic-v2-acceptance.json'
 const INPUTS = ['今天那个脚就是小拇指破了，然后被踢到的。','是脚的小拇指表面破皮，今天刚被踢到；现在没有出血，能正常走路，还没有做处理。','先按已经说过的情况记录，不再追问。不清楚的项目保留待确认。']
 let FULL_RAW = ''
 const cookies = new Map(), exactRecordIds = new Set(), exactEventIds = new Set()
-let token = '', accountId = '', memberId = '', stage = 'register', saveAttempted = false
+let token = '', accountId = '', memberId = '', stage = 'register', saveAttempted = false, activeDraftId = ''
 const result = {
   check: 'production_front_desk_semantic_v2',
   date: new Date().toISOString(),
@@ -132,6 +133,7 @@ try {
   result.title=draft.items[0].title
   result.checks.push('natural title and independently verified narrative preserve toe, trauma, time, denial and unperformed handling')
 
+  activeDraftId=draft.id
   stage = 'formal_save'
   saveAttempted = true
   const saved = await api(`/api/members/${memberId}/ai-drafts/${draft.id}/save`, 'POST', { version: draft.version, confirmed: true })
@@ -185,49 +187,14 @@ try {
   if(memberId&&['professional_summary','readable_photo_only'].includes(stage))try{const draft=await api(`/api/members/${memberId}/ai-drafts`);result.syntheticDiagnostic={state:draft?.state,preview:draft?.preview?.text??null}}catch{}
   result.error = { ...([0,1].includes(error.recoveryAttempt)?{recoveryAttempt:error.recoveryAttempt}:{}),...(error.timeCoverage?{timeCoverage:error.timeCoverage}:{}),...(error.sourceSpans?{sourceSpans:error.sourceSpans,recoveryAttempt:error.recoveryAttempt}:{}),...(error.verificationCodes?{verificationCodes:error.verificationCodes}:{}),...(error.retryAfter?{retryAfterSeconds:error.retryAfter}:{}),...(error.validationMessage?{validationMessage:error.validationMessage}:{}),stage, code: error instanceof CheckError ? safeCode(error.code) : 'CHECK_INTERNAL_FAILURE', httpStatus: error instanceof CheckError ? error.status : null }
 } finally {
-  // Explicit exact-ID cleanup. Event DELETE does not cascade record rows, so
-  // records must be deleted while their owned parent event still exists.
+  // Only the newly created member and source/draft-verified records may be removed.
   let cleanupOk = true
-  if(saveAttempted&&!exactEventIds.size&&memberId){
+  if(memberId){
     try{
-      const ownedEvents=await api('/api/events','GET',undefined,15000)
-      requireCheck(Array.isArray(ownedEvents),'CHECK_CLEANUP_EVENT_LIST')
-      for(const event of ownedEvents.filter(event=>event.memberId===memberId)){
-        const records=await eventRecords(event.id)
-        requireCheck(records.every(record=>record.sourceText===FULL_RAW),'CHECK_CLEANUP_ORIGINAL_MISMATCH')
-        exactEventIds.add(event.id)
-        for(const record of records)exactRecordIds.add(record.id)
-      }
-      result.cleanup.receiptRecovered=exactEventIds.size>0
+      const cleanup=await cleanupSyntheticMember({api,memberId,accountId,fullRaw:FULL_RAW,draftId:activeDraftId,saveAttempted})
+      Object.assign(result.cleanup,cleanup)
+      cleanupOk=cleanup.complete===true
     }catch{cleanupOk=false}
-  }
-  for (const recordId of exactRecordIds) {
-    try { requireCheck((await api(`/api/records/${recordId}`, 'DELETE', {}, 20000))?.success === true, 'CHECK_RECORD_DELETE'); result.cleanup.recordsDeleted++ }
-    catch { cleanupOk = false }
-  }
-  let empty = true, gone = true
-  for (const eventId of exactEventIds) {
-    try { requireCheck((await eventRecords(eventId)).length === 0, 'CHECK_RECORDS_NOT_EMPTY') }
-    catch { empty = false; cleanupOk = false }
-    try {
-      requireCheck((await api(`/api/events/${eventId}`, 'DELETE', {}, 20000))?.success === true, 'CHECK_EVENT_DELETE')
-      result.cleanup.eventsDeleted++
-      requireCheck(await notFound(`/api/events/${eventId}`), 'CHECK_EVENT_STILL_EXISTS')
-      requireCheck(await notFound(`/api/events/${eventId}/records`), 'CHECK_EVENT_RECORDS_STILL_ACCESSIBLE')
-    } catch { gone = false; cleanupOk = false }
-  }
-  result.cleanup.eventRecordsEmpty = exactEventIds.size > 0 && empty
-  result.cleanup.eventsGone = exactEventIds.size > 0 && gone
-  if (saveAttempted && !exactEventIds.size) { cleanupOk = false; result.cleanup.saveReceiptMissing = true }
-  if (memberId) {
-    try {
-      const ownMember = await api(`/api/members/${memberId}`, 'GET', undefined, 15000)
-      requireCheck(ownMember.id === memberId && (!ownMember.accountId || ownMember.accountId === accountId), 'CHECK_CLEANUP_MEMBER_OWNERSHIP')
-      requireCheck((await api(`/api/members/${memberId}`, 'DELETE', {}, 20000))?.success === true, 'CHECK_MEMBER_DELETE')
-      result.cleanup.memberDeleted = true
-      result.cleanup.memberGone = await notFound(`/api/members/${memberId}`)
-      requireCheck(result.cleanup.memberGone, 'CHECK_MEMBER_STILL_EXISTS')
-    } catch { cleanupOk = false }
   }
   if (token || cookies.size) {
     try { result.cleanup.logout = (await api('/api/auth/logout', 'POST', {}, 15000))?.success === true ? 'revoked' : 'failed' }
