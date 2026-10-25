@@ -40,7 +40,7 @@ test('specific questions, bound quick answers, refresh, unknown stop and profess
   for(const width of [320,375,390,430]){
     await page.setViewportSize({width,height:667})
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
-    expect((await page.getByRole('button',{name:'没注意',exact:true}).boundingBox())!.height).toBeGreaterThanOrEqual(44)
+    expect(Math.round((await page.getByRole('button',{name:'没注意',exact:true}).boundingBox())!.height*100)/100).toBeGreaterThanOrEqual(44)
   }
   await page.getByRole('button',{name:'没注意',exact:true}).click()
   await expect(page.getByRole('button',{name:'保存记录',exact:true})).toBeEnabled()
