@@ -1,0 +1,33 @@
+name: One-shot front desk production live text acceptance
+on:
+  pull_request:
+    paths:
+      - scripts/verify-production-live-preview.mjs
+      - .github/workflows/frontdesk-live-production-acceptance.yml
+permissions:
+  contents: read
+concurrency:
+  group: frontdesk-live-production-acceptance-20261025
+  cancel-in-progress: false
+jobs:
+  verify-live-preview:
+    if: github.head_ref == 'codex/frontdesk-live-acceptance-20261025'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Verify actual streaming words before input closes
+        env:
+          HOOOHO_RUN_PRODUCTION_LIVE_PREVIEW: '1'
+          HOOOHO_EXPECT_PRODUCTION_COMMIT: 'f6a8020c6bf4f0a6a0b73924b33889dc462e4179'
+        run: node scripts/verify-production-live-preview.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: safe-live-preview-result
+          path: /tmp/hoooho-production-live-preview-report.json
