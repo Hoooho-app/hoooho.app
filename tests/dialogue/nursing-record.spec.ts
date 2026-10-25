@@ -1,5 +1,6 @@
 import {test,expect} from '@playwright/test'
 import {TokenService} from '../../server/auth/token-service.mjs'
+import {finishNursingQuestions,waitForNurseReply} from '../helpers/nursing-interview'
 
 const token=new TokenService('visit-sheet-e2e-secret',3600000).create({id:'visit-test'})
 const headers={Authorization:`Bearer ${token}`}
@@ -17,7 +18,7 @@ test.beforeEach(async({page,request})=>{
 async function send(page:import('@playwright/test').Page,text:string){
   await page.getByLabel('对话输入').fill(text)
   await page.getByRole('button',{name:'发送',exact:true}).click()
-  await expect(page.getByRole('button',{name:'核对记录',exact:true})).toBeEnabled()
+  await waitForNurseReply(page)
 }
 
 test('specific questions, bound quick answers, refresh, unknown stop and professional save',async({page,request},info)=>{
@@ -29,12 +30,12 @@ test('specific questions, bound quick answers, refresh, unknown stop and profess
   const submitted=page.waitForRequest(r=>r.url().endsWith('/recognition-jobs')&&r.method()==='POST')
   await page.getByRole('button',{name:'四肢',exact:true}).click()
   expect((await submitted).postDataJSON().input.answerTo.questionId).toBe('skin-location')
-  await expect(page.getByRole('button',{name:'核对记录',exact:true})).toBeEnabled()
+  await expect(page.getByText(/外观有什么变化/)).toBeVisible()
+  await expect(page.getByLabel('回答当前问题').getByRole('button')).toHaveCount(4)
   await expect(page.getByLabel('对话输入')).toHaveValue('还有一段待补充')
   const context=await (await request.get(`/api/members/${memberId}/front-desk-record`,{headers})).json()
   expect(context.interview.turnCount).toBeLessThanOrEqual(3)
   await page.reload()
-  if(await page.getByRole('button',{name:'改用文字',exact:true}).isVisible())await page.getByRole('button',{name:'改用文字',exact:true}).click()
   await expect(page.getByLabel('回答当前问题')).toBeVisible()
   await expect(page.getByLabel('对话输入')).toHaveValue('还有一段待补充')
   for(const width of [320,375,390,430]){
@@ -80,6 +81,8 @@ test('spoken no is interpreted only for the currently bound question',async({pag
   await hold.focus();await page.keyboard.down('Space')
   await expect(page.getByRole('button',{name:'正在录音，松开即结束'})).toBeVisible()
   await page.waitForTimeout(900);await page.keyboard.up('Space')
+  await expect(page.locator('.nurse-turn--user').last()).toContainText('没有')
+  await finishNursingQuestions(page)
   await expect(page.getByRole('button',{name:'立即保存',exact:true})).toBeEnabled()
   await page.getByRole('button',{name:'核对记录',exact:true}).click()
   await expect(page.getByLabel('整理后的描述')).toContainText('家长未见孩子有明显呼吸费力')
@@ -94,9 +97,9 @@ test('a useful specific question is still offered when extraction has no item ye
   await page.getByLabel('对话输入').fill('身上有点东西')
   await page.getByRole('button',{name:'发送',exact:true}).click()
   await expect(page.getByLabel('回答当前问题')).toBeVisible()
-  await expect(page.getByRole('button',{name:'先记下来',exact:true})).toBeEnabled()
+  await expect(page.getByRole('button',{name:'先记下来',exact:true})).toHaveCount(0)
   await expect(page.getByRole('button',{name:'核对记录',exact:true})).toHaveCount(0)
-  await page.getByRole('button',{name:'先记下来',exact:true}).click()
+  await page.getByLabel('回答当前问题',{exact:true}).getByRole('button',{name:'没注意',exact:true}).click()
   await expect(page.getByText('原始描述已保留，暂未整理出可保存的记录。可以继续补充，也可以先保存原话。',{exact:true})).toBeVisible()
   await expect(page.getByRole('button',{name:'先保存原话',exact:true})).toBeEnabled()
 })

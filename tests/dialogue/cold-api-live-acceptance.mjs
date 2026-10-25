@@ -3,19 +3,21 @@
 import { randomUUID } from 'node:crypto'
 import { mkdir,writeFile } from 'node:fs/promises'
 
-if (process.env.HOOOHO_RUN_COLD_LIVE_ACCEPTANCE !== '1') {
+const verifyPostSaveTracking=process.env.HOOOHO_RUN_FRONT_DESK_STAGE_ACCEPTANCE==='1'
+if (process.env.HOOOHO_RUN_COLD_LIVE_ACCEPTANCE !== '1'&&!verifyPostSaveTracking) {
   console.error('Explicit HOOOHO_RUN_COLD_LIVE_ACCEPTANCE=1 is required. No production requests made.')
   process.exit(2)
 }
 const BASE = 'https://hoooho.com'
-const EXPECTED = '5570a051b2148389bc7141131ec6e49283c720e6'
-const REPORT = 'outputs/nursing-record-production/cold-loop-acceptance.json'
+const EXPECTED = verifyPostSaveTracking?process.argv[2]:'5570a051b2148389bc7141131ec6e49283c720e6'
+if(!/^[a-f0-9]{40}$/.test(EXPECTED??'')){console.error('An exact deployed commit is required. No production requests made.');process.exit(2)}
+const REPORT = verifyPostSaveTracking?'outputs/nursing-record-production/front-desk-stages-acceptance.json':'outputs/nursing-record-production/cold-loop-acceptance.json'
 const INPUTS = ['身体有点冷', '家长摸着孩子身体觉得凉。', '今天开始，持续了十分钟']
 const FULL_RAW = INPUTS.join('\n')
 const cookies = new Map(), exactRecordIds = new Set(), exactEventIds = new Set()
 let token = '', accountId = '', memberId = '', stage = 'register', saveAttempted = false
 const result = {
-  check: 'production_cold_full_save',
+  check: verifyPostSaveTracking?'production_front_desk_post_save_tracking':'production_cold_full_save',
   date: new Date().toISOString(),
   expectedCommit: EXPECTED,
   runtimeCommit: null,
@@ -161,6 +163,22 @@ try {
   requireCheck(Array.isArray(eventsAfterRetry) && eventsAfterRetry.length === exactEventIds.size && eventsAfterRetry.every(event => exactEventIds.has(event.id)), 'CHECK_DUPLICATE_EVENT_AFTER_RETRY')
   result.idempotent = true
   result.checks.push('repeated save returns identical references and creates no extra record or event')
+  if(verifyPostSaveTracking){
+    stage='post_save_tracking'
+    const ref=saved.result.records[0],before=JSON.stringify(await eventRecords(ref.eventId))
+    requireCheck((await api(`/api/members/${memberId}/cases`)).active.length===0,'CHECK_PREMATURE_FOLLOWUP')
+    const route=`/api/members/${memberId}/cases/${ref.eventId}/tracking`
+    const enabled=await api(route,'POST',{recordId:ref.recordId})
+    requireCheck(enabled.id===ref.eventId&&enabled.caseTracking===true,'CHECK_TRACKING_ENABLE_RESULT')
+    const repeated=await api(route,'POST',{recordId:ref.recordId})
+    requireCheck(JSON.stringify(enabled)===JSON.stringify(repeated),'CHECK_TRACKING_RETRY_MUTATED_EVENT')
+    requireCheck(JSON.stringify(await eventRecords(ref.eventId))===before,'CHECK_TRACKING_MUTATED_RECORD')
+    const cases=await api(`/api/members/${memberId}/cases`)
+    requireCheck(cases.active.length===1&&cases.active[0].event.id===ref.eventId&&cases.active[0].followup.recordCount===1,'CHECK_TRACKING_CASE_COUNT')
+    requireCheck((await api('/api/events')).length===1,'CHECK_TRACKING_DUPLICATED_EVENT')
+    result.postSaveTracking=true
+    result.checks.push('follow-up activates only the saved symptom; duplicate activation leaves event and original record unchanged')
+  }
   result.passed = true
 } catch (error) {
   result.error = { stage, code: error instanceof CheckError ? safeCode(error.code) : 'CHECK_INTERNAL_FAILURE', httpStatus: error instanceof CheckError ? error.status : null }

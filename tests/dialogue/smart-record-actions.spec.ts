@@ -1,5 +1,6 @@
 import {test,expect} from '@playwright/test'
 import {TokenService} from '../../server/auth/token-service.mjs'
+import {finishNursingQuestions} from '../helpers/nursing-interview'
 const token=new TokenService('visit-sheet-e2e-secret',3600000).create({id:'visit-test'})
 const headers={Authorization:`Bearer ${token}`}
 test.beforeEach(async({page,request})=>{
@@ -14,7 +15,7 @@ test.beforeEach(async({page,request})=>{
  await page.getByRole('button',{name:'改用文字'}).click()
  await page.getByLabel('对话输入').fill('昨天脸颊有点红')
  await page.getByRole('button',{name:'发送',exact:true}).click()
- await expect(page.getByRole('button',{name:'核对记录',exact:true})).toBeEnabled()
+ await finishNursingQuestions(page)
 })
 test('automatic review, direct save ends input, exact record opens over its month',async({page})=>{
  await page.getByRole('button',{name:/^(?:先记下来|立即保存)$/}).click()
