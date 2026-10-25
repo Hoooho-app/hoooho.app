@@ -8,6 +8,8 @@ import {evidenceFailure} from './evidence-diagnostics.mjs'
 // dates keep their existing reconciliation path. Never repair a mismatched date
 // by choosing an unconfirmed date for the parent.
 export function groundNursingEvidence(items,sources,context){
+ const primaryNames=new Set(['symptom','quality','reaction','chiefComplaint','statusRaw'])
+ const domains=items.map(item=>new Set(nursingObservationContext(item.fields.filter(f=>primaryNames.has(f.name)).map(f=>f.value).join('\n')).active))
  return items.map(item=>{
   if(item.archiveCategory==='family-history'&&item.category!=='symptom'||!['symptom','sleep','injury','other'].includes(item.category))return item
   const grounded=structuredClone(item),localTimes=[],primaryScopes=[]
@@ -36,11 +38,27 @@ export function groundNursingEvidence(items,sources,context){
     }
    }
   }
+  // A persisted answer to this observation's onset question may be a separate
+  // source turn. Bind it only to one unambiguous item, never to every item that
+  // happens to share the input source or a neighbouring line.
+  const boundTimes=[]
+  for(const answer of context.answerContext??[]){
+   if(!context.frontContextId||answer.contextId!==context.frontContextId||answer.status!=='active'||answer.questionId!==`${answer.domain}-onset`)continue
+   const matches=items.filter((candidate,index)=>domains[index].size===1&&domains[index].has(answer.domain))
+   if(matches.length!==1||matches[0]!==item)continue
+   const source=primaryScopes.find(scope=>scope.source.id==='input'&&Number.isInteger(answer.rawStart)&&Number.isInteger(answer.rawEnd)&&scope.source.text.slice(answer.rawStart,answer.rawEnd)===answer.answerText)?.source
+   if(!source||nursingObservationContext(answer.answerText).active.some(domain=>domain!==answer.domain))continue
+   const times=extractTimeMentions(answer.answerText)
+   if(!grounded.timeText||!times.some(time=>time.value===grounded.timeText))continue
+   localTimes.push(...times.map(time=>time.value))
+   boundTimes.push({sourceId:source.id,page:source.page,quote:answer.answerText,start:answer.rawStart,end:answer.rawEnd,sourceMessageId:answer.sourceMessageId,questionId:answer.questionId})
+  }
   if(grounded.timeText&&primaryScopes.length&&!localTimes.length&&primaryScopes.some(s=>s.source.text.includes(grounded.timeText))&&!primaryScopes.some(s=>s.text.includes(grounded.timeText)))throw Object.assign(evidenceFailure('该时间属于另一段描述，原话已保留','/items/timeText','temporal_context'),{code:'AI_TIME_CONFLICT',status:422})
   if(grounded.timeText&&localTimes.length){
    const chosen=resolveItemTime(grounded,context),unique=[...new Set(localTimes)]
    if(!unique.every(raw=>{const expected=resolveItemTime({timeText:raw},context);return expected.resolvedStart===chosen.resolvedStart&&expected.resolvedEnd===chosen.resolvedEnd&&expected.precision===chosen.precision}))throw Object.assign(evidenceFailure('生成时间与这条观察的原话不一致，原话已保留','/items/timeText','time_context'),{code:'AI_TIME_CONFLICT',status:422})
   }
+  if(boundTimes.length)grounded.timeResolution={source:'bound_nursing_answer',references:boundTimes}
   return grounded
  })
 }

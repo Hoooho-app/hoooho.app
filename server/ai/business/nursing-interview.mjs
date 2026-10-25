@@ -72,6 +72,7 @@ export function interpretNursingAnswer(questionId,answer) {
     const target=unknownTargets[questionId]??nodes.find(n=>n.id===questionId)?.options?.find(o=>o.label==='没注意')?.value.match(/^暂时没注意([^，。]+)，/)?.[1]??(questionId.endsWith('-onset')?'具体开始时间':null)
     return target?{version:NURSING_ANSWER_VERSION,text:`${target}暂不清楚`,polarity:'unknown'}:null
   }
+  if(questionId.endsWith('-onset')&&onset.test(raw))return {version:NURSING_ANSWER_VERSION,text:raw,polarity:'literal'}
   const choice=nodes.find(n=>n.id===questionId)?.options?.find(o=>o.value.replace(/[。！!，,\s]+$/u,'')===raw)
   if(choice&&choice.label!=='没注意')return {version:NURSING_ANSWER_VERSION,text:raw,polarity:'literal'}
   const polarity=/^(?:没有|没|没有啊|没看到|没发现|不会)$/.test(raw)?'no':/^(?:有|有的|有啊|是|是的|会)$/.test(raw)?'yes':null
@@ -86,6 +87,10 @@ export function interpretNursingAnswer(questionId,answer) {
   return polarity&&meanings[questionId]?{version:NURSING_ANSWER_VERSION,text:meanings[questionId][polarity],polarity}:null
 }
 
+// A bare date can refine the current onset; a date attached to drinking,
+// feeding or another observation cannot retire an already answered onset.
+const onsetTimeOnly=text=>!String(text).replace(new RegExp(onset.source,'gu'),'').replace(/\d{1,2}[:：]\d{2}|[零〇一二两三四五六七八九十百\d]+(?:点(?:半|钟)?|分|秒)/gu,'').replace(/(?:说错了?|记错了?|更正(?:一下)?|不对|其实|实际(?:上)?|应该|大概|大约|差不多|具体|开始时间|发生时间|日期|时间|这种情况|这次|起点|持续|开始|发生|出现|不记得|不清楚|不知道|已经|从|到|至|是在|是|有|为|起|了|的|约)/gu,'').replace(/[，,。；;！!？?\n\s]/gu,'')
+
 export function nursingAnswerObservations(messages=[]) {
   const superseding={ 'resp-effort':/呼吸|喘|憋/,'bowel-urine':/尿|排尿/,'urinary-change':/尿|排尿/,'pain-impact':/吃|喝|睡|玩|活动/,'oral-observation':/嘴|口腔|牙|刷|吃东西/,'sleep-consolation':/安抚|抱|平静|睡/ }
   return messages.flatMap((message,index)=>{
@@ -97,6 +102,16 @@ export function nursingAnswerObservations(messages=[]) {
       if(m.kind==='assistant'||m.status!=='completed')return false
       const context=nursingObservationContext(m.text)
       const genericCorrection=/说错|记错|更正|刚才.{0,8}(?:不对|有误)/u.test(m.text)&&!context.active.length&&!/日期|时间|几点|哪天|次数|数量|剂量|药名|部位|位置/u.test(m.text)&&!messages.slice(index+1,index+1+laterIndex).some(other=>other.answerTo&&other.kind!=='assistant')
+      if(message.answerTo.questionId.endsWith('-onset')){
+        const domain=message.answerQuestion.domain
+        const bound=m.answerTo?.contextId===message.answerTo.contextId&&m.answerTo.questionId===message.answerTo.questionId&&m.answerQuestion?.domain===domain
+        if(m.answerTo)return bound
+        if(/说错|记错|更正|不对|有误/u.test(m.text)&&/(?:开始|发生|起点)?时间|日期|几点|哪天/u.test(m.text))return context.clauses.some(c=>c.eligible)
+        if(genericCorrection)return context.clauses.some(c=>c.eligible)
+        // A same-topic onset assertion or a purely temporal correction may
+        // replace the old course. A dated status update is a different fact.
+        return context.clauses.some(c=>c.eligible&&c.activeDomains.includes(domain)&&onset.test(c.text)&&/开始|发生|出现|起|时间|日期/u.test(c.text))||(!context.active.length&&context.clauses.every(c=>c.eligible)&&onset.test(m.text)&&onsetTimeOnly(m.text))
+      }
       return context.clauses.some(c=>c.eligible&&(relevant?.test(c.text)||genericCorrection))
     }))return []
     return [{...interpretation,sourceMessageId:message.id,answerText:message.text,questionId:message.answerTo.questionId,questionText:message.answerQuestion.text,domain:message.answerQuestion.domain,knowledgeVersion:message.answerQuestion.knowledgeVersion??'observation-recording-20261024-v1'}]

@@ -116,7 +116,7 @@ export class AIBusinessService {
     let offset=0
     const sourceRanges=new Map(messages.filter(m=>m.kind!=='assistant'&&m.text).map(m=>{const range={rawStart:offset,rawEnd:offset+m.text.length};offset+=m.text.length+1;return [m.id,range]}))
     const activeObservations=nursingAnswerObservations(messages),observations=activeObservations.filter(a=>a.polarity!=='literal'),active=new Set(activeObservations.map(a=>a.sourceMessageId)),all=messages.flatMap(m=>nursingAnswerObservations([m]).map(a=>({...a,...sourceRanges.get(m.id)})))
-    return {observations,superseded:all.filter(a=>!active.has(a.sourceMessageId)),context:messages.filter(m=>m.kind!=='assistant'&&m.answerTo&&m.answerQuestion).map(m=>({sourceMessageId:m.id,questionId:m.answerTo.questionId,questionText:m.answerQuestion.text,answerText:m.text,status:active.has(m.id)?'active':all.some(a=>a.sourceMessageId===m.id)?'superseded':'literal'}))}
+    return {observations,superseded:all.filter(a=>!active.has(a.sourceMessageId)),context:messages.filter(m=>m.kind!=='assistant'&&m.answerTo?.contextId===contextId&&m.answerQuestion).map(m=>({contextId,sourceMessageId:m.id,questionId:m.answerTo.questionId,questionText:m.answerQuestion.text,domain:m.answerQuestion.domain,answerText:m.text,...sourceRanges.get(m.id),status:active.has(m.id)?'active':all.some(a=>a.sourceMessageId===m.id)?'superseded':'literal'}))}
   }
   async context(accountId,memberId,raw){
     const member=await this.scoped(accountId,memberId),terms=[...new Set(raw.match(/[\u4e00-\u9fff]{2,8}/g)??[])].slice(0,12)
@@ -274,7 +274,7 @@ export class AIBusinessService {
       readable=readablePreview(JSON.stringify(value),diagnostics)??readable
       if(syntheticRequested)syntheticCapture=captureSyntheticOutput({input,context:extractionContext,output:value,diagnostics,referenceNow:draft.referenceNow,timezone:draft.timezone})
       const evidenceItems=validateExtraction(value,draft.sources)
-      const extracted=await reconcileExtraction(draft.frontDeskRecord?groundNursingEvidence(evidenceItems,draft.sources,{referenceNow:draft.referenceNow,timezone:draft.timezone,supersededAnswers:draft.supersededAnswers}):evidenceItems,draft.sources,{referenceNow:draft.referenceNow,timezone:draft.timezone})
+      const extracted=await reconcileExtraction(draft.frontDeskRecord?groundNursingEvidence(evidenceItems,draft.sources,{referenceNow:draft.referenceNow,timezone:draft.timezone,supersededAnswers:draft.supersededAnswers,frontContextId:draft.frontContextId,answerContext:draft.answerContext}):evidenceItems,draft.sources,{referenceNow:draft.referenceNow,timezone:draft.timezone})
       const occurrences=draft.smartRecord?mergeNarratedIncidents(extracted,draft.sources,{referenceNow:draft.referenceNow,timezone:draft.timezone,resolve:item=>resolveItemTime(item,{referenceNow:draft.referenceNow,timezone:draft.timezone})}):extracted
       draft.items=mergeItems(occurrences).map(item=>this.resolve(item,draft))
       if(draft.frontDeskRecord&&(draft.answerObservations.length||draft.supersededAnswers?.length)&&draft.items.length){
@@ -340,7 +340,7 @@ export class AIBusinessService {
     const forJournal={...item,fields:item.fields.filter(f=>!draft.frontDeskRecord||!['sleepAt','wakeAt'].includes(f.name)||f.resolvedValue).map(f=>({...f,value:f.resolvedValue??f.value}))}
     item.journal=buildJournal(forJournal)
     if(draft.frontDeskRecord&&!draft.manualOriginal&&!item.manualAdded){
-      item.timeSources=item.timeText?(draft.sources??[]).filter(source=>source.text.includes(item.timeText)&&item.fields.some(f=>f.sources?.some(ref=>ref.sourceId===source.id&&ref.page===source.page))).slice(0,3).map(source=>({sourceId:source.id,page:source.page,quote:item.timeText})):[]
+      item.timeSources=!item.timeEditedBy&&item.timeResolution?.source==='bound_nursing_answer'?item.timeResolution.references:item.timeText?(draft.sources??[]).filter(source=>source.text.includes(item.timeText)&&item.fields.some(f=>f.sources?.some(ref=>ref.sourceId===source.id&&ref.page===source.page))).slice(0,3).map(source=>({sourceId:source.id,page:source.page,quote:item.timeText})):[]
       item.professionalSummary=buildProfessionalSummary(item,{sources:draft.sources})
     }
     return item
