@@ -119,3 +119,12 @@ test('explicit stop in an unknown-owner photo conversation preserves the isolate
  assert.equal(done.context.messages.find(m=>m.id==='unknown-photo').recordable,false)
  await assert.rejects(()=>f.service.frontAnswerObservations(f.account,f.member.id,first.context.id,''),{code:'FRONT_RECORD_NOT_READY'})
 })
+
+
+test('early unknown-answer recognition retains quoted and future-context exclusions',()=>{
+ assert.equal(nursingResponseIntent('暂时没注意明天的尿量，先按已经说过的情况记录。').stop,false)
+ // The trailing direct command may finish questions, but a quoted target must
+ // never be interpreted as the current question's unknown health answer.
+ assert.notEqual(nursingResponseIntent('暂时没注意“妈妈的疼痛”，先按已经说过的情况记录。').kind,'unknown')
+ assert.deepEqual(nursingResponseIntent('暂时没注意尿的具体颜色，先按已经说过的情况记录。'),{kind:'unknown',stop:true})
+})

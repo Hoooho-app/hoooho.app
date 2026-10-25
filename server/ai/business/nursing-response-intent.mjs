@@ -26,8 +26,9 @@ const currentCommand=(text,clause)=>{
 export function nursingResponseIntent(input){
   const text=String(input??'').trim()
   if(!text)return {kind:'none',stop:false}
-  if(/^暂时没注意[^，。\n]{1,35}[，,]\s*先按已经说过的情况记录[。]?$/.test(text))return {kind:'unknown',stop:true}
-  const m=pureUnknown.exec(text)
+  const protectedUnknown=/[“”‘’「」『』"']|如果|假如|万一|若是|若出现|明天|后天|下周|将来|准备|打算|计划|以后/u.test(text)
+  if(!protectedUnknown&&/^暂时没注意[^，。\n]{1,35}[，,]\s*先按已经说过的情况记录[。]?$/.test(text))return {kind:'unknown',stop:true}
+  const m=protectedUnknown?null:pureUnknown.exec(text)
   if(m){
     const at=text.indexOf(m[1]),scope=clinicalContext(text,at,at+m[1].length)
     if(scope.subject==='current'&&scope.temporality==='current')return {kind:'unknown',stop:true}
