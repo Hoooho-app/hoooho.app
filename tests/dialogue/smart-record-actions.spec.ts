@@ -79,6 +79,7 @@ test('delete the extracted record and save only a manual addition',async({page})
  await expect(page.getByRole('dialog')).toContainText('胳膊有点痒')
 })
 test('voice recording remains available and automatically gets the two record actions',async({page,request})=>{
+ await request.post('http://127.0.0.1:4198/draft-data',{data:{items:['昨天脸颊有点红','今天胳膊有点痒'].map(text=>({category:'symptom',title:'合成观察记录',timeText:text.startsWith('昨天')?'昨天':'今天',subject:'current',archiveCategory:null,relationKey:null,fields:[{name:'symptom',value:text,quote:text,sourceId:'@first',page:1}]}))}})
  await request.get(`http://127.0.0.1:4198/voice?text=${encodeURIComponent('今天胳膊有点痒')}`)
  await page.getByRole('button',{name:'改用语音'}).click()
  const hold=page.getByRole('button',{name:'按住说话',exact:true})

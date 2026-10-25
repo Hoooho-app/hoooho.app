@@ -1,0 +1,1537 @@
+{
+  "version": "observation-questions-20261025-v2",
+  "authorship": "Hoooho original observation prompts",
+  "clinicalReviewStatus": "pending_clinical_review",
+  "questions": [
+    {
+      "id": "skin-location",
+      "domain": "skin",
+      "priority": 95,
+      "text": "变化出现在哪个部位？可以点身体部位，也可以拍一张照片。",
+      "options": [
+        {
+          "label": "头面部",
+          "value": "变化在头面部。"
+        },
+        {
+          "label": "躯干",
+          "value": "变化在躯干。"
+        },
+        {
+          "label": "四肢",
+          "value": "变化在四肢。"
+        },
+        {
+          "label": "没注意",
+          "value": "暂时没注意具体部位，先按已经说过的情况记录。"
+        }
+      ],
+      "knownPattern": "(?:头|面|脸|嘴|口部|口腔|牙|耳|眼|鼻|颈|脖|胸|背|腰|腹|肚|臀|屁股|手|脚|腿|臂|全身|会阴|尿道)|躯干|四肢|肩|膝|肘|腕|指|趾|掌|髋|足|额|眉|脐|肛|喉|嗓",
+      "sourceIds": [
+        "openrn-pediatric-assessment",
+        "openrn-pediatric-systems",
+        "rch-assessment"
+      ],
+      "purpose": "补充已叙述观察的具体缺口，不推断病因；已有答案或不清楚时不重复追问。",
+      "slot": "skin-location",
+      "answerKind": "location",
+      "target": "mainConcern",
+      "clinicalReviewStatus": "pending_clinical_review"
+    },
+    {
+      "id": "skin-appearance",
+      "domain": "skin",
+      "priority": 90,
+      "text": "您已看到那里的外观有什么变化，比如发红或小包？没有看到或没看清也可以直接说。",
+      "options": [
+        {
+          "label": "红点",
+          "value": "那里出现了红点。"
+        },
+        {
+          "label": "成片发红",
+          "value": "那里是成片发红。"
+        },
+        {
+          "label": "小包",
+          "value": "那里出现了小包。"
+        },
+        {
+          "label": "没看到变化",
+          "value": "家长暂未看到那里外观有明显变化。"
+        },
+        {
+          "label": "没注意",
+          "value": "暂时没注意具体外观，先按已经说过的情况记录。"
+        }
+      ],
+      "knownPattern": "红点|红疹|疹子|红斑|小包|水泡|水疱|成片|破皮|渗液|脱皮|具体外观.{0,5}(?:不清楚|未观察|未确认)|外观.{0,6}(?:未观察|没看清|没注意|不清楚)|没看到.{0,5}外观变化|有点红|发红|红了?一片",
+      "sourceIds": [
+        "openrn-pediatric-assessment",
+        "openrn-pediatric-systems",
+        "rch-assessment"
+      ],
+      "purpose": "补充已叙述观察的具体缺口，不推断病因；已有答案或不清楚时不重复追问。",
+      "slot": "skin-appearance",
+      "answerKind": "choice",
+      "target": "mainConcern",
+      "clinicalReviewStatus": "pending_clinical_review"
+    },
+    {
+      "id": "skin-sensation",
+      "domain": "skin",
+      "priority": 80,
+      "text": "孩子有说痒或疼，还是您看到他一直抓挠？",
+      "options": [
+        {
+          "label": "说痒",
+          "value": "孩子说那里痒。"
+        },
+        {
+          "label": "说疼",
+          "value": "孩子说那里疼。"
+        },
+        {
+          "label": "看到抓挠",
+          "value": "我看到孩子反复抓挠那里。"
+        },
+        {
+          "label": "没注意",
+          "value": "暂时没注意孩子的具体感受，先按已经说过的情况记录。"
+        }
+      ],
+      "knownPattern": "痒|挠|抓|疼|痛|躲开|回避|一碰.{0,5}躲",
+      "sourceIds": [
+        "openrn-pediatric-assessment",
+        "openrn-pediatric-systems",
+        "rch-assessment"
+      ],
+      "purpose": "补充已叙述观察的具体缺口，不推断病因；已有答案或不清楚时不重复追问。",
+      "slot": "skin-sensation",
+      "answerKind": "choice",
+      "target": "mainConcern",
+      "clinicalReviewStatus": "pending_clinical_review"
+    },
+    {
+      "id": "resp-effort",
+      "domain": "respiratory",
+      "priority": 100,
+      "text": "您现在看到孩子呼吸时，和平时相比有没有明显费力？没观察也可以先记已有信息。",
+      "options": [
+        {
+          "label": "看着和平时一样",
+          "value": "家长观察目前呼吸看着和平时一样。"
+        },
+        {
+          "label": "看到明显费力",
+          "value": "家长现在看到孩子呼吸明显费力。"
+        },
+        {
+          "label": "没注意",
+          "value": "暂时没注意目前呼吸是否费力，先按已经说过的情况记录。"
+        }
+      ],
+      "knownPattern": "(?:呼吸|喘).{0,12}(?:费力|困难|正常|(?:和|与)?平时一样|还好|顺畅|没有异常)|不喘|没有喘|胸口.{0,8}起伏",
+      "sourceIds": [
+        "openrn-pediatric-assessment",
+        "openrn-pediatric-respiratory",
+        "rch-assessment"
+      ],
+      "purpose": "补充已叙述观察的具体缺口，不推断病因；已有答案或不清楚时不重复追问。",
+      "slot": "resp-effort",
+      "answerKind": "boolean_or_choice",
+      "target": "associatedObservation",
+      "clinicalReviewStatus": "pending_clinical_review"
+    },
+    {
+      "id": "cough-pattern",
+      "domain": "respiratory",
+      "priority": 85,
+      "text": "咳嗽通常在什么情况下更明显，比如躺下、活动时，还是没有特别规律？",
+      "options": [
+        {
+          "label": "躺下时",
+          "value": "咳嗽在躺下时更明显。"
+        },
+        {
+          "label": "活动时",
+          "value": "咳嗽在活动时更明显。"
+        },
+        {
+          "label": "没明显规律",
+          "value": "家长暂未发现咳嗽的明显规律。"
+        },
+        {
+          "label": "没注意",
+          "value": "暂时没注意咳嗽的规律，先按已经说过的情况记录。"
+        }
+      ],
+      "knownPattern": "夜|躺|早|晚|白天|跑|运动|睡|进食|喝水|吃东西",
+      "sourceIds": [
+        "openrn-pediatric-assessment",
+        "openrn-pediatric-respiratory",
+        "rch-assessment"
+      ],
+      "purpose": "补充已叙述观察的具体缺口，不推断病因；已有答案或不清楚时不重复追问。",
+      "triggerPattern": "咳",
+      "slot": "cough-pattern",
+      "answerKind": "choice",
+      "target": "mainConcern",
+      "clinicalReviewStatus": "pending_clinical_review"
+    },
+    {
+      "id": "fever-measurement",
+      "domain": "fever",
+      "priority": 95,
+      "text": "目前是摸着热，还是已经量过体温？量过的话，把数字和测量部位告诉我就好。",
+      "options": [
+        {
+          "label": "还没量",
+          "value": "家长感到孩子摸着热，目前尚未测量体温。"
+        },
+        {
+          "label": "已经量过",
+          "value": "已经测量体温，具体数值待补充。"
+        },
+        {
+          "label": "没注意",
+          "value": "暂时没注意是否已测体温，先按已经说过的情况记录。"
+        }
+      ],
+      "knownPattern": "(?:\\d{2}(?:\\.\\d+)?|三十[五六七八九]|四十)(?:\\s*[℃度]|\\s*摄氏度)|未测|没量|没测|尚未测|还没量|量过|量着|测过|测量过|已经测量|腋温|耳温|额温|量了|测了",
+      "sourceIds": [
+        "openrn-pediatric-assessment",
+        "openrn-pediatric-systems",
+        "rch-assessment"
+      ],
+      "purpose": "补充已叙述观察的具体缺口，不推断病因；已有答案或不清楚时不重复追问。",
+      "slot": "fever-measurement",
+      "answerKind": "choice",
+      "target": "mainConcern",
+      "clinicalReviewStatus": "pending_clinical_review"
+    },
+    {
+      "id": "fever-state",
+      "domain": "fever",
+      "priority": 85,
+      "text": "您现在看到孩子的精神和反应，和平时相比有什么变化？没注意也可以先记已有信息。",
+      "options": [
+        {
+          "label": "看着和平时一样",
+          "value": "家长观察孩子目前精神和反应看着和平时一样。"
+        },
+        {
+          "label": "比平时没精神",
+          "value": "家长观察孩子目前比平时没精神。"
+        },
+        {
+          "label": "没注意",
+          "value": "暂时没注意精神和反应的变化，先按已经说过的情况记录。"
+        }
+      ],
+      "knownPattern": "精神.{0,8}(?:好|差|正常|平时|不好|没注意)|反应.{0,8}(?:好|慢|正常|平时|没注意)|(?:愿意|不愿|还在|能|不能)玩|活动(?:量)?.{0,8}(?:变少|减少|和平时|没变化)|没精神|精神不好",
+      "sourceIds": [
+        "openrn-pediatric-assessment",
+        "openrn-pediatric-systems",
+        "rch-assessment"
+      ],
+      "purpose": "补充已叙述观察的具体缺口，不推断病因；已有答案或不清楚时不重复追问。",
+      "slot": "fever-state",
+      "answerKind": "choice",
+      "target": "associatedObservation",
+      "clinicalReviewStatus": "pending_clinical_review"
+    },
+    {
+      "id": "stool-count",
+      "domain": "bowel",
+      "priority": 90,
+      "text": "这次便便变稀大约出现了几次？没数清也可以先留空。",
+      "options": [
+        {
+          "label": "1次",
+          "value": "这次稀便出现了1次。"
+        },
+        {
+          "label": "2次",
+          "value": "这次稀便出现了2次。"
+        },
+        {
+          "label": "3次",
+          "value": "这次稀便出现了3次。"
+        },
+        {
+          "label": "没注意",
+          "value": "暂时没注意具体稀便次数，先按已经说过的情况记录。"
+        }
+      ],
+      "knownPattern": "(?:拉稀|稀便|便便|大便|排便)(?![^，。]{0,8}(?:药|服用|服药|吃药))[^，。]{0,6}[一二三四五六七八九十两\\d]+次|(?:拉|排)了?[一二三四五六七八九十两\\d]+次[^，。]{0,5}(?:稀|水样)|[一二三四五六七八九十两\\d]+次(?:稀便|便便|大便|水样便)|没数|次数.{0,8}(?:不清|不知道|没注意)",
+      "sourceIds": [
+        "openrn-pediatric-assessment",
+        "openrn-pediatric-systems",
+        "rch-assessment"
+      ],
+      "purpose": "补充已叙述观察的具体缺口，不推断病因；已有答案或不清楚时不重复追问。",
+      "triggerPattern": "拉稀|腹泻|稀便|便便.{0,5}(?:稀|水样)|大便.{0,5}(?:稀|水样)|拉得.{0,3}稀",
+      "slot": "stool-count",
+      "answerKind": "count",
+      "target": "mainConcern",
+      "clinicalReviewStatus": "pending_clinical_review"
+    },
+    {
+      "id": "bowel-urine",
+      "domain": "bowel",
+      "priority": 80,
+      "text": "这段时间尿量或尿湿尿布的情况，和平时相比有变化吗？",
+      "options": [
+        {
+          "label": "差不多",
+          "value": "家长观察这段时间尿量和平时差不多。"
+        },
+        {
+          "label": "比平时少",
+          "value": "家长观察这段时间尿量比平时少。"
+        },
+        {
+          "label": "没注意",
+          "value": "暂时没注意这段时间尿量的变化，先按已经说过的情况记录。"
+        }
+      ],
+      "knownPattern": "尿量|尿尿|小便|尿湿|尿布|排尿",
+      "sourceIds": [
+        "openrn-pediatric-assessment",
+        "openrn-pediatric-systems",
+        "rch-assessment"
+      ],
+      "purpose": "补充已叙述观察的具体缺口，不推断病因；已有答案或不清楚时不重复追问。",
+      "triggerPattern": "拉稀|腹泻|稀便|便便.{0,5}(?:稀|水样)|大便.{0,5}(?:稀|水样)|拉得.{0,3}稀",
+      "slot": "bowel-urine",
+      "answerKind": "boolean_or_choice",
+      "target": "associatedObservation",
+      "clinicalReviewStatus": "pending_clinical_review"
+    },
+    {
+      "id": "vomit-course",
+      "domain": "vomit",
+      "priority": 90,
+      "text": "这次吐是吃喝之后发生的吗？您记得的经过就可以，不需要先判断是不是吐奶。",
+      "options": [
+        {
+          "label": "吃喝后",
+          "value": "这次吐是在吃喝之后发生。"
+        },
+        {
+          "label": "没有吃喝关联",
+          "value": "家长暂未发现这次吐与吃喝的关联。"
+        },
+        {
+          "label": "没注意",
+          "value": "暂时没注意吐与吃喝的先后经过，先按已经说过的情况记录。"
+        }
+      ],
+      "knownPattern": "饭后|奶后|喂后|吃完|喝完|进食|[一二三四五六七八九十两\\d]+次",
+      "sourceIds": [
+        "openrn-pediatric-assessment",
+        "openrn-pediatric-systems",
+        "rch-assessment"
+      ],
+      "purpose": "补充已叙述观察的具体缺口，不推断病因；已有答案或不清楚时不重复追问。",
+      "slot": "vomit-course",
+      "answerKind": "choice",
+      "target": "mainConcern",
+      "clinicalReviewStatus": "pending_clinical_review"
+    },
+    {
+      "id": "pain-location",
+      "domain": "pain",
+      "priority": 95,
+      "text": "孩子有没有指向或护住某个部位？不会说也可以告诉我您看到的动作。",
+      "options": [
+        {
+          "label": "指着肚子",
+          "value": "家长看到孩子指向肚子。"
+        },
+        {
+          "label": "指着嘴巴",
+          "value": "家长看到孩子指向嘴巴。"
+        },
+        {
+          "label": "没有明确部位",
+          "value": "家长暂未发现孩子指向或护住明确部位。"
+        },
+        {
+          "label": "没注意",
+          "value": "暂时没注意孩子是否指向某个部位，先按已经说过的情况记录。"
+        }
+      ],
+      "knownPattern": "(?:头|面|脸|嘴|口部|口腔|牙|耳|眼|鼻|颈|脖|胸|背|腰|腹|肚|臀|屁股|手|脚|腿|臂|全身|会阴|尿道)|肩|膝|肘|腕|指|趾|掌|髋|足|额|眉|脐|肛|喉|嗓",
+      "sourceIds": [
+        "openrn-pediatric-assessment",
+        "openrn-pediatric-systems",
+        "rch-assessment",
+        "rch-pain"
+      ],
+      "purpose": "补充已叙述观察的具体缺口，不推断病因；已有答案或不清楚时不重复追问。",
+      "slot": "pain-location",
+      "answerKind": "location",
+      "target": "mainConcern",
+      "clinicalReviewStatus": "pending_clinical_review"
+    },
+    {
+      "id": "pain-impact",
+      "domain": "pain",
+      "priority": 85,
+      "text": "这种不适有没有影响吃喝、活动或入睡？说一个最明显的变化就可以。",
+      "options": [
+        {
+          "label": "影响吃喝",
+          "value": "家长观察这次不适影响了孩子吃喝。"
+        },
+        {
+          "label": "影响活动",
+          "value": "家长观察这次不适影响了孩子活动。"
+        },
+        {
+          "label": "影响入睡",
+          "value": "家长观察这次不适影响了孩子入睡。"
+        },
+        {
+          "label": "没注意",
+          "value": "暂时没注意这次不适对日常状态的影响，先按已经说过的情况记录。"
+        }
+      ],
+      "knownPattern": "吃|喝|睡|走|玩|活动|安抚|抱|反应",
+      "sourceIds": [
+        "openrn-pediatric-assessment",
+        "openrn-pediatric-systems",
+        "rch-assessment",
+        "rch-pain"
+      ],
+      "purpose": "补充已叙述观察的具体缺口，不推断病因；已有答案或不清楚时不重复追问。",
+      "slot": "pain-impact",
+      "answerKind": "boolean_or_choice",
+      "target": "mainConcern",
+      "clinicalReviewStatus": "pending_clinical_review"
+    },
+    {
+      "id": "urinary-change",
+      "domain": "urinary",
+      "priority": 90,
+      "text": "排尿时的表现之外，尿的次数、量或颜色有没有哪一项和往常不同？",
+      "options": [
+        {
+          "label": "次数变多",
+          "value": "家长观察排尿次数比往常多。"
+        },
+        {
+          "label": "量变少",
+          "value": "家长观察尿量比往常少。"
+        },
+        {
+          "label": "颜色有变化",
+          "value": "家长观察尿的颜色和往常不同，具体颜色待补充。"
+        },
+        {
+          "label": "没注意",
+          "value": "暂时没注意尿的次数、量或颜色，先按已经说过的情况记录。"
+        }
+      ],
+      "knownPattern": "尿频|次数|尿量|颜色|尿色|尿血|红色|量少|尿少|尿布.{0,8}(?:轻|重)",
+      "sourceIds": [
+        "openrn-pediatric-assessment",
+        "openrn-pediatric-systems",
+        "rch-assessment"
+      ],
+      "purpose": "补充已叙述观察的具体缺口，不推断病因；已有答案或不清楚时不重复追问。",
+      "slot": "urinary-change",
+      "answerKind": "boolean_or_choice",
+      "target": "mainConcern",
+      "clinicalReviewStatus": "pending_clinical_review"
+    },
+    {
+      "id": "injury-function",
+      "domain": "injury",
+      "priority": 100,
+      "text": "这个部位现在活动或使用时，和平时有什么不同？只说已经看到的表现，不需要让孩子试动作。",
+      "options": [
+        {
+          "label": "还能照常活动",
+          "value": "家长观察受伤部位目前还能照常活动。"
+        },
+        {
+          "label": "活动明显受限",
+          "value": "家长观察受伤部位目前活动明显受限。"
+        },
+        {
+          "label": "没注意",
+          "value": "暂时没注意受伤部位的活动情况，先按已经说过的情况记录。"
+        }
+      ],
+      "knownPattern": "走路|活动|抬|拿|使用|负重|不能走|不肯走|不(?:太)?肯动|不能动|不愿动|能动|照常",
+      "sourceIds": [
+        "openrn-pediatric-assessment",
+        "openrn-pediatric-systems",
+        "rch-assessment"
+      ],
+      "purpose": "补充已叙述观察的具体缺口，不推断病因；已有答案或不清楚时不重复追问。",
+      "slot": "injury-function",
+      "answerKind": "choice",
+      "target": "mainConcern",
+      "clinicalReviewStatus": "pending_clinical_review"
+    },
+    {
+      "id": "injury-course",
+      "domain": "injury",
+      "priority": 85,
+      "text": "您知道这次受伤是怎么发生的吗？不清楚就保留为经过未明。",
+      "options": [
+        {
+          "label": "摔倒",
+          "value": "这次受伤发生在摔倒后。"
+        },
+        {
+          "label": "碰撞",
+          "value": "这次受伤发生在碰撞后。"
+        },
+        {
+          "label": "没注意",
+          "value": "暂时没注意具体受伤经过，先按已经说过的情况记录。"
+        }
+      ],
+      "knownPattern": "摔|跌|撞|碰|砸|烫|咬|划|割|抓伤|扭|经过.{0,5}不清|不知道.{0,8}(?:怎么|经过|原因)|记不清.{0,8}(?:怎么|经过)",
+      "sourceIds": [
+        "openrn-pediatric-assessment",
+        "openrn-pediatric-systems",
+        "rch-assessment"
+      ],
+      "purpose": "补充已叙述观察的具体缺口，不推断病因；已有答案或不清楚时不重复追问。",
+      "slot": "injury-course",
+      "answerKind": "choice",
+      "target": "mainConcern",
+      "clinicalReviewStatus": "pending_clinical_review"
+    },
+    {
+      "id": "sleep-awakening",
+      "domain": "sleep",
+      "priority": 90,
+      "text": "哭闹时孩子是醒着能回应您，还是闭着眼、像没醒？",
+      "options": [
+        {
+          "label": "醒着能回应",
+          "value": "哭闹时孩子醒着，能回应家长。"
+        },
+        {
+          "label": "像没醒",
+          "value": "哭闹时孩子闭着眼，家长不确定是否清醒。"
+        },
+        {
+          "label": "没注意",
+          "value": "暂时没注意哭闹时是否清醒，先按已经说过的情况记录。"
+        }
+      ],
+      "knownPattern": "醒来|醒了|夜醒|醒后|没醒|睡着后醒|闭眼|睁眼|闭着眼",
+      "sourceIds": [
+        "openrn-pediatric-assessment",
+        "openrn-pediatric-systems",
+        "rch-assessment"
+      ],
+      "purpose": "补充已叙述观察的具体缺口，不推断病因；已有答案或不清楚时不重复追问。",
+      "triggerPattern": "哭|闹|哄",
+      "slot": "sleep-awakening",
+      "answerKind": "choice",
+      "target": "mainConcern",
+      "clinicalReviewStatus": "pending_clinical_review"
+    },
+    {
+      "id": "oral-observation",
+      "domain": "oral",
+      "priority": 90,
+      "text": "白天吃东西或刷牙时，会不会躲开，或者表现出嘴里疼？没注意也可以。",
+      "options": [
+        {
+          "label": "看到躲开",
+          "value": "家长看到孩子吃东西或刷牙时躲开，具体是否疼痛未确认。"
+        },
+        {
+          "label": "孩子说嘴疼",
+          "value": "孩子自述嘴里疼。"
+        },
+        {
+          "label": "没注意",
+          "value": "暂时没注意吃东西或刷牙时是否有口腔不适，先按已经说过的情况记录。"
+        }
+      ],
+      "knownPattern": "(?:吃东西|刷牙|进食|吃硬).{0,12}(?:躲|回避|不愿|不肯|痛|疼)|(?:不愿|不肯|回避).{0,5}(?:硬的|硬食)|(?:口腔|嘴里|嘴巴).{0,5}(?:疼|痛)|口腔不适.{0,8}(?:未确认|不清楚)",
+      "triggerPattern": "摸嘴|捂嘴|口腔|嘴巴|口部|牙|刷牙|不肯咬|回避硬|不愿吃硬",
+      "sourceIds": [
+        "openrn-pediatric-assessment",
+        "openrn-pediatric-systems",
+        "rch-assessment",
+        "rch-pain"
+      ],
+      "purpose": "补充已叙述观察的具体缺口，不推断病因；已有答案或不清楚时不重复追问。",
+      "slot": "oral-observation",
+      "answerKind": "boolean_or_choice",
+      "target": "mainConcern",
+      "clinicalReviewStatus": "pending_clinical_review"
+    },
+    {
+      "id": "sleep-consolation",
+      "domain": "sleep",
+      "priority": 80,
+      "text": "哭闹后安抚一下，孩子能平静下来或再次入睡吗？",
+      "options": [
+        {
+          "label": "能平静下来",
+          "value": "哭闹后经家长安抚，孩子可以平静下来。"
+        },
+        {
+          "label": "能再次入睡",
+          "value": "哭闹后经家长安抚，孩子可以再次入睡。"
+        },
+        {
+          "label": "仍哭闹",
+          "value": "哭闹后经家长安抚，孩子仍持续哭闹。"
+        },
+        {
+          "label": "没注意",
+          "value": "暂时没注意安抚后的变化，先按已经说过的情况记录。"
+        }
+      ],
+      "knownPattern": "安抚|抱.{0,10}(?:好|静|睡)|自己.{0,6}睡|哄",
+      "sourceIds": [
+        "openrn-pediatric-assessment",
+        "openrn-pediatric-systems",
+        "rch-assessment"
+      ],
+      "purpose": "补充已叙述观察的具体缺口，不推断病因；已有答案或不清楚时不重复追问。",
+      "triggerPattern": "哭|闹|哄",
+      "slot": "sleep-consolation",
+      "answerKind": "boolean_or_choice",
+      "target": "mainConcern",
+      "clinicalReviewStatus": "pending_clinical_review"
+    },
+    {
+      "id": "behaviour-change",
+      "domain": "behaviour",
+      "priority": 90,
+      "text": "这次觉得不对劲，您最明显看到的是活动变少、互动不一样，还是吃喝变少？说一个已经看到的变化就好。",
+      "options": [
+        {
+          "label": "活动变少",
+          "value": "家长观察孩子活动比平时少。"
+        },
+        {
+          "label": "反应有变化",
+          "value": "家长观察孩子反应和平时不同，具体表现待补充。"
+        },
+        {
+          "label": "没注意",
+          "value": "暂时没注意具体行为变化，先按已经说过的情况记录。"
+        }
+      ],
+      "knownPattern": "活动(?:量)?.{0,8}(?:少|减少|多)|(?:不愿|不肯|不想)(?:玩|动)|互动.{0,8}(?:少|变化|不一样)|(?:反应|回应).{0,8}(?:慢|迟钝|迟缓)|吃喝.{0,8}(?:少|下降)|喝水.{0,8}(?:少|不肯)|一直哭|持续哭",
+      "sourceIds": [
+        "openrn-pediatric-assessment",
+        "openrn-pediatric-systems",
+        "rch-assessment"
+      ],
+      "purpose": "补充已叙述观察的具体缺口，不推断病因；已有答案或不清楚时不重复追问。",
+      "slot": "behaviour-change",
+      "answerKind": "choice",
+      "target": "mainConcern",
+      "clinicalReviewStatus": "pending_clinical_review"
+    },
+    {
+      "id": "stool-change",
+      "domain": "bowel",
+      "priority": 90,
+      "text": "便便这次和平时相比，主要是次数、软硬，还是排出时的表现有变化？说您已看到的一点就好。",
+      "knownPattern": "稀|硬|水样|干|颗粒|一粒粒|费力|费劲|不拉|没(?:有)?(?:大便|拉|排便)|性状.{0,5}(?:未观察|不知道|没看清)",
+      "options": [
+        {
+          "label": "变稀",
+          "value": "家长观察便便比平时稀。"
+        },
+        {
+          "label": "变硬",
+          "value": "家长观察便便比平时硬。"
+        },
+        {
+          "label": "排便费力",
+          "value": "家长观察排便时较费力。"
+        },
+        {
+          "label": "没注意",
+          "value": "暂时没注意便便的具体变化，先按已经说过的情况记录。"
+        }
+      ],
+      "sourceIds": [
+        "openrn-pediatric-assessment",
+        "openrn-pediatric-systems"
+      ],
+      "purpose": "补充已有观察的具体缺口，不作诊断，不要求家长进行专业检查。",
+      "slot": "stool-change",
+      "answerKind": "choice",
+      "target": "mainConcern",
+      "clinicalReviewStatus": "pending_clinical_review"
+    },
+    {
+      "id": "constipation-pattern",
+      "domain": "bowel",
+      "priority": 90,
+      "text": "这次主要是排便次数比平时少、排便费力，还是便便变硬？说您已经看到的一点就好。",
+      "knownPattern": "硬|干|颗粒|一粒粒|费力|费劲|使劲|次数.{0,5}少|[天日].{0,5}没(?:有)?(?:拉|大便|排便)",
+      "options": [
+        {
+          "label": "次数变少",
+          "value": "家长观察排便次数比平时少。"
+        },
+        {
+          "label": "便便变硬",
+          "value": "家长观察便便比平时硬。"
+        },
+        {
+          "label": "排便费力",
+          "value": "家长观察排便时较费力。"
+        },
+        {
+          "label": "没注意",
+          "value": "暂时没注意这次排便困难的具体表现，先按已经说过的情况记录。"
+        }
+      ],
+      "sourceIds": [
+        "openrn-pediatric-assessment",
+        "openrn-pediatric-systems"
+      ],
+      "purpose": "补充已有观察的具体缺口，不作诊断，不要求家长进行专业检查。",
+      "slot": "constipation-pattern",
+      "answerKind": "choice",
+      "triggerPattern": "便秘|排便困难|便便.{0,5}(?:硬|干)|大便.{0,5}(?:硬|干)|一粒粒|(?:没|未|不)(?:有)?(?:拉|大便|排便)|拉不出来|想拉.{0,5}不出来",
+      "target": "mainConcern",
+      "clinicalReviewStatus": "pending_clinical_review"
+    },
+    {
+      "id": "stool-last-time",
+      "domain": "bowel",
+      "priority": 85,
+      "text": "最近一次排便大约是什么时候？记不清也可以先留空。",
+      "knownPattern": "上次|最近一次|最后一次|[一二三四五六七八九十两\\d]+天.{0,5}没|昨天.{0,6}(?:拉|排便)|今天.{0,6}(?:拉过|排过)|刚(?:刚|才).{0,5}(?:拉|排便)|今天(?:的)?(?:大便|便便)|今天(?:拉了|排了)",
+      "options": [
+        {
+          "label": "今天排过",
+          "value": "家长记得最近一次排便在今天。"
+        },
+        {
+          "label": "昨天排过",
+          "value": "家长记得最近一次排便在昨天。"
+        },
+        {
+          "label": "没注意",
+          "value": "暂时没注意最近一次排便时间，先按已经说过的情况记录。"
+        }
+      ],
+      "sourceIds": [
+        "openrn-pediatric-assessment",
+        "openrn-pediatric-systems"
+      ],
+      "purpose": "补充已有观察的具体缺口，不作诊断，不要求家长进行专业检查。",
+      "slot": "stool-last-time",
+      "answerKind": "choice",
+      "triggerPattern": "便秘|排便困难|便便.{0,5}(?:硬|干)|大便.{0,5}(?:硬|干)|一粒粒|(?:没|未|不)(?:有)?(?:拉|大便|排便)|拉不出来|想拉.{0,5}不出来",
+      "target": "mainConcern",
+      "clinicalReviewStatus": "pending_clinical_review"
+    },
+    {
+      "id": "nasal-observation",
+      "domain": "respiratory",
+      "priority": 90,
+      "text": "鼻子这次主要是堵住、流鼻涕，还是反复打喷嚏？说已看到的主要变化就可以。",
+      "knownPattern": "鼻塞|鼻.{0,4}堵|流(?:清|黄|绿)?鼻涕|清鼻涕|黄鼻涕|打喷嚏|喷嚏多|鼻涕|流涕",
+      "options": [
+        {
+          "label": "鼻子堵",
+          "value": "家长观察孩子鼻子堵。"
+        },
+        {
+          "label": "流鼻涕",
+          "value": "家长观察孩子流鼻涕，具体性状待补充。"
+        },
+        {
+          "label": "反复喷嚏",
+          "value": "家长观察孩子反复打喷嚏。"
+        },
+        {
+          "label": "没注意",
+          "value": "暂时没注意鼻部的具体表现，先按已经说过的情况记录。"
+        }
+      ],
+      "sourceIds": [
+        "openrn-pediatric-assessment",
+        "openrn-pediatric-respiratory",
+        "openrn-pediatric-systems"
+      ],
+      "purpose": "补充已有观察的具体缺口，不作诊断，不要求家长进行专业检查。",
+      "slot": "nasal-observation",
+      "answerKind": "choice",
+      "triggerPattern": "鼻|喷嚏",
+      "target": "mainConcern",
+      "clinicalReviewStatus": "pending_clinical_review"
+    },
+    {
+      "id": "nasal-impact",
+      "domain": "respiratory",
+      "priority": 80,
+      "text": "鼻部变化有没有影响吃喝或睡觉？只说一个您注意到的影响就可以。",
+      "knownPattern": "吃|喝|奶|睡|没有影响|没影响",
+      "options": [
+        {
+          "label": "影响吃喝",
+          "value": "家长观察鼻部变化影响孩子吃喝。"
+        },
+        {
+          "label": "影响睡觉",
+          "value": "家长观察鼻部变化影响孩子睡觉。"
+        },
+        {
+          "label": "没明显影响",
+          "value": "家长暂未发现鼻部变化明显影响吃喝或睡觉。"
+        },
+        {
+          "label": "没注意",
+          "value": "暂时没注意鼻部变化的影响，先按已经说过的情况记录。"
+        }
+      ],
+      "sourceIds": [
+        "openrn-pediatric-assessment",
+        "openrn-pediatric-respiratory",
+        "openrn-pediatric-systems"
+      ],
+      "purpose": "补充已有观察的具体缺口，不作诊断，不要求家长进行专业检查。",
+      "slot": "nasal-impact",
+      "answerKind": "choice",
+      "triggerPattern": "鼻|喷嚏",
+      "target": "mainConcern",
+      "clinicalReviewStatus": "pending_clinical_review"
+    },
+    {
+      "id": "voice-impact",
+      "domain": "respiratory",
+      "priority": 85,
+      "text": "声音变化时，孩子发声或吃喝的表现和平时有什么不同？说一个最明显的变化就好。",
+      "knownPattern": "发声.{0,5}费力|吃|喝|吞咽|哭不出|说不出",
+      "options": [
+        {
+          "label": "发声费力",
+          "value": "家长观察孩子发声比平时费力。"
+        },
+        {
+          "label": "影响吃喝",
+          "value": "家长观察声音变化时孩子吃喝受到影响。"
+        },
+        {
+          "label": "没注意",
+          "value": "暂时没注意声音变化的相关影响，先按已经说过的情况记录。"
+        }
+      ],
+      "sourceIds": [
+        "openrn-pediatric-assessment",
+        "openrn-pediatric-respiratory",
+        "openrn-pediatric-systems"
+      ],
+      "purpose": "补充已有观察的具体缺口，不作诊断，不要求家长进行专业检查。",
+      "slot": "voice-impact",
+      "answerKind": "choice",
+      "triggerPattern": "声音.{0,4}哑|声嘶|嗓音|声音变了",
+      "target": "mainConcern",
+      "clinicalReviewStatus": "pending_clinical_review"
+    },
+    {
+      "id": "eye-side",
+      "domain": "eye",
+      "priority": 92,
+      "text": "眼部变化是在左眼、右眼，还是两边？没留意也可以先留空。",
+      "knownPattern": "左眼|右眼|双眼|两(?:边|只眼)|一只眼|两只眼睛",
+      "options": [
+        {
+          "label": "左眼",
+          "value": "家长观察变化在左眼。"
+        },
+        {
+          "label": "右眼",
+          "value": "家长观察变化在右眼。"
+        },
+        {
+          "label": "两边",
+          "value": "家长观察两只眼都有变化。"
+        },
+        {
+          "label": "没注意",
+          "value": "暂时没注意眼部变化的侧别，先按已经说过的情况记录。"
+        }
+      ],
+      "sourceIds": [
+        "openrn-pediatric-assessment",
+        "openrn-pediatric-systems"
+      ],
+      "purpose": "补充已有观察的具体缺口，不作诊断，不要求家长进行专业检查。",
+      "slot": "eye-side",
+      "answerKind": "location",
+      "target": "mainConcern",
+      "clinicalReviewStatus": "pending_clinical_review"
+    },
+    {
+      "id": "eye-appearance",
+      "domain": "eye",
+      "priority": 90,
+      "text": "眼睛那里您实际看到的主要变化是什么，比如发红、眼屎增多或反复揉眼？说已看到的一点就好。",
+      "knownPattern": "红|流泪|眼屎|分泌物|肿|睁不开|外观.{0,8}(?:没看清|不清|没注意)|红不红.{0,8}(?:没看清|不清楚|没注意)",
+      "options": [
+        {
+          "label": "发红",
+          "value": "家长观察眼部发红。"
+        },
+        {
+          "label": "眼屎增多",
+          "value": "家长观察眼部分泌物比平时多。"
+        },
+        {
+          "label": "反复揉眼",
+          "value": "家长看到孩子反复揉眼。"
+        },
+        {
+          "label": "没注意",
+          "value": "暂时没注意眼部变化的具体表现，先按已经说过的情况记录。"
+        }
+      ],
+      "sourceIds": [
+        "openrn-pediatric-assessment",
+        "openrn-pediatric-systems"
+      ],
+      "purpose": "补充已有观察的具体缺口，不作诊断，不要求家长进行专业检查。",
+      "slot": "eye-appearance",
+      "answerKind": "choice",
+      "target": "mainConcern",
+      "clinicalReviewStatus": "pending_clinical_review"
+    },
+    {
+      "id": "ear-side",
+      "domain": "ear",
+      "priority": 92,
+      "text": "耳部变化是在左边、右边，还是两边？没留意也可以先留空。",
+      "knownPattern": "左耳|右耳|双耳|两(?:边|只耳)",
+      "options": [
+        {
+          "label": "左边",
+          "value": "家长观察变化在左耳。"
+        },
+        {
+          "label": "右边",
+          "value": "家长观察变化在右耳。"
+        },
+        {
+          "label": "两边",
+          "value": "家长观察两侧耳部都有变化。"
+        },
+        {
+          "label": "没注意",
+          "value": "暂时没注意耳部变化的侧别，先按已经说过的情况记录。"
+        }
+      ],
+      "sourceIds": [
+        "openrn-pediatric-assessment",
+        "openrn-pediatric-systems"
+      ],
+      "purpose": "补充已有观察的具体缺口，不作诊断，不要求家长进行专业检查。",
+      "slot": "ear-side",
+      "answerKind": "location",
+      "target": "mainConcern",
+      "clinicalReviewStatus": "pending_clinical_review"
+    },
+    {
+      "id": "ear-observation",
+      "domain": "ear",
+      "priority": 90,
+      "text": "您看到的是反复摸或拉耳朵，还是耳部有流出物？也可以只说一个实际看到的变化。",
+      "knownPattern": "摸|拉|扯|牵拉|揪|抓|流液|流出|分泌物|耳痛|耳朵疼|躲|回避",
+      "options": [
+        {
+          "label": "反复摸拉",
+          "value": "家长看到孩子反复摸或拉耳朵，具体感受未确认。"
+        },
+        {
+          "label": "有流出物",
+          "value": "家长观察耳部有流出物，具体性状待补充。"
+        },
+        {
+          "label": "没注意",
+          "value": "暂时没注意耳部的具体表现，先按已经说过的情况记录。"
+        }
+      ],
+      "sourceIds": [
+        "openrn-pediatric-assessment",
+        "openrn-pediatric-systems"
+      ],
+      "purpose": "补充已有观察的具体缺口，不作诊断，不要求家长进行专业检查。",
+      "slot": "ear-observation",
+      "answerKind": "choice",
+      "target": "mainConcern",
+      "clinicalReviewStatus": "pending_clinical_review"
+    },
+    {
+      "id": "oral-location",
+      "domain": "oral",
+      "priority": 92,
+      "text": "您已经看到的变化在嘴唇、牙龈，还是嘴里面？没看清可以先留空。",
+      "knownPattern": "嘴唇|牙龈|舌|口角|口腔内|嘴里面|嘴里|牙齿|牙疼|嘴角",
+      "options": [
+        {
+          "label": "嘴唇",
+          "value": "家长观察变化在嘴唇。"
+        },
+        {
+          "label": "牙龈",
+          "value": "家长观察变化在牙龈。"
+        },
+        {
+          "label": "嘴里面",
+          "value": "家长观察变化在嘴里面，具体位置待补充。"
+        },
+        {
+          "label": "没注意",
+          "value": "暂时没注意口腔变化的具体位置，先按已经说过的情况记录。"
+        }
+      ],
+      "sourceIds": [
+        "openrn-pediatric-assessment",
+        "openrn-pediatric-systems"
+      ],
+      "purpose": "补充已有观察的具体缺口，不作诊断，不要求家长进行专业检查。",
+      "slot": "oral-location",
+      "answerKind": "location",
+      "target": "mainConcern",
+      "clinicalReviewStatus": "pending_clinical_review",
+      "triggerPattern": "白点|出血|红|肿|破|溃疡|外观|看见|看到"
+    },
+    {
+      "id": "oral-appearance",
+      "domain": "oral",
+      "priority": 85,
+      "text": "口部那里您实际看到的主要变化是什么？描述颜色、破损或孩子的动作都可以，不需要先判断原因。",
+      "knownPattern": "出血|红|肿|破|溃疡|白点|白斑|外观.{0,8}(?:没看清|不清|没注意)",
+      "options": [
+        {
+          "label": "看到破损",
+          "value": "家长观察口部有破损。"
+        },
+        {
+          "label": "看到出血",
+          "value": "家长观察口部有出血。"
+        },
+        {
+          "label": "反复摸嘴",
+          "value": "家长看到孩子反复摸嘴，具体是否疼痛未确认。"
+        },
+        {
+          "label": "没注意",
+          "value": "暂时没注意口部变化的具体表现，先按已经说过的情况记录。"
+        }
+      ],
+      "sourceIds": [
+        "openrn-pediatric-assessment",
+        "openrn-pediatric-systems"
+      ],
+      "purpose": "补充已有观察的具体缺口，不作诊断，不要求家长进行专业检查。",
+      "slot": "oral-appearance",
+      "answerKind": "choice",
+      "target": "mainConcern",
+      "clinicalReviewStatus": "pending_clinical_review"
+    },
+    {
+      "id": "sleep-change",
+      "domain": "sleep",
+      "priority": 90,
+      "text": "这次睡眠和平时相比，主要是难入睡、容易醒，还是其他变化？只记录您看到的经过就可以。",
+      "knownPattern": "入睡.{0,4}(?:难|困难)|难.{0,3}入睡|睡不着|醒|哭|闹|断续|频繁|老醒",
+      "options": [
+        {
+          "label": "难入睡",
+          "value": "家长观察孩子这次较难入睡。"
+        },
+        {
+          "label": "容易醒",
+          "value": "家长观察孩子这次睡眠中较容易醒来。"
+        },
+        {
+          "label": "没注意",
+          "value": "暂时没注意睡眠的具体变化，先按已经说过的情况记录。"
+        }
+      ],
+      "sourceIds": [
+        "openrn-pediatric-assessment",
+        "openrn-pediatric-systems"
+      ],
+      "purpose": "补充已有观察的具体缺口，不作诊断，不要求家长进行专业检查。",
+      "slot": "sleep-change",
+      "answerKind": "choice",
+      "triggerPattern": "睡不好|睡眠.{0,5}(?:不好|变|差)|没睡好|入睡困难|睡不踏实",
+      "target": "mainConcern",
+      "clinicalReviewStatus": "pending_clinical_review"
+    },
+    {
+      "id": "sleep-settling",
+      "domain": "sleep",
+      "priority": 80,
+      "text": "孩子醒来以后，您看到他能再次入睡，还是还需要继续陪伴？没注意可以先留空。",
+      "knownPattern": "再次入睡|继续睡|自己睡|哄|陪|安抚|抱",
+      "options": [
+        {
+          "label": "能再次入睡",
+          "value": "家长观察孩子醒来后可以再次入睡。"
+        },
+        {
+          "label": "需要陪伴",
+          "value": "家长观察孩子醒来后仍需要陪伴，能否再次入睡待补充。"
+        },
+        {
+          "label": "没注意",
+          "value": "暂时没注意醒来后的变化，先按已经说过的情况记录。"
+        }
+      ],
+      "sourceIds": [
+        "openrn-pediatric-assessment",
+        "openrn-pediatric-systems"
+      ],
+      "purpose": "补充已有观察的具体缺口，不作诊断，不要求家长进行专业检查。",
+      "slot": "sleep-settling",
+      "answerKind": "choice",
+      "triggerPattern": "醒来|夜醒|醒了|老醒|频繁醒",
+      "target": "mainConcern",
+      "clinicalReviewStatus": "pending_clinical_review"
+    },
+    {
+      "domain": "behaviour",
+      "priority": 95,
+      "sourceIds": [
+        "openrn-pediatric-assessment"
+      ],
+      "purpose": "围绕当前哭闹的实际情境与可见安抚反应补充观察，不推断疼痛或原因。",
+      "answerKind": "choice",
+      "target": "mainConcern",
+      "clinicalReviewStatus": "pending_clinical_review",
+      "triggerPattern": "哭|闹",
+      "id": "cry-context",
+      "slot": "cry-context",
+      "text": "哭闹是在睡前、睡着时，还是清醒活动时？不确定也可以先记您看到的情况。",
+      "knownPattern": "睡着|睡前|入睡|夜醒|醒后|醒着|清醒|玩耍|活动时",
+      "options": [
+        {
+          "label": "睡前",
+          "value": "家长观察哭闹出现在睡前。"
+        },
+        {
+          "label": "睡着时",
+          "value": "家长观察哭闹出现在睡着时。"
+        },
+        {
+          "label": "清醒时",
+          "value": "家长观察哭闹出现在清醒活动时。"
+        },
+        {
+          "label": "没注意",
+          "value": "暂时没注意哭闹时是否在睡眠中，先按已经说过的情况记录。"
+        }
+      ]
+    },
+    {
+      "domain": "behaviour",
+      "priority": 90,
+      "sourceIds": [
+        "openrn-pediatric-assessment"
+      ],
+      "purpose": "围绕当前哭闹的实际情境与可见安抚反应补充观察，不推断疼痛或原因。",
+      "answerKind": "choice",
+      "target": "mainConcern",
+      "clinicalReviewStatus": "pending_clinical_review",
+      "triggerPattern": "哭|闹",
+      "id": "behaviour-consolation",
+      "slot": "consolation",
+      "text": "这次哭闹在陪伴或安抚后，您看到有什么变化？没注意也可以先留空。",
+      "knownPattern": "安抚|陪伴|哄|抱",
+      "options": [
+        {
+          "label": "能平静",
+          "value": "家长观察哭闹在陪伴或安抚后可以平静。"
+        },
+        {
+          "label": "仍哭闹",
+          "value": "家长观察哭闹在陪伴或安抚后仍持续。"
+        },
+        {
+          "label": "没注意",
+          "value": "暂时没注意陪伴或安抚后的变化，先按已经说过的情况记录。"
+        }
+      ]
+    },
+    {
+      "id": "vomit-observed",
+      "domain": "vomit",
+      "priority": 92,
+      "text": "您看到的是嘴角慢慢流出，还是有明显吐出的动作？说经过就可以，不需要先判断是不是吐奶。",
+      "knownPattern": "慢慢流|明显吐出|用力吐|喷出",
+      "triggerPattern": "嘴角|溢|分不清.{0,6}吐",
+      "slot": "vomit-observed",
+      "answerKind": "choice",
+      "target": "mainConcern",
+      "sourceIds": [
+        "openrn-pediatric-assessment",
+        "openrn-pediatric-systems"
+      ],
+      "purpose": "记录实际经过，不要求家长区分医学类别。",
+      "clinicalReviewStatus": "pending_clinical_review",
+      "options": [
+        {
+          "label": "嘴角流出",
+          "value": "家长观察到内容物从孩子嘴角流出。"
+        },
+        {
+          "label": "看到吐出动作",
+          "value": "家长观察到孩子有吐出的动作。"
+        },
+        {
+          "label": "没注意",
+          "value": "暂时没注意具体吐出或流出的经过，先按已经说过的情况记录。"
+        }
+      ]
+    },
+    {
+      "id": "cough-impact",
+      "domain": "respiratory",
+      "priority": 85,
+      "text": "咳嗽有没有影响吃喝、活动或睡觉？说一个最明显的影响就可以。",
+      "knownPattern": "吃|喝|奶|活动|玩|睡不|咳醒|没影响|没有影响",
+      "triggerPattern": "咳",
+      "slot": "cough-impact",
+      "answerKind": "choice",
+      "target": "mainConcern",
+      "sourceIds": [
+        "openrn-pediatric-assessment",
+        "openrn-pediatric-respiratory"
+      ],
+      "purpose": "补充当前已报告观察的具体缺口；不要求新检查、不推断诊断。",
+      "clinicalReviewStatus": "pending_clinical_review",
+      "options": [
+        {
+          "label": "影响吃喝",
+          "value": "家长观察咳嗽影响了吃喝。"
+        },
+        {
+          "label": "影响睡觉",
+          "value": "家长观察咳嗽影响了睡觉。"
+        },
+        {
+          "label": "没明显影响",
+          "value": "家长暂未发现咳嗽明显影响吃喝、活动或睡觉。"
+        },
+        {
+          "label": "没注意",
+          "value": "暂时没注意咳嗽对日常状态的影响，先按已经说过的情况记录。"
+        }
+      ]
+    },
+    {
+      "id": "fever-site",
+      "domain": "fever",
+      "priority": 88,
+      "text": "您记得这次体温是在哪个部位测的吗？不记得可以先保留已有数值。",
+      "knownPattern": "腋|耳温|额温|额头|口温|肛温|测量部位.{0,8}(?:不清|不知道|不记得)",
+      "triggerPattern": "\\d{2}(?:\\.\\d+)?\\s*[℃度]|已经量|量过|测过",
+      "slot": "fever-site",
+      "answerKind": "choice",
+      "target": "mainConcern",
+      "sourceIds": [
+        "openrn-pediatric-assessment",
+        "openrn-pediatric-systems"
+      ],
+      "purpose": "补充当前已报告观察的具体缺口；不要求新检查、不推断诊断。",
+      "clinicalReviewStatus": "pending_clinical_review",
+      "options": [
+        {
+          "label": "腋下",
+          "value": "家长确认这次体温在腋下测量。"
+        },
+        {
+          "label": "耳部",
+          "value": "家长确认这次体温在耳部测量。"
+        },
+        {
+          "label": "额头",
+          "value": "家长确认这次体温在额头测量。"
+        },
+        {
+          "label": "没注意",
+          "value": "暂时没注意这次体温测量的部位，先按已经说过的情况记录。"
+        }
+      ]
+    },
+    {
+      "id": "bowel-impact",
+      "domain": "bowel",
+      "priority": 85,
+      "text": "排便时您看到孩子有什么动作或反应？说已经看到的一点就好。",
+      "knownPattern": "哭|用力|费劲|费力|使劲|憋|回避|疼|痛",
+      "triggerPattern": "便秘|排便困难|便便.{0,5}(?:硬|干)|大便.{0,5}(?:硬|干)|一粒粒|没(?:有)?(?:大便|排便)|拉不出来|想拉.{0,5}不出来",
+      "slot": "bowel-impact",
+      "answerKind": "choice",
+      "target": "mainConcern",
+      "sourceIds": [
+        "openrn-pediatric-assessment",
+        "openrn-pediatric-systems"
+      ],
+      "purpose": "补充当前已报告观察的具体缺口；不要求新检查、不推断诊断。",
+      "clinicalReviewStatus": "pending_clinical_review",
+      "options": [
+        {
+          "label": "明显用力",
+          "value": "家长观察孩子排便时明显用力。"
+        },
+        {
+          "label": "出现哭闹",
+          "value": "家长观察孩子排便时出现哭闹，具体是否疼痛未确认。"
+        },
+        {
+          "label": "回避排便",
+          "value": "家长观察孩子有回避排便的表现，具体经过待补充。"
+        },
+        {
+          "label": "没注意",
+          "value": "暂时没注意排便时的动作或反应，先按已经说过的情况记录。"
+        }
+      ]
+    },
+    {
+      "id": "urinary-appearance",
+      "domain": "urinary",
+      "priority": 85,
+      "text": "您已经看到的尿颜色大约是什么样？没看清就保留为未确认。",
+      "knownPattern": "黄色|黄|红|褐|棕|清澈|透明|颜色.{0,6}(?:没看|不清|没注意)",
+      "triggerPattern": "颜色|尿色",
+      "slot": "urinary-appearance",
+      "answerKind": "choice",
+      "target": "mainConcern",
+      "sourceIds": [
+        "openrn-pediatric-assessment",
+        "openrn-pediatric-systems"
+      ],
+      "purpose": "补充当前已报告观察的具体缺口；不要求新检查、不推断诊断。",
+      "clinicalReviewStatus": "pending_clinical_review",
+      "options": [
+        {
+          "label": "颜色比平时深",
+          "value": "家长观察尿颜色比平时深，具体色泽待补充。"
+        },
+        {
+          "label": "看着偏红",
+          "value": "家长观察尿颜色看着偏红，是否有血未确认。"
+        },
+        {
+          "label": "没注意",
+          "value": "暂时没注意尿的具体颜色，先按已经说过的情况记录。"
+        }
+      ]
+    },
+    {
+      "id": "vomit-appearance",
+      "domain": "vomit",
+      "priority": 85,
+      "text": "您已经看到的吐出内容大约是什么样？不确定也可以先留空。",
+      "knownPattern": "吐奶|吐(?:出|出来|的是)(?:一些|一点)?(?:奶|食物|水|血)|呕出[^，。]{0,4}(?:奶|食物|水|血)|吐出内容[^，。]{0,8}(?:奶|食物|水|红|黄|绿|血)|内容物[^，。]{0,8}(?:奶|食物|水|红|黄|绿|血)|内容.{0,6}(?:不清|不知道|没注意)",
+      "triggerPattern": "吐|呕",
+      "slot": "vomit-appearance",
+      "answerKind": "choice",
+      "target": "mainConcern",
+      "sourceIds": [
+        "openrn-pediatric-assessment",
+        "openrn-pediatric-systems"
+      ],
+      "purpose": "补充当前已报告观察的具体缺口；不要求新检查、不推断诊断。",
+      "clinicalReviewStatus": "pending_clinical_review",
+      "options": [
+        {
+          "label": "像食物",
+          "value": "家长观察吐出内容看着像食物，具体成分未确认。"
+        },
+        {
+          "label": "像奶",
+          "value": "家长观察吐出内容看着像奶，具体成分未确认。"
+        },
+        {
+          "label": "没注意",
+          "value": "暂时没注意吐出内容的外观，先按已经说过的情况记录。"
+        }
+      ]
+    },
+    {
+      "id": "injury-location",
+      "domain": "injury",
+      "priority": 98,
+      "text": "这次变化出现在哪个具体部位？不知道可以先保留经过。",
+      "knownPattern": "头|面|脸|嘴|牙|耳|眼|鼻|颈|脖|胸|背|腰|腹|肚|臀|屁股|手|脚|腿|臂|肩|膝|肘|腕|指|趾|掌|髋|足|额|眉|脐",
+      "triggerPattern": "摔|跌|撞|伤|淤青|划痕|烫|碰",
+      "slot": "injury-location",
+      "answerKind": "choice",
+      "target": "mainConcern",
+      "sourceIds": [
+        "openrn-pediatric-assessment",
+        "openrn-pediatric-systems"
+      ],
+      "purpose": "补充当前已报告观察的具体缺口；不要求新检查、不推断诊断。",
+      "clinicalReviewStatus": "pending_clinical_review",
+      "options": [
+        {
+          "label": "头面部",
+          "value": "家长观察这次变化在头面部。"
+        },
+        {
+          "label": "四肢",
+          "value": "家长观察这次变化在四肢。"
+        },
+        {
+          "label": "躯干",
+          "value": "家长观察这次变化在躯干。"
+        },
+        {
+          "label": "没注意",
+          "value": "暂时没注意这次变化的具体部位，先按已经说过的情况记录。"
+        }
+      ]
+    },
+    {
+      "id": "injury-surface",
+      "domain": "injury",
+      "priority": 85,
+      "text": "这个部位已经看到的外观有什么变化？没留意就先按经过记录，不需要尝试检查。",
+      "knownPattern": "红|肿|血|破|淤青|划痕|伤口|擦伤|没变化|没有变化",
+      "triggerPattern": "摔|跌|撞|伤|烫|碰",
+      "slot": "injury-surface",
+      "answerKind": "choice",
+      "target": "mainConcern",
+      "sourceIds": [
+        "openrn-pediatric-assessment",
+        "openrn-pediatric-systems"
+      ],
+      "purpose": "补充当前已报告观察的具体缺口；不要求新检查、不推断诊断。",
+      "clinicalReviewStatus": "pending_clinical_review",
+      "options": [
+        {
+          "label": "看见发红",
+          "value": "家长观察这个部位发红。"
+        },
+        {
+          "label": "看见破损",
+          "value": "家长观察这个部位有破损。"
+        },
+        {
+          "label": "没明显变化",
+          "value": "家长暂未发现这个部位外观有明显变化。"
+        },
+        {
+          "label": "没注意",
+          "value": "暂时没注意这个部位的外观变化，先按已经说过的情况记录。"
+        }
+      ]
+    },
+    {
+      "id": "nasal-appearance",
+      "domain": "respiratory",
+      "priority": 85,
+      "text": "您已经看到的鼻涕大约是清水样还是比较黏？没看清也可以先留空。",
+      "knownPattern": "清|黏|粘|黄|绿|稀|性状.{0,6}(?:不知道|没看清|没注意)",
+      "triggerPattern": "鼻涕|流涕",
+      "slot": "nasal-appearance",
+      "answerKind": "choice",
+      "target": "mainConcern",
+      "sourceIds": [
+        "openrn-pediatric-assessment",
+        "openrn-pediatric-systems"
+      ],
+      "purpose": "围绕家长已有观察补充外观或实际影响，不要求进行检查，不判断诊断。",
+      "clinicalReviewStatus": "pending_clinical_review",
+      "options": [
+        {
+          "label": "清水样",
+          "value": "家长观察鼻涕看着像清水样。"
+        },
+        {
+          "label": "比较黏",
+          "value": "家长观察鼻涕比较黏。"
+        },
+        {
+          "label": "没注意",
+          "value": "暂时没注意鼻涕的具体性状，先按已经说过的情况记录。"
+        }
+      ]
+    },
+    {
+      "id": "ear-appearance",
+      "domain": "ear",
+      "priority": 85,
+      "text": "耳部外面您已经看到什么变化，比如发红、破损或流出物？没留意也可以先记录已有情况。",
+      "knownPattern": "红|肿|破|流液|流出|分泌物|黄色|白色|外观.{0,8}(?:没有变化|未观察|没注意)",
+      "triggerPattern": "耳",
+      "slot": "ear-appearance",
+      "answerKind": "choice",
+      "target": "mainConcern",
+      "sourceIds": [
+        "openrn-pediatric-assessment",
+        "openrn-pediatric-systems"
+      ],
+      "purpose": "围绕家长已有观察补充外观或实际影响，不要求进行检查，不判断诊断。",
+      "clinicalReviewStatus": "pending_clinical_review",
+      "options": [
+        {
+          "label": "看到发红",
+          "value": "家长观察耳外部发红。"
+        },
+        {
+          "label": "看到流出物",
+          "value": "家长观察耳部有流出物，具体性状待补充。"
+        },
+        {
+          "label": "没注意",
+          "value": "暂时没注意耳外部的变化，先按已经说过的情况记录。"
+        }
+      ]
+    },
+    {
+      "id": "eye-impact",
+      "domain": "eye",
+      "priority": 85,
+      "text": "眼部变化有没有影响孩子平时睁眼、看东西或玩耍？只说您已经注意到的表现就好。",
+      "knownPattern": "睁不开|睁眼.{0,8}(?:不愿|困难|影响)|看不清|视物|玩.{0,8}(?:影响|没影响)|没有影响|没影响",
+      "triggerPattern": "眼|流泪",
+      "slot": "eye-impact",
+      "answerKind": "choice",
+      "target": "mainConcern",
+      "sourceIds": [
+        "openrn-pediatric-assessment",
+        "openrn-pediatric-systems"
+      ],
+      "purpose": "围绕家长已有观察补充外观或实际影响，不要求进行检查，不判断诊断。",
+      "clinicalReviewStatus": "pending_clinical_review",
+      "options": [
+        {
+          "label": "睁眼有变化",
+          "value": "家长观察孩子睁眼的表现和平时不同，具体原因未确认。"
+        },
+        {
+          "label": "孩子说看不清",
+          "value": "孩子自述看东西不清楚。"
+        },
+        {
+          "label": "没注意",
+          "value": "暂时没注意眼部变化的实际影响，先按已经说过的情况记录。"
+        }
+      ]
+    }
+  ]
+}

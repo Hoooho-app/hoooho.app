@@ -80,10 +80,12 @@ test('spoken no is interpreted only for the currently bound question',async({pag
   await hold.focus();await page.keyboard.down('Space')
   await expect(page.getByRole('button',{name:'正在录音，松开即结束'})).toBeVisible()
   await page.waitForTimeout(900);await page.keyboard.up('Space')
-  await expect(page.getByRole('button',{name:'保存记录',exact:true})).toBeEnabled()
+  await expect(page.getByRole('button',{name:'先记下来',exact:true})).toBeEnabled()
   await expect(page.getByLabel('整理后的描述')).toContainText('家长未见孩子有明显呼吸费力')
   await expect(page.getByLabel('整理后的描述')).not.toContainText('没有呕吐')
   await page.screenshot({path:info.outputPath('voice-answer-summary.png')})
+  await page.getByRole('button',{name:'先记下来',exact:true}).click()
+  await expect(page.getByRole('button',{name:'查看',exact:true})).toBeVisible()
 })
 
 test('a useful specific question is still offered when extraction has no item yet',async({page,request})=>{

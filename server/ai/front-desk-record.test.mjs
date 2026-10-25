@@ -16,6 +16,20 @@ async function setup(t){
  const service=new FrontDeskRecord({dataDirectory,events:new HealthEventService({dataDirectory}),business:{read:async()=>null},model})
  return {service,member,other,calls,model}
 }
+test('record dialogue does not surface an unsolicited provider diagnosis without an observation domain',async t=>{
+ const f=await setup(t)
+ f.model.structured=async()=>({value:{reply:'可能是结膜炎，建议用药。',contextId:'new',action:'record',questionId:null,emergency:{currentChild:false,quote:''}}})
+ const result=await f.service.submit('synthetic',f.member.id,{id:'unsupported-provider-claim',kind:'text',text:'孩子今天吃了半碗粥'})
+ assert.equal(result.context.interview.question,null)
+ assert.doesNotMatch(result.context.messages.find(m=>m.kind==='assistant').text,/结膜炎|用药/)
+})
+for(const [text,quote,expected] of [['孩子现在没有意识了','没有意识',true],['孩子现在一直抽搐','抽搐',true],['孩子没有呼吸困难','呼吸困难',false],['哥哥现在呼吸困难','呼吸困难',false]])test('front dialogue applies full-source emergency evidence: '+text,async t=>{
+ const f=await setup(t)
+ f.model.structured=async()=>({value:{reply:'再问一问',contextId:'new',action:'record',questionId:'resp-effort',emergency:{currentChild:true,quote}}})
+ const result=await f.service.submit('synthetic',f.member.id,{id:'source-gate',kind:'text',text})
+ assert.equal(result.context.interview.status==='urgent',expected)
+ if(expected){assert.equal(result.context.interview.question,null);assert.match(result.context.messages.find(m=>m.kind==='assistant').text,/专业人员|急救/)}
+})
 test('discarded session is not restored or offered to the model; other members and saved records remain intact',async t=>{
  const f=await setup(t)
  const older=await f.service.submit('synthetic',f.member.id,{id:'older',kind:'text',text:'头皮发痒'})

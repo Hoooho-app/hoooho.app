@@ -1,0 +1,70 @@
+Source: Ernstmeyer, K. and Christman, E. (Eds.). (2025). Nursing Health Promotion. Open RN | WisTech Open.
+Original section: https://wtcs.pressbooks.pub/healthpromo/chapter/14-5-applying-the-nursing-process-to-caring-for-an-ill-or-hospitalized-pediatric-client/
+License: Creative Commons Attribution 4.0 International, https://creativecommons.org/licenses/by/4.0/ , except where otherwise noted.
+License declaration: https://wtcs.pressbooks.pub/healthpromo/front-matter/introduction/
+Selection: 14.5 Assessment: History, Physical Examination and General Survey only
+Changes: HTML converted to plain text; navigation, media, figures, tables and interactive material omitted. No translation. Source links/footnote markers may remain.
+No endorsement by WisTech Open/Open RN is implied. Professional educational reference; not clinically certified for Hoooho.
+Retrieved: 2026-10-25
+
+14.5 Applying the Nursing Process and the Clinical Judgment Model to Caring for an Ill or Hospitalized Pediatric Client
+
+This section will apply the nursing process and the NCSBN Clinical Judgment Model to caring for an ill child. Steps of the NCSBN Clinical Judgment Model are indicated in parentheses after the steps of the nursing process. Specific assessments, nursing diagnoses, and interventions for specific childhood disorders are discussed in more detail in the “Childhood Respiratory Disorders” and “Other Childhood Disorders” chapters.
+
+Assessment (Recognize Cues)
+
+When caring for the ill child, a comprehensive nursing assessment should include these aspects[1]:
+
+- History: A client history should include the chief complaint, current symptoms, allergies, medical and surgical history, family history, current medications, cultural and religious beliefs and practices, and coping mechanisms.
+
+- Physical Examination: Vital signs, pain assessment, length/height, weight, and head-to-toe assessment are performed. Infant examinations also include measurement of the head circumference. Measurement of the weight, length/height, and head circumference is used to assess development and should be plotted on standard growth curves to determine progress. Read more about monitoring growth and development in the “Nursing Care For Clients From Infancy Through Adolescence” chapter.
+
+- Review of Laboratory and Diagnostic Results
+
+History
+
+Historical information is primarily obtained from the parents or caregivers for pediatric clients from birth through early childhood. For children ages 5 to 12, the nurse still relies primarily on the parents or caregivers, although comments made by the client are often relevant. When appropriate, adolescent clients should be offered some private time with the health care provider and/or nurse in the absence of parents or caregivers to permit open discussion of pertinent historical information and preventive health care issues. Read more information about adapting nurse care for adolescents in the “Nursing Care For Clients From Infancy Through Adolescence” chapter.
+
+Physical Examination
+
+Recall that infants older than six months and toddlers who have stranger anxiety are often more cooperative during a physical exam when held by their parent or caregiver. To gain the child’s trust, the nurse should use a calm, warm approach and smile before touching the client. See Figure 14.9[2] for an image of a health professional using a warm approach while performing a physical examination on a pediatric client.
+
+Figure 14.9 Pediatric Exam
+
+Nurses use a variety of techniques to gain cooperation from pediatric clients during a physical exam, such as incorporating toys, distracting objects, and pictures for infants, toddlers, and young children. Engaging two- to four-year-olds with stories about imaginary animals can also create an effective diversion. When an otherwise typically behaving child older than four years does not cooperate with a physical examination, even in the presence of a familiar parent or caregiver, it may indicate a previous traumatic encounter between the client and another examiner, and the nurse should try a different approach. The possibility of an underlying psychosocial problem or behavior disorder should be considered if a child older than four years is extremely uncooperative or combative during a physical exam.[3]
+
+The examination of an infant, toddler, or child should be performed in the presence of a parent or guardian. However, if the parents’ or guardian’s presence may interfere with the examination (such as due to suspected child abuse), a staff member serving as a chaperone should be present. Staff chaperones should also be present during examination of the breasts, genital, or anorectal areas of male and female adolescent clients. The gender of the chaperone should be determined by the client’s wishes and comfort, if possible. The use and identity of the chaperone should be identified in the medical record.[4]
+
+General Survey
+
+The nurse can gain insight into a pediatric client’s health status and family dynamics by making observations during the physical examination. Characteristics regarding a client’s general appearance include the following[5]:
+
+- Degree of comfort: Calm, nervous, shy
+
+- State of well-being: Appears healthy, ill, distressed
+
+- Activity level: Alert, active, fidgety, drowsy, lethargic
+
+- Physical appearance: Well-groomed or disheveled
+
+- Behavior and attitude: Happy, cooperative, sad, irritable, agitated, uncooperative, combative
+
+- Body habitus: Normal weight, overweight, underweight, short, tall
+
+- Nutritional and fluid status: Appears well-nourished and well-hydrated or appears malnourished and/or dehydrated
+
+Observations may help the nurse form initial hypotheses, which may include the following[6]:
+
+- If a child appears ill, the nurse should make additional focused observations to gather additional data that the child may not be able to verbally express:
+
+- A child who lies or sits completely still who noticeably winces when an attempt is made to change position or move a body part may have an acute gastrointestinal or musculoskeletal condition that requires urgent medical care. Read more about gastrointestinal and musculoskeletal assessment in the “General Assessment of Body Systems” section of the “Other Childhood Disorders” chapter.
+
+- A child who appears dyspneic and is sitting upright and slightly forward with their arms extended and hands resting on the knees might be experiencing an exacerbation of asthma or other causes of respiratory distress that requires urgent medical care. Read more about respiratory assessment in the “Focused Assessment for Respiratory Disorders” section of the “Respiratory Childhood Disorders” chapter.
+
+- If an infant is crying, the pitch and intensity of the cry should be noted. A boisterous hardy cry is reassuring. A weak and listless cry or a high-pitched, screeching cry may indicate serious conditions requiring urgent medical care.
+
+- The nurse should observe a pediatric client’s developmental status based on their age, including motor function, interaction with surrounding objects and people, response to sounds, and speech pattern for clues about whether the patient is developing typically or requires a comprehensive developmental assessment. Review information about developmental status in the “Nursing Care for Infancy Through Adolescence” chapter.
+
+- If the child and/or caregiver makes little or no eye contact, has a flat affect, or does not smile socially, and these characteristics are not related to their cultural beliefs, the nurse should suspect neglect or abuse and perform follow-up assessments and interventions.[7] Review information about “Neglect and Abuse” in the “Maladaptive Coping Behaviors” chapter.
+
+The presence of separation anxiety, stranger anxiety, or regression in hospitalized or chronically ill pediatric clients should be documented and addressed by the nurse.[8] Review information about these reactions in the “Nursing Care for Infancy Through Adolescence” chapter.

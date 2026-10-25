@@ -1,3 +1,4 @@
+import {groundNursingEvidence} from './nursing-evidence.mjs'
 import {traceMetadata} from '../providers/telemetry.mjs'
 import {mergeNarratedIncidents} from '../../../shared/narrated-incident.mjs'
 import { ProfileSectionStore } from '../../health-profile/profile-section-store.mjs'
@@ -106,13 +107,16 @@ export class AIBusinessService {
   async file(accountId,memberId,id,fileId){const d=await this.get(accountId,memberId,id),file=d.documents.find(f=>f.id===fileId);if(!file)throw fail('草稿原件不存在或已保存到正式记录',404);return {name:file.name,mimeType:file.mimeType,buffer:Buffer.from(file.dataUrl.split(',')[1],'base64')}}
   async cancel(accountId,memberId,id) { const draft=await this.get(accountId,memberId,id);return accountTransaction(this.directory,async()=>{if(draft.sourceRecordId){const source=await this.records.getOwnedRecord(accountId,draft.sourceRecordId);if(source.caseContext?.aiDraftId===id)await this.records.repository.update(source.id,{caseContext:{...source.caseContext,aiDraftId:null}},this.now())}await this.store.update(data=>({...data,drafts:data.drafts.filter(d=>d.id!==id)}));return {cancelled:true}}) }
   async frontAnswerObservations(accountId,memberId,contextId,raw){
-    if(!contextId)return {observations:[],context:[]}
+    if(!contextId)return {observations:[],context:[],superseded:[]}
     const data=await new JsonStore(path.join(this.directory,'front-desk-records.json'),{contexts:[],messages:[]}).read()
     const context=data.contexts.find(c=>c.id===contextId&&c.accountId===accountId&&c.memberId===memberId&&!c.closedAt&&!c.saved)
     if(!context)throw fail('这次记录对话已变化，请重新加载',409,'FRONT_RECORD_CHANGED')
     const messages=data.messages.filter(m=>m.contextId===contextId&&m.accountId===accountId&&m.memberId===memberId&&m.status==='completed').sort((a,b)=>(a.inputAt??Date.parse(a.at))-(b.inputAt??Date.parse(b.at))||a.id.localeCompare(b.id))
     if(messages.filter(m=>m.kind!=='assistant').map(m=>m.text).filter(Boolean).join('\n')!==raw)throw fail('对话内容有更新，请等待最新整理结果',409,'FRONT_RECORD_CHANGED')
-    return {observations:nursingAnswerObservations(messages),context:messages.filter(m=>m.kind!=='assistant'&&m.answerTo&&m.answerQuestion).map(m=>({sourceMessageId:m.id,questionId:m.answerTo.questionId,questionText:m.answerQuestion.text,answerText:m.text}))}
+    let offset=0
+    const sourceRanges=new Map(messages.filter(m=>m.kind!=='assistant'&&m.text).map(m=>{const range={rawStart:offset,rawEnd:offset+m.text.length};offset+=m.text.length+1;return [m.id,range]}))
+    const activeObservations=nursingAnswerObservations(messages),observations=activeObservations.filter(a=>a.polarity!=='literal'),active=new Set(activeObservations.map(a=>a.sourceMessageId)),all=messages.flatMap(m=>nursingAnswerObservations([m]).map(a=>({...a,...sourceRanges.get(m.id)})))
+    return {observations,superseded:all.filter(a=>!active.has(a.sourceMessageId)),context:messages.filter(m=>m.kind!=='assistant'&&m.answerTo&&m.answerQuestion).map(m=>({sourceMessageId:m.id,questionId:m.answerTo.questionId,questionText:m.answerQuestion.text,answerText:m.text,status:active.has(m.id)?'active':all.some(a=>a.sourceMessageId===m.id)?'superseded':'literal'}))}
   }
   async context(accountId,memberId,raw){
     const member=await this.scoped(accountId,memberId),terms=[...new Set(raw.match(/[\u4e00-\u9fff]{2,8}/g)??[])].slice(0,12)
@@ -195,7 +199,7 @@ export class AIBusinessService {
     draft.frontDeskRecord=frontDeskRecord
     draft.frontContextId=frontDeskRecord?(input.frontContextId??previous?.frontContextId??null):null
     const answers=await this.frontAnswerObservations(accountId,memberId,draft.frontContextId,raw)
-    draft.answerObservations=answers.observations;draft.answerContext=answers.context
+    draft.answerObservations=answers.observations;draft.supersededAnswers=answers.superseded;draft.answerContext=answers.context
     draft.profileBatch=profileBatch
     draft.profileBatchId=profileBatchId
     draft.targetEventId = targetEventId; draft.sourceIdentity = sourceIdentity
@@ -265,15 +269,17 @@ export class AIBusinessService {
       if(syntheticRequested)assertSyntheticRequest(input,extractionContext)
       draft.callCount++;await this.checkpoint(draft,signal)
       mark('contextAndCheckpointMs')
-      const {value,diagnostics}=await this.model.structured({task:'draft-extraction',schema:extractionSchema,...syntheticOptions,instructions:instructions+' recordingFramework只帮助选择观察重点和表达结构，不是孩子事实或引文，不补齐其中未提供的信息。仅描述睡眠期间哭闹、入睡困难或睡眠断续，未明确独立身体不适时，归入sleep并保留实际过程；没有明确醒来就不能补夜醒。明确咳嗽、发热或疼痛等不适必须保留对应症状，不能因夜里或睡觉的背景吞掉症状。哭闹行为本身不能改写成已确认疼痛。 answerContext仅解释原文中简短回答针对的是哪一个已提问题，问句不是孩子事实，不作为引文。不要把呼吸费力问题的“没有”写成没有咳嗽，也不要把“没注意”写成没有症状。用户说“先记下来”“谢谢”等操作话语不生成新的健康事项。已核验的简短问答含义由程序另行补入摘要，提取时仍必须保留其余明确主表现。 身体症状及否定症状观察分类为symptom，不因上传资料或task=report就分类为examination。阴性观察保留完整否定原话，不当作发生的症状；同一段内阳性与阴性分别引用完整原话，不能让前一分句的否定修饰后面的阳性事实。今天/昨天/昨日等必须抽取timeText原文，按来源中各事项的日期分别拆分；不输出计算后的时刻。 existingContext只用于理解已有背景，不作为新事实的引用，不把旧资料生成第二份新记录。只引用sources。归档栏目只能为allergy、chronic、family-history、surgery、vaccination、examination、medication或null。家族史是当前人物的家庭背景，relationship保留原文亲属关系，historyName保留疾病及疑似限定词，不把亲属的病归为当前人物慢性病。接种用vaccination类别，vaccineName为原文疫苗名，doseOriginal保留原文剂次。只有明确出现长期疾病/手术/过敏/家族史才能建议对应归档；异常检查指标本身不能生成诊断。'+(draft.frontDeskRecord?' 时长字段durationMinutes的value必须保留时长单位及对应的连续原文，不能把小时换算为分钟数字；字段名不是换算指令。时长不能放进sleepAt或wakeAt，只有原文钟点才使用这些字段。金额、数量及单位也不改写成标准数字；任何计算或单位换算都由后续程序负责。输出前逐字段核对：quote必须逐字存在于source，value必须逐字存在于quote；不符合就重新从原文抽取，不能编造数字或删除事实绕过核对。':''),signal,input:JSON.stringify({task,referenceNow:draft.referenceNow,timezone:draft.timezone,context:extractionContext,recordingFramework:draft.frontDeskRecord?nursingKnowledgeFor(raw,extractionContext).cards:[],answerContext:draft.answerContext??[],sources:draft.sources.map(({id,page,text})=>({id,page,text}))})}).finally(()=>mark('modelMs'))
+      const {value,diagnostics}=await this.model.structured({task:'draft-extraction',schema:extractionSchema,...syntheticOptions,instructions:instructions+' recordingFramework只帮助选择观察重点和表达结构，不是孩子事实或引文，不补齐其中未提供的信息。仅描述睡眠期间哭闹、入睡困难或睡眠断续，未明确独立身体不适时，归入sleep并保留实际过程；没有明确醒来就不能补夜醒。明确咳嗽、发热或疼痛等不适必须保留对应症状，不能因夜里或睡觉的背景吞掉症状。哭闹行为本身不能改写成已确认疼痛。 answerContext中status=superseded表示回答已被后来更正，不能把其旧含义写成当前事实；更正内容不明确时保留更正原文及未知，不推断新阳性或新阴性。answerContext仅解释原文中简短回答针对的是哪一个已提问题，问句不是孩子事实，不作为引文。不要把呼吸费力问题的“没有”写成没有咳嗽，也不要把“没注意”写成没有症状。用户说“先记下来”“谢谢”等操作话语不生成新的健康事项。已核验的简短问答含义由程序另行补入摘要，提取时仍必须保留其余明确主表现。 身体症状及否定症状观察分类为symptom，不因上传资料或task=report就分类为examination。阴性观察保留完整否定原话，不当作发生的症状；同一段内阳性与阴性分别引用完整原话，不能让前一分句的否定修饰后面的阳性事实。今天/昨天/昨日等必须抽取timeText原文，按来源中各事项的日期分别拆分；不输出计算后的时刻。 existingContext只用于理解已有背景，不作为新事实的引用，不把旧资料生成第二份新记录。只引用sources。归档栏目只能为allergy、chronic、family-history、surgery、vaccination、examination、medication或null。家族史是当前人物的家庭背景，relationship保留原文亲属关系，historyName保留疾病及疑似限定词，不把亲属的病归为当前人物慢性病。接种用vaccination类别，vaccineName为原文疫苗名，doseOriginal保留原文剂次。只有明确出现长期疾病/手术/过敏/家族史才能建议对应归档；异常检查指标本身不能生成诊断。'+(draft.frontDeskRecord?' 时长字段durationMinutes的value必须保留时长单位及对应的连续原文，不能把小时换算为分钟数字；字段名不是换算指令。时长不能放进sleepAt或wakeAt，只有原文钟点才使用这些字段。金额、数量及单位也不改写成标准数字；任何计算或单位换算都由后续程序负责。输出前逐字段核对：quote必须逐字存在于source，value必须逐字存在于quote；不符合就重新从原文抽取，不能编造数字或删除事实绕过核对。':''),signal,input:JSON.stringify({task,referenceNow:draft.referenceNow,timezone:draft.timezone,context:extractionContext,recordingFramework:draft.frontDeskRecord?nursingKnowledgeFor(raw,extractionContext).cards:[],answerContext:draft.answerContext??[],sources:draft.sources.map(({id,page,text})=>({id,page,text}))})}).finally(()=>mark('modelMs'))
       extractionDiagnostics=diagnostics
       readable=readablePreview(JSON.stringify(value),diagnostics)??readable
       if(syntheticRequested)syntheticCapture=captureSyntheticOutput({input,context:extractionContext,output:value,diagnostics,referenceNow:draft.referenceNow,timezone:draft.timezone})
-      const extracted=await reconcileExtraction(validateExtraction(value,draft.sources),draft.sources,{referenceNow:draft.referenceNow,timezone:draft.timezone})
+      const evidenceItems=validateExtraction(value,draft.sources)
+      const extracted=await reconcileExtraction(draft.frontDeskRecord?groundNursingEvidence(evidenceItems,draft.sources,{referenceNow:draft.referenceNow,timezone:draft.timezone,supersededAnswers:draft.supersededAnswers}):evidenceItems,draft.sources,{referenceNow:draft.referenceNow,timezone:draft.timezone})
       const occurrences=draft.smartRecord?mergeNarratedIncidents(extracted,draft.sources,{referenceNow:draft.referenceNow,timezone:draft.timezone,resolve:item=>resolveItemTime(item,{referenceNow:draft.referenceNow,timezone:draft.timezone})}):extracted
       draft.items=mergeItems(occurrences).map(item=>this.resolve(item,draft))
-      if(draft.frontDeskRecord&&draft.answerObservations.length&&draft.items.length){
+      if(draft.frontDeskRecord&&(draft.answerObservations.length||draft.supersededAnswers?.length)&&draft.items.length){
         assignNursingAnswers(draft.items,draft.answerObservations)
+        assignNursingAnswers(draft.items,draft.supersededAnswers??[],'supersededAnswers')
         draft.items.forEach(item=>this.resolve(item,draft))
       }
       if(draft.profileBatch)draft.items=mergeProfileItems(draft.items,draft.timezone).map(item=>this.resolve(item,draft))
@@ -287,7 +293,7 @@ export class AIBusinessService {
       }).map(line=>({sourceId:s.id,page:s.page,text:line})))
       // A new model result must not overwrite a field the user already edited.
       for(const item of draft.items){const candidates=previous?.items?.filter(o=>(o.category===item.category||o.categoryEditedBy==='user')&&o.fields.some(f=>item.fields.some(n=>n.name===f.name&&n.sources.some(s=>f.sources?.some(x=>x.sourceId===s.sourceId&&x.page===s.page&&x.quote===s.quote)))))??[],old=candidates.length===1?candidates[0]:candidates.find(o=>(o.originalTimeText??o.timeText)===item.timeText)
-        if(old){if(old.fields.some(f=>f.editedBy==='user'))item.answerObservations=[];for(const f of old.fields.filter(f=>f.editedBy==='user')){const index=item.fields.findIndex(n=>n.name===f.name);if(index>=0)item.fields[index]=f;else item.fields.push(f)}
+        if(old){if(old.fields.some(f=>f.editedBy==='user')){item.answerObservations=[];item.supersededAnswers=[]}for(const f of old.fields.filter(f=>f.editedBy==='user')){const index=item.fields.findIndex(n=>n.name===f.name);if(index>=0)item.fields[index]=f;else item.fields.push(f)}
           if(old.timeEditedBy==='user'){item.timeText=old.timeText;item.timeEditedBy='user';item.originalTimeText=old.originalTimeText}
           if(old.visibilityCategories)item.visibilityCategories=old.visibilityCategories
           if(old.categoryEditedBy==='user'){item.category=old.category;item.categoryEditedBy='user'}
@@ -388,7 +394,7 @@ export class AIBusinessService {
       if(input.field==='title'){const title=text(input.value,100);if(!title)throw fail('记录名称不能为空');item.title=title;item.titleEditedBy='user'}
       else if(input.field==='time'){item.originalTimeText??=item.timeText;item.timeEditedBy='user';item.timeText=text(input.value,100)||null;item.time=resolveItemTime(item,{referenceNow:d.referenceNow,timezone:d.timezone})}
       else if(input.field){const existing=item.fields.find(f=>f.name===input.field);if(!existing&&!['location','sleepAt','wakeAt','sleepKind'].includes(input.field))throw fail('字段不存在');const f={...existing,name:input.field,value:text(input.value,4000),sources:existing?.sources??[],confirmed:true,editedBy:'user'};if(!f.value)throw fail('字段不能为空');if(existing)item.fields=item.fields.map(n=>n===existing?f:n);else item.fields.push(f)}
-      if(input.field&&input.field!=='title'&&input.field!=='time')item.answerObservations=[]
+      if(input.field&&input.field!=='title'&&input.field!=='time'){item.answerObservations=[];item.supersededAnswers=[]}
       this.resolve(item,d)
       await this.reviewProfileAssociations(d)
       if(d.reviewArchives&&(input.field||input.category||Object.hasOwn(input,'archiveCategory')))await this.reviewArchiveConflicts(d)
@@ -453,7 +459,7 @@ if(match){record=match;event=ownedEvents.find(e=>e.id===record.eventId);history.
         const sources=[...(record.aiProvenance?.sources??[]),...item.fields.flatMap(f=>f.sources),...(item.timeSources??[])],refs=[]
         for(const document of [...d.documents,...(d.voices??[])].filter(doc=>saved.length===0||sources.some(s=>s.sourceId===doc.id))){const {id:sourceFileId,...originalFile}=document;const {attachment}=await this.attachments.createUnique({accountId,memberId,eventId:event.id,recordId:record.id,...originalFile,binarySize:Buffer.from(document.dataUrl.split(',')[1],'base64').length,analysis:{status:d.manualOriginal?'unavailable':'completed',provider:d.manualOriginal?'manual':d.generation?.provider??'unknown',model:d.generation?.model??null,confirmed:true,sourcePages:d.sources.filter(s=>s.id===sourceFileId).map(s=>({page:s.page,text:s.text,status:s.status}))}},this.now());refs.push(attachment.id)}
         const conflicts=conflictRecords.map(r=>r.id)
-        await this.records.repository.update(record.id,{aiProvenance:{key,groupKey,provider:d.manualOriginal?'manual':d.generation?.provider??'unknown',model:d.generation?.model??null,category:item.category,...(item.visibilityCategories?{visibilityCategories:item.visibilityCategories}:{}),timeText:item.timeText,time:item.time,...(item.categoryResolution?{categoryResolution:item.categoryResolution}:{}),...(item.timeResolution?{timeResolution:item.timeResolution}:{}),itemId:item.id,timeSources:item.timeSources??[],answerObservations:item.answerObservations??[],...(item.professionalSummary?{professionalSummary:item.professionalSummary}:{}),...(item.timeEditedBy?{timeEditedBy:item.timeEditedBy}:{}),fields:item.fields,sources:[...new Map(sources.map(s=>[JSON.stringify(s),s])).values()],attachmentIds:[...new Set([...(record.aiProvenance?.attachmentIds??[]),...refs])],confirmed:true,draftId:id,originalVersions:d.history,conflictRecordIds:conflicts,archiveCategory:item.archiveCategory,notice:[...(conflicts.length?['资料存在差异；保留各版原文']:[]),...(d.documentWarnings??[])].join('；')||null}},this.now())
+        await this.records.repository.update(record.id,{aiProvenance:{key,groupKey,provider:d.manualOriginal?'manual':d.generation?.provider??'unknown',model:d.generation?.model??null,category:item.category,...(item.visibilityCategories?{visibilityCategories:item.visibilityCategories}:{}),timeText:item.timeText,time:item.time,...(item.categoryResolution?{categoryResolution:item.categoryResolution}:{}),...(item.timeResolution?{timeResolution:item.timeResolution}:{}),itemId:item.id,timeSources:item.timeSources??[],answerObservations:item.answerObservations??[],supersededAnswers:item.supersededAnswers??[],...(item.professionalSummary?{professionalSummary:item.professionalSummary}:{}),...(item.timeEditedBy?{timeEditedBy:item.timeEditedBy}:{}),fields:item.fields,sources:[...new Map(sources.map(s=>[JSON.stringify(s),s])).values()],attachmentIds:[...new Set([...(record.aiProvenance?.attachmentIds??[]),...refs])],confirmed:true,draftId:id,originalVersions:d.history,conflictRecordIds:conflicts,archiveCategory:item.archiveCategory,notice:[...(conflicts.length?['资料存在差异；保留各版原文']:[]),...(d.documentWarnings??[])].join('；')||null}},this.now())
         if (d.sourceIdentity) await this.records.repository.update(record.id, { caseContext: { ...record.caseContext, identity: d.sourceIdentity, confirmed: true, attachmentIds: [...new Set([...(record.caseContext?.attachmentIds??[]),...refs])], originalText: record.caseContext?.originalText ?? record.sourceText ?? d.raw, timeUnknown: !item.time?.resolvedStart } }, this.now())
         if (targetEvent && (!match || d.targetEventId || d.followUp !== false)) {
           const currentEvent=await this.events.repository.findById(event.id)

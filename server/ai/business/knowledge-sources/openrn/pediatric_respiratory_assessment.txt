@@ -1,0 +1,46 @@
+Source: Ernstmeyer, K. and Christman, E. (Eds.). (2025). Nursing Health Promotion. Open RN | WisTech Open.
+Original section: https://wtcs.pressbooks.pub/healthpromo/chapter/15-3-focused-assessment-for-respiratory-disorders/
+License: Creative Commons Attribution 4.0 International, https://creativecommons.org/licenses/by/4.0/ , except where otherwise noted.
+License declaration: https://wtcs.pressbooks.pub/healthpromo/front-matter/introduction/
+Selection: 15.3 Focused Assessment for Respiratory Disorders: narrative text; tables and media excluded
+Changes: HTML converted to plain text; navigation, media, figures, tables and interactive material omitted. No translation. Source links/footnote markers may remain.
+No endorsement by WisTech Open/Open RN is implied. Professional educational reference; not clinically certified for Hoooho.
+Retrieved: 2026-10-25
+
+15.3 Focused Assessment for Respiratory Disorders
+
+When a client has a respiratory alteration, signs may show in the respiratory system, as well as in other body systems. Nurses complete a focused assessment to determine the effects of the respiratory illness on the child. Review Table 15.3 for an overview of general manifestations of respiratory alterations across body systems.
+
+For an in-depth discussion of assessment and diagnostic tests of the respiratory system, please visit the “General Respiratory Assessment and Interventions” section of the “Respiratory Alterations” chapter of Open RN Health Alterations.
+
+Life Span Considerations
+
+When performing an assessment on a pediatric client, there are some key differences the nurse must be aware of in regard to the respiratory system[6],[7],[8]:
+
+- Although some disorders can manifest with apnea as a clinical manifestation, periods of apnea (up to 20 seconds) are common in newborns.
+
+- Due to their irregular breathing rhythms, respirations should be counted for a full minute for infants. The respiratory rate should also be taken when the infant is calm instead of crying.
+
+- Infants have faster respiratory rates due to increased metabolic needs. For example, the normal respiratory rate for a newborn is 30-60 breaths per minute. The rate can vary based on whether the infant is asleep or awake.
+
+- Infants are obligatory nose breathers, meaning they have a physiological instinct to breathe through their nose rather than their mouth. If their nose or nasal passage becomes occluded, they can develop respiratory distress.
+
+- Based on the age of the client, subjective respiratory assessment data may need to be collected from the client’s caregiver.
+
+- Some respiratory disorders may cause the pediatric client to experience pain, which they may be unable to describe on a scale of 0 to 10. Other pain scales are more appropriate to use with pediatric clients. Review pediatric pain scales in the “Applying the Nursing Process and Clinical Judgment Model to Caring for an Ill or Hospitalized Pediatric Client” section of the “Planning Care for the Ill or Hospitalized Child” chapter.
+
+- Ernstmeyer, K., & Christman, E. (Eds.). (2024). Health alterations. ↵
+
+- Teall, A. M., Pittman, O. A., & Pandian, V. (2020). Evidence-based assessment of the lungs and respiratory system. In K. S. Gawlik, B. M. Melnyk, & A. M. Teall (Eds.), Evidence-based physical examination: Best practices for health & well-being assessment. Springer Publishing Company. ↵
+
+- Reyes, F., Le, J., & Modi, P. (2024). Lung exam: Treatment & management: Point of care. StatPearls [Internet]. ↵
+
+- Dezube, R. (2022). Medical history and physical examination for lung disorders. Merck Manual Consumer Version. ↵
+
+- Ernstmeyer, K., & Christman, E. (Eds.). (2023). Nursing skills 2e. ↵
+
+- Ernstmeyer, K., & Christman, E. (Eds.). (2023). Nursing skills 2e. https://wtcs.pressbooks.pub/nursingskills/ ↵
+
+- Connelly, S., Meissbach, S., Schmidt, M., & Ascano, F. (2022). Respiratory system in pediatrics. Stanford Medicine Children's Health. [PDF]. https://www.stanfordchildrens.org/content-public/pdf/respiratory-system-in-pediatrics.pdf ↵
+
+- Teall, A. M., Pittman, O. A., & Pandian, V. (2020). Evidence-based assessment of the lungs and respiratory system. In Gawlik, K. S., Melnyk, B. M., & Teall, A. M. (Eds.). Evidence-based physical examination: Best practices for health & well-being assessment. Springer Publishing Company. https://doi.org/10.1891/9780826164544.0007 ↵

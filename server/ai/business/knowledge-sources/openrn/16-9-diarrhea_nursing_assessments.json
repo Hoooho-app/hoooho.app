@@ -1,0 +1,21 @@
+{
+  "id": "OPENRN_16_9_DIARRHEA_2025",
+  "title": "16.9 Diarrhea",
+  "selection": "Nursing Assessments subsection only",
+  "url": "https://wtcs.pressbooks.pub/healthpromo/chapter/16-9-diarrhea/",
+  "year": 2025,
+  "editors": [
+    "Kimberly Ernstmeyer",
+    "Elizabeth Christman"
+  ],
+  "publisher": "WisTech Open",
+  "license": "CC-BY-4.0",
+  "license_url": "https://creativecommons.org/licenses/by/4.0/",
+  "license_declaration_url": "https://wtcs.pressbooks.pub/healthpromo/front-matter/introduction/",
+  "changes": "Selected text subsection; HTML to plain text; no figures or scales copied; no translation; source footnote markers retained",
+  "retrieved_at": "2026-10-25",
+  "clinical_review": "pending",
+  "production_retrieval_enabled": false,
+  "text": "- Frequently assess the fluid and electrolyte status of the client to allow for timely intervention.\n\n- Monitor intake and output, including the frequency, consistency, and color of stools.\n\n- Assess the perineum for signs of impaired skin integrity.\n\n- Assess the client for the presence of abdominal cramping or pain using an age-appropriate pain scale.\n\n- Frequently assess the vital signs of the client, as changes in vital signs can occur with dehydration.\n\n- Monitor the client’s weight daily to help assess nutritional status.\n\n- Assess the client’s gastrointestinal system for the presence of hyperactive bowel sounds as this may occur with diarrhea.",
+  "limits": "Professional assessment source. Use parent-observable facts; no physical maneuvers, diagnostic threshold, automated diagnosis or treatment advice."
+}

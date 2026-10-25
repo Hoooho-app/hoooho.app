@@ -72,11 +72,12 @@ test('save preserves the submitted conversation, nurse reply and review',async({
  await page.getByLabel('对话输入').fill('今天头皮发痒')
  await page.getByRole('button',{name:'发送',exact:true}).click()
  await expect(page.getByRole('button',{name:'核对记录',exact:true})).toBeEnabled()
+ const nurseReply=await page.locator('.nurse-turn--assistant').last().locator('p').first().innerText()
  await page.getByRole('button',{name:'返回',exact:true}).click()
  await page.getByRole('button',{name:'保存草稿并退出',exact:true}).click()
  await reenter(page)
  await expect(page.locator('.nurse-turn--user')).toContainText('今天头皮发痒')
- await expect(page.getByText('这次观察收到了，可以接着补充。',{exact:true})).toBeVisible()
+ await expect(page.getByText(nurseReply,{exact:true})).toBeVisible()
  await expect(page.getByRole('button',{name:'核对记录',exact:true})).toBeEnabled()
 })
 test('discard clears local and server recovery, including after reload and the next submission',async({page,request})=>{
