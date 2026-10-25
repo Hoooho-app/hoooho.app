@@ -1,3 +1,4 @@
+import {validSemanticSummary} from './semantic-summary.mjs'
 import { interpretNursingAnswer } from './nursing-interview.mjs'
 import { clinicalAssertions, clinicalContext } from '../../../shared/clinical-evidence.mjs'
 
@@ -85,14 +86,14 @@ function verified(field, sources) {
 export function buildProfessionalSummary(item, {sources}={}) {
   if(!item||typeof item.id!=='string'||!Array.isArray(item.fields)||!item.fields.length||item.fields.length>50||item.fields.some(f=>!verified(f,sources)))return null
   const answers=item.answerObservations??[],retired=item.supersededAnswers??[]
-  if(!Array.isArray(answers)||answers.length>3||!Array.isArray(retired)||retired.length>3)return null
+  if(!Array.isArray(answers)||answers.length>20||!Array.isArray(retired)||retired.length>20)return null
   for(const answer of [...answers,...retired]){
-    const expected=interpretNursingAnswer(answer.questionId,answer.answerText)
+    const expected=interpretNursingAnswer(answer.questionId,answer.answerText,answer.questionDescriptor)
     if(!expected||expected.version!==answer.version||expected.text!==answer.text||typeof answer.sourceMessageId!=='string'||!answer.questionText)return null
     if(sources&&!sources.some(s=>typeof s.text==='string'&&s.text.includes(answer.answerText)))return null
   }
   const withoutShortAnswers=value=>answers.length||retired.length?value.split(/\r?\n/).filter(line=>![...answers,...retired].some(a=>line.trim()===a.answerText.trim())).join('，'):value
-  const fields=item.fields.map((field,index)=>({field,id:`${item.id}:field:${index}`,value:observationalFields.has(field.name)?normalizeObservation(withoutShortAnswers(field.value)):clean(withoutShortAnswers(field.value))}))
+  const fields=item.fields.map((field,index)=>({field,id:`${item.id}:field:${index}`,value:(field.sources?.some(ref=>ref.sourceKind==='visual_observation')?'照片中可见：':'')+(observationalFields.has(field.name)?normalizeObservation(withoutShortAnswers(field.value)):clean(withoutShortAnswers(field.value)))}))
   const claims=[]
   const add=(text,factIds)=>{
     text=clean(text)
@@ -132,6 +133,7 @@ export function buildProfessionalSummary(item, {sources}={}) {
 // A field ID alone cannot make an arbitrary generated diagnosis faithful.
 // Only the exact deterministic projection is accepted for this version.
 export function validateProfessionalSummary(candidate,item,options) {
+  if(candidate?.version==='professional-summary-v2')return validSemanticSummary(candidate,item)
   const expected=buildProfessionalSummary(item,options)
   return Boolean(expected&&candidate?.version===expected.version&&candidate.text===expected.text&&JSON.stringify(candidate.claims)===JSON.stringify(expected.claims))
 }

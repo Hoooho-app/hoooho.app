@@ -1,3 +1,4 @@
+import {factMessages} from './business/front-desk-semantics.mjs'
 import {QuickRecordPhotoService} from '../events/quick-record-photo-service.mjs'
 import {reuseRecognitionPhoto} from './recognition-asset-reuse.mjs'
 import {withAITrace,traceMetadata,linkedAISignal} from './providers/telemetry.mjs'
@@ -128,14 +129,14 @@ export class RecognitionJobs {
     const originals=item.assetIds.map(id=>this.asset(accountId,memberId,id));if(originals.reduce((n,a)=>n+a.bytes,0)>15*1024*1024)throw fail('原件总大小不能超过15 MB',413)
     if(item.asrAssetId){const a=this.asset(accountId,memberId,item.asrAssetId);if(a.mimeType!=='audio/wav')throw fail('转写音频格式无效',415)}
     if(!item.text.trim()&&!originals.length)throw fail('请先输入内容或上传原件')
-    const options=input.options??{};if(JSON.stringify(options).length>10000)throw fail('任务参数过长')
+    const options=input.options??{};if(input.mode==='front')item.protocolVersion=options.semanticVersion===2?2:1;if(JSON.stringify(options).length>10000)throw fail('任务参数过长')
     const j=await withStorageLock(async()=>{await this.scope(accountId,memberId);return this.transaction(()=>{
       let job=this.raw(input.id)
       if(job&&(job.accountId!==accountId||job.memberId!==memberId))throw fail('未找到这次识别任务',404,'RECOGNITION_NOT_FOUND')
       if(job?.state==='discarded')throw fail('这次任务已取消，请开始新的记录',409,'RECOGNITION_DISCARDED')
       if(job&&(job.mode!==input.mode||job.scopeKey!==(input.scopeKey??input.mode)))throw fail('任务范围已变化',409,'RECOGNITION_SCOPE_CONFLICT')
       const previous=job?.inputs.find(i=>i.id===item.id)
-      if(previous){if(fingerprint({...previous,inputAt:0})!==fingerprint({...item,inputAt:0}))throw fail('消息标识已使用，请重试原消息',409,'RECOGNITION_INPUT_CONFLICT');return job}
+      if(previous){if(fingerprint({...previous,...(input.mode==='front'?{protocolVersion:previous.protocolVersion??1}:{}),inputAt:0})!==fingerprint({...item,inputAt:0}))throw fail('消息标识已使用，请重试原消息',409,'RECOGNITION_INPUT_CONFLICT');return job}
       if(job?.inputs.length>=60)throw fail('本次对话较长，请先保存后开始新记录',413)
       const at=new Date(this.now()).toISOString()
       job??={id:input.id,accountId,memberId,mode:input.mode,scopeKey:input.scopeKey??input.mode,state:'queued',stage:'queued',seq:0,inputRevision:0,resultRevision:0,cursor:0,inputs:[],transcripts:{},baseText:options.initialText??'',options,createdAt:at,cancelEpoch:0,commandIds:[],activeMs:0}
@@ -219,7 +220,7 @@ export class RecognitionJobs {
         }
         if(j.mode==='front'){
           await phase({stage:'responding'})
-          const result=await this.front.submit(j.accountId,j.memberId,{id:item.id,kind:item.kind,text,inputAt:item.inputAt,files,voiceFiles,...(item.contextId?{contextId:item.contextId}:{}),...(item.answerTo?{answerTo:item.answerTo}:{})},signal)
+          const result=await this.front.submit(j.accountId,j.memberId,{id:item.id,protocolVersion:item.protocolVersion??1,kind:item.kind,text,inputAt:item.inputAt,files,voiceFiles,...(item.contextId?{contextId:item.contextId}:{}),...(item.answerTo?{answerTo:item.answerTo}:{})},signal)
           await this.updateActive(id,epoch,signal,{frontDesk:{...result,context:{...result.context,review:undefined,messages:result.context.messages.map(({originalFiles,...m})=>({...m,files:(m.files??[]).map(({dataUrl,...f})=>f),voices:(m.voices??[]).map(({dataUrl,...f})=>f)}))}},contextId:result.context.id})
         }
         await this.updateActive(id,epoch,signal,{cursor:j.cursor+1})
@@ -231,8 +232,9 @@ export class RecognitionJobs {
       if(j.mode==='front'){
         const context=(await this.front.snapshot(j.accountId,j.memberId,j.contextId));this.guard(id,epoch,signal)
         if(context.saved){await this.updateActive(id,epoch,signal,{state:'ready',stage:'ready',resultRevision:revision,owner:null,leaseUntil:0});return}
-        const turns=context.messages.filter(m=>m.kind!=='assistant'&&m.status==='completed')
-        input={...j.options,text:turns.map(m=>m.text).filter(Boolean).join('\n'),files:turns.flatMap(m=>m.files??[]),voiceFiles:turns.flatMap(m=>m.voices??[]),id:context.review?.id,version:context.review?.version,smartRecord:true,frontDeskRecord:true,frontContextId:context.id}
+        if(context.decision?.organize===false){await this.updateActive(id,epoch,signal,{state:'ready',stage:'ready',review:null,draftId:null,draftVersion:null,resultRevision:revision,owner:null,leaseUntil:0});return}
+        const turns=factMessages(context.messages)
+        input={...j.options,text:turns.map(m=>m.text).filter(Boolean).join('\n'),files:turns.flatMap(m=>m.files??[]),voiceFiles:turns.flatMap(m=>m.voices??[]),id:context.review?.id,version:context.review?.version,smartRecord:true,frontDeskRecord:true,semanticVersion:context.semanticVersion??1,frontContextId:context.id}
       }else{
         // Structured submissions are full snapshots; previous revisions remain
         // immutable inputs and are never concatenated into new health facts.

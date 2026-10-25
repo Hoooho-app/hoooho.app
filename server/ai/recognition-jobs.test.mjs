@@ -206,3 +206,145 @@ test('fresh review hydration cannot revive a discarded job or overwrite a new in
  const discarded=await f.snapshot();assert.equal(discarded.state,'discarded');assert.equal(f.jobs.raw('task-1').state,'discarded')
  f.business.read=read
 })
+
+// Append to server/ai/recognition-jobs.test.mjs after its existing setup(t).
+// Uses the actual setup fields: front, frontModel, business, jobs, member,
+// snapshot, submit. No new imports or provider-summary mocks are required.
+const semanticTestDecision=overrides=>({intent:'record',subject:'current',status:'ready',topic:'injury',question:null,unresolvedItems:[],media:'none',...overrides})
+const semanticTestQuestion=overrides=>({text:'目前还有出血吗？',slot:'observation',predicate:'bleeding',unit:null,options:[],...overrides})
+const semanticTestReply=(decision,contextId='new')=>({value:{reply:'嗯，我了解了。',contextId,action:'record',questionId:null,emergency:{currentChild:false,quote:''},decision},diagnostics:{provider:'semantic-integration-fixture'}})
+const semanticTestRaw=context=>context.messages.filter(m=>m.kind!=='assistant'&&m.status==='completed'&&m.recordable!==false).map(m=>m.text).filter(Boolean).join('\n')
+const semanticTestSubmit=(f,id,text,extra={})=>f.jobs.submit('synthetic',f.member.id,{id:'task-1',mode:'front',input:{id,kind:'text',text,...extra},options:{task:'record',smartRecord:true,semanticVersion:2,selectedOccurredAt:new Date().toISOString()}})
+const semanticTestTerminal=(f,revision)=>until(async()=>{const j=await f.snapshot();return j.inputRevision===revision&&['ready','failed'].includes(j.state)&&j})
+const semanticTestFront=(f,id,text,extra={})=>f.front.submit('synthetic',f.member.id,{id,protocolVersion:2,kind:'text',text,...extra})
+
+test('semantic v2 symbols and emoji persist interaction without any dialogue or extraction call',async t=>{
+ const f=await setup(t);let dialogueCalls=0,prepareCalls=0
+ f.frontModel.structured=async()=>{dialogueCalls++;assert.fail('symbols must not invoke dialogue')}
+ f.business.prepare=async()=>{prepareCalls++;assert.fail('symbols must not create a draft')}
+ const symbols=['。','！！！','？','……','👍','😭']
+ for(const [index,text] of symbols.entries()){
+  await semanticTestSubmit(f,`symbols-${index}`,text)
+  const ready=await semanticTestTerminal(f,index+1)
+  assert.equal(ready.state,'ready',JSON.stringify(ready.error));assert.equal(ready.resultRevision,index+1)
+  assert.equal(ready.review,null);assert.equal(ready.frontDesk.context.decision.organize,false)
+  assert.equal(semanticTestRaw(ready.frontDesk.context),'')
+  assert.equal(ready.frontDesk.context.messages.find(m=>m.id===`symbols-${index}`).recordable,false)
+ }
+ assert.equal(dialogueCalls,0);assert.equal(prepareCalls,0)
+ assert.equal((await f.business.store.read()).drafts.length,0)
+ assert.equal((await f.business.records.repository.findByAccountId('synthetic')).length,0)
+})
+
+for(const scenario of [
+ {name:'unrelated chat',text:'这个软件怎么换头像',decision:semanticTestDecision({intent:'chat',topic:'general'})},
+ {name:'explicit other person',text:'哥哥昨天发烧了',decision:semanticTestDecision({intent:'clarify',subject:'other',status:'ask',topic:'fever',question:semanticTestQuestion({text:'这条情况是要记录哪位成员的？',slot:'subject',predicate:null})})}
+])test(`semantic v2 ${scenario.name} cannot extract and cannot leak into a later current-member fact`,async t=>{
+ const f=await setup(t);let prepareCalls=0
+ f.frontModel.structured=async()=>semanticTestReply(scenario.decision)
+ f.business.prepare=async()=>{prepareCalls++;assert.fail('non-recordable interaction must not extract')}
+ await semanticTestSubmit(f,'non-recordable',scenario.text)
+ const ready=await semanticTestTerminal(f,1)
+ assert.equal(ready.state,'ready',JSON.stringify(ready.error));assert.equal(ready.review,null)
+ assert.equal(ready.frontDesk.context.decision.organize,false)
+ assert.equal(ready.frontDesk.context.messages.find(m=>m.id==='non-recordable').recordable,false)
+ assert.equal(semanticTestRaw(ready.frontDesk.context),'');assert.equal(prepareCalls,0)
+ assert.equal((await f.business.store.read()).drafts.length,0)
+ assert.equal((await f.business.records.repository.findByAccountId('synthetic')).length,0)
+ const contextId=ready.frontDesk.context.id
+ f.frontModel.structured=async()=>semanticTestReply(semanticTestDecision({topic:'skin'}),contextId)
+ const continued=await semanticTestFront(f,'current-member','宝宝今天脸颊发红',{contextId})
+ const raw=semanticTestRaw(continued.context)
+ assert.equal(raw,'宝宝今天脸颊发红')
+ const evidence=await f.business.frontAnswerObservations('synthetic',f.member.id,contextId,raw)
+ assert.deepEqual(evidence.observations,[]);assert.deepEqual(evidence.context,[])
+ assert.equal(continued.context.messages.find(m=>m.id==='non-recordable').text,scenario.text,'original stays in conversation')
+})
+
+test('semantic v2 dynamic short answer binds displayed question and exact raw range, then retires on a later same-property update',async t=>{
+ const f=await setup(t),at=Date.now()-10000,initial='小脚趾踢破了'
+ let selected='new',decision=semanticTestDecision({status:'ask',question:semanticTestQuestion()}),dialogueCalls=0
+ f.frontModel.structured=async()=>{dialogueCalls++;return semanticTestReply(decision,selected)}
+ const first=await semanticTestFront(f,'dynamic-first',initial,{inputAt:at})
+ selected=first.context.id
+ const question=first.context.interview.question
+ assert.match(question.id,/^semantic:/);assert.equal(question.text,'目前还有出血吗？')
+ assert.equal(question.semantic.predicate,'bleeding')
+ const answerTo={contextId:selected,questionId:question.id}
+ const explained=await semanticTestFront(f,'dynamic-question-mark','？',{inputAt:at+1,answerTo})
+ assert.equal(explained.context.interview.question.id,question.id)
+ assert.equal(explained.context.interview.turnCount,first.context.interview.turnCount)
+ assert.equal(explained.context.messages.find(m=>m.id==='dynamic-question-mark').recordable,false)
+ assert.equal(dialogueCalls,1)
+ decision=semanticTestDecision()
+ const answered=await semanticTestFront(f,'dynamic-answer','没有',{inputAt:at+2,answerTo})
+ let raw=semanticTestRaw(answered.context),evidence=await f.business.frontAnswerObservations('synthetic',f.member.id,selected,raw)
+ const bound=evidence.context.find(a=>a.sourceMessageId==='dynamic-answer')
+ assert.equal(bound.status,'active');assert.equal(bound.questionDescriptor.id,question.id)
+ assert.equal(bound.questionDescriptor.semantic.predicate,'bleeding')
+ assert.equal(bound.rawStart,initial.length+1);assert.equal(raw.slice(bound.rawStart,bound.rawEnd),'没有')
+ assert.equal(evidence.observations.length,1);assert.equal(evidence.observations[0].polarity,'no')
+ assert.match(evidence.observations[0].text,/出血/);assert.doesNotMatch(evidence.observations[0].text,/疼痛|正常/)
+ const unrelated=await semanticTestFront(f,'dynamic-unrelated','今天喝了奶',{inputAt:at+3,contextId:selected})
+ raw=semanticTestRaw(unrelated.context);evidence=await f.business.frontAnswerObservations('synthetic',f.member.id,selected,raw)
+ assert.equal(evidence.context.find(a=>a.sourceMessageId==='dynamic-answer').status,'active','unrelated fact must not retire bleeding answer')
+ const updated=await semanticTestFront(f,'dynamic-update','刚才又开始出血了',{inputAt:at+4,contextId:selected})
+ raw=semanticTestRaw(updated.context);evidence=await f.business.frontAnswerObservations('synthetic',f.member.id,selected,raw)
+ assert.equal(evidence.context.find(a=>a.sourceMessageId==='dynamic-answer').status,'superseded')
+ assert.equal(evidence.observations.some(a=>a.sourceMessageId==='dynamic-answer'),false)
+ assert.equal(evidence.superseded.find(a=>a.sourceMessageId==='dynamic-answer').answerText,'没有')
+})
+
+test('semantic v2 dynamic onset correction supersedes only its earlier bound time and retains source range',async t=>{
+ const f=await setup(t),at=Date.now()-10000
+ let selected='new',decision=semanticTestDecision({status:'ask',question:semanticTestQuestion({text:'这次是什么时候开始的？',slot:'onset',predicate:null})})
+ f.frontModel.structured=async()=>semanticTestReply(decision,selected)
+ const first=await semanticTestFront(f,'onset-first','小脚趾踢破了',{inputAt:at});selected=first.context.id
+ const question=first.context.interview.question
+ decision=semanticTestDecision()
+ await semanticTestFront(f,'onset-answer','昨天开始',{inputAt:at+1,answerTo:{contextId:selected,questionId:question.id}})
+ const corrected=await semanticTestFront(f,'onset-correction','时间说错了，是今天',{inputAt:at+2,contextId:selected})
+ const raw=semanticTestRaw(corrected.context),evidence=await f.business.frontAnswerObservations('synthetic',f.member.id,selected,raw)
+ assert.equal(evidence.context.find(a=>a.sourceMessageId==='onset-answer').status,'superseded')
+ const retired=evidence.superseded.find(a=>a.sourceMessageId==='onset-answer')
+ assert.equal(raw.slice(retired.rawStart,retired.rawEnd),'昨天开始')
+ assert.equal(retired.questionDescriptor.semantic.slot,'onset')
+ assert.equal(evidence.context.some(a=>a.sourceMessageId==='onset-correction'&&a.status==='active'),false,'free correction is not forged as another bound answer')
+})
+
+test('semantic v2 unknown short answer ends ordinary questions with explicit incompleteness rather than denial',async t=>{
+ const f=await setup(t),at=Date.now()-10000
+ let selected='new',decision=semanticTestDecision({status:'ask',question:semanticTestQuestion({text:'这次是什么时候开始的？',slot:'onset',predicate:null})})
+ f.frontModel.structured=async()=>semanticTestReply(decision,selected)
+ const first=await semanticTestFront(f,'unknown-first','小脚趾踢破了',{inputAt:at});selected=first.context.id
+ decision=semanticTestDecision({status:'incomplete',unresolvedItems:['具体开始时间不清楚']})
+ const done=await semanticTestFront(f,'unknown-answer','不知道',{inputAt:at+1,answerTo:{contextId:selected,questionId:first.context.interview.question.id}})
+ assert.equal(done.context.interview.question,null);assert.equal(done.context.interview.status,'ready')
+ assert.equal(done.context.interview.stopReason,'user_finished');assert.equal(done.context.decision.organize,true)
+ const evidence=await f.business.frontAnswerObservations('synthetic',f.member.id,selected,semanticTestRaw(done.context))
+ assert.deepEqual(evidence.unresolvedItems,['具体开始时间不清楚'])
+ assert.equal(evidence.observations.length,1);assert.equal(evidence.observations[0].polarity,'unknown')
+ assert.match(evidence.observations[0].text,/开始时间.*不清楚/);assert.doesNotMatch(evidence.observations[0].text,/没有|正常/)
+})
+
+test('semantic v2 new input preserves the protocol of a retained failed v1 input during ordered retry',async t=>{
+ const f=await setup(t),versions=[],submit=f.front.submit.bind(f.front);let firstAttempt=true
+ f.front.submit=async(...args)=>{versions.push([args[2].id,args[2].protocolVersion]);return submit(...args)}
+ f.frontModel.structured=async()=>{
+  if(firstAttempt){firstAttempt=false;throw new Error('synthetic first dialogue failure')}
+  return {value:{reply:'嗯，我了解了。',contextId:'new',action:'record',questionId:null,emergency:{currentChild:false,quote:''}},diagnostics:{provider:'legacy-fixture'}}
+ }
+ f.business.prepare=async()=>assert.fail('final courtesy interaction must gate extraction')
+ await f.submit('legacy-input','脸颊发红')
+ const failed=await semanticTestTerminal(f,1);assert.equal(failed.state,'failed')
+ assert.equal((await f.front.store.read()).messages.find(m=>m.id==='legacy-input').protocolVersion,1)
+ await semanticTestSubmit(f,'semantic-input','谢谢')
+ const ready=await semanticTestTerminal(f,2)
+ assert.equal(ready.state,'ready',JSON.stringify(ready.error));assert.equal(ready.resultRevision,2)
+ assert.deepEqual(versions,[['legacy-input',1],['legacy-input',1],['semantic-input',2]])
+ assert.deepEqual(f.jobs.raw('task-1').inputs.map(i=>i.protocolVersion),[1,2])
+ assert.equal(ready.review,null)
+ const messages=(await f.front.store.read()).messages
+ assert.equal(messages.filter(m=>m.id==='legacy-input').length,1)
+ assert.equal(messages.find(m=>m.id==='semantic-input').recordable,false)
+})

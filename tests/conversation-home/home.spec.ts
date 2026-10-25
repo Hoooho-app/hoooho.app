@@ -544,3 +544,35 @@ test('speech text appears before release and cancel leaves no submitted or saved
  await expect(page.locator('.nurse-turn--user')).toHaveCount(0)
  await page.reload();await expect(page.locator('.nurse-turn--user')).toHaveCount(0)
 })
+
+
+test('semantic punctuation stays conversational and invisible input never submits',async({page,request})=>{
+ const before=await (await request.get('http://127.0.0.1:4198/success')).json()
+ await typeText(page,'？')
+ await page.getByRole('button',{name:'发送',exact:true}).click()
+ await expect(page.locator('.nurse-turn--assistant').last()).toContainText('发生了什么')
+ await expect(page.locator('.front-desk-record-sheet')).toHaveCount(0)
+ const after=await (await request.get('http://127.0.0.1:4198/success')).json()
+ expect(after.calls).toBe(before.calls)
+ await page.reload()
+ await expect(page.locator('.nurse-turn--assistant').last()).toContainText('发生了什么')
+ await typeText(page,'\u200b\ufeff')
+ await expect(page.getByRole('button',{name:'发送',exact:true})).toHaveCount(0)
+ expect((await (await request.get('http://127.0.0.1:4198/success')).json()).calls).toBe(before.calls)
+})
+
+test('semantic photo-only asks before extraction and keeps visual attribution after reload',async({page,request})=>{
+ const decision={intent:'record',subject:'current',status:'ask',topic:'injury',question:{text:'这张照片记录的是今天的情况吗？',slot:'onset',predicate:null,unit:null,options:[{label:'今天',value:'今天开始'}]},unresolvedItems:[],media:'body'}
+ await request.post('http://127.0.0.1:4198/draft-data',{data:{semanticDecision:decision}})
+ const image=await sharp({create:{width:120,height:120,channels:3,background:'#a66922'}}).png().toBuffer()
+ await page.getByLabel('从相册选择',{exact:true}).setInputFiles({name:'合成图片.png',mimeType:'image/png',buffer:image})
+ await expect(page.getByText('这张照片记录的是今天的情况吗？',{exact:false})).toBeVisible()
+ await expect(page.locator('.front-desk-record-sheet')).toHaveCount(0)
+ await page.reload()
+ await expect(page.getByText('这张照片记录的是今天的情况吗？',{exact:false})).toBeVisible()
+ await request.post('http://127.0.0.1:4198/draft-data',{data:{semanticDecision:{...decision,status:'ready',question:null},visualOutput:{kind:'observation',status:'readable',text:'',observations:[{text:'脚小趾表面有破皮',region:'图片中央'}]},items:[{category:'injury',subject:'current',title:'小趾破皮',timeText:'今天',archiveCategory:null,relationKey:null,fields:[{name:'symptom',value:'脚小趾表面有破皮',quote:'脚小趾表面有破皮',sourceId:'@visual',page:1}]}]}})
+ await page.getByRole('button',{name:'今天',exact:true}).click()
+ await expect(page.getByRole('button',{name:'核对记录',exact:true})).toBeEnabled()
+ await expect(page.locator('.front-desk-record-sheet')).toContainText('照片中可见')
+ await expect(page.locator('.front-desk-record-sheet')).toContainText('今天')
+})

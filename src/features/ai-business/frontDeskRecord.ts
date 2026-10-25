@@ -3,7 +3,7 @@ import { fileIdentity } from './captureDraft'
 import type { NursingInterview, SmartRecordDraft } from './smartRecordTypes'
 import {retainSmartRecordEdits} from './smartRecordTypes'
 
-export interface FrontMessage {targetContextId?:string;answerTo?:{contextId:string;questionId:string};id:string;kind:'text'|'voice'|'image'|'assistant';text:string;at?:string;inputAt?:number;contextId:string;status:'pending'|'completed'|'failed'|'discarded';files?:FrontFile[];voices?:FrontFile[]}
+export interface FrontMessage {recordable?:boolean;targetContextId?:string;answerTo?:{contextId:string;questionId:string};id:string;kind:'text'|'voice'|'image'|'assistant';text:string;at?:string;inputAt?:number;contextId:string;status:'pending'|'completed'|'failed'|'discarded';files?:FrontFile[];voices?:FrontFile[]}
 export interface FrontFile {name:string;mimeType:string;dataUrl:string;lastModified?:number}
 export interface FrontContext {previousMessages?:FrontMessage[];interview?:NursingInterview;id:string;updatedAt:string;saved?:boolean;recordResult?:SmartRecordDraft['result'];review?:SmartRecordDraft;messages:FrontMessage[]}
 export const voiceTurnId=(file:File)=>`voice:${file.name}:${file.lastModified}`
@@ -29,5 +29,5 @@ export function restoreFrontContext(context:FrontContext,local:CaptureDraft):Cap
   const pendingKeys=new Set(pending.flatMap(t=>t.fileKeys??[]))
   const extra=local.files.filter(f=>pendingKeys.has(fileIdentity(f))||f===local.pendingVoice)
   const review=context.saved?undefined:context.review&&retainSmartRecordEdits(context.review,local.smartReview?.id===context.review.id?local.smartReview:undefined)
-  return {...local,nursingInterview:context.saved?undefined:context.interview,frontContextId:context.id,...(local.resumeContextId?{resumeContextId:context.id}:{}),capturedAt:local.frontContextId===context.id?local.capturedAt:new Date(context.messages.find(m=>m.kind!=='assistant')?.inputAt??Date.parse(context.updatedAt)).toISOString(),text:context.saved?'':turns.filter(t=>t.role==='user'&&t.status==='completed').map(t=>t.text).filter(Boolean).join('\n'),files:[...(context.saved?[]:files),...extra],conversationTurns:[...previousTurns,...turns,...pending],smartReview:review,aiDraftId:review?.id,requestId:context.id}
+  return {...local,nursingInterview:context.saved?undefined:context.interview,frontContextId:context.id,...(local.resumeContextId?{resumeContextId:context.id}:{}),capturedAt:local.frontContextId===context.id?local.capturedAt:new Date(context.messages.find(m=>m.kind!=='assistant')?.inputAt??Date.parse(context.updatedAt)).toISOString(),text:context.saved?'':context.messages.filter(m=>m.kind!=='assistant'&&m.status==='completed'&&m.recordable!==false).map(m=>m.text).filter(Boolean).join('\n'),files:[...(context.saved?[]:files),...extra],conversationTurns:[...previousTurns,...turns,...pending],smartReview:review,aiDraftId:review?.id,requestId:context.id}
 }
