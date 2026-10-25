@@ -57,7 +57,7 @@ if (process.env.VISIT_AI_TEST === '1') {
       return fixtureResponse({output:[{content:[{type:'output_text',text:JSON.stringify({items})}]}]})
     }
     if(body.text.format.name==='professional_summary_verify'){
-      const data=JSON.parse(body.input),items=data.candidates.map(c=>({itemId:c.itemId,titleSupported:true,complete:true,claims:c.claims.map((_,index)=>({index,supported:true})),problems:[]}))
+      const data=JSON.parse(body.input),items=data.candidates.map(c=>({itemId:c.itemId,titleSupported:true,complete:true,missingFacts:[],claims:c.claims.map((_,index)=>({index,supported:true})),problems:[]}))
       return fixtureResponse({output:[{content:[{type:'output_text',text:JSON.stringify({items})}]}]})
     }
     if(body.text.format.name==='hoooho_business'){

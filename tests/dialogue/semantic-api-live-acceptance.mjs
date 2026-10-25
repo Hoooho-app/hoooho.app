@@ -1,3 +1,4 @@
+import {authenticateSyntheticAccount} from './synthetic-acceptance-account.mjs'
 // One-shot real-provider verification against the already deployed binary.
 // Only this fresh synthetic account/member/records are mutated or removed.
 import { randomUUID } from 'node:crypto'
@@ -57,7 +58,7 @@ async function api(route, method = 'GET', body, timeoutMs = 120000) {
   retainCookies(response)
   let value
   try { value = await response.json() } catch { throw new CheckError('CHECK_INVALID_JSON', response.status) }
-  if (!response.ok) throw new CheckError(safeCode(value?.error?.code), response.status)
+  if (!response.ok) {const error=new CheckError(safeCode(value?.error?.code),response.status);if(Number.isInteger(value?.error?.retryAfter))error.retryAfter=value.error.retryAfter;if(error.code==='INVALID_JOURNAL_SYMPTOM'&&typeof value?.error?.message==='string'&&value.error.message.length<160)error.validationMessage=value.error.message;if(Array.isArray(value?.error?.verification?.codes))error.verificationCodes=value.error.verification.codes.filter(x=>typeof x==='string'&&/^[a-z_]{1,50}$/.test(x));throw error}
   return value
 }
 async function notFound(route) {
@@ -78,7 +79,7 @@ async function eventRecords(eventId) {
 }
 
 try {
-  const registered = await api('/api/auth/register', 'POST', { nickname: `Sem${randomUUID().replaceAll('-', '').slice(0, 16)}`, password: randomUUID(), idempotencyKey: randomUUID() }, 20000)
+  const registered = await authenticateSyntheticAccount(api)
   result.emptySyntheticAccountRetained = true
   requireCheck(typeof registered.token === 'string' && registered.token && typeof registered.user?.id === 'string' && cookies.size, 'CHECK_REGISTRATION_SESSION')
   token = registered.token; accountId = registered.user.id
@@ -123,7 +124,7 @@ try {
   const summary = draft.items[0].professionalSummary?.text
   requireCheck(typeof summary === 'string' && summary.length > 0 && summary.length <= 1000, 'CHECK_SUMMARY_MISSING')
   result.summary = summary
-  requireCheck(draft.items[0].professionalSummary.version==='professional-summary-v2','CHECK_SEMANTIC_SUMMARY_VERSION')
+  requireCheck(draft.items[0].professionalSummary.version==='professional-summary-v2'&&draft.items[0].professionalSummary.verification?.protocol==='source-entailment-v2'&&draft.items[0].professionalSummary.verification.sourceCoverage===true,'CHECK_SEMANTIC_SUMMARY_VERSION')
   requireCheck(/脚|足/u.test(summary)&&/小拇|小趾|小脚趾|第五趾/u.test(summary)&&/破皮|破损|皮肤.*破|表皮.*破/u.test(summary)&&/踢/u.test(summary),'CHECK_INJURY_SEMANTIC_SUMMARY')
   requireCheck(/今天|今日/u.test(summary)&&/未|无|没有/u.test(summary)&&/出血/u.test(summary),'CHECK_ONSET_DENIAL_FIDELITY')
   requireCheck(!/确诊|诊断为|骨折|感染|左脚|右脚|左足|右足|已消毒|已包扎|已处理/u.test(summary),'CHECK_INVENTED_DIAGNOSIS_OR_OBSERVATION')
@@ -181,7 +182,8 @@ try {
   }
   result.passed = true
 } catch (error) {
-  result.error = { stage, code: error instanceof CheckError ? safeCode(error.code) : 'CHECK_INTERNAL_FAILURE', httpStatus: error instanceof CheckError ? error.status : null }
+  if(memberId&&['professional_summary','readable_photo_only'].includes(stage))try{const draft=await api(`/api/members/${memberId}/ai-drafts`);result.syntheticDiagnostic={state:draft?.state,preview:draft?.preview?.text??null}}catch{}
+  result.error = { ...(error.verificationCodes?{verificationCodes:error.verificationCodes}:{}),...(error.retryAfter?{retryAfterSeconds:error.retryAfter}:{}),...(error.validationMessage?{validationMessage:error.validationMessage}:{}),stage, code: error instanceof CheckError ? safeCode(error.code) : 'CHECK_INTERNAL_FAILURE', httpStatus: error instanceof CheckError ? error.status : null }
 } finally {
   // Explicit exact-ID cleanup. Event DELETE does not cascade record rows, so
   // records must be deleted while their owned parent event still exists.

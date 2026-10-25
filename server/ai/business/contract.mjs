@@ -97,9 +97,11 @@ export function resolveItemTime(item, options) {
 
 const field = (item, name) => item.fields.find(field => field.name === name)?.value
 const known = (value, choices) => choices.includes(value) ? value : undefined
-export function buildJournal(item) {
+export function buildJournal(item,{semanticVersion=1}={}) {
   const journal = { categories: itemRecordCategories(item), timePrecision: item.time?.precision === 'exact' ? 'exact' : item.time?.precision === 'unknown' || !item.time ? 'unknown' : 'period' }
-  if (item.category === 'symptom' || journal.categories.includes('symptom') && field(item,'symptom')) journal.symptom = { symptomCategory: /皮肤|疹|痒|红屁股|臀部|屁股.*红/.test(field(item,'symptom') || '') ? 'skin' : 'other', narrative: field(item,'symptom'), locations: bodyLocations(field(item,'location')), descriptors: [], locationText: field(item,'location'), generatedSummary: symptomItemCorePhrase(item) }
+  const semantic=semanticVersion===2
+  const narrative=field(item,'symptom')??(semantic&&item.category==='symptom'?(field(item,'chiefComplaint')??field(item,'reaction')??field(item,'statusRaw')):undefined)
+  if ((item.category === 'symptom' || journal.categories.includes('symptom') && field(item,'symptom'))&&!(semantic&&(!narrative||narrative.length>1000))) journal.symptom = { symptomCategory: /皮肤|疹|痒|红屁股|臀部|屁股.*红/.test(narrative || '') ? 'skin' : 'other', narrative, locations: bodyLocations(field(item,'location')), descriptors: [], locationText:semantic&&field(item,'location')?.length>120?undefined:field(item,'location'), generatedSummary: symptomItemCorePhrase(item) }
   if (item.category === 'sleep') {
     const sleepAt = field(item,'sleepAt'), wakeAt = field(item,'wakeAt')
     // ISO values are used only after a user supplied them or the time resolver

@@ -133,7 +133,7 @@ export function buildProfessionalSummary(item, {sources}={}) {
 // A field ID alone cannot make an arbitrary generated diagnosis faithful.
 // Only the exact deterministic projection is accepted for this version.
 export function validateProfessionalSummary(candidate,item,options) {
-  if(candidate?.version==='professional-summary-v2')return validSemanticSummary(candidate,item)
+  if(candidate?.version==='professional-summary-v2')return validSemanticSummary(candidate,item,options)
   const expected=buildProfessionalSummary(item,options)
   return Boolean(expected&&candidate?.version===expected.version&&candidate.text===expected.text&&JSON.stringify(candidate.claims)===JSON.stringify(expected.claims))
 }

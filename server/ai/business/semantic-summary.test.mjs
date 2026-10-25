@@ -19,7 +19,7 @@ function factsFixture({raw='脚小拇指被踢破了',category='symptom',entries
 }
 const allIds=packet=>packet.facts.flatMap(f=>f.factIds)
 const candidate=(packet,text='足小趾被踢后破损',title='足小趾被踢后破损')=>({itemId:packet.itemId,title,claims:[{text,factIds:allIds(packet)}]})
-const approved=items=>({items:items.map(c=>({itemId:c.itemId,titleSupported:true,complete:true,problems:[],claims:c.claims.map((_,index)=>({index,supported:true}))}))})
+const approved=items=>({items:items.map(c=>({itemId:c.itemId,titleSupported:true,complete:true,missingFacts:[],problems:[],claims:c.claims.map((_,index)=>({index,supported:true}))}))})
 function fakeModel({generate=packet=>candidate(packet),generation,verify=approved}={}){
  const calls=[]
  return {calls,async structured({task,input}){
@@ -185,4 +185,26 @@ test('a real draft field edit invalidates the previous generated summary before 
  assert.match(record.content,/已经恢复/u)
  assert.doesNotMatch(record.content,/被踢后破损/u)
  assert.equal(f.calls.length,3)
+})
+
+
+test('source coverage seal binds all inspected pages including unreferenced sources and source kind',async()=>{
+ const f=factsFixture();f.sources.push({id:'extra',page:2,text:'尚未提供另一处观察',sourceKind:'document_text'})
+ const [item]=await run(f,fakeModel(),{sourceCoverage:true})
+ const seal=item.professionalSummary
+ assert.equal(validSemanticSummary(seal,item,{sources:f.sources}),true)
+ assert.equal(validSemanticSummary(seal,item,{sources:[...f.sources].reverse()}),true)
+ const changed=clone(f.sources);changed[1].text='补充了另一处重要观察'
+ assert.equal(validSemanticSummary(seal,item,{sources:changed}),false)
+ const changedKind=clone(f.sources);changedKind[1].sourceKind='visual_observation'
+ assert.equal(validSemanticSummary(seal,item,{sources:changedKind}),false)
+ assert.equal(validSemanticSummary(seal,item,{sources:[]}),false)
+ assert.equal(validSemanticSummary(seal,item,{sources:f.sources.map(({id,page})=>({id,page}))}),true)
+})
+
+
+for(const malformed of [null,{},undefined])test(`source coverage rejects missingFacts ${JSON.stringify(malformed)} instead of sealing it`,async()=>{
+ const model=fakeModel({verify:items=>({items:approved(items).items.map(v=>({...v,missingFacts:malformed}))})})
+ await assert.rejects(()=>run(factsFixture(),model,{sourceCoverage:true}),{code:'AI_SUMMARY_UNSUPPORTED'})
+ assert.equal(model.calls.length,2)
 })

@@ -1,3 +1,4 @@
+import {authenticateSyntheticAccount} from './synthetic-acceptance-account.mjs'
 // One-shot real-provider verification against the already deployed binary.
 // Only this fresh synthetic account/member/records are mutated or removed.
 import { randomUUID } from 'node:crypto'
@@ -57,7 +58,7 @@ async function api(route, method = 'GET', body, timeoutMs = 120000) {
   retainCookies(response)
   let value
   try { value = await response.json() } catch { throw new CheckError('CHECK_INVALID_JSON', response.status) }
-  if (!response.ok) throw new CheckError(safeCode(value?.error?.code), response.status)
+  if (!response.ok) {const error=new CheckError(safeCode(value?.error?.code),response.status);if(Number.isInteger(value?.error?.retryAfter))error.retryAfter=value.error.retryAfter;if(error.code==='INVALID_JOURNAL_SYMPTOM'&&typeof value?.error?.message==='string'&&value.error.message.length<160)error.validationMessage=value.error.message;if(Array.isArray(value?.error?.verification?.codes))error.verificationCodes=value.error.verification.codes.filter(x=>typeof x==='string'&&/^[a-z_]{1,50}$/.test(x));throw error}
   return value
 }
 async function notFound(route) {
@@ -78,7 +79,7 @@ async function eventRecords(eventId) {
 }
 
 try {
-  const registered = await api('/api/auth/register', 'POST', { nickname: `Sem${randomUUID().replaceAll('-', '').slice(0, 16)}`, password: randomUUID(), idempotencyKey: randomUUID() }, 20000)
+  const registered = await authenticateSyntheticAccount(api)
   result.emptySyntheticAccountRetained = true
   requireCheck(typeof registered.token === 'string' && registered.token && typeof registered.user?.id === 'string' && cookies.size, 'CHECK_REGISTRATION_SESSION')
   token = registered.token; accountId = registered.user.id
@@ -122,7 +123,7 @@ try {
   const photoMessages=imageTurn.context.messages.filter(m=>m.kind!=='assistant'&&m.status==='completed'&&m.recordable!==false),files=photoMessages.flatMap(m=>m.files??[])
   requireCheck(files.some(f=>f.dataUrl===report.dataUrl),'CHECK_PHOTO_OWNER_NOT_RESOLVED')
   const organized=await api(`/api/members/${memberId}/ai-drafts`,'POST',{text:userRaw(imageTurn.context),files,smartRecord:true,frontDeskRecord:true,frontContextId:imageTurn.context.id,semanticVersion:2,followUp:false,timezone:'Asia/Shanghai'})
-  requireCheck(organized.state==='ready'&&organized.items?.length===1&&organized.items[0].professionalSummary?.version==='professional-summary-v2','CHECK_PHOTO_NARRATIVE_READY')
+  requireCheck(organized.state==='ready'&&organized.items?.length===1&&organized.items[0].professionalSummary?.version==='professional-summary-v2'&&organized.items[0].professionalSummary.verification?.protocol==='source-entailment-v2'&&organized.items[0].professionalSummary.verification.sourceCoverage===true,'CHECK_PHOTO_NARRATIVE_READY')
   const description=organized.items[0].professionalSummary.text
   requireCheck(/脚|足/u.test(description)&&/趾/u.test(description)&&/破皮|破损/u.test(description)&&/踢/u.test(description),'CHECK_PHOTO_TEXT_FACTS')
   requireCheck(!/骨折|感染|左脚|右脚|已包扎|已消毒/u.test(description),'CHECK_PHOTO_NO_INFERENCE')
@@ -131,7 +132,8 @@ try {
   requireCheck((await api('/api/events')).length===0,'CHECK_PHOTO_NO_AUTO_SAVE')
   result.passed=true
 } catch (error) {
-  result.error = { stage, code: error instanceof CheckError ? safeCode(error.code) : 'CHECK_INTERNAL_FAILURE', httpStatus: error instanceof CheckError ? error.status : null }
+  if(memberId&&['professional_summary','readable_photo_only'].includes(stage))try{const draft=await api(`/api/members/${memberId}/ai-drafts`);result.syntheticDiagnostic={state:draft?.state,preview:draft?.preview?.text??null}}catch{}
+  result.error = { ...(error.verificationCodes?{verificationCodes:error.verificationCodes}:{}),...(error.retryAfter?{retryAfterSeconds:error.retryAfter}:{}),...(error.validationMessage?{validationMessage:error.validationMessage}:{}),stage, code: error instanceof CheckError ? safeCode(error.code) : 'CHECK_INTERNAL_FAILURE', httpStatus: error instanceof CheckError ? error.status : null }
 } finally {
   // Explicit exact-ID cleanup. Event DELETE does not cascade record rows, so
   // records must be deleted while their owned parent event still exists.
