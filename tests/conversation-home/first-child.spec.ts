@@ -80,7 +80,7 @@ test('first-child chat validates answers, previews and edits the avatar, then sa
   const created = await (await createdResponse).json()
   expect(attempts).toBe(2)
   expect(created).toMatchObject({ name: input.name, birthday: input.birthday, gender: 'male', relationship: 'child', primaryRecorderRelationship: 'mother', avatar: 'boy-age2-european' })
-  await expect(page.locator('.hoho-reception img')).toHaveAttribute('src', /front-desk-welcome-20261025/)
+  await expect(page.locator('.hoho-reception img')).toHaveAttribute('src', /front-desk-welcome-masked-20261025/)
   await page.reload()
   await expect(page.getByRole('button', { name: '按住说话', exact: true })).toBeVisible()
   expect(await page.evaluate(() => Object.keys(sessionStorage).some(k => k.startsWith('hoooho:first-child:v1:')))).toBe(false)
