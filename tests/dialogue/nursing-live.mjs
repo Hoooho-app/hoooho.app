@@ -44,7 +44,7 @@ try{
   await page.getByRole('button',{name:'没注意',exact:true}).click()
   await expect(page.getByLabel('回答当前问题')).toHaveCount(0,{timeout:120000})
  }
- await expect(page.getByRole('button',{name:'保存记录',exact:true})).toBeEnabled({timeout:120000})
+ await expect(page.getByRole('button',{name:'立即保存',exact:true})).toBeEnabled({timeout:120000})
  front=await api(`/api/members/${member.id}/front-desk-record`)
  assert.ok(front.interview.turnCount<=3);assert.notEqual(front.interview.status,'asking')
  checks.push('bound answers preserve unsent input and unknown ends ordinary questions')
