@@ -215,3 +215,12 @@ test('single-image visual source unwraps only one fully valid source without cha
  const model=modelFor(async()=>success([valid]))
  await assert.rejects(()=>model.structured({task:'front-desk-visual-source',schema:visualSourceSchema,instructions:'synthetic',input:'not an image'}),{code:'AI_OUTPUT_INVALID'})
 })
+
+
+test('single visual image permits one keyed transport envelope only when the sole payload is fully valid',async()=>{
+ const source={kind:'document',status:'readable',text:'合成原文',observations:[]},input=[{role:'user',content:[{type:'input_image',image_url:'data:image/png;base64,AA=='}]}]
+ const call=(payload,images=input)=>modelFor(async()=>success(payload)).structured({task:'front-desk-visual-source',schema:visualSourceSchema,instructions:'synthetic',vision:true,input:images})
+ const r=await call([{'image_1':source}]);assert.deepEqual(r.value,source);assert.equal(r.diagnostics.visualEnvelope,'single-source-keyed-array')
+ for(const payload of [[{image_1:source,image_2:source}],[{image_1:{...source,status:'normal'}}],[{image_1:{...source,diagnosis:'不允许'}}],[{image_1:[source]}],[{image_1:{nested:source}}],[{image_1:source},{image_2:source}]])await assert.rejects(()=>call(payload),{code:'AI_OUTPUT_INVALID'})
+ await assert.rejects(()=>call([{image_1:source}],[{role:'user',content:[...input[0].content,...input[0].content]}]),e=>['AI_OUTPUT_INVALID','AI_INPUT_LIMIT'].includes(e.code))
+})

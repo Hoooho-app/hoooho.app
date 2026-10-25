@@ -115,7 +115,10 @@ export class BailianProvider extends OpenAIProvider {
             value = value[0]; ocrEnvelope = 'single-page-array'
           }
           let visualEnvelope
-          if(imageCount===1&&format.name==='front_desk_visual_source'&&JSON.stringify(format.schema)===singlePageVisualSourceSchema&&Array.isArray(value)&&value.length===1&&validate(value[0])){value=value[0];visualEnvelope='single-source-array'}
+          if(imageCount===1&&format.name==='front_desk_visual_source'&&JSON.stringify(format.schema)===singlePageVisualSourceSchema&&Array.isArray(value)&&value.length===1){
+            if(validate(value[0])){value=value[0];visualEnvelope='single-source-array'}
+            else if(value[0]&&typeof value[0]==='object'&&!Array.isArray(value[0])&&Object.keys(value[0]).length===1&&validate(Object.values(value[0])[0])){value=Object.values(value[0])[0];visualEnvelope='single-source-keyed-array'}
+          }
           let dialogueEnvelope
           if(imageCount===1&&format.name==='hoooho_front_desk_reply'&&Array.isArray(value)&&value.length===1&&validate(value[0])){value=value[0];dialogueEnvelope='single-reply-array'}
           if (!validate(value)) {
@@ -124,7 +127,7 @@ export class BailianProvider extends OpenAIProvider {
             // The home reply contract can be diagnosed without clinical text.
             if(['hoooho_front_desk_reply','front_desk_visual_source'].includes(format.name)){
               const first=Array.isArray(value)?value[0]:value
-              error.validation.outputShape={root:value===null?'null':Array.isArray(value)?'array':typeof value,length:Array.isArray(value)?value.length:null,element:first===null?'null':Array.isArray(first)?'array':typeof first,fields:Object.fromEntries(['kind','observations','reply','contextId','action','text','status','description','caption','content','data','result','image','image_description','observations','0'].filter(key=>first&&Object.hasOwn(Object(first),key)).map(key=>[key,typeof first[key]]))}
+              error.validation.outputShape={propertyCount:first&&typeof first==='object'&&!Array.isArray(first)?Object.keys(first).length:null,soleNestedType:first&&typeof first==='object'&&!Array.isArray(first)&&Object.keys(first).length===1?typeof Object.values(first)[0]:null,root:value===null?'null':Array.isArray(value)?'array':typeof value,length:Array.isArray(value)?value.length:null,element:first===null?'null':Array.isArray(first)?'array':typeof first,fields:Object.fromEntries(['kind','observations','reply','contextId','action','text','status','description','caption','content','data','result','image','image_description','observations','0'].filter(key=>first&&Object.hasOwn(Object(first),key)).map(key=>[key,typeof first[key]]))}
             }
             throw error
           }
