@@ -283,7 +283,7 @@ export class AIBusinessService {
       extractionDiagnostics=diagnostics
       readable=readablePreview(JSON.stringify(value),diagnostics)??readable
       if(syntheticRequested)syntheticCapture=captureSyntheticOutput({input,context:extractionContext,output:value,diagnostics,referenceNow:draft.referenceNow,timezone:draft.timezone})
-      const evidenceItems=validateExtraction(value,draft.sources,draft.frontDeskRecord?{timeEvidence:(item,items)=>boundNursingOnset(item,items,draft.sources,{frontContextId:draft.frontContextId,answerContext:draft.answerContext})}:undefined)
+      const evidenceItems=validateExtraction(value,draft.sources,draft.frontDeskRecord?{verbatimObservations:draft.semanticVersion===2,timeEvidence:(item,items)=>boundNursingOnset(item,items,draft.sources,{frontContextId:draft.frontContextId,answerContext:draft.answerContext})}:undefined)
       const extracted=await reconcileExtraction(draft.frontDeskRecord?groundNursingEvidence(evidenceItems,draft.sources,{referenceNow:draft.referenceNow,timezone:draft.timezone,supersededAnswers:draft.supersededAnswers,frontContextId:draft.frontContextId,answerContext:draft.answerContext}):evidenceItems,draft.sources,{referenceNow:draft.referenceNow,timezone:draft.timezone})
       const occurrences=draft.smartRecord?mergeNarratedIncidents(extracted,draft.sources,{referenceNow:draft.referenceNow,timezone:draft.timezone,resolve:item=>resolveItemTime(item,{referenceNow:draft.referenceNow,timezone:draft.timezone})}):extracted
       draft.items=mergeItems(occurrences).map(item=>this.resolve(item,draft))

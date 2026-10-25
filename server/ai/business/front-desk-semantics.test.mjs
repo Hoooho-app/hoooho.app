@@ -68,3 +68,15 @@ test('unreadable and unrelated images may ask purpose without implying patient o
  }
  assert.equal(semanticInterview(reply(decision({intent:'chat',subject:'unknown',status:'ready',media:'unrelated'}))).semantic.organize,false)
 })
+
+
+test('v2 discards unsupported normalized observation values and projects only the exact supplied quote',()=>{
+ const raw='今天那个脚就是小拇指破了，然后被踢到的。',sources=[{id:'input',page:1,text:raw,status:'readable'}]
+ const output={items:[{category:'symptom',subject:'current',title:'足小趾破损',timeText:'今天',archiveCategory:null,relationKey:null,fields:[{name:'symptom',value:'足小趾皮肤破损',quote:raw,sourceId:'input',page:1}]}]}
+ assert.throws(()=>validateExtraction(output,sources),{code:'AI_EVIDENCE_MISMATCH'})
+ const [item]=validateExtraction(output,sources,{verbatimObservations:true})
+ assert.equal(item.fields[0].value,raw);assert.equal(item.fields[0].evidenceProjection,'verbatim_quote')
+ assert.equal(item.fields[0].sources[0].quote,raw)
+ for(const name of ['result','doseOriginal','medicationName','doctorStatement'])assert.throws(()=>validateExtraction({items:[{...output.items[0],fields:[{...output.items[0].fields[0],name}]}]},sources,{verbatimObservations:true}),{code:'AI_EVIDENCE_MISMATCH'})
+ assert.throws(()=>validateExtraction({items:[{...output.items[0],fields:[{...output.items[0].fields[0],quote:'原文未出现的脚趾描述'}]}]},sources,{verbatimObservations:true}),{code:'AI_EVIDENCE_MISMATCH'})
+})

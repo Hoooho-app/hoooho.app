@@ -78,7 +78,7 @@ async function eventRecords(eventId) {
 }
 
 try {
-  const registered = await api('/api/auth/register', 'POST', { nickname: `Semantic${randomUUID().replaceAll('-', '').slice(0, 16)}`, password: randomUUID(), idempotencyKey: randomUUID() }, 20000)
+  const registered = await api('/api/auth/register', 'POST', { nickname: `Sem${randomUUID().replaceAll('-', '').slice(0, 16)}`, password: randomUUID(), idempotencyKey: randomUUID() }, 20000)
   result.emptySyntheticAccountRetained = true
   requireCheck(typeof registered.token === 'string' && registered.token && typeof registered.user?.id === 'string' && cookies.size, 'CHECK_REGISTRATION_SESSION')
   token = registered.token; accountId = registered.user.id

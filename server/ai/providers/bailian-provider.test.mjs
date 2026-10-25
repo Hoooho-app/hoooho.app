@@ -1,3 +1,4 @@
+import {visualSourceSchema} from '../business/visual-source-contract.mjs'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { mkdtemp, rm } from 'node:fs/promises'
@@ -196,4 +197,21 @@ test('摘要业务仍复用去标识化输入、引用校验，不把百炼推�
   let input;const p=provider(async(_url,init)=>{input=JSON.parse(init.body);return success({overview:'疑似食物相关，尚未确诊。',keyPoints:[{text:'疑似食物相关，尚未确诊',sectionId:'record',quote:'疑似食物相关，尚未确诊'}],missingInformation:[]})})
   const result=await new MedicalSummaryService({provider:p,logger:silent}).generate({sections:[{id:'record',title:'合成来源',lines:['[record:synthetic] 疑似食物相关，尚未确诊','姓名：合成孩子']}]},'synthetic-summary')
   assert.equal(result.provider,'bailian');assert.equal(result.keyPointEvidence[0].sourceId,'record:synthetic');assert.doesNotMatch(JSON.stringify(input.messages[1]),/姓名|合成孩子/)
+})
+
+
+test('single-image visual source unwraps only one fully valid source without changing its text or observations',async()=>{
+ const input=[{role:'user',content:[{type:'input_image',image_url:'data:image/png;base64,AA=='}]}]
+ for(const original of [{kind:'document',status:'readable',text:'今天脚小趾表面破皮',observations:[]},{kind:'observation',status:'readable',text:'',observations:[{region:'图片中央',text:'局部发红'}]}]){
+  const model=modelFor(async()=>success([original]))
+  const result=await model.structured({task:'front-desk-visual-source',schema:visualSourceSchema,instructions:'synthetic',vision:true,input})
+  assert.deepEqual(result.value,original);assert.equal(result.diagnostics.visualEnvelope,'single-source-array')
+ }
+ const valid={kind:'document',status:'readable',text:'合成原文',observations:[]}
+ for(const payload of [[],[valid,valid],[{text:'只有文字'}],[{...valid,status:'normal'}],[{...valid,diagnosis:'不允许'}]]){
+  const model=modelFor(async()=>success(payload))
+  await assert.rejects(()=>model.structured({task:'front-desk-visual-source',schema:visualSourceSchema,instructions:'synthetic',vision:true,input}),{code:'AI_OUTPUT_INVALID'})
+ }
+ const model=modelFor(async()=>success([valid]))
+ await assert.rejects(()=>model.structured({task:'front-desk-visual-source',schema:visualSourceSchema,instructions:'synthetic',input:'not an image'}),{code:'AI_OUTPUT_INVALID'})
 })

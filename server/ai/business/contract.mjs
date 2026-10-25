@@ -38,11 +38,16 @@ function validateExtractionContent(output, sources, options={}) {
     const fields = item.fields.map((field,fieldIndex) => {
       if (!fieldNames.includes(field.name) || !Number.isInteger(field.page) || field.page < 1) throw fail('字段或来源位置无效')
       const source = sources.find(source => source.id === field.sourceId && source.page === field.page)
-      const quote = safeText(field.quote, 4000), value = safeText(field.value, 4000)
+      const quote = safeText(field.quote, 4000)
+      let value = safeText(field.value, 4000),evidenceProjection
+      // New dialogue summaries have a separate semantic generation stage. If
+      // the supplier paraphrases an observation, discard that value and use its
+      // exact, supplied quote; every scope check below still applies.
+      if(options.verbatimObservations&&source&&quote&&source.text.includes(quote)&&value&&!quote.includes(value)&&['symptom','reaction','chiefComplaint','quality','statusRaw','location','handling'].includes(field.name)){value=quote;evidenceProjection='verbatim_quote'}
       const fieldPath=`/items/${index}/fields/${fieldIndex}`
       if (!source || !quote || !source.text.includes(quote) || !value || !quote.includes(value)) throw evidenceFailure('部分内容与原文不一致，请核对，未保存生成结果',fieldPath,!source?'source_missing':!quote?'quote_missing':!source.text.includes(quote)?'quote_not_in_source':!value?'value_missing':'value_not_in_quote')
       const located=locateEvidence(source,quote,value,field,item,fieldPath,sourceAssertions.get(source))
-      return { name: field.name, value, sources: [{ sourceId: source.id, page: source.page, quote, ...located,...(source.sourceKind==='visual_observation'?{sourceKind:'visual_observation'}:{}) }], confirmed: false, editedBy: 'model' }
+      return { name: field.name, value,...(evidenceProjection?{evidenceProjection}:{}), sources: [{ sourceId: source.id, page: source.page, quote, ...located,...(source.sourceKind==='visual_observation'?{sourceKind:'visual_observation'}:{}) }], confirmed: false, editedBy: 'model' }
     })
     const timeText = item.timeText == null ? null : safeText(item.timeText, 100)
     if (!fields.length) return []
