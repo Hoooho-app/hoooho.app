@@ -11,7 +11,7 @@
 - [x] 追问完成才展示纸张式记录单（类别、标题、发生时间、根据已有事实的描述），以及立即保存/核对记录。
 - [x] 正式保存后才提供查看和启用症状跟进。核对后保存遵循相同顺序。启用只操作既有记录，不重复保存；失败可重试，跨成员、归档和合并情况受保护。
 - [x] 构建、相关服务端和浏览器检查通过；查看 320/375/390px 的处理中、追问、整理单及保存后截图。
-- [ ] 提交、推送、main 集成、Production 部署成功并线上核验。
+- [x] 提交、推送、main 集成、Production 部署成功并线上核验。
 
 冻结边界：其他页面配色、欢迎护士新形象、原视频文件、医疗知识和问诊判断不扩写；仅为保存后启用跟进增加必要的既有事件元数据操作。手机浏览器模拟不代表 iPhone Safari 真机或产品负责人视觉验收。
 
@@ -30,4 +30,8 @@
 
 ## CI 与发布
 
-待 main 集成、CI 统一回归、Production 部署和精确提交的合成账号线上验收后补记。线上验收使用 `HOOOHO_RUN_FRONT_DESK_STAGE_ACCEPTANCE=1 node tests/dialogue/cold-api-live-acceptance.mjs <deployed-commit>`；仅操作新建的合成成员与记录，并精确清理记录、事件、成员和会话。
+本轮界面与交互经 PR #528 合入 main `4c3347e90d49b3eed710756e9f7714a8e4054e2f`，Production 部署 `18ca4625-9ec7-45fa-ab75-38735a5e9c3e` 为 `SUCCESS`。首次真实模型验收发现“今天开始”原话引用被现有时间绑定校验误拦截，未写入正式记录，已精确清理测试成员并撤销会话。
+
+必要时间绑定修复经 PR #529 合入 main `22b744549fa5e8380982feb43c6aecf9bce9aacf`，Production 部署 `be72367f-eba2-46f0-89a7-7247edcb716c` 为 `SUCCESS`。真实模型线上验收已通过：提问完成后生成一条忠实记录，正式保存与读回一致，默认不启用跟进；重复保存、保存后启用与重复启用均不增条，原始记录保持不变。仅清理本次合成记录、事件及成员，并撤销会话；保留空合成账号。见 [修复及发布记录](front-desk-onset-phrase-20261025.md) 和 [脱敏线上结果](acceptance/front-desk-stages-production-20261025.json)。
+
+线上验收使用 `HOOOHO_RUN_FRONT_DESK_STAGE_ACCEPTANCE=1 node tests/dialogue/cold-api-live-acceptance.mjs <deployed-commit>`，不会操作用户原有数据。CI #75（run `40203975069`）统一回归最终为 `success`：服务端、客户端、帮助、完整构建、症状跟进、对话、首页、首孩初始化、日常记录及树芽页面各阶段全部通过。专用于历史分支的 `cold-production-acceptance` 作业按既有条件跳过；本次真实模型线上验收由上面的独立合成脚本完成。
