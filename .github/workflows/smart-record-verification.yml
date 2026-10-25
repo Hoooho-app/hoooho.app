@@ -45,7 +45,7 @@ jobs:
             npx playwright install-deps chromium
             node -e "$hoho_browser_smoke"
           fi
-      - run: node --test server/ai/recognition-jobs.test.mjs server/ai/front-desk-record.test.mjs server/ai/front-desk-resume.test.mjs server/ai/recognition-context.test.mjs server/ai/live-audio-preview.test.mjs server/ai/business/*.test.mjs
+      - run: node --test server/events/case-continuity-service.test.mjs server/ai/recognition-jobs.test.mjs server/ai/front-desk-record.test.mjs server/ai/front-desk-resume.test.mjs server/ai/recognition-context.test.mjs server/ai/live-audio-preview.test.mjs server/ai/business/*.test.mjs
       - run: node --import ./scripts/register-node-ts-loader.mjs --test src/features/case-continuity/followupPresentation.test.ts src/features/ai-business/liveAudioPreview.test.ts src/features/ai-business/frontDeskRecord.test.ts
       - run: TZ=Asia/Shanghai node --import ./scripts/register-node-ts-loader.mjs --test src/pages/NurseStation/firstChildSetupModel.test.ts
       - run: npm run test:help

@@ -10,6 +10,43 @@ import { projectJournalRecord, validateJournal } from './journal-metadata.mjs'
 import { AccountDataService } from '../account/account-data-service.mjs'
 import { VisitSheetService } from '../visit-sheets/visit-sheet-service.mjs'
 import { caseFollowupView } from './case-followup-view.mjs'
+import { caseApiResult } from './case-api.mjs'
+
+test('保存后通过跟进入口启用既有症状，重复与并发重试不新增记录或改写归档历史',async t=>{
+  const f=await fixture(t)
+  const saved=await f.capture({followUp:false,journal:{categories:['symptom'],symptom:{symptomCategory:'skin',narrative:'合成：今天皮肤发红',keywords:[],locations:[],descriptors:[],linkedRecordIds:{},impactLevel:'some'}}})
+  const original=await f.service.records.getOwnedRecord('synthetic-account',saved.recordId)
+  assert.equal((await f.service.list('synthetic-account',f.member.id)).active.length,0)
+  const url=`/api/members/${f.member.id}/cases/${saved.eventId}/tracking`
+  const enable=()=>caseApiResult(f.service,'synthetic-account','POST',url,async()=>({recordId:saved.recordId}))
+  const [first,retry]=await Promise.all([enable(),enable()])
+  assert.equal(first.data.caseTracking,true)
+  assert.deepEqual(retry,first)
+  assert.equal(first.data.caseStateHistory,undefined)
+  assert.deepEqual(await f.service.records.getOwnedRecord('synthetic-account',saved.recordId),original)
+  const list=await f.service.list('synthetic-account',f.member.id)
+  assert.equal(list.active.length,1);assert.equal(list.active[0].followup.recordCount,1)
+  assert.equal((await caseApiResult(f.service,'synthetic-account','GET',url,async()=>({}))).status,405)
+})
+
+test('保存后跟进拒绝未保存、非症状、跨账号、跨成员、跨事件及归档或合并记录',async t=>{
+  const f=await fixture(t),saved=await f.capture({followUp:false,journal:{categories:['symptom']}})
+  const enable=(recordId=saved.recordId,memberId=f.member.id,eventId=saved.eventId,accountId='synthetic-account')=>f.service.enableTracking(accountId,memberId,eventId,{recordId})
+  const other=await f.members.create({accountId:'synthetic-account',name:'另一合成人物',relationship:'other'})
+  await assert.rejects(()=>enable('missing'))
+  await assert.rejects(()=>enable(saved.recordId,other.id))
+  await assert.rejects(()=>enable(saved.recordId,f.member.id,saved.eventId,'another-account'))
+  const unrelated=await f.capture({followUp:false})
+  await assert.rejects(()=>enable(unrelated.recordId),/不属于/)
+  await assert.rejects(()=>enable(unrelated.recordId,f.member.id,unrelated.eventId),/仅已保存的症状/)
+  await f.service.archive('synthetic-account',f.member.id,saved.eventId,true)
+  const archived=await f.service.owned('synthetic-account',f.member.id,saved.eventId)
+  await assert.rejects(()=>enable(),/归档或合并/)
+  assert.deepEqual(await f.service.owned('synthetic-account',f.member.id,saved.eventId),archived)
+  const merged=await f.capture({followUp:false,journal:{categories:['symptom']}})
+  await f.service.events.repository.update(merged.eventId,{caseMergedInto:unrelated.eventId},f.service.now())
+  await assert.rejects(()=>enable(merged.recordId,f.member.id,merged.eventId),/归档或合并/)
+})
 
 test('列表描述不重复原文，不推断诊断；最近时间排除未知与补录录入时间', () => {
   const event={title:'早上起来的时候就开始其实有点头晕但不是头疼发烧',startTime:'2026-10-04T09:00:00Z'}

@@ -81,6 +81,35 @@ body header.hoho-main-header--conversation{padding-inline:var(--hoho-space-4);ba
 .front-desk-processing .idle-nurse-visual__idle-video{width:100%;height:100%;object-fit:cover}
 .front-desk-processing>div:last-child{min-width:0}
 .front-desk-processing p{margin:0}
-.front-desk-processing span{display:block;margin-top:var(--hoho-space-1);font-size:var(--hoho-font-size-caption);color:rgb(var(--hoho-color-text-secondary))}
+.front-desk-processing>div>span{display:block;margin-top:var(--hoho-space-1);font-size:var(--hoho-font-size-caption);color:rgb(var(--hoho-color-text-secondary))}
 
 .front-desk-processing .idle-nurse-visual[data-reduced-motion="true"] .idle-nurse-visual__idle-video{opacity:1}
+
+/* The front desk has one action palette; existing review edit/delete controls keep theirs. */
+body .smart-record-home .nurse-turn--assistant>.nurse-turn-content{background:rgb(var(--hoho-color-primary-soft));border-color:rgb(var(--hoho-color-primary-border))}
+body .smart-record-home .nurse-turn--user>.nurse-turn-content{background:rgb(var(--hoho-color-surface-white));border-color:rgb(var(--hoho-color-border))}
+body .smart-record-home :is(.nurse-conversation .hoho-button:not([aria-label^="移除图片"]),.smart-record-review-footer .hoho-button,.front-desk-followup__actions .hoho-button,.front-desk-followup__error .hoho-button,.front-desk-processing--separate>.hoho-button,.hoho-main-header--conversation .hoho-button,.hoho-main-header--conversation>button,.hoho-dialogue-composer>.hoho-button,.record-entry-grid>button,.daily-record-options>button,.front-desk-menu>button,.front-desk-jump-wrap>.hoho-button){background:rgb(var(--hoho-color-action));color:rgb(var(--hoho-color-action-text));border:1px solid rgb(var(--hoho-color-action-border));border-radius:var(--hoho-radius-control);box-shadow:none}
+body .smart-record-home :is(.nurse-conversation .hoho-button:not([aria-label^="移除图片"]),.smart-record-review-footer .hoho-button,.front-desk-followup__actions .hoho-button,.front-desk-followup__error .hoho-button,.front-desk-processing--separate>.hoho-button,.hoho-main-header--conversation .hoho-button,.hoho-main-header--conversation>button,.hoho-dialogue-composer>.hoho-button,.record-entry-grid>button,.daily-record-options>button,.front-desk-menu>button,.front-desk-jump-wrap>.hoho-button):hover:not(:disabled){background:rgb(var(--hoho-color-action-hover))}
+body .smart-record-home :is(.nurse-conversation .hoho-button:not([aria-label^="移除图片"]),.record-entry-grid>button,.daily-record-options>button,.hoho-dialogue-composer>.hoho-button):active:not(:disabled){background:rgb(var(--hoho-color-action-active))}
+.smart-record-home .smart-record-saved-actions{display:flex;align-items:center;flex-wrap:wrap;gap:var(--hoho-space-2)}
+.smart-record-home .smart-record-saved-actions>.hoho-button{flex:1;min-width:0}
+.smart-record-home .smart-record-saved-actions>span{flex-basis:100%}
+.smart-record-home .front-desk-record-sheet{padding:var(--hoho-space-4);background:rgb(var(--hoho-color-surface-white));border:1px solid rgb(var(--hoho-color-border));border-top:3px solid rgb(var(--hoho-color-primary-border));border-radius:var(--hoho-radius-small);gap:var(--hoho-space-3)}
+.smart-record-home .front-desk-record-sheet>header{padding-bottom:var(--hoho-space-2);border-bottom:1px solid rgb(var(--hoho-color-border));font-size:var(--hoho-font-size-caption);color:rgb(var(--hoho-color-text-secondary))}
+.smart-record-home .front-desk-record-sheet>h3{margin:0;font-size:var(--hoho-font-size-card-title);font-weight:600}
+.smart-record-home .front-desk-record-sheet dl{margin:0;font-size:var(--hoho-font-size-caption)}
+.smart-record-home .front-desk-record-sheet dl>div{display:flex;gap:var(--hoho-space-3)}
+.smart-record-home .front-desk-record-sheet dt{flex:none;color:rgb(var(--hoho-color-text-secondary))}
+.smart-record-home .front-desk-record-sheet dd{margin:0;overflow-wrap:anywhere}
+.smart-record-home .nurse-turn .front-desk-record-sheet>p{background:transparent;border:0;border-radius:0;padding:0;font-size:var(--hoho-font-size-body);line-height:1.7}
+.smart-record-home .front-desk-processing--separate{display:grid;grid-template-columns:104px minmax(0,1fr) auto;gap:var(--hoho-space-2);align-items:center;padding:var(--hoho-space-2);border:1px solid rgb(var(--hoho-color-primary-border)/.45);border-radius:var(--hoho-radius-card);background:color-mix(in srgb,rgb(var(--hoho-color-primary-soft)) 40%,rgb(var(--hoho-color-surface-white)))}
+.smart-record-home .front-desk-processing--separate>.idle-nurse-visual{width:104px;height:104px;flex:none;mix-blend-mode:multiply}
+.smart-record-home .front-desk-processing--separate .idle-nurse-visual__idle-video{object-fit:contain;opacity:1}
+.smart-record-home .front-desk-processing__copy{display:grid;gap:var(--hoho-space-1);min-width:0}
+.smart-record-home .front-desk-processing__copy>strong{font-size:var(--hoho-font-size-body-small);font-weight:500;white-space:nowrap}
+.smart-record-home .front-desk-processing__copy>span{margin:0;font-size:var(--hoho-font-size-caption);white-space:nowrap;font-variant-numeric:tabular-nums}
+.smart-record-home .front-desk-processing__dots{display:inline-block;width:1.2em;margin:0;vertical-align:bottom;font-size:inherit;color:inherit;animation:front-desk-dots 1.4s steps(4,end) infinite;clip-path:inset(0 100% 0 0)}
+.smart-record-home .front-desk-processing--separate>.hoho-button{padding-inline:var(--hoho-space-2);white-space:nowrap;font-size:var(--hoho-font-size-caption);min-height:44px}
+@keyframes front-desk-dots{to{clip-path:inset(0 -25% 0 0)}}
+@media(max-width:359px){.smart-record-home .front-desk-processing--separate{grid-template-columns:88px minmax(0,1fr) auto}.smart-record-home .front-desk-processing--separate>.idle-nurse-visual{width:88px;height:88px}}
+@media(prefers-reduced-motion:reduce){.smart-record-home .front-desk-processing__dots{animation:none;clip-path:none}}

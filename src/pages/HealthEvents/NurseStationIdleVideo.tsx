@@ -1,24 +1,35 @@
 import { useEffect, useRef } from 'react'
 import idleOne from '../../assets/nurse-triage/nurse-station-idle-1.mp4'
 import idleOnePoster from '../../assets/nurse-triage/nurse-station-idle-1-poster.webp'
+import idleOneWebm from '../../assets/nurse-triage/nurse-station-idle-1-portable-20261025.webm'
 
 interface NurseStationIdleVideoProps {
   active: boolean
   reducedMotion: boolean
+  portable?: boolean
 }
 
-export function NurseStationIdleVideo({ active, reducedMotion }: NurseStationIdleVideoProps) {
+export function NurseStationIdleVideo({ active, reducedMotion, portable=false }: NurseStationIdleVideoProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
 
   useEffect(() => {
     const video = videoRef.current
+    // StrictMode replays effect cleanup while keeping the same video element.
+    if(video){
+      const sources=portable?[...video.querySelectorAll('source')]:[video]
+      const urls=portable?[idleOneWebm,idleOne]:[idleOne]
+      let restored=false
+      sources.forEach((source,index)=>{if(!source.getAttribute('src')){source.setAttribute('src',urls[index]);restored=true}})
+      if(restored)video.load()
+    }
     return () => {
       if (!video) return
       video.pause()
       video.removeAttribute('src')
+      video.querySelectorAll('source').forEach(source=>source.removeAttribute('src'))
       video.load()
     }
-  }, [])
+  }, [portable])
 
   useEffect(() => {
     const video = videoRef.current
@@ -70,8 +81,8 @@ export function NurseStationIdleVideo({ active, reducedMotion }: NurseStationIdl
       poster={idleOnePoster}
       preload="auto"
       ref={videoRef}
-      src={idleOne}
+      src={portable?undefined:idleOne}
       tabIndex={-1}
-    />
+    >{portable&&<><source src={idleOneWebm} type={'video/webm; codecs="vp9"'}/><source src={idleOne} type="video/mp4"/></>}</video>
   </div>
 }

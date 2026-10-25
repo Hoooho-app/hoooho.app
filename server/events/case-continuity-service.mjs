@@ -187,6 +187,19 @@ export class CaseContinuityService {
       return { eventId: event.id, recordId: record.id, attachmentIds, duplicate: false }
     })
   }
+  async enableTracking(accountId, memberId, eventId, input) {
+    const recordId = clean(input?.recordId ?? '', 100)
+    if (!recordId) throw fail('请选择已保存的症状记录')
+    return accountTransaction(this.directory, async () => {
+      const event = await this.owned(accountId, memberId, eventId)
+      const record = await this.records.getOwnedRecord(accountId, recordId)
+      if (record.eventId !== eventId) throw fail('记录不属于这次情况', 404)
+      if (record.type !== 'symptom' && !record.journal?.categories?.includes('symptom')) throw fail('仅已保存的症状记录可启用跟进')
+      if (event.caseArchivedAt || event.caseMergedInto) throw fail('情况已归档或合并，请到症状跟进查看', 409)
+      if (event.caseTracking === true) return event
+      return this.events.repository.update(eventId, { caseTracking: true }, this.now())
+    })
+  }
   async archive(accountId, memberId, eventId, archived) {
     return accountTransaction(this.directory, async () => {
       const event = await this.owned(accountId, memberId, eventId)

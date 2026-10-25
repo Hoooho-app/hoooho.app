@@ -1,3 +1,4 @@
+import {finishNursingQuestions,waitForNurseReply} from '../helpers/nursing-interview'
 import {test,expect} from '@playwright/test'
 import {TokenService} from '../../server/auth/token-service.mjs'
 const token=new TokenService('visit-sheet-e2e-secret',3600000).create({id:'visit-test'})
@@ -71,19 +72,19 @@ test('saving while ASR is pending keeps original recording bytes for retry on re
 test('save preserves the submitted conversation, nurse reply and review',async({page})=>{
  await page.getByLabel('对话输入').fill('今天头皮发痒')
  await page.getByRole('button',{name:'发送',exact:true}).click()
- await expect(page.getByRole('button',{name:'核对记录',exact:true})).toBeEnabled()
+ await waitForNurseReply(page)
  const nurseReply=await page.locator('.nurse-turn--assistant').last().locator('p').first().innerText()
  await page.getByRole('button',{name:'返回',exact:true}).click()
  await page.getByRole('button',{name:'保存草稿并退出',exact:true}).click()
  await reenter(page)
  await expect(page.locator('.nurse-turn--user')).toContainText('今天头皮发痒')
  await expect(page.getByText(nurseReply,{exact:true})).toBeVisible()
- await expect(page.getByRole('button',{name:'核对记录',exact:true})).toBeEnabled()
+ await waitForNurseReply(page)
 })
 test('discard clears local and server recovery, including after reload and the next submission',async({page,request})=>{
  await page.getByLabel('对话输入').fill('今天头皮发痒')
  await page.getByRole('button',{name:'发送',exact:true}).click()
- await expect(page.getByRole('button',{name:'核对记录',exact:true})).toBeEnabled()
+ await waitForNurseReply(page)
  const before=await(await request.get(`/api/members/${memberId}/front-desk-record`,{headers})).json()
  await page.getByLabel('对话输入').fill('未发送的补充')
  await page.getByRole('button',{name:'返回',exact:true}).click()
@@ -96,7 +97,7 @@ test('discard clears local and server recovery, including after reload and the n
  await expect(page.getByLabel('对话输入')).toHaveValue('')
  await page.getByLabel('对话输入').fill('今天头皮发痒')
  await page.getByRole('button',{name:'发送',exact:true}).click()
- await expect(page.getByRole('button',{name:'核对记录',exact:true})).toBeEnabled()
+ await waitForNurseReply(page)
  const after=await(await request.get(`/api/members/${memberId}/front-desk-record`,{headers})).json()
  expect(after.id).not.toBe(before.id)
  expect(after.messages.filter((m:any)=>m.kind==='text')).toHaveLength(1)
@@ -126,7 +127,7 @@ test('empty conversation and a completed save return without a draft prompt',asy
  await reenter(page)
  await page.getByLabel('对话输入').fill('今天头皮发痒')
  await page.getByRole('button',{name:'发送',exact:true}).click()
- await expect(page.getByRole('button',{name:/^(?:先记下来|立即保存)$/})).toBeEnabled()
+ await finishNursingQuestions(page)
  await page.getByRole('button',{name:/^(?:先记下来|立即保存)$/}).click()
  await expect(page.getByRole('button',{name:'查看',exact:true})).toBeVisible()
  await page.getByRole('button',{name:'返回',exact:true}).click()

@@ -16,7 +16,7 @@ test.beforeEach(async({page,request})=>{
 test.afterEach(async({request})=>{await request.get('http://127.0.0.1:4198/delay?ms=400');await request.delete(`/api/members/${memberId}`,{headers})})
 async function send(page:import('@playwright/test').Page,text:string){await page.getByLabel('对话输入').fill(text);await page.getByRole('button',{name:'发送',exact:true}).click()}
 test('real progress, additional input while working and only latest result can save',async({page},info)=>{
- await send(page,'今天脸颊发红')
+ await send(page,'今天脸颊发红，先按已经说过的情况记录，不再追问。')
  const progress=page.getByTestId('recognition-progress');await expect(progress).toBeVisible();await expect(progress).toHaveAttribute('data-stage',/responding|organizing/)
  await expect(page.getByLabel('对话输入')).toBeEnabled();await send(page,'没有呕吐')
  await expect(page.locator('.nurse-turn--user')).toHaveCount(2)
@@ -27,14 +27,14 @@ test('real progress, additional input while working and only latest result can s
  await page.getByRole('button',{name:'核对记录',exact:true}).click();await expect(page.locator('.smart-review-card')).toContainText('没有呕吐')
 })
 test('exit during processing responds and reopening recovers the same task',async({page})=>{
- await send(page,'今天脸颊发红');await expect(page.getByTestId('recognition-progress')).toBeVisible()
+ await send(page,'今天脸颊发红，先按已经说过的情况记录，不再追问。');await expect(page.getByTestId('recognition-progress')).toBeVisible()
  await page.getByRole('button',{name:'返回',exact:true}).click();await expect(page.getByRole('dialog',{name:'退出智能记录'})).toBeVisible()
  await expect(page.getByRole('button',{name:'保存草稿并退出',exact:true})).toBeEnabled();await page.getByRole('button',{name:'保存草稿并退出',exact:true}).click()
  await page.goto('/smart-record?source=front-desk');await page.getByRole('button',{name:'改用文字'}).click()
  await expect(page.locator('.nurse-turn--user')).toContainText('今天脸颊发红');await expect(page.getByRole('button',{name:'核对记录',exact:true})).toBeEnabled()
 })
 test('pause keeps originals and resume uses the same job identity',async({page,request})=>{
- await send(page,'今天脸颊发红');await expect(page.getByRole('button',{name:'停止处理'})).toBeVisible()
+ await send(page,'今天脸颊发红，先按已经说过的情况记录，不再追问。');await expect(page.getByRole('button',{name:'停止处理'})).toBeVisible()
  const before=await(await request.get(`/api/members/${memberId}/recognition-jobs`,{headers})).json()
  await page.getByRole('button',{name:'停止处理'}).click();await expect(page.getByTestId('recognition-progress')).toHaveAttribute('data-stage','paused')
  await page.getByRole('button',{name:'继续处理'}).click();await expect(page.getByRole('button',{name:'核对记录',exact:true})).toBeEnabled()
@@ -52,7 +52,7 @@ test('one failed artifact read is retried; original input and typed supplement s
   return route.fulfill({response,json:body})
  })
  await page.route('**/front-desk-record/contexts/*',route=>{if(route.request().method()==='GET'){artifactReads++;if(!failed){failed=true;return route.fulfill({status:503,json:{error:{code:'TEMPORARY',message:'合成临时中断'}}})}}return route.continue()})
- await send(page,'今天脸颊发红');await page.getByLabel('对话输入').fill('尚未发送的补充')
+ await send(page,'今天脸颊发红，先按已经说过的情况记录，不再追问。');await page.getByLabel('对话输入').fill('尚未发送的补充')
  await expect(page.getByRole('button',{name:'核对记录',exact:true})).toBeEnabled();expect(forcedFallback).toBe(true);expect(failed).toBe(true);expect(artifactReads).toBe(2)
  await expect(page.getByLabel('对话输入')).toHaveValue('尚未发送的补充');await expect(page.locator('.nurse-turn--user')).toHaveCount(1)
  expect((await(await request.get('http://127.0.0.1:4198/stats')).json()).calls-before.calls).toBe(2)
@@ -61,7 +61,7 @@ test('complete text review avoids a redundant artifact GET and remains available
  let artifactReads=0
  page.on('request',request=>{if(request.method()==='GET'&&/\/front-desk-record\/contexts\//.test(request.url()))artifactReads++})
  const before=await(await request.get('http://127.0.0.1:4198/stats')).json()
- await send(page,'今天脸颊发红');await expect(page.getByRole('button',{name:'核对记录',exact:true})).toBeEnabled()
+ await send(page,'今天脸颊发红，先按已经说过的情况记录，不再追问。');await expect(page.getByRole('button',{name:'核对记录',exact:true})).toBeEnabled()
  expect(artifactReads).toBe(0)
  await page.getByRole('button',{name:'核对记录',exact:true}).click();await expect(page.locator('.smart-review-card')).toContainText('今天脸颊发红')
  expect((await(await request.get('http://127.0.0.1:4198/stats')).json()).calls-before.calls).toBe(2)

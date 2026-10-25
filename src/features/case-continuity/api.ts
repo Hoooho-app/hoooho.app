@@ -10,6 +10,7 @@ async function caseRequest<T>(path:string,options:Parameters<typeof apiRequest>[
   finally{clearTimeout(timer);options.signal?.removeEventListener('abort',cancel)}
 }
 export const caseService = {
+  enableTracking(memberId:string,token:string,eventId:string,recordId:string) { return caseRequest(`${memberPath(memberId)}/cases/${encodeURIComponent(eventId)}/tracking`, { token, method:'POST', body:{recordId} }) },
   manage(memberId:string,token:string,eventId:string,input:{title?:string;expectedUpdatedAt:string;expectedChangedAt?:string;sourceEventIds?:string[]},deleting=false) { return caseRequest(`${memberPath(memberId)}/cases/${encodeURIComponent(eventId)}`,{token,method:deleting?'DELETE':'PATCH',body:input}) },
   records(memberId:string,token:string,eventId:string,signal?:AbortSignal) { return caseRequest<import('../../types').HealthEventRecordApiDto[]>(`${memberPath(memberId)}/cases/${encodeURIComponent(eventId)}/records`,{token,signal}) },
   merge(memberId:string,token:string,target:import('./types').FollowedCase,source:import('./types').FollowedCase,action:'merge'|'separate',title:string) { return caseRequest(`${memberPath(memberId)}/cases/${encodeURIComponent(target.event.id)}/merge`,{token,method:'POST',body:{action,title,sourceEventId:source.event.id,expectedTargetAt:target.event.updatedAt,expectedSourceAt:source.event.updatedAt}}) },
