@@ -365,7 +365,7 @@ test('follow-up starts only with explicit dialogue opt-in and disappears when th
  await page.getByRole('button',{name:'发送',exact:true}).click()
  await expect(page.getByRole('button',{name:'启用症状跟进',exact:true})).toBeEnabled()
  await expect(page.getByRole('region',{name:'症状跟进',exact:true})).toHaveCount(0)
- await page.getByRole('button',{name:/^(保存记录|先记下来)$/}).click()
+ await page.getByRole('button',{name:/^(立即保存|先记下来)$/}).click()
  await expect(page.getByRole('button',{name:'查看',exact:true})).toBeVisible()
  await expect(page.getByRole('region',{name:'症状跟进',exact:true})).toHaveCount(0)
  await startNew(page)
@@ -385,7 +385,7 @@ test('follow-up starts only with explicit dialogue opt-in and disappears when th
 test('saved history continues in the selected conversation across refresh without re-saving old facts',async({page,request})=>{
  const original='昨天左前臂有点红'
  await typeText(page,original);await page.getByRole('button',{name:'发送',exact:true}).click()
- await page.getByRole('button',{name:/^(保存记录|先记下来)$/}).click()
+ await page.getByRole('button',{name:/^(立即保存|先记下来)$/}).click()
  await expect(page.getByRole('button',{name:'查看',exact:true})).toBeVisible()
  await startNew(page)
  await typeText(page,'另一段未发送的草稿')
