@@ -27,4 +27,12 @@
 
 实时 ASR 接口依据：[阿里云实时语音识别](https://help.aliyun.com/en/model-studio/real-time-speech-recognition-user-guide)、[服务端 text/stash 事件](https://help.aliyun.com/zh/model-studio/qwen-asr-realtime-server-events)。服务端内存中继与现有单实例 Production 相匹配；将来增加副本前需增加会话路由或共享中继。
 
-生产部署与真实供应商连接核验：待本次提交后补记。
+## 生产部署与验收
+
+- 实现 PR [#521](https://github.com/Hoooho-app/hoooho.app/pull/521) 已合入 main，运行提交 `f6a8020c6bf4f0a6a0b73924b33889dc462e4179`。
+- Railway Production 部署 `42d87358-1385-45da-ab47-3efbde736881` 于 2026-10-25 16:16（北京时间）达到 `SUCCESS`；沿用原单实例、域名与现有供应商配置。未接受无关的待应用变量变更。
+- [正式前台](https://hoooho.com/nurse-station) 已通过连接的 Chrome 实际读取：标题为「前台」、黑发护士静态招呼图可见、空的症状跟进卡与旧历史按钮不出现。移动尺寸与续聊写入流程由本地及 CI 的隔离浏览器覆盖，没有向用户真实孩子写入测试资料。
+- 云端 [Smart record verification #65](https://github.com/Hoooho-app/hoooho.app/actions/runs/40175446433)、[Session recovery #22](https://github.com/Hoooho-app/hoooho.app/actions/runs/40175446429)、[Quick search #22](https://github.com/Hoooho-app/hoooho.app/actions/runs/40175446555) 均为 `success`，包括智能记录、首页、新用户、空白对话和相关视觉检查。
+- [一次性实时 ASR 生产验收](https://github.com/Hoooho-app/hoooho.app/actions/runs/40176020720) 通过：实际运行提交与上述一致；`qwen3-asr-flash-realtime` 握手约 1300ms，输入会话关闭前已返回中间文字。该检查证明实时链路可用，不代表识别准确率或护理专业验收。
+- 一次性检查使用阿里云公开示例音频与新建空白虚构账户，不创建孩子或健康记录；实时会话已关闭、登录已注销。空白测试账户保留，报告不包含任何凭据、账户身份或会话标识。专用测试分支/草稿 PR #522 仅留作取证，未合入运行代码。
+- 实体 iPhone/Safari、硬件触感及产品主人视觉验收仍需实际确认；本轮未进行 App Store 上架。
