@@ -428,11 +428,12 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
     const finish=()=>count&&canSave&&!saveBlocked?void save():void sendText('先按已经说过的情况记录，不再追问。')
     return <div className="smart-record-actions">
       {answering&&<div className="smart-interview-options" aria-label="回答当前问题">{interview.question!.options.map(option=><HohoButton key={option.value} variant="secondary" disabled={answerDisabled} onClick={()=>void sendText(option.value)}>{option.label}</HohoButton>)}</div>}
-      {count>0&&<div className="smart-record-summary-list">{review!.items.map(item=><ProfessionalRecordSummary key={item.id} item={item}/>)}</div>}
+      {count>0&&!answering&&<div className="smart-record-summary-list">{review!.items.map(item=><ProfessionalRecordSummary key={item.id} item={item}/>)}</div>}
       {home&&count>0&&review!.items.some(item=>item.category==='symptom')&&<div className="front-desk-followup-offer"><p>是否启用这次症状的跟进？</p><HohoButton fullWidth variant="secondary" disabled={answerDisabled||Boolean(saveBlocked)} onClick={()=>void save(true)}>启用症状跟进</HohoButton><span className="hoho-text-caption">启用后保存记录，并在首页显示跟进卡片。</span></div>}
-      {count>0&&<span className="hoho-text-caption">已整理出 {count} 条记录，可继续补充或先保存</span>}
-      <HohoButton fullWidth disabled={answerDisabled||count>0&&Boolean(saveBlocked)} loading={busy} onClick={answering||!count?finish:()=>void save()}>{answering||!count?'先记下来':'保存记录'}</HohoButton>
-      {count>0&&<HohoButton fullWidth variant="text" disabled={disabled} onClick={()=>setStage('review')}>核对记录</HohoButton>}
+      {count>0?<div className="smart-record-action-buttons" aria-label="记录操作">
+        <HohoButton fullWidth variant="secondary" disabled={answerDisabled||Boolean(saveBlocked)} loading={busy} onClick={()=>void save()}>立即保存</HohoButton>
+        <HohoButton fullWidth variant="secondary" disabled={disabled} onClick={()=>setStage('review')}>核对记录</HohoButton>
+      </div>:<HohoButton fullWidth variant="secondary" disabled={answerDisabled} loading={busy} onClick={finish}>先记下来</HohoButton>}
     </div>
   }
   const [homeNotice,setHomeNotice]=useState('')
@@ -484,7 +485,7 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
       </Fragment>)}
       {!job&&(!page||eventId)&&!!local.files.filter(f=>!f.type.startsWith('audio/')).length&&<NurseMessage conversation={home} role="user" recorderName={recorderName}>{local.files.filter(f=>!f.type.startsWith('audio/')).map((file,i)=><div key={`${file.name}:${i}`} className="dialogue-file"><span>{file.name}</span><HohoButton variant="text" aria-label={`移除图片${i+1}`} disabled={busy||voice.busy} onClick={()=>change({files:local.files.filter(f=>f!==file),smartReview:review?{...review,state:'changed'}:undefined})}><X size={16}/></HohoButton></div>)}</NurseMessage>}
       {local.rawSavedGuide&&<NurseMessage conversation={home} role="assistant"><p>原话已保存</p><HohoButton onClick={()=>void viewSavedRecord(local.rawSavedGuide!)}>查看</HohoButton></NurseMessage>}
-      {!local.rawSavedGuide&&!completed&&(job||localStage)&&<NurseMessage conversation={home} role="assistant">{home&&(jobBusy||!!localStage)&&<FrontDeskProcessing/>}{job?.frontDesk?.context.messages.find(m=>m.id===job.frontDesk?.replyId)?.text&&<p>{job.frontDesk.context.messages.find(m=>m.id===job.frontDesk?.replyId)?.text}</p>}{(!review?.items.length||!['ready','needs_review'].includes(job?.state??'')||!!job?.unresolvedInputs?.length)&&<RecognitionProgress overview onSaveOriginal={()=>void saveOriginal()} job={job} localStage={localStage} onCommand={type=>void taskCommand(type)} commandBusy={commandBusy||busy}/>}
+      {!local.rawSavedGuide&&!completed&&(job||localStage)&&<NurseMessage conversation={home} role="assistant">{jobBusy||!!localStage?<FrontDeskProcessing/>:job?.frontDesk?.context.messages.find(m=>m.id===job.frontDesk?.replyId)?.text&&<p>{job.frontDesk.context.messages.find(m=>m.id===job.frontDesk?.replyId)?.text}</p>}{(!review?.items.length||!['ready','needs_review'].includes(job?.state??'')||!!job?.unresolvedInputs?.length)&&<RecognitionProgress overview onSaveOriginal={()=>void saveOriginal()} job={job} localStage={localStage} onCommand={type=>void taskCommand(type)} commandBusy={commandBusy||busy}/>}
       {!jobBusy&&!localStage&&recordActions()}</NurseMessage>}
       {(!ready||voice.state==='listening'||voice.state==='requesting'||busy)&&!jobBusy&&!localStage&&<NurseMessage conversation={home} role="assistant"><p role="status">{!ready?'我在找回刚才的内容，请稍等。':voice.state==='listening'?'我在听，松开后整理这一段。':voice.state==='requesting'?'正在打开麦克风。':status||'正在保存…'}</p></NurseMessage>}
       {(error||progressError||voice.error)&&<NurseMessage conversation={home} role="assistant"><p role="alert">{error||progressError||voice.error}。你刚才的内容还在，可以再试一次。</p></NurseMessage>}

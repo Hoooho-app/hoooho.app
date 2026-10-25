@@ -23,6 +23,22 @@ test('record dialogue does not surface an unsolicited provider diagnosis without
  assert.equal(result.context.interview.question,null)
  assert.doesNotMatch(result.context.messages.find(m=>m.kind==='assistant').text,/结膜炎|用药/)
 })
+test('cold conversation persists relevant questions and contextual supplements without receipt or premature-save copy',async t=>{
+ const f=await setup(t)
+ f.model.structured=async()=>({value:{reply:'内容已收到，已保存。',contextId:'new',action:'record',questionId:null,emergency:{currentChild:false,quote:''}}})
+ const first=await f.service.submit('synthetic',f.member.id,{id:'cold-first',kind:'text',text:'身体有点冷'})
+ assert.equal(first.context.interview.question.id,'cold-observation')
+ assert.match(first.context.messages.at(-1).text,/我了解了/)
+ assert.doesNotMatch(first.context.messages.at(-1).text,/接收|已收到|已保存|核对整理结果/)
+ const second=await f.service.submit('synthetic',f.member.id,{id:'cold-second',kind:'text',text:'摸着身体有点凉',answerTo:{contextId:first.context.id,questionId:'cold-observation'}})
+ assert.equal(second.context.id,first.context.id)
+ assert.equal(second.context.interview.question.id,'cold-onset')
+ const last=await f.service.submit('synthetic',f.member.id,{id:'cold-third',kind:'text',text:'今天开始，大约十分钟',answerTo:{contextId:first.context.id,questionId:'cold-onset'}})
+ assert.equal(last.context.interview.question,null)
+ assert.deepEqual(last.context.messages.filter(m=>m.kind!=='assistant').map(m=>m.text),['身体有点冷','摸着身体有点凉','今天开始，大约十分钟'])
+ assert.notEqual(last.context.saved,true)
+ assert.equal((await f.service.latest('synthetic',f.member.id)).interview.status,'ready')
+})
 for(const [text,quote,expected] of [['孩子现在没有意识了','没有意识',true],['孩子现在一直抽搐','抽搐',true],['孩子没有呼吸困难','呼吸困难',false],['哥哥现在呼吸困难','呼吸困难',false]])test('front dialogue applies full-source emergency evidence: '+text,async t=>{
  const f=await setup(t)
  f.model.structured=async()=>({value:{reply:'再问一问',contextId:'new',action:'record',questionId:'resp-effort',emergency:{currentChild:true,quote}}})
@@ -152,7 +168,7 @@ test('supplier acknowledgement cannot claim that unconfirmed input was formally 
  f.model.structured=async()=>({value:{reply:'收到，已记录体温38.2度。孩子精神怎么样？',contextId:'new',action:'record'}})
  const result=await f.service.submit('synthetic',f.member.id,{id:'unconfirmed',kind:'text',text:'今天体温38.2度'})
  const reply=result.context.messages.find(message=>message.kind==='assistant').text
- assert.match(reply,/内容已收到/);assert.doesNotMatch(reply,/已记录|已保存/);assert.notEqual(result.context.saved,true)
+ assert.match(reply,/我了解了/);assert.doesNotMatch(reply,/已记录|已保存/);assert.notEqual(result.context.saved,true)
 })
 
 test('history is an owned, paginated summary of closed and current conversations without original media',async t=>{

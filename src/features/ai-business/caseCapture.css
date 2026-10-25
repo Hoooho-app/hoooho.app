@@ -84,6 +84,8 @@
 .smart-record-saved-actions{display:flex}
 
 .smart-record-actions{display:grid;grid-template-columns:minmax(0,1fr)}
+.smart-record-action-buttons{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--hoho-space-2)}
+.smart-record-action-buttons>.hoho-button{min-width:0;min-height:44px;white-space:nowrap}
 .smart-record-actions>strong{font-size:var(--hoho-font-size-body);font-weight:600}
 .smart-record-dialog .recognition-steps{display:flex;list-style:none;gap:var(--hoho-space-3);padding:var(--hoho-space-2) 0;margin:0}
 .recognition-steps>li{position:relative;flex:1;display:flex;align-items:center;gap:var(--hoho-space-1);min-width:0;color:rgb(var(--hoho-color-text-secondary))}
