@@ -126,8 +126,9 @@ try {
   requireCheck(imageTurn.context.decision?.organize===true,'CHECK_READABLE_PHOTO_READY')
   const photoMessages=imageTurn.context.messages.filter(m=>m.kind!=='assistant'&&m.status==='completed'&&m.recordable!==false),files=photoMessages.flatMap(m=>m.files??[])
   requireCheck(files.some(f=>f.dataUrl===report.dataUrl),'CHECK_PHOTO_OWNER_NOT_RESOLVED')
-  FULL_RAW=userRaw(imageTurn.context)
+  FULL_RAW=userRaw(imageTurn.context).trim()
   const organized=await api(`/api/members/${memberId}/ai-drafts`,'POST',{text:FULL_RAW,files,smartRecord:true,frontDeskRecord:true,frontContextId:imageTurn.context.id,semanticVersion:2,followUp:false,timezone:'Asia/Shanghai'})
+  requireCheck(organized.inputText===FULL_RAW,'CHECK_DRAFT_ORIGINAL_MISMATCH')
   requireCheck(organized.state==='ready'&&organized.items?.length===1&&organized.items[0].professionalSummary?.version==='professional-summary-v2'&&organized.items[0].professionalSummary.verification?.protocol==='source-entailment-v2'&&organized.items[0].professionalSummary.verification.sourceCoverage===true,'CHECK_PHOTO_NARRATIVE_READY')
   const description=organized.items[0].professionalSummary.text
   requireCheck(/脚|足/u.test(description)&&/趾/u.test(description)&&/破皮|破损/u.test(description)&&/踢/u.test(description),'CHECK_PHOTO_TEXT_FACTS')
