@@ -58,7 +58,7 @@ async function api(route, method = 'GET', body, timeoutMs = 120000) {
   retainCookies(response)
   let value
   try { value = await response.json() } catch { throw new CheckError('CHECK_INVALID_JSON', response.status) }
-  if (!response.ok) {const error=new CheckError(safeCode(value?.error?.code),response.status);if(Number.isInteger(value?.error?.retryAfter))error.retryAfter=value.error.retryAfter;if(error.code==='INVALID_JOURNAL_SYMPTOM'&&typeof value?.error?.message==='string'&&value.error.message.length<160)error.validationMessage=value.error.message;if(Array.isArray(value?.error?.verification?.codes))error.verificationCodes=value.error.verification.codes.filter(x=>typeof x==='string'&&/^[a-z_]{1,50}$/.test(x));throw error}
+  if (!response.ok) {const error=new CheckError(safeCode(value?.error?.code),response.status);if(Number.isInteger(value?.error?.retryAfter))error.retryAfter=value.error.retryAfter;if(error.code==='INVALID_JOURNAL_SYMPTOM'&&typeof value?.error?.message==='string'&&value.error.message.length<160)error.validationMessage=value.error.message;if(Array.isArray(value?.error?.verification?.codes))error.verificationCodes=value.error.verification.codes.filter(x=>typeof x==='string'&&/^[a-z_]{1,50}$/.test(x));if(Array.isArray(value?.error?.verification?.sourceSpans))error.sourceSpans=value.error.verification.sourceSpans.filter(v=>['sourceIndex','page','start','end'].every(k=>Number.isInteger(v?.[k])&&v[k]>=0&&v[k]<1000000));if([0,1].includes(value?.error?.verification?.recoveryAttempt))error.recoveryAttempt=value.error.verification.recoveryAttempt;throw error}
   return value
 }
 async function notFound(route) {
@@ -117,8 +117,11 @@ try {
   let imageTurn=await api(`/api/members/${memberId}/front-desk-record`,'POST',{id:randomUUID(),protocolVersion:2,kind:'image',text:'',files:[report]})
   for(let count=0;count<2&&imageTurn.context.interview?.question;count++){
     const question=imageTurn.context.interview.question
+    result.questions.push(question.text)
     imageTurn=await front('这张观察记录是当前选中孩子的，图中情况发生在今天。请先整理图中已有内容，不再追问，不明确处保留待确认。',{contextId:imageTurn.context.id,questionId:question.id})
   }
+  result.photoDecision=imageTurn.context.decision
+  result.finalQuestion=imageTurn.context.interview?.question?.text??null
   requireCheck(imageTurn.context.decision?.organize===true,'CHECK_READABLE_PHOTO_READY')
   const photoMessages=imageTurn.context.messages.filter(m=>m.kind!=='assistant'&&m.status==='completed'&&m.recordable!==false),files=photoMessages.flatMap(m=>m.files??[])
   requireCheck(files.some(f=>f.dataUrl===report.dataUrl),'CHECK_PHOTO_OWNER_NOT_RESOLVED')
@@ -133,7 +136,7 @@ try {
   result.passed=true
 } catch (error) {
   if(memberId&&['professional_summary','readable_photo_only'].includes(stage))try{const draft=await api(`/api/members/${memberId}/ai-drafts`);result.syntheticDiagnostic={state:draft?.state,preview:draft?.preview?.text??null}}catch{}
-  result.error = { ...(error.verificationCodes?{verificationCodes:error.verificationCodes}:{}),...(error.retryAfter?{retryAfterSeconds:error.retryAfter}:{}),...(error.validationMessage?{validationMessage:error.validationMessage}:{}),stage, code: error instanceof CheckError ? safeCode(error.code) : 'CHECK_INTERNAL_FAILURE', httpStatus: error instanceof CheckError ? error.status : null }
+  result.error = { ...(error.sourceSpans?{sourceSpans:error.sourceSpans,recoveryAttempt:error.recoveryAttempt}:{}),...(error.verificationCodes?{verificationCodes:error.verificationCodes}:{}),...(error.retryAfter?{retryAfterSeconds:error.retryAfter}:{}),...(error.validationMessage?{validationMessage:error.validationMessage}:{}),stage, code: error instanceof CheckError ? safeCode(error.code) : 'CHECK_INTERNAL_FAILURE', httpStatus: error instanceof CheckError ? error.status : null }
 } finally {
   // Explicit exact-ID cleanup. Event DELETE does not cascade record rows, so
   // records must be deleted while their owned parent event still exists.

@@ -208,3 +208,15 @@ for(const malformed of [null,{},undefined])test(`source coverage rejects missing
  await assert.rejects(()=>run(factsFixture(),model,{sourceCoverage:true}),{code:'AI_SUMMARY_UNSUPPORTED'})
  assert.equal(model.calls.length,2)
 })
+
+
+test('source omission diagnostics expose only validated UTF-16 positions and a bounded reason code',async()=>{
+ const raw='脚小拇指破了，今天被踢到。',quote='今天被踢到',f=factsFixture({raw,entries:[['symptom','脚小拇指破了']]})
+ const model=fakeModel({generate:p=>candidate(p,'脚小拇指破了','小脚趾破损'),verify:items=>({items:approved(items).items.map(v=>({...v,complete:false,problems:['missing_fact'],missingFacts:[{itemId:v.itemId,sourceId:'input',page:1,quote}]}))})})
+ await assert.rejects(()=>run(f,model,{sourceCoverage:true}),error=>{
+  assert.equal(error.code,'AI_SUMMARY_INCOMPLETE')
+  assert.deepEqual(error.details.verification,{codes:['verifier_missing_source_fact'],sourceSpans:[{sourceIndex:0,page:1,start:raw.indexOf(quote),end:raw.indexOf(quote)+quote.length}]})
+  assert.doesNotMatch(JSON.stringify(error.details),/小拇指|踢到|quote/)
+  return true
+ })
+})

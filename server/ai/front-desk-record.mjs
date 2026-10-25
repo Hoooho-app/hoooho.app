@@ -10,7 +10,7 @@ import { createDialogueProvider } from './providers/dialogue-provider.mjs'
 import { withAIAccount } from './providers/call-control.mjs'
 import { fail, fingerprint } from './business/contract.mjs'
 import { normalizePhoto } from '../food-label/service.mjs'
-import { nursingMemberContext, nursingKnowledgeFor, nursingInterview, interpretNursingAnswer, nursingDialoguePolicy } from './business/nursing-interview.mjs'
+import { nursingMemberContext, nursingKnowledgeFor, nursingInterview, stopsNursingInterview, interpretNursingAnswer, nursingDialoguePolicy } from './business/nursing-interview.mjs'
 import {factMessages,normalizedInput,interactionInput,semanticDecisionSchema,semanticDialoguePolicy,semanticInterview} from './business/front-desk-semantics.mjs'
 import { confirmedCurrentEmergency } from './nurse-emergency.mjs'
 const messageOrder=(a,b)=>(a.inputAt??Date.parse(a.at))-(b.inputAt??Date.parse(b.at))||a.id.localeCompare(b.id)
@@ -275,7 +275,7 @@ export class FrontDeskRecord {
       const contextId = value.contextId === 'new'||(selected?.saved&&value.action!=='history')||(full&&value.action==='record') ? provisionalId : value.contextId, at = this.now().toISOString()
       const interpreted=message.answerTo?interpretNursingAnswer(message.answerTo.questionId,message.text,message.answerQuestion):null
       const observedEmergency=((message.answerTo?.questionId==='resp-effort'||message.answerQuestion?.semantic?.predicate==='breathing_effort')&&(interpreted?.polarity==='yes'||message.text==='家长现在看到孩子呼吸明显费力。'))||confirmedCurrentEmergency(value.emergency,{text:message.text})
-      const interview=value.action==='record'?(semanticMode?semanticInterview(value,{messageId:message.id,previous:selected?.interview,urgent:observedEmergency,subjectGroupId:message.answerQuestion?.semantic?.subjectGroupId}):nursingInterview({text:[...(contextId===selected?.id?existing:[]).filter(m=>m.status==='completed').sort(messageOrder).map(m=>m.text),message.text].filter(Boolean).join('\n'),latestText:message.text,previous:contextId===selected?.id?selected.interview:null,requestedQuestionId:value.questionId,member:memberContext,urgent:observedEmergency})):selected?.interview
+      const interview=value.action==='record'?(semanticMode?semanticInterview(value,{messageId:message.id,previous:selected?.interview,urgent:observedEmergency,subjectGroupId:message.answerQuestion?.semantic?.subjectGroupId,stopRequested:stopsNursingInterview(message.text)}):nursingInterview({text:[...(contextId===selected?.id?existing:[]).filter(m=>m.status==='completed').sort(messageOrder).map(m=>m.text),message.text].filter(Boolean).join('\n'),latestText:message.text,previous:contextId===selected?.id?selected.interview:null,requestedQuestionId:value.questionId,member:memberContext,urgent:observedEmergency})):selected?.interview
       const subjectGroupId=message.answerQuestion?.semantic?.slot==='subject'?message.answerQuestion.semantic.subjectGroupId:null
       const subjectResolution=semanticMode&&subjectGroupId?(value.decision.subject==='other'||value.decision.subjectResolution==='other'?'other':value.decision.subjectResolution==='current'&&value.decision.topic===message.answerQuestion.domain?'current':null):null
       const reply=value.action==='history'?acknowledged:interview?.status==='urgent'?'这条描述中有需要尽快由专业人员评估的异常，请先就医或寻求急救帮助。原话已保留，先不用继续回答普通记录问题。':semanticMode?[acknowledged,interview?.question?.text].filter(Boolean).join('\n'):interview?.question?((interview.turnCount===1?'嗯，我了解了。':'')+interview.question.text):'这些情况我了解了。还有想补充的细节，也可以接着说。'
