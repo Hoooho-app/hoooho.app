@@ -40,7 +40,7 @@ async function startNew(page:import('@playwright/test').Page){
 
 test('real home keeps reception, five original entries and full clean navigation at mobile and shell widths',async({page},info)=>{
  const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message))
- await expect(page.locator('.hoho-reception img')).toHaveAttribute('src',/front-desk-welcome-20261025/)
+ await expect(page.locator('.hoho-reception img')).toHaveAttribute('src',/front-desk-welcome-masked-20261025/)
  for(const width of [320,375,390,430,620,1280]){
   await page.setViewportSize({width,height:932})
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
@@ -49,6 +49,7 @@ test('real home keeps reception, five original entries and full clean navigation
   for(const button of await buttons.all())expect((await button.boundingBox())!.height).toBeGreaterThanOrEqual(44)
   expect(await page.locator('.hoho-reception img').evaluate(e=>getComputedStyle(e).objectFit)).toBe('contain')
   if(width===390){expect((await page.locator('.hoho-reception').boundingBox())!.width).toBe(358);expect((await page.locator('.hoho-reception img').boundingBox())!.width).toBe(112)}
+  if(width===320)await page.screenshot({path:info.outputPath('home-320.png')})
  }
  await page.setViewportSize({width:390,height:844})
  await expect(page.getByRole('region',{name:'症状跟进',exact:true})).toHaveCount(0)
