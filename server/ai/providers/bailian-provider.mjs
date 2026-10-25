@@ -1,3 +1,4 @@
+import {visualSourceSchema} from '../business/visual-source-contract.mjs'
 import Ajv from 'ajv'
 import {linkedAISignal,traceMetadata} from './telemetry.mjs'
 import { createHash } from 'node:crypto'
@@ -16,6 +17,7 @@ const validators = new Map()
 // inner payload still passes the unchanged strict caller schema. No defaults,
 // field coercion, multi-page merging or clinical extraction normalization.
 const singlePageOCRSchema = JSON.stringify({type:'object',additionalProperties:false,required:['text','status'],properties:{text:{type:'string'},status:{type:'string',enum:['readable','uncertain','blank']}}})
+const singlePageVisualSourceSchema=JSON.stringify(visualSourceSchema)
 const tokenCount = value => Number.isInteger(value) && value >= 0 && value < 10000000 ? value : null
 const messages = {
   authentication: '百炼鉴权失败，请检查后端新密钥与北京地域是否匹配；原内容仍保留',
@@ -112,19 +114,21 @@ export class BailianProvider extends OpenAIProvider {
           if (imageCount === 1 && format.name === 'hoooho_business' && JSON.stringify(format.schema) === singlePageOCRSchema && Array.isArray(value) && value.length === 1 && validate(value[0])) {
             value = value[0]; ocrEnvelope = 'single-page-array'
           }
+          let visualEnvelope
+          if(imageCount===1&&format.name==='front_desk_visual_source'&&JSON.stringify(format.schema)===singlePageVisualSourceSchema&&Array.isArray(value)&&value.length===1&&validate(value[0])){value=value[0];visualEnvelope='single-source-array'}
           let dialogueEnvelope
           if(imageCount===1&&format.name==='hoooho_front_desk_reply'&&Array.isArray(value)&&value.length===1&&validate(value[0])){value=value[0];dialogueEnvelope='single-reply-array'}
           if (!validate(value)) {
             const d=schemaFailureDiagnostic(format.schema,validate.errors?.[0]),error=outputFailure('百炼输出未通过结构校验；原内容未更新',d.stage,d.fieldPath,d.reason)
             // Shape only, never scalar values or unrecognised property names.
             // The home reply contract can be diagnosed without clinical text.
-            if(format.name==='hoooho_front_desk_reply'){
+            if(['hoooho_front_desk_reply','front_desk_visual_source'].includes(format.name)){
               const first=Array.isArray(value)?value[0]:value
-              error.validation.outputShape={root:value===null?'null':Array.isArray(value)?'array':typeof value,length:Array.isArray(value)?value.length:null,element:first===null?'null':Array.isArray(first)?'array':typeof first,fields:Object.fromEntries(['reply','contextId','action','text','status','description','caption','content','data','result','image','image_description','observations','0'].filter(key=>first&&Object.hasOwn(Object(first),key)).map(key=>[key,typeof first[key]]))}
+              error.validation.outputShape={root:value===null?'null':Array.isArray(value)?'array':typeof value,length:Array.isArray(value)?value.length:null,element:first===null?'null':Array.isArray(first)?'array':typeof first,fields:Object.fromEntries(['kind','observations','reply','contextId','action','text','status','description','caption','content','data','result','image','image_description','observations','0'].filter(key=>first&&Object.hasOwn(Object(first),key)).map(key=>[key,typeof first[key]]))}
             }
             throw error
           }
-          const diagnostics = { ...traceMetadata(),queueWaitMs, network:transportTimings(response), provider: this.name, model, task, elapsedMs: Date.now() - started, inputTokens: tokenCount(result.usage?.prompt_tokens), outputTokens: tokenCount(result.usage?.completion_tokens), requestId: upstream.requestId, success: true, ...(ocrEnvelope ? {ocrEnvelope} : {}),...(dialogueEnvelope?{dialogueEnvelope}:{}) }
+          const diagnostics = { ...traceMetadata(),queueWaitMs, network:transportTimings(response), provider: this.name, model, task, elapsedMs: Date.now() - started, inputTokens: tokenCount(result.usage?.prompt_tokens), outputTokens: tokenCount(result.usage?.completion_tokens), requestId: upstream.requestId, success: true, ...(ocrEnvelope ? {ocrEnvelope} : {}),...(dialogueEnvelope?{dialogueEnvelope}:{}),...(visualEnvelope?{visualEnvelope}:{}) }
           this.logger.info('[Hoooho AI] provider usage', JSON.stringify(diagnostics))
           return Response.json({ output: [{ content: [{ type: 'output_text', text: JSON.stringify(value) }] }],
             usage: { input_tokens: diagnostics.inputTokens, output_tokens: diagnostics.outputTokens }, diagnostics }, { headers: upstream.requestId ? { 'x-request-id': upstream.requestId } : {} })
