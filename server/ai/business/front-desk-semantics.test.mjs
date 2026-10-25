@@ -80,3 +80,19 @@ test('v2 discards unsupported normalized observation values and projects only th
  for(const name of ['result','doseOriginal','medicationName','doctorStatement'])assert.throws(()=>validateExtraction({items:[{...output.items[0],fields:[{...output.items[0].fields[0],name}]}]},sources,{verbatimObservations:true}),{code:'AI_EVIDENCE_MISMATCH'})
  assert.throws(()=>validateExtraction({items:[{...output.items[0],fields:[{...output.items[0].fields[0],quote:'原文未出现的脚趾描述'}]}]},sources,{verbatimObservations:true}),{code:'AI_EVIDENCE_MISMATCH'})
 })
+
+
+test('v2 observation projection cannot borrow another person through location or handling fields',()=>{
+ const raw='孩子咳嗽，妈妈脚小拇指破了',sources=[{id:'input',page:1,text:raw,status:'readable'}]
+ for(const name of ['location','handling'])for(const value of ['足小趾破损','脚小拇指']){
+  const item={category:'symptom',subject:'current',title:'咳嗽',timeText:null,archiveCategory:null,relationKey:null,fields:[{name:'symptom',value:'孩子咳嗽',quote:'孩子咳嗽',sourceId:'input',page:1},{name,value,quote:'妈妈脚小拇指破了',sourceId:'input',page:1}]}
+  assert.throws(()=>validateExtraction({items:[item]},sources,{verbatimObservations:true}),e=>e.code==='AI_EVIDENCE_MISMATCH'&&e.validation.rule==='subject_context')
+ }
+})
+
+
+test('v2 scope checks preserve a caregiver handling the current child',()=>{
+ const raw='妈妈给宝宝擦药了',item={category:'symptom',subject:'current',title:'已处理',timeText:null,archiveCategory:null,relationKey:null,fields:[{name:'handling',value:'家长处理了皮肤',quote:raw,sourceId:'input',page:1}]}
+ const result=validateExtraction({items:[item]},[{id:'input',page:1,text:raw,status:'readable'}],{verbatimObservations:true})
+ assert.equal(result[0].fields[0].value,raw)
+})

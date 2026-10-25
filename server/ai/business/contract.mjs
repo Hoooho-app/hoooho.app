@@ -1,3 +1,4 @@
+import {nursingObservationContext} from './nursing-observation-context.mjs'
 import {clinicalAssertions} from '../../../shared/clinical-evidence.mjs'
 import {locateEvidence} from './evidence-location.mjs'
 import { itemRecordCategories } from '../../../shared/record-categories.mjs'
@@ -30,6 +31,7 @@ export function bodyLocations(raw) {
 function validateExtractionContent(output, sources, options={}) {
   if (!output || !Array.isArray(output.items) || output.items.length > 30) throw fail('整理结果格式无效，未更新草稿')
   if(output.items.length===30)throw fail('结果已达到单批事项上限，请分批核对，未将可能遗漏的内容保存为完整结果',422,'AI_SOURCE_LIMIT')
+  const observationScopes=new Map()
   const sourceAssertions=new Map(sources.map(source=>[source,clinicalAssertions(source.text)]))
   const items=output.items.flatMap((item, index) => {
     if (Object.keys(item).some(key => !['category','title','timeText','fields','archiveCategory','subject','relationKey'].includes(key))) throw fail('整理结果包含不允许的字段')
@@ -40,12 +42,18 @@ function validateExtractionContent(output, sources, options={}) {
       const source = sources.find(source => source.id === field.sourceId && source.page === field.page)
       const quote = safeText(field.quote, 4000)
       let value = safeText(field.value, 4000),evidenceProjection
+      const scopedObservation=options.verbatimObservations&&['symptom','reaction','chiefComplaint','quality','statusRaw','location','handling'].includes(field.name)
       // New dialogue summaries have a separate semantic generation stage. If
       // the supplier paraphrases an observation, discard that value and use its
       // exact, supplied quote; every scope check below still applies.
-      if(options.verbatimObservations&&source&&quote&&source.text.includes(quote)&&value&&!quote.includes(value)&&['symptom','reaction','chiefComplaint','quality','statusRaw','location','handling'].includes(field.name)){value=quote;evidenceProjection='verbatim_quote'}
+      if(scopedObservation&&source&&quote&&source.text.includes(quote)&&value&&!quote.includes(value)){value=quote;evidenceProjection='verbatim_quote'}
       const fieldPath=`/items/${index}/fields/${fieldIndex}`
       if (!source || !quote || !source.text.includes(quote) || !value || !quote.includes(value)) throw evidenceFailure('部分内容与原文不一致，请核对，未保存生成结果',fieldPath,!source?'source_missing':!quote?'quote_missing':!source.text.includes(quote)?'quote_not_in_source':!value?'value_missing':'value_not_in_quote')
+      if(scopedObservation){
+        const scope=locateEvidence(source,quote,value,{...field,name:'symptom'},item,fieldPath,sourceAssertions.get(source))
+        if(!observationScopes.has(source))observationScopes.set(source,nursingObservationContext(source.text).clauses)
+        if(observationScopes.get(source).some(c=>c.subject==='other'&&c.start<scope.valueEnd&&c.end>scope.valueStart))throw evidenceFailure('这段观察属于其他人物，原话已保留',fieldPath,'subject_context')
+      }
       const located=locateEvidence(source,quote,value,field,item,fieldPath,sourceAssertions.get(source))
       return { name: field.name, value,...(evidenceProjection?{evidenceProjection}:{}), sources: [{ sourceId: source.id, page: source.page, quote, ...located,...(source.sourceKind==='visual_observation'?{sourceKind:'visual_observation'}:{}) }], confirmed: false, editedBy: 'model' }
     })
