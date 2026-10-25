@@ -2,6 +2,30 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { nursingMemberContext, nursingKnowledgeFor, nursingInterview, stopsNursingInterview, interpretNursingAnswer, nursingAnswerObservations } from './nursing-interview.mjs'
 
+test('broad body cold observations ask about the actual observation then its course, even after a null provider choice',()=>{
+  for(const text of ['身体有点冷','记一个事情，就是他现在呢，嗯。身体有点冷。','孩子说冷','孩子摸起来凉']){
+    const knowledge=nursingKnowledgeFor(text)
+    assert.equal(knowledge.domain,'cold',text)
+    assert.ok(knowledge.nodes.length,text)
+  }
+  const first=nursingInterview({text:'身体有点冷',latestText:'身体有点冷',requestedQuestionId:null,member:{ageMonths:24}})
+  assert.equal(first.question.id,'cold-observation')
+  assert.equal(nursingInterview({text:'身体有点冷',latestText:'身体还是有点冷',previous:{status:'ready',domain:null,askedQuestionIds:[]},requestedQuestionId:null,member:{}}).question.id,'cold-observation')
+  const second=nursingInterview({text:'身体有点冷\n家长摸着孩子身体觉得凉。',latestText:'家长摸着孩子身体觉得凉。',previous:first,requestedQuestionId:null,member:{ageMonths:24}})
+  assert.equal(second.question.id,'cold-onset')
+  const last=nursingInterview({text:'身体有点冷\n家长摸着孩子身体觉得凉。\n今天开始，持续十分钟了。',latestText:'今天开始，持续十分钟了。',previous:second,requestedQuestionId:null,member:{ageMonths:24}})
+  assert.equal(last.question,null)
+  for(const latestText of ['不知道','没注意','先这样','先记下来'])assert.equal(nursingInterview({text:'身体有点冷\n'+latestText,latestText,previous:first,requestedQuestionId:null,member:{}}).question,null,latestText)
+})
+test('cold questions respect known facts, caregiver ability and observation boundaries',()=>{
+  const known=nursingKnowledgeFor('孩子自己说身体冷，昨天开始。')
+  assert.equal(nursingKnowledgeFor('家长摸着孩子身体觉得凉。').nodes.some(n=>n.id==='cold-observation'),false)
+  assert.equal(known.nodes.some(n=>n.id==='cold-observation'||n.id==='cold-onset'),false)
+  const infant=nursingKnowledgeFor('身体有点冷',{ageMonths:6}).nodes.find(n=>n.id==='cold-observation')
+  assert.doesNotMatch(JSON.stringify(infant),/孩子自己说|孩子说冷/)
+  for(const text of ['奶瓶摸起来凉','孩子衣服摸着凉','天气有点冷','今天喝了冷水','手拿着冷饮','心里发凉','孩子身体不冷','哥哥身体有点冷','去年孩子身体有点冷','如果孩子身体发冷怎么办'])assert.equal(nursingKnowledgeFor(text).domain,null,text)
+})
+
 test('month age uses Shanghai civil birthday instead of UTC midnight',()=>{
   assert.equal(nursingMemberContext({birthday:'2026-04-25'},'2026-10-24T16:30:00Z').ageMonths,6)
   assert.equal(nursingMemberContext({birthday:'2026-04-25'},'2026-10-24T15:30:00Z').ageMonths,5)

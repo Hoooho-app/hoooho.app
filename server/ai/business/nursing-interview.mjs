@@ -33,16 +33,17 @@ export function nursingKnowledgeFor(text,member={}) {
  const handled=context.clauses.some(c=>c.eligible&&new RegExp(handling.triggerPattern).test(c.text)&&!new RegExp(handling.skipClausePattern).test(c.text))
  if(handled&&!new RegExp(handling.knownPattern).test(context.clauses.filter(c=>c.eligible).map(c=>c.text).join('，'))&&!context.clauses.some(c=>c.eligible&&/(?:后来|之后|后|再).{0,5}(?:没看|没量|没注意|没留意)|(?:没注意|不知道|不清楚).{0,6}(?:变化|反应|效果)/u.test(c.text)))available.push({...handling,domain,known:/$^/})
  available.sort((a,b)=>(b.domain===context.focused?1:0)-(a.domain===context.focused?1:0)||b.priority-a.priority)
- if(!onset.test(context.scoped(domain)))available.push({id:`${domain}-onset`,domain,priority:75,text:'这种变化大约从什么时候开始？不记得具体时间也可以。',options:[option('今天','这种变化从今天开始。'),option('昨天','这种变化从昨天开始。'),option('最近几天','这种变化在最近几天出现，具体起点不清楚。'),unknown('具体开始时间')],sourceIds:['openrn-pediatric-assessment']})
+ if(!onset.test(context.scoped(domain)))available.push({id:`${domain}-onset`,domain,priority:75,text:domain==='cold'?'这种情况大概从什么时候开始，持续多久了？不记得具体时间也没关系。':'这种变化大约从什么时候开始？不记得具体时间也可以。',options:[option('今天','这种变化从今天开始。'),option('昨天','这种变化从昨天开始。'),option('最近几天','这种变化在最近几天出现，具体起点不清楚。'),unknown('具体开始时间')],sourceIds:['openrn-pediatric-assessment']})
  const relevant=[...new Set([domain,...context.active])].slice(0,2)
  const cards=relevant.map(name=>({domain:name,version:recordingKnowledge.version,reviewStatus:recordingKnowledge.reviewStatus,...recordingKnowledge.domainCards[name]}))
  const caregiverOnly=Number.isInteger(member.ageMonths)&&member.ageMonths<18||context.clauses.some(c=>c.eligible&&/不会说话|不能说话|无法说话|不能表达|无法表达|不会表达/u.test(c.text))
  return {version:NURSING_KNOWLEDGE_VERSION,domain,cards,evidence:nursingMethodEvidence(relevant,context.variant),observations:context.clauses.filter(c=>c.activeDomains.length).slice(0,6).map(c=>({domains:c.activeDomains,quote:c.text,start:c.start,end:c.end})),nodes:available.slice(0,5).map(n=>{
   let wording={}
+  if(n.id==='cold-observation'&&caregiverOnly)wording={text:'您摸着孩子哪里觉得凉，或看到他有什么和平时不同的表现？只说实际观察到的就可以。'}
   if(n.id==='skin-sensation')wording=caregiverOnly?{text:'您看到孩子会反复抓挠那里，或在碰到时躲开吗？只记录您观察到的动作就可以。',options:[option('看到抓挠','家长看到孩子反复抓挠那里。'),option('碰到时躲开','家长看到孩子在碰到那里时躲开。'),unknown('皮肤变化时的具体动作')]}:{text:'如果孩子能表达，他说痒或疼吗？也可以只说您看到的抓挠或回避动作。'}
   if(caregiverOnly&&n.id==='pain-location')wording={text:'孩子有没有反复护住、摸向某个部位，或在某个动作时躲开？',options:[option('摸向肚子','家长看到孩子反复摸向肚子。'),option('摸向嘴部','家长看到孩子反复摸向嘴部。'),unknown('孩子是否护住或摸向某个部位')]}
   if(caregiverOnly&&n.id==='oral-observation')wording={options:n.options.filter(o=>o.label!=='孩子说嘴疼')}
-  if(caregiverOnly)wording.options=(wording.options??n.options).filter(o=>!/孩子说|孩子自述/u.test(o.value))
+  if(caregiverOnly)wording.options=(wording.options??n.options).filter(o=>!/孩子(?:自己)?说|孩子自述/u.test(o.value))
   return {id:n.id,domain:n.domain,priority:n.priority,text:n.text,options:n.options,...wording,slot:n.slot??n.id,answerKind:n.answerKind??'choice',sourceIds:n.sourceIds??['openrn-pediatric-assessment']}
  }),member}
 }
@@ -52,8 +53,11 @@ export function nursingInterview({text,latestText,previous,requestedQuestionId,m
   const knowledge=nursingKnowledgeFor(text,member),asked=[...new Set(previous?.askedQuestionIds??[])]
   const stop=stopsNursingInterview(latestText??text)
   const available=knowledge.nodes.filter(n=>!asked.includes(n.id))
-  const explicitReady=requestedQuestionId===null
-  const reason=urgent?'important_observation':stop?'user_finished':previous?.status==='ready'?'already_finished':asked.length>=3?'question_budget':explicitReady?'sufficient_information':asked.length>=2&&(available[0]?.priority??0)<90?'enough_for_record':!available.length?'no_relevant_gap':null
+  // A broad cold observation still needs its source and course clarified. A
+  // supplier's null choice must not skip these gaps; explicit user stops win.
+  const coldGap=knowledge.domain==='cold'&&available.some(n=>['cold-observation','cold-onset'].includes(n.id))&&asked.length<2
+  const explicitReady=requestedQuestionId===null&&!coldGap
+  const reason=urgent?'important_observation':stop?'user_finished':previous?.status==='ready'&&!(coldGap&&!previous.domain&&asked.length===0)?'already_finished':asked.length>=3?'question_budget':explicitReady?'sufficient_information':asked.length>=2&&(available[0]?.priority??0)<90?'enough_for_record':!available.length?'no_relevant_gap':null
   const question=reason?null:available.find(n=>n.id===requestedQuestionId)??available[0]??null
   return {version:NURSING_KNOWLEDGE_VERSION,status:urgent?'urgent':question?'asking':'ready',domain:question?.domain??knowledge.domain,turnCount:question?asked.length+1:asked.length,askedQuestionIds:question?[...asked,question.id]:asked,stopReason:question?null:reason??'sufficient_information',question:question?{id:question.id,text:question.text,options:question.options,sourceIds:question.sourceIds}:null}
 }

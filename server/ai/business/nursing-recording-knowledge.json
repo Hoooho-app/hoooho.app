@@ -1,5 +1,5 @@
 {
-  "version": "observation-recording-cards-20261025-v2",
+  "version": "observation-recording-cards-20261025-v3",
   "kind": "product_authored_recording_framework",
   "reviewStatus": "pending_clinical_review",
   "usage": "Only retrieve cards relevant to the current concern. These are observation and documentation priorities, not a checklist to ask in full, diagnostic criteria or treatment advice.",
@@ -377,6 +377,33 @@
       "sourceIds": [
         "openrn-pediatric-assessment",
         "openrn-pediatric-systems"
+      ]
+    },
+    "cold": {
+      "focusObservations": [
+        "先区分孩子说冷、家长摸着凉与实际看到的发抖等表现",
+        "开始时间、持续或间歇过程，按家长实际知道的精度记录",
+        "已有测量或相关观察原样保留，不要求补出未观察事实"
+      ],
+      "summaryPriority": [
+        "冷感信息的来源和具体表现",
+        "发生时间和持续过程",
+        "已明确补充的测量或相关观察"
+      ],
+      "forbiddenInference": [
+        "身体冷直接写成发热、低体温或受凉感冒",
+        "摸着凉换成体温数值",
+        "未提发抖写成没有发抖",
+        "从年龄、季节或环境温度推断病因"
+      ],
+      "stopWhen": [
+        "已能分清感受来源并补充一个有价值的时间或过程信息",
+        "不知道、没注意或要求先保存时停止",
+        "重要异常沿用既有提示路径，不被普通问答拖延"
+      ],
+      "sourceIds": [
+        "openrn-pediatric-assessment",
+        "rch-assessment"
       ]
     }
   },

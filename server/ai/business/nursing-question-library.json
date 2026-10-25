@@ -1,5 +1,5 @@
 {
-  "version": "observation-questions-20261025-v2",
+  "version": "observation-questions-20261025-v3",
   "authorship": "Hoooho original observation prompts",
   "clinicalReviewStatus": "pending_clinical_review",
   "questions": [
@@ -1532,6 +1532,40 @@
           "value": "暂时没注意眼部变化的实际影响，先按已经说过的情况记录。"
         }
       ]
+    },
+    {
+      "id": "cold-observation",
+      "domain": "cold",
+      "priority": 95,
+      "text": "你说身体有点冷，是孩子自己说冷，还是你摸着觉得凉？也可以说说你看到的表现。",
+      "options": [
+        {
+          "label": "孩子说冷",
+          "value": "孩子自己说身体冷。"
+        },
+        {
+          "label": "摸着凉",
+          "value": "家长摸着孩子身体觉得凉。"
+        },
+        {
+          "label": "看到发抖",
+          "value": "家长看到孩子发抖。"
+        },
+        {
+          "label": "没注意",
+          "value": "暂时没注意具体冷感表现，先按已经说过的情况记录。"
+        }
+      ],
+      "knownPattern": "(?:孩子|宝宝|他|她)(?:自己)?(?:说|喊|觉得|感觉)(?:身体)?(?:有点|有些|很|好|特别)?冷|(?:摸着|摸起来|摸到).{0,12}(?:凉|冷)|(?:冷得|发冷).{0,5}(?:发抖|打颤)|(?:看到|看见).{0,6}(?:发抖|打颤)|冷感表现.{0,5}(?:不清楚|未观察)",
+      "sourceIds": [
+        "openrn-pediatric-assessment",
+        "rch-assessment"
+      ],
+      "purpose": "澄清主观冷感和家长实际触感或观察的区别，不从冷感推断发热、低体温或病因。",
+      "slot": "cold-observation",
+      "answerKind": "choice",
+      "target": "mainConcern",
+      "clinicalReviewStatus": "pending_clinical_review"
     }
   ]
 }

@@ -17,7 +17,7 @@ test.beforeEach(async({page,request})=>{
  await expect(page.getByRole('button',{name:'核对记录',exact:true})).toBeEnabled()
 })
 test('automatic review, direct save ends input, exact record opens over its month',async({page})=>{
- await page.getByRole('button',{name:/^(?:先记下来|保存记录)$/}).click()
+ await page.getByRole('button',{name:/^(?:先记下来|立即保存)$/}).click()
  await expect(page.getByRole('button',{name:'查看',exact:true})).toBeVisible()
  await expect(page.getByLabel('对话输入')).toHaveCount(0)
  expect(await page.evaluate(()=>(window as any).__speechCalls)).toBe(0)

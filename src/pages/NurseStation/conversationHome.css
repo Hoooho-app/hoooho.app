@@ -69,3 +69,11 @@ body header.hoho-main-header--conversation{padding-inline:var(--hoho-space-4);ba
 .smart-record-document>div{grid-column:1/-1;display:flex;gap:var(--hoho-space-2);flex-wrap:wrap}
 .smart-record-document a{min-height:44px;text-decoration:none}
 .front-desk-followup__child>:first-child{width:24px;height:24px;flex:0 0 24px}
+.front-desk-processing{display:flex;align-items:center;gap:var(--hoho-space-3)}
+.front-desk-processing>.idle-nurse-visual{position:relative;inset:auto;width:80px;height:80px;flex:0 0 80px;overflow:hidden;border-radius:var(--hoho-radius-control)}
+.front-desk-processing .idle-nurse-visual__idle-video{width:100%;height:100%;object-fit:cover}
+.front-desk-processing>div:last-child{min-width:0}
+.front-desk-processing p{margin:0}
+.front-desk-processing span{display:block;margin-top:var(--hoho-space-1);font-size:var(--hoho-font-size-caption);color:rgb(var(--hoho-color-text-secondary))}
+
+.front-desk-processing .idle-nurse-visual[data-reduced-motion="true"] .idle-nurse-visual__idle-video{opacity:1}
