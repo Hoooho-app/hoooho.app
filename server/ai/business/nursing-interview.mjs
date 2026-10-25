@@ -72,6 +72,7 @@ export function interpretNursingAnswer(questionId,answer) {
     const target=unknownTargets[questionId]??nodes.find(n=>n.id===questionId)?.options?.find(o=>o.label==='没注意')?.value.match(/^暂时没注意([^，。]+)，/)?.[1]??(questionId.endsWith('-onset')?'具体开始时间':null)
     return target?{version:NURSING_ANSWER_VERSION,text:`${target}暂不清楚`,polarity:'unknown'}:null
   }
+  if(questionId.endsWith('-onset')&&onset.test(raw))return {version:NURSING_ANSWER_VERSION,text:raw,polarity:'literal'}
   const choice=nodes.find(n=>n.id===questionId)?.options?.find(o=>o.value.replace(/[。！!，,\s]+$/u,'')===raw)
   if(choice&&choice.label!=='没注意')return {version:NURSING_ANSWER_VERSION,text:raw,polarity:'literal'}
   const polarity=/^(?:没有|没|没有啊|没看到|没发现|不会)$/.test(raw)?'no':/^(?:有|有的|有啊|是|是的|会)$/.test(raw)?'yes':null
