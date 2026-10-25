@@ -55,7 +55,7 @@ test('one failed artifact read is retried; original input and typed supplement s
  await send(page,'今天脸颊发红，先按已经说过的情况记录，不再追问。');await page.getByLabel('对话输入').fill('尚未发送的补充')
  await expect(page.getByRole('button',{name:'核对记录',exact:true})).toBeEnabled();expect(forcedFallback).toBe(true);expect(failed).toBe(true);expect(artifactReads).toBe(2)
  await expect(page.getByLabel('对话输入')).toHaveValue('尚未发送的补充');await expect(page.locator('.nurse-turn--user')).toHaveCount(1)
- expect((await(await request.get('http://127.0.0.1:4198/stats')).json()).calls-before.calls).toBe(2)
+ expect((await(await request.get('http://127.0.0.1:4198/stats')).json()).calls-before.calls).toBe(4)
 })
 test('complete text review avoids a redundant artifact GET and remains available for review',async({page,request})=>{
  let artifactReads=0
@@ -64,16 +64,16 @@ test('complete text review avoids a redundant artifact GET and remains available
  await send(page,'今天脸颊发红，先按已经说过的情况记录，不再追问。');await expect(page.getByRole('button',{name:'核对记录',exact:true})).toBeEnabled()
  expect(artifactReads).toBe(0)
  await page.getByRole('button',{name:'核对记录',exact:true}).click();await expect(page.locator('.smart-review-card')).toContainText('今天脸颊发红')
- expect((await(await request.get('http://127.0.0.1:4198/stats')).json()).calls-before.calls).toBe(2)
+ expect((await(await request.get('http://127.0.0.1:4198/stats')).json()).calls-before.calls).toBe(4)
 })
 test('image then supplement reuses OCR and keeps a single original bubble per input',async({page,request})=>{
  await request.get('http://127.0.0.1:4198/delay?ms=400')
  const before=await(await request.get('http://127.0.0.1:4198/stats')).json(),png=await sharp({create:{width:80,height:90,channels:3,background:'#fff'}}).png().toBuffer()
  await page.getByLabel('从相册选择').setInputFiles({name:'合成资料.png',mimeType:'image/png',buffer:png})
  await expect(page.getByRole('button',{name:'核对记录',exact:true})).toBeEnabled()
- const first=await(await request.get('http://127.0.0.1:4198/stats')).json();expect(first.calls-before.calls).toBe(3)
+ const first=await(await request.get('http://127.0.0.1:4198/stats')).json();expect(first.calls-before.calls).toBe(5)
  const accepted=page.waitForResponse(response=>response.url().endsWith('/recognition-jobs')&&response.request().method()==='POST');await send(page,'没有呕吐');const revision=await(await accepted).json();expect(revision.inputRevision).toBe(2);await expect.poll(async()=>{const job=await(await request.get(`/api/members/${memberId}/recognition-jobs/${revision.id}`,{headers})).json();return job.resultRevision===2&&job.state==='ready'}).toBe(true);await expect(page.getByRole('button',{name:'核对记录',exact:true})).toBeEnabled()
- const next=await(await request.get('http://127.0.0.1:4198/stats')).json();expect(next.calls-first.calls).toBe(2)
+ const next=await(await request.get('http://127.0.0.1:4198/stats')).json();expect(next.calls-first.calls).toBe(4)
  await expect(page.locator('.nurse-turn--user')).toHaveCount(2);await expect(page.getByRole('img',{name:'合成资料.png'})).toHaveCount(1)
 })
 test('discard before task upload completes fences late responses and does not restore local content',async({page})=>{

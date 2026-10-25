@@ -43,11 +43,12 @@ if (process.env.VISIT_AI_TEST === '1') {
     if(body.text.format.name==='symptom_media_observations')return fixtureResponse({output:[{content:[{type:'output_text',text:JSON.stringify({observations:[{frame:0,text:'合成可见表现：局部发红'}],questions:['请核对人物、部位与原件日期']})}]}]})
     if(body.text.format.name==='hoooho_front_desk_reply'){
       const input=JSON.parse(body.input),last=input.history.at(-1),contextId=last?.id??'new',knowledge=input.nursingKnowledge?.find(k=>k.contextId===contextId),asked=last?.interview?.askedKnowledgeQuestionIds??last?.interview?.askedQuestionIds??[]
-      const finish=/没注意|不清楚|先按已经|不再追问/u.test(input.latest.text),node=finish?null:knowledge?.nodes.find(n=>!asked.includes(n.id)),topic=node?.domain??knowledge?.domain??'general'
-      const slot=node?.id.endsWith('-onset')?'onset':node?.slot==='onset'?'onset':'observation'
+      const finish=/没注意|不清楚|先按已经|不再追问/u.test(input.latest.text)||last?.interview?.stopReason==='user_finished',node=finish?null:knowledge?.nodes.find(n=>!asked.includes(n.id)),topic=node?.domain??knowledge?.domain??'general'
+      const slot=node?.id.endsWith('-onset')?'onset':({'skin-location':'location','skin-appearance':'appearance','injury-course':'course','injury-function':'impact','handling-response':'handling'}[node?.id]??'observation')
       const predicate=node?.id==='resp-effort'?'breathing_effort':null
-      const question=node?{text:node.text,slot,predicate,unit:null,options:node.options}:null
-      const decision=semanticDecision??{intent:'record',subject:'current',status:node?'ask':finish?'incomplete':'ready',topic,question,unresolvedItems:finish?['未观察的具体情况']:[],media:input.latest.kind==='image'?'document':'none'}
+      const options=node?.options.length>4?[...node.options.filter(o=>o.label!=='没注意').slice(0,3),node.options.find(o=>o.label==='没注意')??node.options[3]]:node?.options
+      const question=node?{text:node.text,slot,predicate,unit:null,options}:null
+      const decision=semanticDecision?{subjectResolution:null,...semanticDecision}:{subjectResolution:null,intent:'record',subject:'current',status:node?'ask':finish?'incomplete':'ready',topic,question,unresolvedItems:finish?['未观察的具体情况']:[],media:input.latest.kind==='image'?'document':'none'}
       return fixtureResponse({output:[{content:[{type:'output_text',text:JSON.stringify({reply:input.latest.kind==='image'?'我看到了图片里的测试图形。':'这次观察收到了，可以接着补充。',contextId,action:'record',questionId:node?.id??null,emergency:{currentChild:false,quote:''},...(body.text.format.schema.properties.decision?{decision}:{})})}]}]})
     }
     if(body.text.format.name==='front_desk_visual_source')return fixtureResponse({output:[{content:[{type:'output_text',text:JSON.stringify(visualOutput??{kind:'document',status:'readable',text:ocrText??'测试机构\n2026-09-29\n红细胞 4.2 mmol/L 参考3.5-5.5',observations:[]})}]}]})

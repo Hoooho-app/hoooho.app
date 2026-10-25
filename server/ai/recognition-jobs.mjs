@@ -232,9 +232,25 @@ export class RecognitionJobs {
       if(j.mode==='front'){
         const context=(await this.front.snapshot(j.accountId,j.memberId,j.contextId));this.guard(id,epoch,signal)
         if(context.saved){await this.updateActive(id,epoch,signal,{state:'ready',stage:'ready',resultRevision:revision,owner:null,leaseUntil:0});return}
-        if(context.decision?.organize===false){await this.updateActive(id,epoch,signal,{state:'ready',stage:'ready',review:null,draftId:null,draftVersion:null,resultRevision:revision,owner:null,leaseUntil:0});return}
+        if(context.decision?.organize===false){
+          // A courtesy/explanation adds no facts. Keep only the server snapshot's
+          // exact same ready review and rebind its save guard to this revision.
+          const retained=context.decision.intent==='interaction'&&context.interview?.status==='ready'&&context.review?.state==='ready'?context.review:null
+          await withStorageLock(async()=>{
+            const current=this.guard(id,epoch,signal)
+            if(current.inputRevision!==revision){this.put({...current,state:'queued',stage:'queued',owner:null,leaseUntil:0});return}
+            if(retained)await this.business.bindRecognition(j.accountId,j.memberId,retained.id,{jobId:id,revision},signal)
+            this.guard(id,epoch,signal)
+            this.put({...current,state:'ready',stage:'ready',review:retained,draftId:retained?.id??null,draftVersion:retained?.version??null,resultRevision:revision,owner:null,leaseUntil:0})
+          });return
+        }
+        let previousReview=context.review
+        if(!previousReview&&context.draftId){
+          try{const draft=await this.business.get(j.accountId,j.memberId,context.draftId);if(draft.frontContextId===context.id&&draft.state!=='saved')previousReview={id:draft.id,version:draft.version}}catch(error){if(error.code!=='AI_DRAFT_NOT_FOUND')throw error}
+          this.guard(id,epoch,signal)
+        }
         const turns=factMessages(context.messages)
-        input={...j.options,text:turns.map(m=>m.text).filter(Boolean).join('\n'),files:turns.flatMap(m=>m.files??[]),voiceFiles:turns.flatMap(m=>m.voices??[]),id:context.review?.id,version:context.review?.version,smartRecord:true,frontDeskRecord:true,semanticVersion:context.semanticVersion??1,frontContextId:context.id}
+        input={...j.options,text:turns.map(m=>m.text).filter(Boolean).join('\n'),files:turns.flatMap(m=>m.files??[]),voiceFiles:turns.flatMap(m=>m.voices??[]),id:previousReview?.id,version:previousReview?.version,smartRecord:true,frontDeskRecord:true,semanticVersion:context.semanticVersion??1,frontContextId:context.id}
       }else{
         // Structured submissions are full snapshots; previous revisions remain
         // immutable inputs and are never concatenated into new health facts.

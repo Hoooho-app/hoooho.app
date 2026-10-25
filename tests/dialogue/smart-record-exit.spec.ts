@@ -18,6 +18,7 @@ test.beforeEach(async({page,request})=>{
  const response=await request.post('/api/members',{headers,data:{name:'退出验证（虚构）',relationship:'child'}})
  expect(response.ok()).toBe(true);memberId=(await response.json()).id
  await request.get('http://127.0.0.1:4198/success')
+ await request.get('http://127.0.0.1:4198/delay?ms=400')
  await request.post('http://127.0.0.1:4198/draft-data',{data:{items:null}})
  await page.addInitScript(({token,memberId})=>{sessionStorage.setItem('hoooho-auth-token',token);localStorage.setItem('hoooho-app',JSON.stringify({state:{authUser:{id:'visit-test'},currentMemberId:memberId,members:[],profile:null},version:5}))},{token,memberId})
  await page.goto('/nurse-station')

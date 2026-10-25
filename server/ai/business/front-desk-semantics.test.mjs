@@ -18,6 +18,8 @@ test('binary displayed question is the exact predicate used to expand its short 
  const q={text:'这里疼吗？',slot:'observation',predicate:'bleeding',unit:null,options:[{label:'疼',value:'疼'}]}
  const interview=semanticInterview(reply(decision({status:'ask',question:q})),{messageId:'one'})
  assert.equal(interview.question.text,'目前还有出血吗？')
+ assert.equal(interview.question.semantic.slot,'observation')
+ assert.throws(()=>semanticInterview(reply(decision({subject:'unknown',intent:'clarify',status:'ask',question:{...q,slot:'subject'}}))),{code:'FRONT_SEMANTIC_INVALID'})
  assert.deepEqual(interview.question.options.map(o=>o.value),['有','没有','没注意'])
  assert.match(interpretSemanticAnswer(interview.question,'没有').text,/否认目前仍有出血/u)
  assert.equal(interpretSemanticAnswer(interview.question,'没注意').polarity,'unknown')
@@ -55,4 +57,14 @@ test('visual recognition keeps an observation distinct from OCR and never makes 
  assert.equal((await recognizePage(page,model)).text,'')
  assert.notEqual(recognitionKey(page,model),recognitionKey(page,{...model,frontDeskVisual:false}))
  assert.notEqual(recognitionKey(page,model),recognitionKey(page,{...model,provider:{...model.provider,visionModel:'v2'}}))
+})
+
+
+test('unreadable and unrelated images may ask purpose without implying patient ownership',()=>{
+ for(const media of ['uncertain','unrelated']){
+  const d=decision({intent:'clarify',subject:'unknown',status:'ask',media,question:{text:'这张图片想记录什么情况？',slot:'clarification',predicate:null,unit:null,options:[]}})
+  const interview=semanticInterview(reply(d),{messageId:'image'})
+  assert.equal(interview.semantic.organize,false);assert.equal(interview.question.semantic.slot,'clarification')
+ }
+ assert.equal(semanticInterview(reply(decision({intent:'chat',subject:'unknown',status:'ready',media:'unrelated'}))).semantic.organize,false)
 })

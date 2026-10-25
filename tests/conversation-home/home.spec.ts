@@ -576,3 +576,21 @@ test('semantic photo-only asks before extraction and keeps visual attribution af
  await expect(page.locator('.front-desk-record-sheet')).toContainText('照片中可见')
  await expect(page.locator('.front-desk-record-sheet')).toContainText('今天')
 })
+
+
+test('semantic courtesy preserves the same summary and save eligibility after reload',async({page,request})=>{
+ await typeText(page,'今天脸颊发红，先按已经说过的情况记录，不再追问。')
+ await page.getByRole('button',{name:'发送',exact:true}).click()
+ await expect(page.getByRole('button',{name:'立即保存',exact:true})).toBeEnabled()
+ const text=await page.locator('.front-desk-record-sheet').innerText(),before=await(await request.get('http://127.0.0.1:4198/success')).json()
+ await typeText(page,'谢谢')
+ await page.getByRole('button',{name:'发送',exact:true}).click()
+ await expect(page.locator('.nurse-turn--assistant').last()).toContainText('好的，需要补充时接着说')
+ await expect(page.getByRole('button',{name:'立即保存',exact:true})).toBeEnabled()
+ expect(await page.locator('.front-desk-record-sheet').innerText()).toBe(text)
+ expect((await(await request.get('http://127.0.0.1:4198/success')).json()).calls).toBe(before.calls)
+ await page.reload()
+ await expect(page.getByRole('button',{name:'立即保存',exact:true})).toBeEnabled()
+ await page.getByRole('button',{name:'立即保存',exact:true}).click()
+ await expect(page.getByRole('button',{name:'查看',exact:true})).toBeVisible()
+})

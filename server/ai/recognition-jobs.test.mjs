@@ -348,3 +348,191 @@ test('semantic v2 new input preserves the protocol of a retained failed v1 input
  assert.equal(messages.filter(m=>m.id==='legacy-input').length,1)
  assert.equal(messages.find(m=>m.id==='semantic-input').recordable,false)
 })
+
+// Append after the semanticTest* helpers in recognition-jobs.test.mjs.
+// Real FrontDeskRecord/AIBusinessService/RecognitionJobs; only provider outputs
+// are injected. This covers save eligibility, not just visible review reuse.
+async function semanticReadyInteractionFixture(f){
+ const original=f.model.structured
+ f.frontModel.structured=async()=>semanticTestReply(semanticTestDecision({topic:'skin'}))
+ f.model.structured=async input=>{
+  if(input.task==='professional-summary-generate'){
+   f.calls.push(input.task)
+   const data=JSON.parse(input.input)
+   return {value:{items:data.items.map(p=>({itemId:p.itemId,title:'脸颊发红',claims:p.facts.map(c=>({text:c.text,factIds:c.factIds}))}))},diagnostics:{provider:'synthetic'}}
+  }
+  if(input.task==='professional-summary-verify'){
+   f.calls.push(input.task)
+   const data=JSON.parse(input.input)
+   return {value:{items:data.candidates.map(c=>({itemId:c.itemId,titleSupported:true,complete:true,problems:[],claims:c.claims.map((_,index)=>({index,supported:true}))}))},diagnostics:{provider:'synthetic'}}
+  }
+  return original(input)
+ }
+ await semanticTestSubmit(f,'ready-original','脸颊发红')
+ const initial=await semanticTestTerminal(f,1)
+ assert.equal(initial.state,'ready',JSON.stringify(initial.error))
+ assert.equal(initial.review.items[0].professionalSummary.version,'professional-summary-v2')
+ f.jobs.assertCurrent(await f.business.get('synthetic',f.member.id,initial.review.id))
+ return initial
+}
+
+test('semantic v2 ready draft survives courtesy without regeneration and remains saveable with idempotent retry',async t=>{
+ const f=await setup(t),initial=await semanticReadyInteractionFixture(f)
+ const calls=[...f.calls],version=initial.review.version,summary=structuredClone(initial.review.items[0].professionalSummary)
+ f.business.prepare=async()=>assert.fail('courtesy must reuse the verified fact projection without preparation')
+ await semanticTestSubmit(f,'courtesy-after-ready','谢谢')
+ const current=await semanticTestTerminal(f,2)
+ assert.equal(current.state,'ready',JSON.stringify(current.error));assert.equal(current.resultRevision,2)
+ assert.equal(current.review?.id,initial.review.id);assert.equal(current.review.version,version)
+ assert.deepEqual(current.review.items[0].professionalSummary,summary)
+ assert.deepEqual(f.calls,calls,'courtesy must not call extraction, summary generation, or verification again')
+ const draft=await f.business.get('synthetic',f.member.id,initial.review.id)
+ assert.deepEqual(draft.recognitionBinding,{jobId:'task-1',revision:2})
+ f.jobs.assertCurrent(draft)
+ const restored=await f.front.snapshot('synthetic',f.member.id,initial.contextId)
+ assert.equal(restored.review.id,initial.review.id);assert.equal(restored.review.version,version)
+ assert.deepEqual(restored.review.items[0].professionalSummary,summary)
+ const saved=await f.business.save('synthetic',f.member.id,initial.review.id,{version,confirmed:true})
+ const retried=await f.business.save('synthetic',f.member.id,initial.review.id,{version,confirmed:true})
+ assert.equal(saved.state,'saved');assert.deepEqual(retried.result,saved.result)
+ assert.equal((await f.business.records.repository.findByAccountId('synthetic')).length,1)
+ assert.deepEqual(f.calls,calls)
+})
+
+for(const scenario of [
+ {name:'new health fact requiring clarification',text:'现在手臂也起了红点',decision:semanticTestDecision({topic:'skin',status:'ask',question:semanticTestQuestion({text:'手臂的红点是什么时候出现的？',slot:'onset',predicate:null})})},
+ {name:'model-classified unrelated chat',text:'这个软件怎么换头像',decision:semanticTestDecision({intent:'chat',topic:'general'})},
+ {name:'explicit other-person clarification',text:'哥哥今天发烧了',decision:semanticTestDecision({intent:'clarify',subject:'other',status:'ask',topic:'fever',question:semanticTestQuestion({text:'这条情况是要记录哪位成员的？',slot:'subject',predicate:null})})}
+])test(`semantic v2 ${scenario.name} cannot retain the former draft save binding`,async t=>{
+ const f=await setup(t),initial=await semanticReadyInteractionFixture(f),calls=[...f.calls]
+ f.frontModel.structured=async()=>semanticTestReply(scenario.decision,initial.contextId)
+ f.business.prepare=async()=>assert.fail('blocked or clarification turn must not extract')
+ await semanticTestSubmit(f,'blocked-after-ready',scenario.text,{contextId:initial.contextId})
+ const current=await semanticTestTerminal(f,2)
+ assert.equal(current.state,'ready',JSON.stringify(current.error));assert.equal(current.resultRevision,2)
+ assert.equal(current.review,null);assert.equal(current.draftId,null)
+ const restored=await f.front.snapshot('synthetic',f.member.id,initial.contextId)
+ assert.equal(restored.review,undefined)
+ const old=await f.business.get('synthetic',f.member.id,initial.review.id)
+ assert.equal(old.recognitionBinding.revision,1,'blocked turn must not silently rebind the old facts')
+ assert.throws(()=>f.jobs.assertCurrent(old),{code:'RECOGNITION_REVISION_CONFLICT'})
+ await assert.rejects(()=>f.business.save('synthetic',f.member.id,old.id,{version:old.version,confirmed:true}),{code:'RECOGNITION_REVISION_CONFLICT'})
+ assert.equal((await f.business.records.repository.findByAccountId('synthetic')).length,0)
+ assert.deepEqual(f.calls,calls)
+})
+
+// Append to recognition-jobs.test.mjs after its existing semanticTest* helpers.
+// No new imports. sharp, setup(t), and real front/business are already available.
+function semanticOwnerModel(f,topic='fever'){
+ const state={contextId:'new',requests:[],decision:semanticTestDecision({intent:'clarify',subject:'unknown',subjectResolution:null,status:'ask',topic,question:semanticTestQuestion({text:'这说的是哪位成员？',slot:'subject',predicate:null})})}
+ f.frontModel.structured=async input=>{state.requests.push(JSON.parse(input.input[0].content[0].text));return semanticTestReply(state.decision,state.contextId)}
+ return state
+}
+const semanticOwnerQuestion=()=>semanticTestQuestion({text:'这说的是哪位成员？',slot:'subject',predicate:null})
+
+test('semantic v2 unknown then other then unrelated current cannot transfer the earlier symptom',async t=>{
+ const f=await setup(t),state=semanticOwnerModel(f),at=Date.now()-10000
+ const first=await semanticTestFront(f,'owner-unknown','发烧了',{inputAt:at});state.contextId=first.context.id
+ const question=first.context.interview.question,source=first.context.messages.find(m=>m.id==='owner-unknown')
+ assert.equal(source.recordable,false);assert.equal(source.semanticSubject,'unknown')
+ assert.equal(question.semantic.subjectGroupId,source.semanticSubjectGroupId);assert.equal(semanticTestRaw(first.context),'')
+ state.decision=semanticTestDecision({intent:'clarify',subject:'other',subjectResolution:'other',status:'ask',topic:'fever',question:semanticOwnerQuestion()})
+ const other=await semanticTestFront(f,'owner-is-other','哥哥',{inputAt:at+1,answerTo:{contextId:state.contextId,questionId:question.id}})
+ const resolved=other.context.messages.find(m=>m.id==='owner-unknown')
+ assert.equal(resolved.semanticSubject,'other');assert.equal(resolved.recordable,false);assert.equal(resolved.subjectResolvedBy,'owner-is-other')
+ assert.equal(other.context.interview.question.semantic.subjectGroupId,question.semantic.subjectGroupId)
+ state.decision=semanticTestDecision({topic:'diet',subjectResolution:null})
+ const current=await semanticTestFront(f,'owner-new-current','宝宝今天喝了奶',{inputAt:at+2,answerTo:{contextId:state.contextId,questionId:other.context.interview.question.id}})
+ const raw=semanticTestRaw(current.context)
+ assert.equal(raw,'宝宝今天喝了奶')
+ assert.equal(current.context.messages.find(m=>m.id==='owner-unknown').semanticSubject,'other')
+ const evidence=await f.business.frontAnswerObservations('synthetic',f.member.id,state.contextId,raw)
+ assert.equal(evidence.semanticVersion,2);assert.deepEqual(evidence.mediaHashes,[])
+ assert.equal(current.context.messages.find(m=>m.id==='owner-unknown').text,'发烧了','original conversation is retained')
+})
+
+test('semantic v2 explicit bound current resolution retrieves only its unknown subject group and supplies the bound descriptor to the model',async t=>{
+ const f=await setup(t),state=semanticOwnerModel(f),at=Date.now()-10000
+ const first=await semanticTestFront(f,'owner-current-unknown','发烧了',{inputAt:at});state.contextId=first.context.id
+ const question=first.context.interview.question,answerTo={contextId:state.contextId,questionId:question.id}
+ state.decision=semanticTestDecision({topic:'fever',subjectResolution:'current'})
+ const current=await semanticTestFront(f,'owner-confirm-current','这次发烧的是宝宝',{inputAt:at+1,answerTo})
+ const source=current.context.messages.find(m=>m.id==='owner-current-unknown')
+ assert.equal(source.semanticSubject,'current');assert.equal(source.recordable,true);assert.equal(source.subjectResolvedBy,'owner-confirm-current')
+ assert.equal(source.semanticSubjectGroupId,question.semantic.subjectGroupId)
+ const raw=semanticTestRaw(current.context)
+ assert.equal(raw,'发烧了\n这次发烧的是宝宝')
+ const latest=state.requests.at(-1).latest
+ assert.deepEqual(latest.answerTo,answerTo);assert.equal(latest.answerQuestion.id,question.id)
+ assert.equal(latest.answerQuestion.semantic.subjectGroupId,source.semanticSubjectGroupId)
+ await f.business.frontAnswerObservations('synthetic',f.member.id,state.contextId,raw)
+})
+
+for(const scenario of [
+ {name:'unrelated current fact with no resolution',topic:'diet',resolution:null,text:'宝宝今天喝了奶',bound:true},
+ {name:'wrong-topic resolution even when bound',topic:'diet',resolution:'current',text:'宝宝今天喝了奶',bound:true},
+ {name:'unbound provider resolution',topic:'fever',resolution:'current',text:'宝宝今天发烧了',bound:false}
+])test(`semantic v2 ${scenario.name} leaves unresolved material isolated`,async t=>{
+ const f=await setup(t),state=semanticOwnerModel(f),at=Date.now()-10000
+ const first=await semanticTestFront(f,'owner-pending','发烧了',{inputAt:at});state.contextId=first.context.id
+ state.decision=semanticTestDecision({topic:scenario.topic,subjectResolution:scenario.resolution})
+ const target=scenario.bound?{answerTo:{contextId:state.contextId,questionId:first.context.interview.question.id}}:{contextId:state.contextId}
+ const current=await semanticTestFront(f,'owner-separate-current',scenario.text,{inputAt:at+1,...target})
+ const pending=current.context.messages.find(m=>m.id==='owner-pending')
+ assert.equal(pending.semanticSubject,'unknown');assert.equal(pending.recordable,false);assert.equal(pending.subjectResolvedBy,undefined)
+ const raw=semanticTestRaw(current.context)
+ assert.equal(raw,scenario.text)
+ await f.business.frontAnswerObservations('synthetic',f.member.id,state.contextId,raw)
+})
+
+test('semantic v2 a former other group never upgrades through a later current resolution with the same topic and subject question group',async t=>{
+ const f=await setup(t),state=semanticOwnerModel(f),at=Date.now()-10000
+ const first=await semanticTestFront(f,'owner-final-other','发烧了',{inputAt:at});state.contextId=first.context.id
+ state.decision=semanticTestDecision({intent:'clarify',subject:'other',subjectResolution:'other',status:'ask',topic:'fever',question:semanticOwnerQuestion()})
+ const other=await semanticTestFront(f,'owner-final-other-answer','哥哥',{inputAt:at+1,answerTo:{contextId:state.contextId,questionId:first.context.interview.question.id}})
+ state.decision=semanticTestDecision({topic:'fever',subjectResolution:'current'})
+ const current=await semanticTestFront(f,'owner-new-fever','宝宝今天也发烧了',{inputAt:at+2,answerTo:{contextId:state.contextId,questionId:other.context.interview.question.id}})
+ const old=current.context.messages.find(m=>m.id==='owner-final-other')
+ assert.equal(old.semanticSubject,'other');assert.equal(old.recordable,false);assert.equal(old.subjectResolvedBy,'owner-final-other-answer')
+ assert.equal(semanticTestRaw(current.context),'宝宝今天也发烧了')
+})
+
+for(const resolution of ['current','other'])test(`semantic v2 photo-only unknown material is ${resolution==='current'?'retrieved':'excluded'} after explicit ${resolution} attribution`,async t=>{
+ const f=await setup(t),state=semanticOwnerModel(f,'skin'),at=Date.now()-10000
+ const bytes=await sharp({create:{width:8,height:8,channels:3,background:'#cc3344'}}).png().toBuffer()
+ const photo={name:'synthetic-owner.png',mimeType:'image/png',dataUrl:'data:image/png;base64,'+bytes.toString('base64')}
+ const first=await semanticTestFront(f,'owner-photo','',{kind:'image',files:[photo],inputAt:at});state.contextId=first.context.id
+ const source=first.context.messages.find(m=>m.id==='owner-photo'),hash=source.files[0].contentHash
+ assert.equal(source.recordable,false);assert.ok(hash)
+ state.decision=resolution==='current'?semanticTestDecision({topic:'skin',subjectResolution:'current'}):semanticTestDecision({intent:'clarify',subject:'other',subjectResolution:'other',status:'ask',topic:'skin',question:semanticOwnerQuestion()})
+ const resolved=await semanticTestFront(f,'owner-photo-answer',resolution==='current'?'照片是宝宝的':'照片是哥哥的',{inputAt:at+1,answerTo:{contextId:state.contextId,questionId:first.context.interview.question.id}})
+ const original=resolved.context.messages.find(m=>m.id==='owner-photo')
+ assert.equal(original.semanticSubject,resolution);assert.equal(original.recordable,resolution==='current')
+ assert.equal(original.files[0].contentHash,hash);assert.equal(original.files[0].dataUrl,photo.dataUrl,'original image remains available in conversation')
+ if(resolution==='current'){
+  const evidence=await f.business.frontAnswerObservations('synthetic',f.member.id,state.contextId,semanticTestRaw(resolved.context))
+  assert.deepEqual(evidence.mediaHashes,[hash])
+ }else{
+  state.decision=semanticTestDecision({topic:'diet',subjectResolution:null})
+  const current=await semanticTestFront(f,'owner-photo-new-current','宝宝今天喝了奶',{inputAt:at+2,answerTo:{contextId:state.contextId,questionId:resolved.context.interview.question.id}})
+  const evidence=await f.business.frontAnswerObservations('synthetic',f.member.id,state.contextId,semanticTestRaw(current.context))
+  assert.deepEqual(evidence.mediaHashes,[]);assert.equal(semanticTestRaw(current.context),'宝宝今天喝了奶')
+ }
+})
+
+test('semantic v2 resolving the latest subject group cannot release a different pending group in the same context',async t=>{
+ const f=await setup(t),state=semanticOwnerModel(f),at=Date.now()-10000
+ const first=await semanticTestFront(f,'owner-group-a','发烧了',{inputAt:at});state.contextId=first.context.id
+ const groupA=first.context.interview.question.semantic.subjectGroupId
+ state.decision=semanticTestDecision({intent:'clarify',subject:'unknown',subjectResolution:null,status:'ask',topic:'report',question:semanticOwnerQuestion()})
+ const second=await semanticTestFront(f,'owner-group-b','报告写体温38.5℃',{inputAt:at+1,contextId:state.contextId})
+ const groupB=second.context.interview.question.semantic.subjectGroupId
+ assert.notEqual(groupA,groupB)
+ state.decision=semanticTestDecision({topic:'report',subjectResolution:'current'})
+ const current=await semanticTestFront(f,'owner-group-b-answer','这份报告是宝宝的',{inputAt:at+2,answerTo:{contextId:state.contextId,questionId:second.context.interview.question.id}})
+ const a=current.context.messages.find(m=>m.id==='owner-group-a'),b=current.context.messages.find(m=>m.id==='owner-group-b')
+ assert.equal(a.semanticSubject,'unknown');assert.equal(a.recordable,false);assert.equal(a.subjectResolvedBy,undefined)
+ assert.equal(b.semanticSubject,'current');assert.equal(b.recordable,true);assert.equal(b.subjectResolvedBy,'owner-group-b-answer')
+ assert.equal(semanticTestRaw(current.context),'报告写体温38.5℃\n这份报告是宝宝的')
+ await f.business.frontAnswerObservations('synthetic',f.member.id,state.contextId,semanticTestRaw(current.context))
+})
