@@ -447,7 +447,7 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
     if(answering){
       const options=interview.question!.options,unknown=options.find(option=>option.label==='没注意')
       const choices=home&&options.length>4?[...options.filter(option=>option!==unknown).slice(0,3),unknown??options[3]]:options
-      return <div className="smart-record-actions"><div className="smart-interview-options" aria-label="回答当前问题">{choices.map(option=><HohoButton key={option.value} variant={home?'primary':'secondary'} disabled={answerDisabled} onClick={()=>void sendText(option.value)}>{option.label}</HohoButton>)}</div></div>
+      return <div className="smart-record-actions"><div className="smart-interview-options" aria-label="回答当前问题">{choices.map(option=><HohoButton key={option.value} variant="secondary" disabled={answerDisabled} onClick={()=>void sendText(option.value)}>{option.label}</HohoButton>)}</div></div>
     }
     const finish=()=>count&&canSave&&!saveBlocked?void save():void sendText('先按已经说过的情况记录，不再追问。')
     return <div className="smart-record-actions">
