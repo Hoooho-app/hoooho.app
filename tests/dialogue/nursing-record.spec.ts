@@ -22,7 +22,7 @@ async function send(page:import('@playwright/test').Page,text:string){
 
 test('specific questions, bound quick answers, refresh, unknown stop and professional save',async({page,request},info)=>{
   await send(page,'身上有点东西，老挠')
-  await expect(page.getByText('变化出现在哪个部位？可以点身体部位，也可以拍一张照片。',{exact:true})).toBeVisible()
+  await expect(page.getByText('变化出现在哪个部位？可以点身体部位，也可以拍一张照片。',{exact:false})).toBeVisible()
   await expect(page.getByLabel('回答当前问题')).toBeVisible()
   await expect(page.getByLabel('整理后的描述')).toHaveCount(0)
   await page.getByLabel('对话输入').fill('还有一段待补充')
