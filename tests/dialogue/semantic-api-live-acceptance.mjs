@@ -183,7 +183,7 @@ try {
   result.passed = true
 } catch (error) {
   if(memberId&&['professional_summary','readable_photo_only'].includes(stage))try{const draft=await api(`/api/members/${memberId}/ai-drafts`);result.syntheticDiagnostic={state:draft?.state,preview:draft?.preview?.text??null}}catch{}
-  result.error = { ...(error.timeCoverage?{timeCoverage:error.timeCoverage}:{}),...(error.sourceSpans?{sourceSpans:error.sourceSpans,recoveryAttempt:error.recoveryAttempt}:{}),...(error.verificationCodes?{verificationCodes:error.verificationCodes}:{}),...(error.retryAfter?{retryAfterSeconds:error.retryAfter}:{}),...(error.validationMessage?{validationMessage:error.validationMessage}:{}),stage, code: error instanceof CheckError ? safeCode(error.code) : 'CHECK_INTERNAL_FAILURE', httpStatus: error instanceof CheckError ? error.status : null }
+  result.error = { ...([0,1].includes(error.recoveryAttempt)?{recoveryAttempt:error.recoveryAttempt}:{}),...(error.timeCoverage?{timeCoverage:error.timeCoverage}:{}),...(error.sourceSpans?{sourceSpans:error.sourceSpans,recoveryAttempt:error.recoveryAttempt}:{}),...(error.verificationCodes?{verificationCodes:error.verificationCodes}:{}),...(error.retryAfter?{retryAfterSeconds:error.retryAfter}:{}),...(error.validationMessage?{validationMessage:error.validationMessage}:{}),stage, code: error instanceof CheckError ? safeCode(error.code) : 'CHECK_INTERNAL_FAILURE', httpStatus: error instanceof CheckError ? error.status : null }
 } finally {
   // Explicit exact-ID cleanup. Event DELETE does not cascade record rows, so
   // records must be deleted while their owned parent event still exists.

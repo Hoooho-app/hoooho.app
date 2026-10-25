@@ -194,7 +194,7 @@ export class AIBusinessService {
     const timezoneInput=input.timezone??previous?.timezone??'Asia/Shanghai'
     let timezone
     try{if(typeof timezoneInput!=='string'||!timezoneInput.trim())throw new Error();timezone=new Intl.DateTimeFormat('en-US',{timeZone:timezoneInput.trim()}).resolvedOptions().timeZone}catch{throw fail('时区无效，请重新核对发生时间',422,'INVALID_TIMEZONE')}
-    const digest=fingerprint([raw,voices.map(d=>d.contentHash),prepared.documents.map(d=>d.contentHash),task,targetEventId,sourceIdentity,sourceRecordId,timezone,...(smartRecord?['smart-record',selectedOccurredAt,confirmOccurrenceTime,followUp]:[]),...(profileBatch?['profile-batch',profileBatchId]:[]),...(frontDeskRecord?['front-desk-record',frontContextId,semanticVersion,answers.context,...(semanticVersion===2?['source-coverage-v5']:[])]:[])])
+    const digest=fingerprint([raw,voices.map(d=>d.contentHash),prepared.documents.map(d=>d.contentHash),task,targetEventId,sourceIdentity,sourceRecordId,timezone,...(smartRecord?['smart-record',selectedOccurredAt,confirmOccurrenceTime,followUp]:[]),...(profileBatch?['profile-batch',profileBatchId]:[]),...(frontDeskRecord?['front-desk-record',frontContextId,semanticVersion,answers.context,...(semanticVersion===2?['source-coverage-v6']:[])]:[])])
     if(!previous){const cached=(await this.store.read()).drafts.find(d=>d.accountId===accountId&&d.memberId===memberId&&d.inputFingerprint===digest&&['ready','failed'].includes(d.state));if(cached)previous=structuredClone(cached)}
     if(previous?.inputFingerprint===digest&&previous.state==='ready'&&!input.reprocessPages?.length&&previous.pages.every(p=>previous.sources.some(s=>s.hash===p.hash&&s.recognitionKey===recognitionKey(p,pageModel)))){
       previous.items=previous.items.map(item=>this.resolve(item,previous))
@@ -319,14 +319,23 @@ export class AIBusinessService {
       }
       if(sourceReferences&&!draft.items.length)throw Object.assign(fail('没有当前成员的可核验事实，原话仍保留',422,'AI_SUMMARY_INCOMPLETE'),{details:{verification:{codes:['facts_invalid'],emptyFieldsOmitted}}})
       if(draft.frontDeskRecord&&draft.semanticVersion===2&&draft.items.length){
-        try{draft.items=await generateSemanticSummaries(draft.items,{model:this.model,sources:draft.sources,buildFacts:buildProfessionalSummary,unresolvedItems:draft.unresolvedItems,signal,sourceCoverage:true,repairHints:recovery,onCall:()=>{if(draft.callCount>=this.maxDraftCalls+2)throw fail('摘要请求上限已到，原话保留',429,'AI_DRAFT_CALL_LIMIT');draft.callCount++}})}catch(error){
+        const summarize=repairHints=>generateSemanticSummaries(draft.items,{model:this.model,sources:draft.sources,buildFacts:buildProfessionalSummary,unresolvedItems:draft.unresolvedItems,signal,sourceCoverage:true,repairHints,onCall:()=>{if(draft.callCount>=this.maxDraftCalls+2)throw fail('摘要请求上限已到，原话保留',429,'AI_DRAFT_CALL_LIMIT');draft.callCount++}})
+        try{draft.items=await summarize(recovery)}catch(error){
           if(error.details?.verification)error.details.verification.recoveryAttempt=recovery?1:0
-          if(error.coverageRepair&&!recovery){
+          if(error.summaryRepair&&!recovery){
+            draft.summaryRecoveryCount=(draft.summaryRecoveryCount??0)+1
+            await this.checkpoint(draft,signal)
+            // The validated extraction is immutable here. Reuse it; never turn
+            // the failed narrative or verifier prose into a new fact source.
+            try{draft.items=await summarize(error.summaryRepair)}catch(retryError){
+              if(retryError.details?.verification)retryError.details.verification.recoveryAttempt=1
+              throw retryError
+            }
+          }else if(error.coverageRepair&&!recovery){
             draft.coverageRecoveryCount=(draft.coverageRecoveryCount??0)+1
             await this.checkpoint(draft,signal)
             return await this.prepareOnce(accountId,memberId,{...input,id:draft.id,version:draft.version},signal,progress,error.coverageRepair)
-          }
-          throw error
+          }else throw error
         }
       }
       draft.reviewArchives=Boolean(input.reviewArchives||previous?.reviewArchives)
