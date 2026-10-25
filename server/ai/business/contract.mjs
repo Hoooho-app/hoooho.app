@@ -27,11 +27,11 @@ export function bodyLocations(raw) {
 
 // A schema is not a factual validator. Every extracted value must be supported
 // by an exact quote in a supplied source, not by the model's confidence score.
-function validateExtractionContent(output, sources) {
+function validateExtractionContent(output, sources, options={}) {
   if (!output || !Array.isArray(output.items) || output.items.length > 30) throw fail('整理结果格式无效，未更新草稿')
   if(output.items.length===30)throw fail('结果已达到单批事项上限，请分批核对，未将可能遗漏的内容保存为完整结果',422,'AI_SOURCE_LIMIT')
   const sourceAssertions=new Map(sources.map(source=>[source,clinicalAssertions(source.text)]))
-  return output.items.flatMap((item, index) => {
+  const items=output.items.flatMap((item, index) => {
     if (Object.keys(item).some(key => !['category','title','timeText','fields','archiveCategory','subject','relationKey'].includes(key))) throw fail('整理结果包含不允许的字段')
     if (!categories.includes(item.category) || !['current','other','unknown'].includes(item.subject) || !Array.isArray(item.fields) || item.fields.length > 50) throw fail('记录分类或主体无效')
     if (item.subject !== 'current') return []
@@ -42,20 +42,26 @@ function validateExtractionContent(output, sources) {
       const fieldPath=`/items/${index}/fields/${fieldIndex}`
       if (!source || !quote || !source.text.includes(quote) || !value || !quote.includes(value)) throw evidenceFailure('部分内容与原文不一致，请核对，未保存生成结果',fieldPath,!source?'source_missing':!quote?'quote_missing':!source.text.includes(quote)?'quote_not_in_source':!value?'value_missing':'value_not_in_quote')
       const located=locateEvidence(source,quote,value,field,item,fieldPath,sourceAssertions.get(source))
-      return { name: field.name, value, sources: [{ sourceId: source.id, page: source.page, quote, ...located }], confirmed: false, editedBy: 'model' }
+      return { name: field.name, value, sources: [{ sourceId: source.id, page: source.page, quote, ...located,...(source.sourceKind==='visual_observation'?{sourceKind:'visual_observation'}:{}) }], confirmed: false, editedBy: 'model' }
     })
     const timeText = item.timeText == null ? null : safeText(item.timeText, 100)
-    const itemSources=new Set(fields.flatMap(f=>f.sources.map(s=>`${s.sourceId}:${s.page}`)))
-    if (timeText && !fields.some(field => field.sources.some(ref => ref.quote.includes(timeText))) && !sources.some(source => itemSources.has(`${source.id}:${source.page}`)&&source.text.includes(timeText))) throw fail('发生时间缺少同一条资料的原文依据')
     if (!fields.length) return []
     if (item.archiveCategory != null && !archiveCategories.includes(item.archiveCategory)) throw fail('归档栏目无效')
     const title = item.category === 'symptom' ? symptomItemCorePhrase({fields}) : fields[0].value.slice(0,80)
     return [{ id: `item-${index + 1}`, category: item.category, title, timeText, fields, archiveCategory: item.archiveCategory ?? null, relationKey: safeText(item.relationKey, 100) || null }]
   })
+  for(const item of items){
+    const itemSources=new Set(item.fields.flatMap(f=>f.sources.map(s=>`${s.sourceId}:${s.page}`)))
+    const sameSource=item.fields.some(field=>field.sources.some(ref=>ref.quote.includes(item.timeText)))||sources.some(source=>itemSources.has(`${source.id}:${source.page}`)&&source.text.includes(item.timeText))
+    const bound=options.timeEvidence?.(item,items)??[]
+    const supported=bound.some(ref=>{const source=sources.find(s=>s.id===ref.sourceId&&s.page===ref.page);return source&&Number.isInteger(ref.start)&&Number.isInteger(ref.end)&&source.text.slice(ref.start,ref.end)===ref.quote&&ref.quote.includes(item.timeText)})
+    if(item.timeText&&!sameSource&&!supported)throw fail('发生时间缺少同一条资料的原文依据')
+  }
+  return items
 }
 
-export function validateExtraction(output,sources){
-  try{return validateExtractionContent(output,sources)}catch(error){
+export function validateExtraction(output,sources,options){
+  try{return validateExtractionContent(output,sources,options)}catch(error){
     if(error.validation)throw error
     const safe=outputFailure(error.message,error.code==='AI_EVIDENCE_MISMATCH'?'source_validation':'semantic_validation','/items',error.code==='AI_EVIDENCE_MISMATCH'?'source_mismatch':'invalid_extraction',error.code??'AI_BUSINESS_INVALID')
     safe.status=error.status??422;throw safe

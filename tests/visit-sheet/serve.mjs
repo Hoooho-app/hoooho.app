@@ -17,7 +17,7 @@ import { buildOccurrences } from '../../server/medication-reminders/medication-r
 if (process.env.VISIT_AI_TEST === '1') {
   const { createServer } = await import('node:http')
   let delayMs=400
-  let mode = 'success', calls = 0,asrCalls=0,speechCalls=0,transcript='今天没有呕吐',draftItems=null,ocrText=null,summaryOutput=null
+  let mode = 'success', calls = 0,asrCalls=0,speechCalls=0,transcript='今天没有呕吐',draftItems=null,ocrText=null,summaryOutput=null,semanticDecision=null,visualOutput=null
   const nativeFetch = globalThis.fetch
   process.env.OPENAI_API_KEY = 'fixture-only-not-a-real-key'
   process.env.AI_MODEL = 'fixture-summary-model'
@@ -41,11 +41,29 @@ if (process.env.VISIT_AI_TEST === '1') {
     if (body.text.format.name === 'hoooho_nurse_v1') return fixtureResponse({usage:{input_tokens:30,output_tokens:30},output:[{content:[{type:'output_text',text:JSON.stringify(nurseFixtureOutput(body))}]}]})
     if (isCurrentSituationTransport(body)) return fixtureResponse({output:[{content:[{type:'output_text',text:JSON.stringify(currentSituationFixtureOutput(body,summaryOutput))}]}]})
     if(body.text.format.name==='symptom_media_observations')return fixtureResponse({output:[{content:[{type:'output_text',text:JSON.stringify({observations:[{frame:0,text:'合成可见表现：局部发红'}],questions:['请核对人物、部位与原件日期']})}]}]})
-    if(body.text.format.name==='hoooho_front_desk_reply'){const input=JSON.parse(body.input),last=input.history.at(-1),contextId=last?.id??'new',knowledge=input.nursingKnowledge?.find(k=>k.contextId===contextId),asked=last?.interview?.askedQuestionIds??[];return fixtureResponse({output:[{content:[{type:'output_text',text:JSON.stringify({reply:input.latest.kind==='image'?'我看到了图片里的测试图形。':'这次观察收到了，可以接着补充。',contextId,action:'record',questionId:knowledge?.nodes.find(n=>!asked.includes(n.id))?.id??null,emergency:{currentChild:false,quote:''}})}]}]})}
+    if(body.text.format.name==='hoooho_front_desk_reply'){
+      const input=JSON.parse(body.input),last=input.history.at(-1),contextId=last?.id??'new',knowledge=input.nursingKnowledge?.find(k=>k.contextId===contextId),asked=last?.interview?.askedKnowledgeQuestionIds??last?.interview?.askedQuestionIds??[]
+      const finish=/没注意|不清楚|先按已经|不再追问/u.test(input.latest.text)||last?.interview?.stopReason==='user_finished',node=finish?null:knowledge?.nodes.find(n=>!asked.includes(n.id)),topic=node?.domain??knowledge?.domain??'general'
+      const slot=node?.id.endsWith('-onset')?'onset':({'skin-location':'location','skin-appearance':'appearance','injury-course':'course','injury-function':'impact','handling-response':'handling'}[node?.id]??'observation')
+      const predicate=node?.id==='resp-effort'?'breathing_effort':null
+      const options=node?.options.length>4?[...node.options.filter(o=>o.label!=='没注意').slice(0,3),node.options.find(o=>o.label==='没注意')??node.options[3]]:node?.options
+      const question=node?{text:node.text,slot,predicate,unit:null,options}:null
+      const decision=semanticDecision?{subjectResolution:null,...semanticDecision}:{subjectResolution:null,intent:'record',subject:'current',status:node?'ask':finish?'incomplete':'ready',topic,question,unresolvedItems:finish?['未观察的具体情况']:[],media:input.latest.kind==='image'?'document':'none'}
+      return fixtureResponse({output:[{content:[{type:'output_text',text:JSON.stringify({reply:input.latest.kind==='image'?'我看到了图片里的测试图形。':'这次观察收到了，可以接着补充。',contextId,action:'record',questionId:node?.id??null,emergency:{currentChild:false,quote:''},...(body.text.format.schema.properties.decision?{decision}:{})})}]}]})
+    }
+    if(body.text.format.name==='front_desk_visual_source')return fixtureResponse({output:[{content:[{type:'output_text',text:JSON.stringify(visualOutput??{kind:'document',status:'readable',text:ocrText??'测试机构\n2026-09-29\n红细胞 4.2 mmol/L 参考3.5-5.5',observations:[]})}]}]})
+    if(body.text.format.name==='professional_summary_generate'){
+      const data=JSON.parse(body.input),items=data.items.map(p=>({itemId:p.itemId,title:p.category==='symptom'?'观察记录':'合成资料记录',claims:p.facts.map(f=>({text:f.text,factIds:f.factIds}))}))
+      return fixtureResponse({output:[{content:[{type:'output_text',text:JSON.stringify({items})}]}]})
+    }
+    if(body.text.format.name==='professional_summary_verify'){
+      const data=JSON.parse(body.input),items=data.candidates.map(c=>({itemId:c.itemId,titleSupported:true,complete:true,claims:c.claims.map((_,index)=>({index,supported:true})),problems:[]}))
+      return fixtureResponse({output:[{content:[{type:'output_text',text:JSON.stringify({items})}]}]})
+    }
     if(body.text.format.name==='hoooho_business'){
       if(body.text.format.schema.properties.text)return fixtureResponse({output:[{content:[{type:'output_text',text:JSON.stringify(Array.isArray(ocrText)?ocrText:{text:ocrText??'测试机构\n2026-09-29\n红细胞 4.2 mmol/L 参考3.5-5.5',status:'readable'})}]}]})
       const data=JSON.parse(body.input),first=data.sources[0]
-      const items=draftItems?draftItems.map(i=>({...i,fields:i.fields.map(f=>({...f,sourceId:f.sourceId==='@first'?first.id:f.sourceId}))})):[{category:'symptom',title:'合成观察记录',timeText:first.text.includes('今天')?'今天':null,subject:'current',archiveCategory:null,relationKey:null,fields:[{name:'symptom',value:first.text,quote:first.text,sourceId:first.id,page:first.page}]}]
+      const items=draftItems?draftItems.map(i=>({...i,fields:i.fields.map(f=>({...f,sourceId:f.sourceId==='@first'?first.id:f.sourceId==='@visual'?data.sources.find(s=>s.sourceKind==='visual_observation')?.id:f.sourceId}))})):[{category:'symptom',title:'合成观察记录',timeText:first.text.includes('今天')?'今天':null,subject:'current',archiveCategory:null,relationKey:null,fields:[{name:'symptom',value:first.text,quote:first.text,sourceId:first.id,page:first.page}]}]
       return fixtureResponse({usage:{input_tokens:10,output_tokens:20},output:[{content:[{type:'output_text',text:JSON.stringify({items})}]}]})
     }
     if(summaryOutput)return fixtureResponse({output:[{content:[{type:'output_text',text:JSON.stringify(summaryOutput)}]}]})
@@ -81,7 +99,7 @@ if (process.env.VISIT_AI_TEST === '1') {
     const controlUrl=new URL(req.url,'http://127.0.0.1:4198')
     if(controlUrl.pathname==='/delay')delayMs=Math.max(0,Math.min(10000,Number(controlUrl.searchParams.get('ms'))||0))
     if(controlUrl.pathname==='/voice')transcript=controlUrl.searchParams.get('text')??''
-    if(controlUrl.pathname==='/draft-data'&&req.method==='POST'){const chunks=[];for await(const c of req)chunks.push(c);const data=JSON.parse(Buffer.concat(chunks).toString());draftItems=data.items??null;ocrText=data.ocrText??null;summaryOutput=data.summaryOutput??null}
+    if(controlUrl.pathname==='/draft-data'&&req.method==='POST'){const chunks=[];for await(const c of req)chunks.push(c);const data=JSON.parse(Buffer.concat(chunks).toString());draftItems=data.items??null;ocrText=data.ocrText??null;summaryOutput=data.summaryOutput??null;semanticDecision=data.semanticDecision??null;visualOutput=data.visualOutput??null}
     if (req.url === '/success') mode = 'success'
     if (req.url === '/failure') mode = 'failure'
     res.setHeader('Content-Type', 'application/json')

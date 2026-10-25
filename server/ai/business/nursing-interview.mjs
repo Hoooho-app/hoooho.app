@@ -1,3 +1,4 @@
+import {interpretSemanticAnswer,semanticInjuryItem} from './front-desk-semantics.mjs'
 import {nursingSlotKnown,nursingTriggerPresent} from './nursing-slot-evidence.mjs'
 import {nursingResponseIntent} from './nursing-response-intent.mjs'
 import {nursingObservationContext} from './nursing-observation-context.mjs'
@@ -21,6 +22,7 @@ export function assignNursingAnswers(items,observations=[],targetKey='answerObse
  for(const observation of observations){
   const wanted=observation.questionId==='oral-observation'?'oral':observation.domain
   const matches=items.filter((item,index)=>itemDomains[index].has(wanted)||observation.domain==='sleep'&&item.category==='sleep')
+  if(matches.length===0&&items.length===1&&observation.questionDescriptor?.semantic?.version===2&&observation.domain==='injury'&&semanticInjuryItem(items[0]))matches.push(items[0])
   if(matches.length===1)(matches[0][targetKey]??=[]).push(observation)
  }
 }
@@ -64,7 +66,8 @@ export function nursingInterview({text,latestText,previous,requestedQuestionId,m
 
 // Only unambiguous short replies to a persisted question can be expanded.
 // Other utterances remain literal source text for the normal extraction path.
-export function interpretNursingAnswer(questionId,answer) {
+export function interpretNursingAnswer(questionId,answer,question) {
+  if(question?.id===questionId&&question.semantic?.version===2)return interpretSemanticAnswer(question,answer)
   if(typeof questionId!=='string')return null
   const raw=String(answer??'').trim().replace(/[。！!，,\s]+$/u,'')
   const unknownTargets={'skin-location':'变化的具体部位','skin-appearance':'变化的具体外观','skin-sensation':'孩子的具体感受或相关动作','resp-effort':'目前呼吸是否明显费力','cough-pattern':'咳嗽的规律','fever-measurement':'是否已测体温','fever-state':'精神和反应的变化','stool-count':'稀便的具体次数','bowel-urine':'这段时间尿量的变化','vomit-course':'吐与吃喝的先后经过','pain-location':'不适的具体部位','pain-impact':'不适对日常状态的影响','urinary-change':'尿的次数、量或颜色变化','injury-function':'受伤部位的活动情况','injury-course':'受伤经过','sleep-awakening':'哭闹时是否清醒','oral-observation':'是否存在口腔不适','sleep-consolation':'安抚后的变化','behaviour-change':'具体行为变化','handling-response':'处理后的变化'}
@@ -95,14 +98,15 @@ export function nursingAnswerObservations(messages=[]) {
   const superseding={ 'resp-effort':/呼吸|喘|憋/,'bowel-urine':/尿|排尿/,'urinary-change':/尿|排尿/,'pain-impact':/吃|喝|睡|玩|活动/,'oral-observation':/嘴|口腔|牙|刷|吃东西/,'sleep-consolation':/安抚|抱|平静|睡/ }
   return messages.flatMap((message,index)=>{
     if(!message.answerTo||!message.answerQuestion||message.kind==='assistant'||message.status!=='completed')return []
-    const interpretation=interpretNursingAnswer(message.answerTo.questionId,message.text)
+    const interpretation=interpretNursingAnswer(message.answerTo.questionId,message.text,message.answerQuestion)
     if(!interpretation)return []
-    const relevant=superseding[message.answerTo.questionId]??nodes.find(n=>n.id===message.answerTo.questionId)?.known??(message.answerTo.questionId.endsWith('-onset')?onset:null)
+    const semanticRelevant={bleeding:/出血|流血|止血/u,pain:/疼|痛/u,itch:/痒/u,breathing_effort:/呼吸|喘|憋/u,activity_impact:/活动|走路|走动|吃喝|进食|睡眠/u,handling_done:/处理|清洗|冲洗|消毒|包扎|涂|敷/u}[message.answerQuestion?.semantic?.predicate]
+    const relevant=semanticRelevant??superseding[message.answerTo.questionId]??nodes.find(n=>n.id===message.answerTo.questionId)?.known??((message.answerTo.questionId.endsWith('-onset')||message.answerQuestion?.semantic?.slot==='onset')?onset:null)
     if(messages.slice(index+1).some((m,laterIndex)=>{
       if(m.kind==='assistant'||m.status!=='completed')return false
       const context=nursingObservationContext(m.text)
       const genericCorrection=/说错|记错|更正|刚才.{0,8}(?:不对|有误)/u.test(m.text)&&!context.active.length&&!/日期|时间|几点|哪天|次数|数量|剂量|药名|部位|位置/u.test(m.text)&&!messages.slice(index+1,index+1+laterIndex).some(other=>other.answerTo&&other.kind!=='assistant')
-      if(message.answerTo.questionId.endsWith('-onset')){
+      if((message.answerTo.questionId.endsWith('-onset')||message.answerQuestion?.semantic?.slot==='onset')){
         const domain=message.answerQuestion.domain
         const bound=m.answerTo?.contextId===message.answerTo.contextId&&m.answerTo.questionId===message.answerTo.questionId&&m.answerQuestion?.domain===domain
         if(m.answerTo)return bound
@@ -114,7 +118,7 @@ export function nursingAnswerObservations(messages=[]) {
       }
       return context.clauses.some(c=>c.eligible&&(relevant?.test(c.text)||genericCorrection))
     }))return []
-    return [{...interpretation,sourceMessageId:message.id,answerText:message.text,questionId:message.answerTo.questionId,questionText:message.answerQuestion.text,domain:message.answerQuestion.domain,knowledgeVersion:message.answerQuestion.knowledgeVersion??'observation-recording-20261024-v1'}]
+    return [{...interpretation,sourceMessageId:message.id,answerText:message.text,questionId:message.answerTo.questionId,questionText:message.answerQuestion.text,domain:message.answerQuestion.domain,questionDescriptor:message.answerQuestion,knowledgeVersion:message.answerQuestion.knowledgeVersion??'observation-recording-20261024-v1'}]
   })
 }
 export const nursingDialoguePolicy = `主线是基本症状和观察记录。nursingKnowledge.cards是原创观察记录框架，只帮助挑选重点，不是逐项问完的清单，不作为孩子事实或诊断依据。结合memberContext中的真实月龄与相关背景，围绕已说出的表现，从nursingKnowledge.nodes中选择当前最有价值的一问。questionId只能选给定条目id或null；信息足够或家长不知道、没注意、要求先记下来时选null，停止追问。每次只问一个具体可观察问题；普通场景最多三轮，通常两轮即可。不能说“麻烦说清楚点”“为什么重视”“还有什么症状”，不穷举病因，不因字段空缺追完整病史。护理方法帮助选择观察问题，不是诊断；不按月龄推定蛀牙，不用性别编造不同疾病概率。请保留否定、未知、推测和家长转述的区别，图片不能补出看不清的事实。不能把未观察写成没有。可以引导家长描述部位、外观、发生过程、活动影响、已经做的处理与变化。较小且不会表达的孩子使用家长能看到的行为，不要求孩子做医学判断。当前孩子有正在发生的重要呼吸、意识等异常时，emergency提供原文quote和currentChild=true，停止普通追问，不给诊断或治疗，不建议统一等到明天。专业摘要由经过证据验证的事实另行生成，reply保持简短，不复述整段原话，不声称正式保存。` 

@@ -1,4 +1,6 @@
-import {groundNursingEvidence} from './nursing-evidence.mjs'
+import {generateSemanticSummaries,validSemanticSummary} from './semantic-summary.mjs'
+import {factMessages} from './front-desk-semantics.mjs'
+import {groundNursingEvidence,boundNursingOnset} from './nursing-evidence.mjs'
 import {traceMetadata} from '../providers/telemetry.mjs'
 import {mergeNarratedIncidents} from '../../../shared/narrated-incident.mjs'
 import { ProfileSectionStore } from '../../health-profile/profile-section-store.mjs'
@@ -111,12 +113,14 @@ export class AIBusinessService {
     const data=await new JsonStore(path.join(this.directory,'front-desk-records.json'),{contexts:[],messages:[]}).read()
     const context=data.contexts.find(c=>c.id===contextId&&c.accountId===accountId&&c.memberId===memberId&&!c.closedAt&&!c.saved)
     if(!context)throw fail('这次记录对话已变化，请重新加载',409,'FRONT_RECORD_CHANGED')
+    if(context.semanticVersion===2&&context.decision?.organize!==true)throw fail('请先完成当前澄清，或明确选择先整理已有情况',409,'FRONT_RECORD_NOT_READY')
     const messages=data.messages.filter(m=>m.contextId===contextId&&m.accountId===accountId&&m.memberId===memberId&&m.status==='completed').sort((a,b)=>(a.inputAt??Date.parse(a.at))-(b.inputAt??Date.parse(b.at))||a.id.localeCompare(b.id))
-    if(messages.filter(m=>m.kind!=='assistant').map(m=>m.text).filter(Boolean).join('\n')!==raw)throw fail('对话内容有更新，请等待最新整理结果',409,'FRONT_RECORD_CHANGED')
+    if(factMessages(messages).map(m=>m.text).filter(Boolean).join('\n')!==raw)throw fail('对话内容有更新，请等待最新整理结果',409,'FRONT_RECORD_CHANGED')
     let offset=0
-    const sourceRanges=new Map(messages.filter(m=>m.kind!=='assistant'&&m.text).map(m=>{const range={rawStart:offset,rawEnd:offset+m.text.length};offset+=m.text.length+1;return [m.id,range]}))
-    const activeObservations=nursingAnswerObservations(messages),observations=activeObservations.filter(a=>a.polarity!=='literal'),active=new Set(activeObservations.map(a=>a.sourceMessageId)),all=messages.flatMap(m=>nursingAnswerObservations([m]).map(a=>({...a,...sourceRanges.get(m.id)})))
-    return {observations,superseded:all.filter(a=>!active.has(a.sourceMessageId)),context:messages.filter(m=>m.kind!=='assistant'&&m.answerTo?.contextId===contextId&&m.answerQuestion).map(m=>({contextId,sourceMessageId:m.id,questionId:m.answerTo.questionId,questionText:m.answerQuestion.text,domain:m.answerQuestion.domain,answerText:m.text,...sourceRanges.get(m.id),status:active.has(m.id)?'active':all.some(a=>a.sourceMessageId===m.id)?'superseded':'literal'}))}
+    const sourceRanges=new Map(factMessages(messages).filter(m=>m.text).map(m=>{const range={rawStart:offset,rawEnd:offset+m.text.length};offset+=m.text.length+1;return [m.id,range]}))
+    const evidenceMessages=factMessages(messages)
+    const activeObservations=nursingAnswerObservations(evidenceMessages),observations=activeObservations.filter(a=>a.polarity!=='literal'),active=new Set(activeObservations.map(a=>a.sourceMessageId)),all=evidenceMessages.flatMap(m=>nursingAnswerObservations([m]).map(a=>({...a,...sourceRanges.get(m.id)})))
+    return {semanticVersion:context.semanticVersion??1,unresolvedItems:context.decision?.unresolvedItems??[],mediaHashes:[...new Set(factMessages(messages).flatMap(m=>[...m.files??[],...m.voices??[]]).map(f=>f.contentHash).filter(Boolean))].sort(),observations,superseded:all.filter(a=>!active.has(a.sourceMessageId)),context:evidenceMessages.filter(m=>m.kind!=='assistant'&&m.answerTo?.contextId===contextId&&m.answerQuestion).map(m=>({contextId,sourceMessageId:m.id,answeredAt:m.at,questionId:m.answerTo.questionId,questionText:m.answerQuestion.text,domain:m.answerQuestion.domain,slot:m.answerQuestion.semantic?.slot,questionDescriptor:m.answerQuestion,answerText:m.text,...sourceRanges.get(m.id),status:active.has(m.id)?'active':all.some(a=>a.sourceMessageId===m.id)?'superseded':'literal'}))}
   }
   async context(accountId,memberId,raw){
     const member=await this.scoped(accountId,memberId),terms=[...new Set(raw.match(/[\u4e00-\u9fff]{2,8}/g)??[])].slice(0,12)
@@ -174,6 +178,12 @@ export class AIBusinessService {
     const profileBatchId=profileBatch?(text(input.profileBatchId,100)||previous?.profileBatchId||null):null
     const smartRecord = task==='record' && (input.smartRecord===true || previous?.smartRecord===true)
     const frontDeskRecord=smartRecord&&(input.frontDeskRecord===true||previous?.frontDeskRecord===true)
+    const frontContextId=frontDeskRecord?(input.frontContextId??previous?.frontContextId??null):null
+    const answers=await this.frontAnswerObservations(accountId,memberId,frontContextId,raw)
+    const semanticVersion=answers.semanticVersion??previous?.semanticVersion??1
+    if(input.semanticVersion===2&&!frontContextId)throw fail('新前台整理需要所属对话',422,'FRONT_CONTEXT_REQUIRED')
+    if(semanticVersion===2&&JSON.stringify([...new Set([...prepared.documents,...voices].map(f=>f.contentHash))].sort())!==JSON.stringify(answers.mediaHashes??[]))throw fail('原件不属于当前对话版本',409,'FRONT_RECORD_MEDIA_CHANGED')
+    const pageModel=frontDeskRecord&&semanticVersion===2?{provider:this.model.provider,frontDeskVisual:true,structured:args=>this.model.structured(args)}:this.model
     const confirmOccurrenceTime = smartRecord && (input.confirmOccurrenceTime ?? previous?.confirmOccurrenceTime ?? false) === true
     const followUp = smartRecord ? input.followUp ?? previous?.followUp ?? true : true
     const selectedOccurredAt = smartRecord ? input.selectedOccurredAt ?? previous?.selectedOccurredAt ?? this.now().toISOString() : null
@@ -183,9 +193,9 @@ export class AIBusinessService {
     const timezoneInput=input.timezone??previous?.timezone??'Asia/Shanghai'
     let timezone
     try{if(typeof timezoneInput!=='string'||!timezoneInput.trim())throw new Error();timezone=new Intl.DateTimeFormat('en-US',{timeZone:timezoneInput.trim()}).resolvedOptions().timeZone}catch{throw fail('时区无效，请重新核对发生时间',422,'INVALID_TIMEZONE')}
-    const digest=fingerprint([raw,voices.map(d=>d.contentHash),prepared.documents.map(d=>d.contentHash),task,targetEventId,sourceIdentity,sourceRecordId,timezone,...(smartRecord?['smart-record',selectedOccurredAt,confirmOccurrenceTime,followUp]:[]),...(profileBatch?['profile-batch',profileBatchId]:[]),...(frontDeskRecord?['front-desk-record',input.frontContextId??previous?.frontContextId??null]:[])])
+    const digest=fingerprint([raw,voices.map(d=>d.contentHash),prepared.documents.map(d=>d.contentHash),task,targetEventId,sourceIdentity,sourceRecordId,timezone,...(smartRecord?['smart-record',selectedOccurredAt,confirmOccurrenceTime,followUp]:[]),...(profileBatch?['profile-batch',profileBatchId]:[]),...(frontDeskRecord?['front-desk-record',frontContextId,semanticVersion,answers.context]:[])])
     if(!previous){const cached=(await this.store.read()).drafts.find(d=>d.accountId===accountId&&d.memberId===memberId&&d.inputFingerprint===digest&&['ready','failed'].includes(d.state));if(cached)previous=structuredClone(cached)}
-    if(previous?.inputFingerprint===digest&&previous.state==='ready'&&!input.reprocessPages?.length&&previous.pages.every(p=>previous.sources.some(s=>s.hash===p.hash&&s.recognitionKey===recognitionKey(p,this.model)))){
+    if(previous?.inputFingerprint===digest&&previous.state==='ready'&&!input.reprocessPages?.length&&previous.pages.every(p=>previous.sources.some(s=>s.hash===p.hash&&s.recognitionKey===recognitionKey(p,pageModel)))){
       previous.items=previous.items.map(item=>this.resolve(item,previous))
       if(input.reviewArchives&&!previous.reviewArchives){previous.reviewArchives=true;previous.version++;await this.reviewArchiveConflicts(previous);await this.write(previous)}
       return publicDraft(previous)
@@ -193,12 +203,12 @@ export class AIBusinessService {
     if((previous?.callCount??0)>=this.maxDraftCalls)throw fail('这份草稿已达到请求上限，请手动核对后保存',429,'AI_DRAFT_CALL_LIMIT')
     const now=this.now(),draft={...previous,id:previous?.id??randomUUID(),accountId,memberId,version:(previous?.version??0)+1,state:'preparing',referenceNow:previous?.referenceNow??(smartRecord?selectedOccurredAt:now.toISOString()),timezone,raw,task,inputFingerprint:digest,documents:prepared.documents,pages:prepared.pages,sources:[],items:previous?.items??[],questions:[],diagnostics:[],callCount:previous?.callCount??0,expiresAt:new Date(now.getTime()+86400000).toISOString(),history:[...(previous?.history??[]),...(previous?.raw&&previous.raw!==raw?[previous.raw]:[])].slice(-8)}
     // Raw-input checkpoints preserve already verified recognition artifacts.
-    draft.sources=(previous?.sources??[]).filter(s=>draft.pages.some(p=>s.hash===p.hash&&s.recognitionKey===recognitionKey(p,this.model)))
+    draft.sources=(previous?.sources??[]).filter(s=>draft.pages.some(p=>s.hash===p.hash&&s.recognitionKey===recognitionKey(p,pageModel)))
     draft.manualOriginal=false;draft.voices=voices
     draft.smartRecord=smartRecord;draft.selectedOccurredAt=selectedOccurredAt;draft.confirmOccurrenceTime=confirmOccurrenceTime;draft.followUp=followUp
     draft.frontDeskRecord=frontDeskRecord
-    draft.frontContextId=frontDeskRecord?(input.frontContextId??previous?.frontContextId??null):null
-    const answers=await this.frontAnswerObservations(accountId,memberId,draft.frontContextId,raw)
+    draft.semanticVersion=semanticVersion;draft.unresolvedItems=answers.unresolvedItems??[]
+    draft.frontContextId=frontContextId
     draft.answerObservations=answers.observations;draft.supersededAnswers=answers.superseded;draft.answerContext=answers.context
     draft.profileBatch=profileBatch
     draft.profileBatchId=profileBatchId
@@ -221,7 +231,7 @@ export class AIBusinessService {
       // checkpoint retain the original page order. Serialize only draft mutation,
       // never supplier work, so call-budget and checkpoint updates cannot race.
       const pageSources=draft.pages.map(page=>{
-        const cached=previous?.sources?.find(s=>s.hash===page.hash&&s.recognitionKey===recognitionKey(page,this.model))
+        const cached=previous?.sources?.find(s=>s.hash===page.hash&&s.recognitionKey===recognitionKey(page,pageModel))
         return cached&&!input.reprocessPages?.includes(`${page.id}:${page.page}`)?{...cached,id:page.id,page:page.page}:undefined
       }),inputSources=[...draft.sources]
       draft.sources=[...inputSources,...pageSources.filter(Boolean)]
@@ -248,7 +258,7 @@ export class AIBusinessService {
               draft.callCount++
             })
             await progress?.({stage:'reading',completed:completed(),total:draft.pages.length})
-            const source=await withQueuedAIAccount(accountId,()=>recognizePage(page,this.model,signal,syntheticOptions),signal)
+            const source=await withQueuedAIAccount(accountId,()=>recognizePage(page,pageModel,signal,syntheticOptions),signal)
             signal?.throwIfAborted()
             await mutate(()=>{pageSources[index]=source;draft.sources=[...inputSources,...pageSources.filter(Boolean)];draft.diagnostics.push(source.diagnostics)})
             await progress?.({stage:'reading',completed:completed(),total:draft.pages.length})
@@ -269,11 +279,11 @@ export class AIBusinessService {
       if(syntheticRequested)assertSyntheticRequest(input,extractionContext)
       draft.callCount++;await this.checkpoint(draft,signal)
       mark('contextAndCheckpointMs')
-      const {value,diagnostics}=await this.model.structured({task:'draft-extraction',schema:extractionSchema,...syntheticOptions,instructions:instructions+' recordingFramework只帮助选择观察重点和表达结构，不是孩子事实或引文，不补齐其中未提供的信息。仅描述睡眠期间哭闹、入睡困难或睡眠断续，未明确独立身体不适时，归入sleep并保留实际过程；没有明确醒来就不能补夜醒。明确咳嗽、发热或疼痛等不适必须保留对应症状，不能因夜里或睡觉的背景吞掉症状。哭闹行为本身不能改写成已确认疼痛。 answerContext中status=superseded表示回答已被后来更正，不能把其旧含义写成当前事实；更正内容不明确时保留更正原文及未知，不推断新阳性或新阴性。answerContext仅解释原文中简短回答针对的是哪一个已提问题，问句不是孩子事实，不作为引文。不要把呼吸费力问题的“没有”写成没有咳嗽，也不要把“没注意”写成没有症状。用户说“先记下来”“谢谢”等操作话语不生成新的健康事项。已核验的简短问答含义由程序另行补入摘要，提取时仍必须保留其余明确主表现。 身体症状及否定症状观察分类为symptom，不因上传资料或task=report就分类为examination。阴性观察保留完整否定原话，不当作发生的症状；同一段内阳性与阴性分别引用完整原话，不能让前一分句的否定修饰后面的阳性事实。今天/昨天/昨日等必须抽取timeText原文，按来源中各事项的日期分别拆分；不输出计算后的时刻。 existingContext只用于理解已有背景，不作为新事实的引用，不把旧资料生成第二份新记录。只引用sources。归档栏目只能为allergy、chronic、family-history、surgery、vaccination、examination、medication或null。家族史是当前人物的家庭背景，relationship保留原文亲属关系，historyName保留疾病及疑似限定词，不把亲属的病归为当前人物慢性病。接种用vaccination类别，vaccineName为原文疫苗名，doseOriginal保留原文剂次。只有明确出现长期疾病/手术/过敏/家族史才能建议对应归档；异常检查指标本身不能生成诊断。'+(draft.frontDeskRecord?' 时长字段durationMinutes的value必须保留时长单位及对应的连续原文，不能把小时换算为分钟数字；字段名不是换算指令。时长不能放进sleepAt或wakeAt，只有原文钟点才使用这些字段。金额、数量及单位也不改写成标准数字；任何计算或单位换算都由后续程序负责。输出前逐字段核对：quote必须逐字存在于source，value必须逐字存在于quote；不符合就重新从原文抽取，不能编造数字或删除事实绕过核对。':''),signal,input:JSON.stringify({task,referenceNow:draft.referenceNow,timezone:draft.timezone,context:extractionContext,recordingFramework:draft.frontDeskRecord?nursingKnowledgeFor(raw,extractionContext).cards:[],answerContext:draft.answerContext??[],sources:draft.sources.map(({id,page,text})=>({id,page,text}))})}).finally(()=>mark('modelMs'))
+      const {value,diagnostics}=await this.model.structured({task:'draft-extraction',schema:extractionSchema,...syntheticOptions,instructions:instructions+' recordingFramework只帮助选择观察重点和表达结构，不是孩子事实或引文，不补齐其中未提供的信息。仅描述睡眠期间哭闹、入睡困难或睡眠断续，未明确独立身体不适时，归入sleep并保留实际过程；没有明确醒来就不能补夜醒。明确咳嗽、发热或疼痛等不适必须保留对应症状，不能因夜里或睡觉的背景吞掉症状。哭闹行为本身不能改写成已确认疼痛。 answerContext中status=superseded表示回答已被后来更正，不能把其旧含义写成当前事实；更正内容不明确时保留更正原文及未知，不推断新阳性或新阴性。answerContext仅解释原文中简短回答针对的是哪一个已提问题，问句不是孩子事实，不作为引文。不要把呼吸费力问题的“没有”写成没有咳嗽，也不要把“没注意”写成没有症状。用户说“先记下来”“谢谢”等操作话语不生成新的健康事项。已核验的简短问答含义由程序另行补入摘要，提取时仍必须保留其余明确主表现。 身体症状及否定症状观察分类为symptom，不因上传资料或task=report就分类为examination。阴性观察保留完整否定原话，不当作发生的症状；同一段内阳性与阴性分别引用完整原话，不能让前一分句的否定修饰后面的阳性事实。今天/昨天/昨日等必须抽取timeText原文，按来源中各事项的日期分别拆分；不输出计算后的时刻。 existingContext只用于理解已有背景，不作为新事实的引用，不把旧资料生成第二份新记录。只引用sources。sourceKind为visual_observation的资料是图片可见观察，保留照片观察的来源限定，不将照片观察改写成用户自述、疼痛、原因或时间。未知不补否定。归档栏目只能为allergy、chronic、family-history、surgery、vaccination、examination、medication或null。家族史是当前人物的家庭背景，relationship保留原文亲属关系，historyName保留疾病及疑似限定词，不把亲属的病归为当前人物慢性病。接种用vaccination类别，vaccineName为原文疫苗名，doseOriginal保留原文剂次。只有明确出现长期疾病/手术/过敏/家族史才能建议对应归档；异常检查指标本身不能生成诊断。'+(draft.frontDeskRecord?' 时长字段durationMinutes的value必须保留时长单位及对应的连续原文，不能把小时换算为分钟数字；字段名不是换算指令。时长不能放进sleepAt或wakeAt，只有原文钟点才使用这些字段。金额、数量及单位也不改写成标准数字；任何计算或单位换算都由后续程序负责。输出前逐字段核对：quote必须逐字存在于source，value必须逐字存在于quote；不符合就重新从原文抽取，不能编造数字或删除事实绕过核对。':''),signal,input:JSON.stringify({task,referenceNow:draft.referenceNow,timezone:draft.timezone,context:extractionContext,recordingFramework:draft.frontDeskRecord?nursingKnowledgeFor(raw,extractionContext).cards:[],answerContext:draft.answerContext??[],sources:draft.sources.map(({id,page,text,sourceKind,status})=>({id,page,text,sourceKind,status}))})}).finally(()=>mark('modelMs'))
       extractionDiagnostics=diagnostics
       readable=readablePreview(JSON.stringify(value),diagnostics)??readable
       if(syntheticRequested)syntheticCapture=captureSyntheticOutput({input,context:extractionContext,output:value,diagnostics,referenceNow:draft.referenceNow,timezone:draft.timezone})
-      const evidenceItems=validateExtraction(value,draft.sources)
+      const evidenceItems=validateExtraction(value,draft.sources,draft.frontDeskRecord?{timeEvidence:(item,items)=>boundNursingOnset(item,items,draft.sources,{frontContextId:draft.frontContextId,answerContext:draft.answerContext})}:undefined)
       const extracted=await reconcileExtraction(draft.frontDeskRecord?groundNursingEvidence(evidenceItems,draft.sources,{referenceNow:draft.referenceNow,timezone:draft.timezone,supersededAnswers:draft.supersededAnswers,frontContextId:draft.frontContextId,answerContext:draft.answerContext}):evidenceItems,draft.sources,{referenceNow:draft.referenceNow,timezone:draft.timezone})
       const occurrences=draft.smartRecord?mergeNarratedIncidents(extracted,draft.sources,{referenceNow:draft.referenceNow,timezone:draft.timezone,resolve:item=>resolveItemTime(item,{referenceNow:draft.referenceNow,timezone:draft.timezone})}):extracted
       draft.items=mergeItems(occurrences).map(item=>this.resolve(item,draft))
@@ -301,6 +311,7 @@ export class AIBusinessService {
           this.resolve(item,draft)
         }
       }
+      if(draft.frontDeskRecord&&draft.semanticVersion===2&&draft.items.length)draft.items=await generateSemanticSummaries(draft.items,{model:this.model,sources:draft.sources,buildFacts:buildProfessionalSummary,unresolvedItems:draft.unresolvedItems,signal,onCall:()=>{if(draft.callCount>=this.maxDraftCalls+2)throw fail('摘要请求上限已到，原话保留',429,'AI_DRAFT_CALL_LIMIT');draft.callCount++}})
       draft.reviewArchives=Boolean(input.reviewArchives||previous?.reviewArchives)
       await this.reviewProfileAssociations(draft)
       if(draft.reviewArchives)await this.reviewArchiveConflicts(draft)
@@ -331,7 +342,7 @@ export class AIBusinessService {
     normalizeRoutineActivity(item)
     if(['chronic','surgery','family-history'].includes(item.archiveCategory)&&!field(item,'historyName')||item.archiveCategory==='family-history'&&!field(item,'relationship'))item.archiveCategory=null
     if(item.archiveCategory==='vaccination'&&field(item,'vaccineName'))item.category='vaccination'
-    item.time=resolveItemTime(item,{referenceNow:draft.referenceNow,timezone:draft.timezone})
+    item.time=resolveItemTime(item,{referenceNow:!item.timeEditedBy&&item.timeResolution?.referenceNow||draft.referenceNow,timezone:draft.timezone})
     // Only live parent narration opts into the user's current-time default.
     // Explicit vague/historical dates and uploaded report times stay unresolved.
     const parentNarration = !draft.documents.length || item.fields.every(f=>f.sources?.length&&f.sources.every(s=>s.sourceId==='input'))
@@ -339,9 +350,10 @@ export class AIBusinessService {
     for(const f of item.fields.filter(f=>['sleepAt','wakeAt'].includes(f.name))){delete f.resolvedValue;const resolved=resolveItemTime({timeText:f.value},{referenceNow:draft.referenceNow,timezone:draft.timezone});if(resolved.precision==='exact')f.resolvedValue=resolved.resolvedStart}
     const forJournal={...item,fields:item.fields.filter(f=>!draft.frontDeskRecord||!['sleepAt','wakeAt'].includes(f.name)||f.resolvedValue).map(f=>({...f,value:f.resolvedValue??f.value}))}
     item.journal=buildJournal(forJournal)
+    if(draft.semanticVersion===2)item.unresolvedItems=draft.unresolvedItems??[]
     if(draft.frontDeskRecord&&!draft.manualOriginal&&!item.manualAdded){
       item.timeSources=!item.timeEditedBy&&item.timeResolution?.source==='bound_nursing_answer'?item.timeResolution.references:item.timeText?(draft.sources??[]).filter(source=>source.text.includes(item.timeText)&&item.fields.some(f=>f.sources?.some(ref=>ref.sourceId===source.id&&ref.page===source.page))).slice(0,3).map(source=>({sourceId:source.id,page:source.page,quote:item.timeText})):[]
-      item.professionalSummary=buildProfessionalSummary(item,{sources:draft.sources})
+      if(!validSemanticSummary(item.professionalSummary,item))item.professionalSummary=buildProfessionalSummary(item,{sources:draft.sources})
     }
     return item
   }
@@ -460,7 +472,7 @@ if(match){record=match;event=ownedEvents.find(e=>e.id===record.eventId);history.
         const sources=[...(record.aiProvenance?.sources??[]),...item.fields.flatMap(f=>f.sources),...(item.timeSources??[])],refs=[]
         for(const document of [...d.documents,...(d.voices??[])].filter(doc=>saved.length===0||sources.some(s=>s.sourceId===doc.id))){const {id:sourceFileId,...originalFile}=document;const {attachment}=await this.attachments.createUnique({accountId,memberId,eventId:event.id,recordId:record.id,...originalFile,binarySize:Buffer.from(document.dataUrl.split(',')[1],'base64').length,analysis:{status:d.manualOriginal?'unavailable':'completed',provider:d.manualOriginal?'manual':d.generation?.provider??'unknown',model:d.generation?.model??null,confirmed:true,sourcePages:d.sources.filter(s=>s.id===sourceFileId).map(s=>({page:s.page,text:s.text,status:s.status}))}},this.now());refs.push(attachment.id)}
         const conflicts=conflictRecords.map(r=>r.id)
-        await this.records.repository.update(record.id,{aiProvenance:{key,groupKey,provider:d.manualOriginal?'manual':d.generation?.provider??'unknown',model:d.generation?.model??null,category:item.category,...(item.visibilityCategories?{visibilityCategories:item.visibilityCategories}:{}),timeText:item.timeText,time:item.time,...(item.categoryResolution?{categoryResolution:item.categoryResolution}:{}),...(item.timeResolution?{timeResolution:item.timeResolution}:{}),itemId:item.id,timeSources:item.timeSources??[],answerObservations:item.answerObservations??[],supersededAnswers:item.supersededAnswers??[],...(item.professionalSummary?{professionalSummary:item.professionalSummary}:{}),...(item.timeEditedBy?{timeEditedBy:item.timeEditedBy}:{}),fields:item.fields,sources:[...new Map(sources.map(s=>[JSON.stringify(s),s])).values()],attachmentIds:[...new Set([...(record.aiProvenance?.attachmentIds??[]),...refs])],confirmed:true,draftId:id,originalVersions:d.history,conflictRecordIds:conflicts,archiveCategory:item.archiveCategory,notice:[...(conflicts.length?['资料存在差异；保留各版原文']:[]),...(d.documentWarnings??[])].join('；')||null}},this.now())
+        await this.records.repository.update(record.id,{aiProvenance:{key,groupKey,provider:d.manualOriginal?'manual':d.generation?.provider??'unknown',model:d.generation?.model??null,category:item.category,...(item.visibilityCategories?{visibilityCategories:item.visibilityCategories}:{}),timeText:item.timeText,time:item.time,...(item.categoryResolution?{categoryResolution:item.categoryResolution}:{}),...(item.timeResolution?{timeResolution:item.timeResolution}:{}),itemId:item.id,...(item.unresolvedItems?{unresolvedItems:item.unresolvedItems}:{}),timeSources:item.timeSources??[],answerObservations:item.answerObservations??[],supersededAnswers:item.supersededAnswers??[],...(item.professionalSummary?{professionalSummary:item.professionalSummary}:{}),...(item.timeEditedBy?{timeEditedBy:item.timeEditedBy}:{}),fields:item.fields,sources:[...new Map(sources.map(s=>[JSON.stringify(s),s])).values()],attachmentIds:[...new Set([...(record.aiProvenance?.attachmentIds??[]),...refs])],confirmed:true,draftId:id,originalVersions:d.history,conflictRecordIds:conflicts,archiveCategory:item.archiveCategory,notice:[...(conflicts.length?['资料存在差异；保留各版原文']:[]),...(d.documentWarnings??[])].join('；')||null}},this.now())
         if (d.sourceIdentity) await this.records.repository.update(record.id, { caseContext: { ...record.caseContext, identity: d.sourceIdentity, confirmed: true, attachmentIds: [...new Set([...(record.caseContext?.attachmentIds??[]),...refs])], originalText: record.caseContext?.originalText ?? record.sourceText ?? d.raw, timeUnknown: !item.time?.resolvedStart } }, this.now())
         if (targetEvent && (!match || d.targetEventId || d.followUp !== false)) {
           const currentEvent=await this.events.repository.findById(event.id)
