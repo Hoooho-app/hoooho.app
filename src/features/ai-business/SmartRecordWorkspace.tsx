@@ -436,7 +436,7 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
   const savedBubble=(guide:SavedRecordGuide)=><NurseMessage conversation={home} key={guide.id} role="assistant"><div className="smart-record-saved" data-save-id={guide.id}><p><Check size={18} aria-hidden="true"/>{guide.text}</p>{!guide.dismissed&&<div className="smart-record-saved-actions"><HohoButton disabled={busy} onClick={()=>void viewSavedRecord(guide)}>查看</HohoButton>{home&&guide.category==='symptom'&&(guide.followUpEnabled?<span className="hoho-text-caption" role="status">症状跟进已启用</span>:<HohoButton disabled={busy||trackingEvent!==null} loading={trackingEvent===guide.eventId} onClick={()=>void enableSavedFollowup(guide)}>启用症状跟进</HohoButton>)}</div>}</div></NurseMessage>
   const visibleTurns:(CaptureTurn & {savedGuide?:SavedRecordGuide})[]=[...(local.conversationTurns??(local.text?[{id:'legacy',text:local.text}]:[])),...(local.savedGuides??[]).filter(guide=>guide.memberId===memberId).map(guide=>({id:guide.id,text:'',at:guide.at,savedGuide:guide}))]
   const recordActions=(turn?:CaptureTurn)=>{
-    const stale=Boolean(turn&&turn.id!==local.conversationTurns?.filter(item=>item.role==='assistant').at(-1)?.id)
+    const stale=Boolean(turn&&turn.id!==(job?.frontDesk?.replyId??local.conversationTurns?.filter(item=>item.role==='assistant').at(-1)?.id))
     if(completed||stale||jobBusy||localStage||dialogueBusy)return null
     const count=review?.items.length??0
     const interview=local.nursingInterview
@@ -444,7 +444,7 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
     const answerDisabled=!ready||busy||voice.busy||dialogueBusy||jobBusy||Boolean(localStage)
     const disabled=answerDisabled||!canSave||Boolean(turn?.reviewId&&turn.reviewId!==review?.id)
     if(!count&&!answering&&interview?.semantic?.organize===false)return null
-    if(!count&&!answering)return interview?.domain?<div className="smart-record-actions"><p role="status">原始描述已保留，暂未整理出可保存的记录。可以继续补充，也可以先保存原话。</p><HohoButton fullWidth variant="secondary" disabled={answerDisabled} onClick={()=>void saveOriginal()}>先保存原话</HohoButton></div>:null
+    if(!count&&!answering)return interview?.domain?<div className="smart-record-actions"><p role="status">原始描述已保留，暂未整理出可保存的记录。可以继续补充，也可以先保存原话。</p>{job?.state!=='failed'&&<HohoButton fullWidth variant="secondary" disabled={answerDisabled} onClick={()=>void saveOriginal()}>先保存原话</HohoButton>}</div>:null
     if(answering){
       const options=interview.question!.options,unknown=options.find(option=>option.label==='没注意')
       const choices=home&&options.length>4?[...options.filter(option=>option!==unknown).slice(0,3),unknown??options[3]]:options
