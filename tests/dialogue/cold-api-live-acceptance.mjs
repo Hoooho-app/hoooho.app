@@ -8,7 +8,7 @@ if (process.env.HOOOHO_RUN_COLD_LIVE_ACCEPTANCE !== '1') {
   process.exit(2)
 }
 const BASE = 'https://hoooho.com'
-const EXPECTED = '4e6a7185241a2e7c26cfc39465f6d1c80f13c885'
+const EXPECTED = '5570a051b2148389bc7141131ec6e49283c720e6'
 const REPORT = 'outputs/nursing-record-production/cold-loop-acceptance.json'
 const INPUTS = ['身体有点冷', '家长摸着孩子身体觉得凉。', '今天开始，持续了十分钟']
 const FULL_RAW = INPUTS.join('\n')
