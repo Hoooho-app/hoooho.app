@@ -4,6 +4,7 @@ import { MedicalSummaryError } from '../medical-summary-service.mjs'
 import { fail } from './contract.mjs'
 
 export class BusinessModel {
+  sourceReferences = true
   constructor(options = {}) { this.provider = options.provider ?? createAIProvider(options); this.audioProvider = options.audioProvider ?? (options.provider?.name !== 'bailian' && options.provider ? options.provider : createAudioProvider('TTS', options)); this.logger=options.logger??console;const limit=Number(options.maxTokens??process.env.AI_BUSINESS_MAX_OUTPUT_TOKENS??16000);this.maxTokens=Number.isInteger(limit)&&limit>=3000&&limit<=32000?limit:16000 }
   async structured({ task, schema, instructions, input, vision = false, signal, syntheticEvidence, onSyntheticOutput, onReadableOutput, samplingTemperature }) {
     const p=this.provider

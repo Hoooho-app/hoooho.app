@@ -62,8 +62,15 @@ if (process.env.VISIT_AI_TEST === '1') {
     }
     if(body.text.format.name==='hoooho_business'){
       if(body.text.format.schema.properties.text)return fixtureResponse({output:[{content:[{type:'output_text',text:JSON.stringify(Array.isArray(ocrText)?ocrText:{text:ocrText??'测试机构\n2026-09-29\n红细胞 4.2 mmol/L 参考3.5-5.5',status:'readable'})}]}]})
-      const data=JSON.parse(body.input),first=data.sources[0]
-      const items=draftItems?draftItems.map(i=>({...i,fields:i.fields.map(f=>({...f,sourceId:f.sourceId==='@first'?first.id:f.sourceId==='@visual'?data.sources.find(s=>s.sourceKind==='visual_observation')?.id:f.sourceId}))})):[{category:'symptom',title:'合成观察记录',timeText:first.text.includes('今天')?'今天':null,subject:'current',archiveCategory:null,relationKey:null,fields:[{name:'symptom',value:first.text,quote:first.text,sourceId:first.id,page:first.page}]}]
+      const data=JSON.parse(body.input),bound=!!body.text.format.schema.properties.items?.items?.properties.fields?.items?.properties.evidenceId
+      const sourceSegments=bound?data.sources.flatMap(s=>(s.segments??[]).map(segment=>({...segment,sourceId:s.id,page:s.page}))):[]
+      if(bound)data.sources=data.sources.map(s=>({...s,text:(s.segments??[]).map(segment=>segment.text).join('')}))
+      const first=data.sources[0]
+      let items=draftItems?draftItems.map(i=>({...i,fields:i.fields.map(f=>({...f,sourceId:f.sourceId==='@first'?first.id:f.sourceId==='@visual'?data.sources.find(s=>s.sourceKind==='visual_observation')?.id:f.sourceId}))})):[{category:'symptom',title:'合成观察记录',timeText:first.text.includes('今天')?'今天':null,subject:'current',archiveCategory:null,relationKey:null,fields:[{name:'symptom',value:first.text,quote:first.text,sourceId:first.id,page:first.page}]}]
+      if(bound)items=items.map(item=>({...item,fields:!draftItems?sourceSegments.filter(s=>s.sourceId===first.id&&s.page===first.page&&s.text.trim()).map((s,index)=>({name:index?'statusRaw':'symptom',value:s.text,evidenceId:s.evidenceId})):item.fields.map(field=>{
+        const source=data.sources.find(s=>s.id===field.sourceId&&s.page===field.page),segment=source&&source.text.includes(field.quote)?sourceSegments.find(s=>s.sourceId===field.sourceId&&s.page===field.page&&s.text.includes(field.value)):null
+        return {name:field.name,value:field.value,evidenceId:segment?.evidenceId??'fixture-invalid-evidence-id'}
+      })}))
       return fixtureResponse({usage:{input_tokens:10,output_tokens:20},output:[{content:[{type:'output_text',text:JSON.stringify({items})}]}]})
     }
     if(summaryOutput)return fixtureResponse({output:[{content:[{type:'output_text',text:JSON.stringify(summaryOutput)}]}]})
