@@ -1,0 +1,36 @@
+{
+  "check": "production_cold_full_save",
+  "date": "2026-10-25T09:18:35.828Z",
+  "expectedCommit": "5570a051b2148389bc7141131ec6e49283c720e6",
+  "runtimeCommit": "5570a051b2148389bc7141131ec6e49283c720e6",
+  "syntheticOnly": true,
+  "passed": true,
+  "checks": [
+    "already-deployed runtime commit matches; no deployment requested",
+    "cold observation asks a concrete observation question",
+    "caregiver touch observation stays in the same conversation and asks onset",
+    "today and ten-minute course ends questioning within the budget; exact original retained",
+    "one faithful professional symptom summary; no inferred diagnosis or temperature",
+    "formal record reads back the same summary and full original; symptom follow-up remains off",
+    "repeated save returns identical references and creates no extra record or event"
+  ],
+  "questions": [
+    "cold-observation",
+    "cold-onset"
+  ],
+  "turnCount": 2,
+  "summary": "今天家长摸着孩子身体觉得凉；持续时间：十分钟。",
+  "savedRecordCount": 1,
+  "idempotent": true,
+  "emptySyntheticAccountRetained": true,
+  "cleanup": {
+    "recordsDeleted": 1,
+    "eventsDeleted": 1,
+    "eventRecordsEmpty": true,
+    "eventsGone": true,
+    "memberDeleted": true,
+    "memberGone": true,
+    "logout": "revoked",
+    "complete": true
+  }
+}
