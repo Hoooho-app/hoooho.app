@@ -215,8 +215,22 @@ test('source omission diagnostics expose only validated UTF-16 positions and a b
  const model=fakeModel({generate:p=>candidate(p,'脚小拇指破了','小脚趾破损'),verify:items=>({items:approved(items).items.map(v=>({...v,complete:false,problems:['missing_fact'],missingFacts:[{itemId:v.itemId,sourceId:'input',page:1,quote}]}))})})
  await assert.rejects(()=>run(f,model,{sourceCoverage:true}),error=>{
   assert.equal(error.code,'AI_SUMMARY_INCOMPLETE')
-  assert.deepEqual(error.details.verification,{codes:['verifier_missing_source_fact'],sourceSpans:[{sourceIndex:0,page:1,start:raw.indexOf(quote),end:raw.indexOf(quote)+quote.length}]})
+  assert.deepEqual(error.details.verification,{codes:['verifier_missing_source_fact'],sourceSpans:[{sourceIndex:0,page:1,start:raw.indexOf(quote),end:raw.indexOf(quote)+quote.length}],timeCoverage:[{itemIndex:0,known:false,included:false}]})
   assert.doesNotMatch(JSON.stringify(error.details),/小拇指|踢到|quote/)
   return true
  })
+})
+
+
+test('summary repair hints contain only this pass fact IDs and scope rather than raw missing-source prose',async()=>{
+ const f=factsFixture(),model=fakeModel(),structured=model.structured
+ model.structured=async input=>{
+  if(input.task==='professional-summary-generate'){
+   const data=JSON.parse(input.input)
+   assert.deepEqual(data.repairHints,{items:[{itemId:'item-1',reviewFactIds:allIds(data.items[0]),requiredTimeText:null}]})
+   assert.doesNotMatch(input.input,/只能来自遗漏引文的额外内容/)
+  }
+  return structured(input)
+ }
+ await run(f,model,{repairHints:{missingFacts:[{itemId:'item-1',quote:'只能来自遗漏引文的额外内容'}]}})
 })

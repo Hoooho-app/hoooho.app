@@ -53,16 +53,17 @@ function checkedCoverageRepair(verdicts,items,sources){
 
 // Approval is minted here only from server-validated facts and a separate verdict.
 // The digest prevents stale reuse; it is not a substitute for entailment checking.
-export async function generateSemanticSummaries(items,{model,sources,buildFacts,unresolvedItems=[],signal,onCall,sourceCoverage=false}={}){
+export async function generateSemanticSummaries(items,{model,sources,buildFacts,unresolvedItems=[],signal,onCall,sourceCoverage=false,repairHints}={}){
  const packets=items.map(item=>({itemId:item.id,category:item.category,scope:{subject:'current',timeText:item.timeText??null},facts:buildFacts(item,{sources})?.claims??[],sourceEvidence:item.fields.map(f=>({name:f.name,value:f.value,editedBy:f.editedBy,references:f.sources.map(ref=>({...ref,sourceKind:ref.sourceKind??sources?.find(s=>s.id===ref.sourceId&&s.page===ref.page)?.sourceKind??'user_text'}))}))})).filter(p=>p.facts.length)
  if(packets.length!==items.length)throw summaryFailure('事实尚未核验完整，原话保留','AI_SUMMARY_INCOMPLETE','facts_invalid')
  if(!packets.length)return items
  if(items.length===1)for(const [i,text] of unresolvedItems.entries())packets[0].facts.push({text:'待确认：'+text,factIds:[`${items[0].id}:unknown:${i}`]})
+ const generationRepair=repairHints?{items:packets.filter(p=>repairHints.missingFacts?.some(f=>f.itemId===p.itemId)).map(p=>({itemId:p.itemId,reviewFactIds:[...new Set(p.facts.flatMap(f=>f.factIds))],requiredTimeText:p.scope.timeText}))}:null
  const generationContract=structuredClone(summarySchema)
  generationContract.properties.items.items.properties.itemId.enum=packets.map(p=>p.itemId)
  generationContract.properties.items.items.properties.claims.items.properties.factIds.items.enum=[...new Set(packets.flatMap(p=>p.facts.flatMap(f=>f.factIds)))]
  onCall?.()
- const generated=await model.structured({task:'professional-summary-generate',schema:generationContract,signal,samplingTemperature:0,instructions:'把已核验事实整理成自然、简洁、适合交接的中文标题和逐句摘要。只用facts，不诊断、不建议治疗、不加事实。factIds精确使用给定ID，每句关联所有依据。标题表达部位与表现，例如已有脚小拇指和被踢破的证据可规范为足小趾被踢后破损；不要只写破了。保留人物、时间、否定、未知、自述/观察/转述、数字和单位。没有提到不能写没有，建议不能写已经执行，先后不写因果。不要照搬字段名拼接；同一事件连贯表达；完整覆盖所有重要事实及已绑定回答。不把已更正内容写成当前事实。只能输出schema对象。',input:JSON.stringify({items:packets})})
+ const generated=await model.structured({task:'professional-summary-generate',schema:generationContract,signal,samplingTemperature:0,instructions:'把已核验事实整理成自然、简洁、适合交接的中文标题和逐句摘要。只用facts，不诊断、不建议治疗、不加事实。factIds精确使用给定ID，每句关联所有依据。标题表达部位与表现，例如已有脚小拇指和被踢破的证据可规范为足小趾被踢后破损；不要只写破了。保留人物、时间、否定、未知、自述/观察/转述、数字和单位。没有提到不能写没有，建议不能写已经执行，先后不写因果。不要照搬字段名拼接；同一事件连贯表达；完整覆盖所有重要事实及已绑定回答。不把已更正内容写成当前事实。scope.timeText非空时，摘要至少一句必须逐字保留该时间原话，不从当前日期补时间。scope的成员归属只是人物范围，不必复述归属操作。repairHints若存在，只用于提醒上轮遗漏，不是新事实；仍只使用本轮facts，不把确认归属/要求整理的操作原话当症状。只能输出schema对象。',input:JSON.stringify({items:packets,...(generationRepair?{repairHints:generationRepair}:{})})})
  const candidates=generated.value?.items
  if(!Array.isArray(candidates)||candidates.length!==packets.length||new Set(candidates.map(c=>c?.itemId)).size!==packets.length)throw fail('摘要未完整返回，原话仍保留',503,'AI_SUMMARY_INVALID')
  for(const packet of packets){
@@ -86,7 +87,7 @@ export async function generateSemanticSummaries(items,{model,sources,buildFacts,
  const incomplete=verdicts.some(v=>v?.complete!==true||v?.missingFacts?.length)
  if(sourceCoverage&&incomplete){
   const repair=checkedCoverageRepair(verdicts,items,sources??[])
-  if(repair){const error=summaryFailure('摘要还有原话未覆盖，原话已保留','AI_SUMMARY_INCOMPLETE','verifier_missing_source_fact');error.details.verification.sourceSpans=repair.missingFacts.map(f=>{const sourceIndex=sources.findIndex(s=>s.id===f.sourceId&&s.page===f.page),start=sources[sourceIndex].text.indexOf(f.quote);return {sourceIndex,page:f.page,start,end:start+f.quote.length}});error.coverageRepair=repair;throw error}
+  if(repair){const error=summaryFailure('摘要还有原话未覆盖，原话已保留','AI_SUMMARY_INCOMPLETE','verifier_missing_source_fact');error.details.verification.sourceSpans=repair.missingFacts.map(f=>{const sourceIndex=sources.findIndex(s=>s.id===f.sourceId&&s.page===f.page),start=sources[sourceIndex].text.indexOf(f.quote);return {sourceIndex,page:f.page,start,end:start+f.quote.length}});error.details.verification.timeCoverage=items.map((item,itemIndex)=>({itemIndex,known:Boolean(item.timeText),included:Boolean(item.timeText&&candidates.find(c=>c.itemId===item.id)?.claims.some(c=>c.text.includes(item.timeText)))}));error.coverageRepair=repair;throw error}
  }
  return items.map(item=>{
   const c=candidates.find(c=>c?.itemId===item.id);if(!c)return item
