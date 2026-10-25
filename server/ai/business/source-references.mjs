@@ -119,12 +119,13 @@ export function buildSourceReferenceContract(extractionSchema,sources,{segmentLi
  fieldSchema.required=[...fieldSchema.required.filter(key=>!oldReferenceKeys.includes(key)),'evidenceId']
  fieldSchema.additionalProperties=false
  const boundKeys=new Set(Object.keys(fieldSchema.properties))
- function decode(value,{requireBound=false}={}){
+ function decode(value,{requireBound=false,omitEmptyFields=false,onEmptyField}={}){
   if(!object(value)||!Array.isArray(value.items))throw invalid('invalid_extraction_output')
   const copy=structuredClone(value)
   let mode=null
   for(const [itemIndex,item] of copy.items.entries()){
    if(!object(item)||!Array.isArray(item.fields))throw invalid('invalid_item_fields',`/items/${itemIndex}/fields`)
+   const kept=[]
    for(const [fieldIndex,field] of item.fields.entries()){
     const path=`/items/${itemIndex}/fields/${fieldIndex}`
     if(!object(field))throw invalid('invalid_field',path)
@@ -133,16 +134,20 @@ export function buildSourceReferenceContract(extractionSchema,sources,{segmentLi
     const current=bound?'bound':'legacy'
     if(mode&&mode!==current)throw invalid('mixed_reference_shape',path)
     mode=current
-    if(!bound){if(requireBound)throw invalid('bound_reference_required',path);continue} // Legacy literals stay unchanged for an undeclared caller.
+    if(!bound){if(requireBound)throw invalid('bound_reference_required',path);kept.push(field);continue} // Legacy literals stay unchanged for an undeclared caller.
     if(typeof field.evidenceId!=='string'||!registry.has(field.evidenceId))throw invalid('unknown_evidence_id',path)
     if(Object.keys(field).some(key=>!boundKeys.has(key)))throw invalid('unexpected_bound_field_property',path)
+    if(!fieldSchema.properties.name.enum.includes(field.name)||typeof field.value!=='string')throw invalid('invalid_bound_field',path)
+    if(omitEmptyFields&&!field.value.replace(/\p{Cf}/gu,'').trim()){if(typeof onEmptyField==='function')onEmptyField({itemIndex,fieldIndex});continue}
     const {source,segment}=registry.get(field.evidenceId)
     const quote=uniqueQuote(source,valueRange(source,segment,field.value,maxQuoteLength,path),maxQuoteLength,path)
     delete field.evidenceId
     field.sourceId=source.id
     field.page=source.page
     field.quote=quote
+    kept.push(field)
    }
+   item.fields=kept
   }
   return copy
  }
