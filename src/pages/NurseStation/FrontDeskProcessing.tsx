@@ -18,7 +18,7 @@ export function FrontDeskProcessing() {
       document.removeEventListener('visibilitychange', visibility)
     }
   }, [])
-  return <div className="front-desk-processing" role="status">
+  return <div className="front-desk-processing" role="status" aria-label="护士正在整理记录">
     <NurseStationIdleVideo active={visible} reducedMotion={reduced || (care.enabled && care.reduceMotion)}/>
     <div><p>嗯，我了解了，我整理一下。</p><span>整理中</span></div>
   </div>

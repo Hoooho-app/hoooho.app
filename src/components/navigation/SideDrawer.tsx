@@ -31,8 +31,7 @@ const allSidebarMenuGroups = [
     { label: '服务前台', icon: House, to: '/nurse-station' },
     { label: '健康日历', icon: CalendarDays, to: '/health-events' },
     { label: '孩子档案', icon: Folder, to: '/health-profile' },
-    { label: '一键整理', icon: ClipboardList, to: '/visit-summary' },
-    { label: '对话记录', icon: MessageCircle, to: '/conversation-history' }
+    { label: '一键整理', icon: ClipboardList, to: '/visit-summary' }
     ]
   },
   {

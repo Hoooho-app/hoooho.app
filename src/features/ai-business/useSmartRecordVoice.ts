@@ -1,3 +1,4 @@
+import {startLiveAudioPreview} from './liveAudioPreview'
 import {startAITiming} from '../../services/aiTiming'
 import { observeAudioLevel } from './observeAudioLevel'
 import { useEffect, useRef, useState } from 'react'
@@ -8,16 +9,20 @@ import { abortable } from '../../services/abortable'
 import { fileDataUrl } from './draftFiles'
 
 type Options = {
+  livePreview?:boolean
   prepareAudio?: (file: File) => Promise<Blob>; timeoutMs?: number; audioBitsPerSecond?: number; ephemeral?: boolean; autoTranscribe?: boolean
   memberId: string; token: string; pendingVoice?: File; pendingTranscript?: string
   onFinalizationStart?: () => () => void
-  onRecorded: (file: File) => Promise<void>; onTranscript: (text: string, file: File) => Promise<void>
+  onRecorded: (file: File,previewText?:string) => Promise<void>; onTranscript: (text: string, file: File) => Promise<void>
 }
 type Operation = { turn: number; controller: AbortController; timer: ReturnType<typeof setTimeout> }
 // Other recording workspaces persist the immutable original before ASR. Quick
 // lookup opts into compressed audio and a deadline starting when the user releases.
 export function useSmartRecordVoice(options: Options) {
   const latest = useRef(options); latest.current = options
+  const [liveText,setLiveText]=useState(''),[liveUnavailable,setLiveUnavailable]=useState(false)
+  const liveStop=useRef<(()=>void)|undefined>(),liveTextRef=useRef('')
+  const endLive=()=>{liveStop.current?.();liveStop.current=undefined}
   const [audioLevel, setAudioLevel] = useState(0)
   const [phase, setPhase] = useState<'preparing' | 'recognizing' | 'delivering'>('preparing')
   const [state, setState] = useState<'idle' | 'requesting' | 'listening' | 'transcribing'>('idle')
@@ -31,6 +36,7 @@ export function useSmartRecordVoice(options: Options) {
   const current = (turn: number) => mounted.current && generation.current === turn
   const release = () => { releaseFinalization.current?.(); releaseFinalization.current = undefined }
   const clean = () => {
+    endLive()
     stopMeter.current?.(); stopMeter.current = undefined
     stream.current?.getTracks().forEach(t => t.stop()); stream.current = null
     if (limit.current) clearTimeout(limit.current)
@@ -102,6 +108,7 @@ export function useSmartRecordVoice(options: Options) {
     }
   }
   const stop = () => {
+    endLive()
     stopRequested.current = true
     if (mounted.current && latest.current.timeoutMs && latest.current.autoTranscribe !== false && (recorder.current?.state === 'recording' || (locked.current && !recorder.current))) begin(generation.current)
     if (recorder.current?.state === 'recording') {
@@ -120,7 +127,7 @@ export function useSmartRecordVoice(options: Options) {
     if (!navigator.mediaDevices?.getUserMedia || !globalThis.MediaRecorder) { setError('当前浏览器不支持录音，请输入文字'); return }
     const turn = ++generation.current
     locked.current = true; keep.current = true; stopRequested.current = false
-    setState('requesting'); setError(''); setErrorCode('')
+    setState('requesting'); setError(''); setErrorCode('');setLiveText('');liveTextRef.current='';setLiveUnavailable(false)
     try {
       const media = await navigator.mediaDevices.getUserMedia({ audio: true })
       if (!current(turn) || stopRequested.current) {
@@ -145,7 +152,7 @@ export function useSmartRecordVoice(options: Options) {
         }
         const file = new File([blob], `语音原件-${started}.${r.mimeType.includes('mp4') ? 'm4a' : 'webm'}`, { type: r.mimeType })
         try {
-          const saved = config.onRecorded(file), op = operation.current
+          const saved = config.onRecorded(file,liveTextRef.current), op = operation.current
           await (op ? abortable(saved, op.controller.signal) : saved)
           release()
           if (!current(turn)) return
@@ -155,7 +162,8 @@ export function useSmartRecordVoice(options: Options) {
           if (current(turn)) { if (operation.current) finish(operation.current); setError('录音草稿保存失败，请保持页面打开并重试') }
         }
       })() }
-      r.start(250); locked.current = false; setState('listening'); limit.current = setTimeout(stop, 90000)
+      r.start(250); locked.current = false; setState('listening');
+      if(config.livePreview)liveStop.current=startLiveAudioPreview({stream:media,memberId:config.memberId,token:config.token,onText:text=>{if(current(turn)&&!stopRequested.current){liveTextRef.current=text;setLiveText(text)}},onUnavailable:()=>{if(current(turn)&&!stopRequested.current)setLiveUnavailable(true)}});  limit.current = setTimeout(stop, 90000)
     } catch (e) {
       if (!current(turn)) return
       clean(); locked.current = false; release()
@@ -175,7 +183,7 @@ export function useSmartRecordVoice(options: Options) {
       clean(); document.removeEventListener('visibilitychange', hidden)
     }
   }, [])
-  return { audioLevel, state, phase, error, busy: state !== 'idle', start, stop, discard,
+  return { liveText,liveUnavailable,audioLevel, state, phase, error, busy: state !== 'idle', start, stop, discard,
     unreadable: ['AUDIO_DECODE_FAILED', 'FILE_READ_FAILED', 'ASR_AUDIO_FORMAT_UNSUPPORTED', 'INVALID_AUDIO_DATA', 'AUDIO_EMPTY'].includes(errorCode),
     clearError: () => { setError(''); setErrorCode('') }, retry: () => { if (latest.current.pendingVoice) void transcribe(latest.current.pendingVoice) },
   }

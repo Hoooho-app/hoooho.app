@@ -34,7 +34,7 @@ interface ApiRequestOptions {
 
 async function executeApiRequest<T>(path: string, options: ApiRequestOptions, mayRecover: boolean): Promise<T> {
   options={...options,headers:{'X-Hoooho-Trace-Id':crypto.randomUUID(),...options.headers}}
-  const changesData = Boolean(options.method && options.method !== 'GET' && !(options.method === 'POST' && ['/api/ai/audio/transcriptions','/api/ai/telemetry'].includes(path.split('?')[0])))
+  const changesData = Boolean(options.method && options.method !== 'GET' && !/^\/api\/ai\/audio\/live(?:\/|$)/.test(path) && !(options.method === 'POST' && ['/api/ai/audio/transcriptions','/api/ai/telemetry'].includes(path.split('?')[0])))
   options.signal?.throwIfAborted()
   const mutationScope=changesData?await import('../store/useAppStore').then(({useAppStore})=>{const s=useAppStore.getState();return {accountId:s.authUser?.id??'',memberId:s.currentMemberId}}):undefined
   const browserTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone

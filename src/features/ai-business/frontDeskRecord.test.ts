@@ -28,3 +28,13 @@ test('focused question identity and short-answer binding survive restore but dis
  assert.equal(restored.conversationInput,'还没发送的中文')
  assert.equal(restoreFrontContext({...context,saved:true},restored).nursingInterview,undefined)
 })
+
+test('续聊只展示已保存历史，新草稿的文字与媒体仅来自当前记录意图',()=>{
+ const previous={id:'old',kind:'text' as const,text:'昨天发红，已保存',contextId:'saved',status:'completed' as const}
+ const current={id:'new',kind:'text' as const,text:'今天颜色淡了',contextId:'continued',status:'completed' as const}
+ const restored=restoreFrontContext({id:'continued',updatedAt:'2026-10-25T01:00:00Z',previousMessages:[previous],messages:[current]},{...local(),resumeContextId:'saved'})
+ assert.equal(restored.text,'今天颜色淡了')
+ assert.equal(restored.resumeContextId,'continued')
+ assert.deepEqual(restored.conversationTurns?.map(t=>t.text),['昨天发红，已保存','今天颜色淡了'])
+ assert.deepEqual(restored.files,[])
+})

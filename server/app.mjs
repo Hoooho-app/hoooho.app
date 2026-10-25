@@ -60,6 +60,7 @@ import { AIBusinessService } from './ai/business/service.mjs'
 import { CaseContinuityService } from './events/case-continuity-service.mjs'
 import { NurseService, nurseApiResult } from './ai/nurse-service.mjs'
 import {RecognitionJobs,recognitionRoute,recognitionApi} from './ai/recognition-jobs.mjs'
+import { LiveAudioPreviewService,liveAudioPreviewApiResult } from './ai/live-audio-preview.mjs'
 import { FrontDeskRecord } from './ai/front-desk-record.mjs'
 import { caseApiResult } from './events/case-api.mjs'
 import { createFoodLabelService, foodLabelApi } from './food-label/api.mjs'
@@ -95,6 +96,7 @@ const account = new AccountService({ ...sharedOptions, auth, users: auth.users, 
 const members = new FamilyMemberService(sharedOptions)
 const organizations = new HealthRecordOrganizationService(sharedOptions)
 const audioTranscription = new AudioTranscriptionService(sharedOptions)
+const liveAudioPreview=new LiveAudioPreviewService({assertMember:(accountId,memberId)=>members.get(accountId,memberId)})
 const events = new HealthEventService({ ...sharedOptions, summaryRefresher: organizations })
 const records = new HealthEventRecordService({ ...sharedOptions, organizations })
 const attachments = new EventAttachmentService(sharedOptions)
@@ -736,6 +738,11 @@ async function handleHealthProfileFacts(request, response, pathname, searchParam
 }
 
 async function handleAudioTranscription(request, response, pathname) {
+  if(/^\/api\/ai\/audio\/live(?:\/|$)/.test(pathname)){
+    const result=await liveAudioPreviewApiResult(liveAudioPreview,await readAccountId(request),request.method,pathname,limit=>readJson(request,limit),requestSignal(request,response))
+    if(result)sendJson(response,result.status,result.data);else sendJson(response,404,{error:{code:'ASR_LIVE_NOT_FOUND',message:'实时文字已结束'}})
+    return true
+  }
   if (!['/api/ai/audio/transcriptions','/api/ai/audio/capabilities'].includes(pathname)) return false
   const accountId=await readAccountId(request)
   if (pathname.endsWith('/capabilities') && request.method === 'GET') sendJson(response,200,audioTranscription.capabilities())
@@ -937,11 +944,11 @@ async function handleApi(request, response, pathname, searchParams) {
   if (frontRecordMatch) {
     const accountId = await readAccountId(request), memberId = decodeRouteValue(frontRecordMatch[1])
     response.setHeader('Cache-Control', 'no-store')
-    if(request.method==='GET'&&frontRecordMatch[2])sendJson(response,200,await frontDeskRecord.snapshot(accountId,memberId,decodeRouteValue(frontRecordMatch[2])))
+    if(request.method==='GET'&&frontRecordMatch[2])sendJson(response,200,await frontDeskRecord.conversation(accountId,memberId,decodeRouteValue(frontRecordMatch[2])))
     else if (request.method === 'GET' && !frontRecordMatch[2]) sendJson(response, 200, await frontDeskRecord.latest(accountId, memberId))
     else if (request.method === 'DELETE' && !frontRecordMatch[2]) sendJson(response, 200, await frontDeskRecord.closeSession(accountId, memberId))
     else if (request.method === 'POST' && !frontRecordMatch[2]) {const input=await readJson(request,22*1024*1024);sendJson(response,200,input.kind==='legacy'?await frontDeskRecord.retainLegacy(accountId,memberId,input):await frontDeskRecord.submit(accountId,memberId,input,requestSignal(request,response)))}
-    else if (request.method === 'POST' && frontRecordMatch[2]) sendJson(response, 200, await frontDeskRecord.checkpoint(accountId, memberId, decodeRouteValue(frontRecordMatch[2]), await readJson(request)))
+    else if (request.method === 'POST' && frontRecordMatch[2]) {const input=await readJson(request);sendJson(response,200,input.action==='resume'?await frontDeskRecord.resume(accountId,memberId,decodeRouteValue(frontRecordMatch[2])):await frontDeskRecord.checkpoint(accountId,memberId,decodeRouteValue(frontRecordMatch[2]),input))}
     else sendEmpty(response, 405)
     return true
   }
@@ -1157,6 +1164,7 @@ function shutdown(signal) {
   if (shuttingDown) return
   shuttingDown = true
   console.info(`[Hoooho] received ${signal}, shutting down`)
+  liveAudioPreview.destroy()
   void recognitionJobs.close()
   stopOpsScheduler()
   server.closeAllConnections?.()

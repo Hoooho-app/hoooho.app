@@ -2,6 +2,8 @@ import { parseJsonObject } from '../json-input.mjs'
 import { authConfig } from '../auth/config.mjs'
 import { TokenService } from '../auth/token-service.mjs'
 import { HealthRecordOrganizationError, HealthRecordOrganizationService } from './health-record-organization-service.mjs'
+import { HealthEventService } from '../events/health-event-service.mjs'
+import { LiveAudioPreviewService,liveAudioPreviewApiResult } from './live-audio-preview.mjs'
 import { AudioTranscriptionService } from './audio-transcription-service.mjs'
 
 const readJson = (request, maxLength = 16_384) => new Promise((resolve, reject) => {
@@ -47,13 +49,23 @@ export function aiApiPlugin(options = {}) {
   const config = { ...authConfig, ...options }
   const service = options.service ?? new HealthRecordOrganizationService({ dataDirectory: config.dataDirectory, structuredMode: 'enabled' })
   const tokens = options.tokens ?? new TokenService(config.tokenSecret, config.tokenTtlMs)
+  const events=new HealthEventService({dataDirectory:config.dataDirectory})
+  const liveAudioPreview=new LiveAudioPreviewService({assertMember:(accountId,memberId)=>events.assertMemberOwnership(accountId,memberId)})
   const audio = options.audio ?? new AudioTranscriptionService(options)
 
   return {
     name: 'hoooho-local-ai-api',
     configureServer(server) {
+      server.httpServer?.once('close',()=>liveAudioPreview.destroy())
       server.middlewares.use(async (request, response, next) => {
         const pathname = new URL(request.url ?? '/', 'http://localhost').pathname
+        if(/^\/api\/ai\/audio\/live(?:\/|$)/.test(pathname)){
+          const controller=new AbortController(),cancel=()=>{if(!response.writableEnded)controller.abort()}
+          response.once('close',cancel)
+          try{const result=await liveAudioPreviewApiResult(liveAudioPreview,readAccountId(request,tokens),request.method,pathname,limit=>readJson(request,limit),controller.signal);return sendJson(response,result?.status??404,result?.data??{error:{code:'ASR_LIVE_NOT_FOUND',message:'实时文字已结束'}})}
+          catch(error){return sendJson(response,error.status??500,{error:{code:error.code??'ASR_LIVE_UNAVAILABLE',message:error.status?error.message:'实时文字暂不可用，录音仍在继续'}})}
+          finally{response.off('close',cancel)}
+        }
         if (pathname === '/api/ai/audio/transcriptions') {
           try {
             const accountId = readAccountId(request, tokens)
