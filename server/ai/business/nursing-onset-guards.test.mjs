@@ -18,8 +18,8 @@ function ground({text=raw,items=[baseItem()],answer={}}={}){
  const context={referenceNow:'2026-10-25T08:00:00.000Z',timezone:'Asia/Shanghai',frontContextId:'owned-context',answerContext:[{contextId:'owned-context',sourceMessageId:'onset-answer',questionId:'cold-onset',domain:'cold',answerText:'今天开始，持续了十分钟',rawStart,rawEnd,status:'active',...answer}]}
  return groundNursingEvidence(validateExtraction({items},[source]),[source],context)
 }
-test('exact current-context onset answer has a sourced binding control',()=>{
- const [item]=ground()
+for(const timeText of ['今天','今天开始','今天开始，持续了十分钟'])test(`exact current-context onset answer has a sourced binding control (${timeText})`,()=>{
+ const [item]=ground({items:[{...baseItem(),timeText}]})
  assert.equal(item.timeResolution.source,'bound_nursing_answer')
  assert.equal(item.timeResolution.references[0].sourceMessageId,'onset-answer')
  assert.equal(item.timeResolution.references[0].quote,'今天开始，持续了十分钟')
@@ -29,8 +29,8 @@ for(const [name,answer] of [
  ['wrong raw source range',{rawStart:0,rawEnd:'今天开始，持续了十分钟'.length}],
  ['source text mismatch',{answerText:'今天开始，持续了二十分钟'}],
  ['retired answer',{status:'superseded'}]
-])test(`onset binding rejects ${name}`,()=>{
- assert.throws(()=>ground({answer}),{code:'AI_TIME_CONFLICT'})
+])for(const timeText of ['今天','今天开始','今天开始，持续了十分钟'])test(`onset binding rejects ${name} (${timeText})`,()=>{
+ assert.throws(()=>ground({answer,items:[{...baseItem(),timeText}]}),{code:'AI_TIME_CONFLICT'})
 })
 test('one bound onset cannot be copied to multiple ambiguous cold items',()=>{
  const text=raw+'\n右脚摸起来凉',second={...baseItem(),title:'右脚凉感',fields:[{name:'symptom',value:'右脚摸起来凉',quote:'右脚摸起来凉',sourceId:'input',page:1}]}

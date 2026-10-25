@@ -42,8 +42,8 @@ async function interview(f,{initial=inputs[0],onset=inputs[2]}={}){
  const raw=turn.context.messages.filter(m=>m.kind!=='assistant'&&m.status==='completed').map(m=>m.text).join('\n')
  return {contextId,raw}
 }
-for(const contract of ['defaults','ui'])test(`bound cold onset survives short quotes, save/readback and replay (${contract} request)`,async t=>{
- const f=await fixture(t),{contextId,raw}=await interview(f)
+for(const contract of ['defaults','ui'])for(const timeText of ['今天','今天开始',inputs[2]])test(`bound cold onset survives short quotes, save/readback and replay (${contract}: ${timeText})`,async t=>{
+ const f=await fixture(t,item(timeText)),{contextId,raw}=await interview(f)
  assert.equal(raw,inputs.join('\n'))
  const extra=contract==='ui'?{selectedOccurredAt:now().toISOString(),confirmOccurrenceTime:false}:{}
  const review=await f.business.prepare(account,f.member.id,{text:raw,smartRecord:true,frontDeskRecord:true,frontContextId:contextId,followUp:false,timezone:'Asia/Shanghai',...extra})
@@ -84,8 +84,14 @@ test('bound today answer cannot authorize borrowing yesterday from another activ
  assert.equal((await f.business.records.repository.findByAccountId(account)).length,0)
 })
 
-test('a bound onset answer with conflicting dates remains rejected without saving',async t=>{
- const f=await fixture(t),{contextId,raw}=await interview(f,{onset:'昨天开始，今天开始，持续了十分钟'})
+for(const timeText of ['今天','昨天开始，今天开始，持续了十分钟'])test(`a bound onset answer with conflicting dates remains rejected without saving (${timeText})`,async t=>{
+ const f=await fixture(t,item(timeText)),{contextId,raw}=await interview(f,{onset:'昨天开始，今天开始，持续了十分钟'})
+ await assert.rejects(()=>f.business.prepare(account,f.member.id,{text:raw,smartRecord:true,frontDeskRecord:true,frontContextId:contextId,followUp:false,timezone:'Asia/Shanghai'}),{code:'AI_TIME_CONFLICT'})
+ assert.equal((await f.business.records.repository.findByAccountId(account)).length,0)
+})
+
+for(const [timeText,initial] of [['今天10点','今天10点喝奶。身体有点冷'],['持续了十分钟',inputs[0]]])test(`onset cannot borrow precision or use duration as a date (${timeText})`,async t=>{
+ const f=await fixture(t,item(timeText)),{contextId,raw}=await interview(f,{initial})
  await assert.rejects(()=>f.business.prepare(account,f.member.id,{text:raw,smartRecord:true,frontDeskRecord:true,frontContextId:contextId,followUp:false,timezone:'Asia/Shanghai'}),{code:'AI_TIME_CONFLICT'})
  assert.equal((await f.business.records.repository.findByAccountId(account)).length,0)
 })

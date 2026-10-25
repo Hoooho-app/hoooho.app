@@ -49,7 +49,10 @@ export function groundNursingEvidence(items,sources,context){
    const source=primaryScopes.find(scope=>scope.source.id==='input'&&Number.isInteger(answer.rawStart)&&Number.isInteger(answer.rawEnd)&&scope.source.text.slice(answer.rawStart,answer.rawEnd)===answer.answerText)?.source
    if(!source||nursingObservationContext(answer.answerText).active.some(domain=>domain!==answer.domain))continue
    const times=extractTimeMentions(answer.answerText)
-   if(!grounded.timeText||!times.some(time=>time.value===grounded.timeText))continue
+   // A model may quote the full bound onset phrase, including its duration.
+   // Require literal source wording; all date ranges and precisions are still
+   // compared below, so a duration or a conflicting date cannot become onset.
+   if(!grounded.timeText||!answer.answerText.includes(grounded.timeText)||!times.some(time=>grounded.timeText.includes(time.value)))continue
    localTimes.push(...times.map(time=>time.value))
    boundTimes.push({sourceId:source.id,page:source.page,quote:answer.answerText,start:answer.rawStart,end:answer.rawEnd,sourceMessageId:answer.sourceMessageId,questionId:answer.questionId})
   }
