@@ -84,3 +84,8 @@ Original photo previews opened from an existing record, reminder or upload works
 ### 2026-10-24 纯粹记录体验补充
 
 纸底纹理采用版本化的`paper-fiber-rough-20261024.svg`，以低透明纤维叠加细粒呈现轻粗纸质感，卡片继续使用较轻纹理。饮食／瓶喂的名称输入与真实时间编辑共用一行，输入沿用`HohoInput`与44px目标，不再另占标题行。辅助工具、呵护之旅和会员展示按共享可见性开关暂藏，原实现与数据保留。范围和时间建议名规则见[纯粹记录体验](design/pure-record-experience-20261024.md)。
+
+
+### 2026-10-25 前台定向调整
+
+首页标题为「前台」，欢迎横幅用既有黑发护士的静态半身招呼图；原护士站视频仅在实际解析时显示。双方气泡保持通栏，头像内嵌，助手沿用金发护士。`DialogueComposer` / `HoldToTalkButton` 可选 `liveTranscript` 与 `liveStatus`，将实际转写放在录音反馈层内，避免被遮罩盖住；首次资料对话和前台共用，其他调用保持原行为。症状跟进仅在用户明确启用且存在进行中事项时显示。旧规范中首页无头像、欢迎区常播视频的约定由本段替代。

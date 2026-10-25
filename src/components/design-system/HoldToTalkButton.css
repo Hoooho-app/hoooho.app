@@ -25,3 +25,7 @@ body .hoho-hold-to-talk.is-cancelling[data-variant='primary']{background:rgb(var
 .hoho-hold-feedback--conversation.is-cancelling{background:linear-gradient(to top,rgb(146 53 57/.98),rgb(174 62 67/.65) 16%,transparent 52%)}
 @keyframes hoho-capture-enter{from{opacity:0}to{opacity:1}}
 @media(prefers-reduced-motion:reduce){.hoho-hold-feedback--conversation{animation:none}}
+
+.hoho-hold-feedback__transcript{width:100%;min-width:0;text-align:left;font-weight:400;font-size:var(--hoho-font-size-body);line-height:1.65}
+.hoho-hold-feedback__transcript>p{max-height:min(32dvh,240px);overflow:hidden;white-space:pre-wrap;overflow-wrap:anywhere;margin:var(--hoho-space-2) 0 0}
+.hoho-hold-feedback__transcript>small{font-size:var(--hoho-font-size-caption);opacity:.88}

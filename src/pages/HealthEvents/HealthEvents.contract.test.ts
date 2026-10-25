@@ -46,7 +46,7 @@ test('前台护士站成为默认首页且健康随记保持独立', () => {
   assert.match(router, /path: '\/', element: <Navigate to="\/nurse-station" replace/)
   assert.match(router, /path: '\/nurse-station'/)
   assert.doesNotMatch(page, /health-events-view-switch|DEFAULT_HEALTH_EVENTS_VIEW_MODE/)
-  assert.match(read('../NurseStation/FirstChildSetup.tsx'), /<MainAppHeader title="护护"/)
+  assert.match(read('../NurseStation/FirstChildSetup.tsx'), /<MainAppHeader title="前台"/)
 })
 
 test('零成员在护士站内分流且不会预先创建空健康事件', () => {

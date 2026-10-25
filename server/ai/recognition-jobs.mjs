@@ -115,6 +115,10 @@ export class RecognitionJobs {
     await this.scope(accountId,memberId)
     if(!validId(input.id)||!validId(input.input?.id)||!['front','record','structured','transcription'].includes(input.mode)||!['text','voice','image'].includes(input.input.kind)||typeof input.input.text!=='string'||input.input.text.length>15000)throw fail('识别任务内容无效',422,'RECOGNITION_INVALID')
     const item={id:input.input.id,kind:input.input.kind,text:input.input.text,inputAt:Number.isFinite(input.input.inputAt)?Math.min(input.input.inputAt,this.now()):this.now(),assetIds:input.input.assetIds??[],asrAssetId:input.input.asrAssetId??null}
+    if(input.input.contextId!==undefined){
+      if(input.mode!=='front'||!validId(input.input.contextId))throw fail('对话归属无效',422,'RECOGNITION_CONTEXT_INVALID')
+      item.contextId=input.input.contextId
+    }
     if(input.input.answerTo!==undefined){
       const target=input.input.answerTo
       if(input.mode!=='front'||!target||!validId(target.contextId)||!validId(target.questionId))throw fail('问题归属无效',422,'RECOGNITION_ANSWER_INVALID')
@@ -215,7 +219,7 @@ export class RecognitionJobs {
         }
         if(j.mode==='front'){
           await phase({stage:'responding'})
-          const result=await this.front.submit(j.accountId,j.memberId,{id:item.id,kind:item.kind,text,inputAt:item.inputAt,files,voiceFiles,...(item.answerTo?{answerTo:item.answerTo}:{})},signal)
+          const result=await this.front.submit(j.accountId,j.memberId,{id:item.id,kind:item.kind,text,inputAt:item.inputAt,files,voiceFiles,...(item.contextId?{contextId:item.contextId}:{}),...(item.answerTo?{answerTo:item.answerTo}:{})},signal)
           await this.updateActive(id,epoch,signal,{frontDesk:{...result,context:{...result.context,review:undefined,messages:result.context.messages.map(({originalFiles,...m})=>({...m,files:(m.files??[]).map(({dataUrl,...f})=>f),voices:(m.voices??[]).map(({dataUrl,...f})=>f)}))}},contextId:result.context.id})
         }
         await this.updateActive(id,epoch,signal,{cursor:j.cursor+1})

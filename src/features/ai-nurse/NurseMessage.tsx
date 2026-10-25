@@ -22,6 +22,6 @@ export function NurseMessage({ role, recorderName, children, assistantName = '�
     {!conversation&&(role === 'user'
       ? <span className="nurse-avatar nurse-avatar--user" role="img" aria-label={`${recorderName || '用户'}的头像`}>{userInitial(recorderName)}</span>
       : <span className="nurse-avatar nurse-avatar--assistant" role="img" aria-label={assistantName}>{assistantAvatar ?? <CompleteImage src={nursePortrait} alt="" />}</span>)}
-    <div className="nurse-turn-content">{children}{role==='assistant'&&onRead&&<HohoButton variant="text" size="icon" disabled={readDisabled} aria-label={reading?'停止朗读':'朗读护士回复'} onClick={onRead}>{reading?<Square size={16} aria-hidden/>:<Volume2 size={18} aria-hidden/>}</HohoButton>}</div>
+    <div className="nurse-turn-content">{conversation&&<span className={`nurse-avatar nurse-avatar--inline nurse-avatar--${role}`} role="img" aria-label={role==='assistant'?assistantName:`${recorderName||'用户'}的头像`}>{role==='assistant'?(assistantAvatar??<CompleteImage src={nursePortrait} alt=""/>):userInitial(recorderName)}</span>}{children}{role==='assistant'&&onRead&&<HohoButton variant="text" size="icon" disabled={readDisabled} aria-label={reading?'停止朗读':'朗读护士回复'} onClick={onRead}>{reading?<Square size={16} aria-hidden/>:<Volume2 size={18} aria-hidden/>}</HohoButton>}</div>
   </div>
 }

@@ -3,13 +3,13 @@ import { captureDraft } from './captureDraft'
 import { useSmartRecordVoice } from './useSmartRecordVoice'
 import { localDateTimeValue } from '../../utils/healthOccurredAt'
 
-export function useDialogueVoice(key: string, token: string, onTranscript: (text: string,recordingId:string) => Promise<void>) {
+export function useDialogueVoice(key: string, token: string, onTranscript: (text: string,recordingId:string) => Promise<void>, options:{livePreview?:boolean}={}) {
   const [pendingVoice, setPendingVoice] = useState<File>()
   const [pendingTranscript,setPendingTranscript]=useState<string>()
   const [storageError, setStorageError] = useState('')
   useEffect(() => { let active = true; void captureDraft(key).then(saved => { if (active){setPendingVoice(saved?.pendingVoice);setPendingTranscript(saved?.voiceTranscript)} }).catch(() => { if (active) setStorageError('刚才的录音没有恢复，请再试一次。') }); return () => { active = false } }, [key])
   const retained=(file:File,voiceTranscript?:string)=>({text:'',files:[file],pendingVoice:file,voiceTranscript,occurredAt:localDateTimeValue(),timeUnknown:false,requestId:`voice:${file.name}:${file.lastModified}`})
-  const voice = useSmartRecordVoice({ memberId: '', token, pendingVoice,pendingTranscript, onRecorded: async file => {
+  const voice = useSmartRecordVoice({ memberId: '', token,livePreview:options.livePreview, pendingVoice,pendingTranscript, onRecorded: async file => {
     await captureDraft(key, { text: '', files: [file], pendingVoice: file, occurredAt: localDateTimeValue(), timeUnknown: false, requestId: crypto.randomUUID() })
     setPendingVoice(file)
     setPendingTranscript(undefined);setStorageError('')
