@@ -58,12 +58,16 @@ export async function generateSemanticSummaries(items,{model,sources,buildFacts,
  if(packets.length!==items.length)throw summaryFailure('事实尚未核验完整，原话保留','AI_SUMMARY_INCOMPLETE','facts_invalid')
  if(!packets.length)return items
  if(items.length===1)for(const [i,text] of unresolvedItems.entries())packets[0].facts.push({text:'待确认：'+text,factIds:[`${items[0].id}:unknown:${i}`]})
- const generationRepair=repairHints?{items:packets.filter(p=>repairHints.missingFacts?.some(f=>f.itemId===p.itemId)).map(p=>({itemId:p.itemId,reviewFactIds:[...new Set(p.facts.flatMap(f=>f.factIds))],requiredTimeText:p.scope.timeText}))}:null
+ const generationRepair=repairHints?{items:packets.filter(p=>repairHints.missingFacts?.some(f=>f.itemId===p.itemId)||repairHints.items?.some(f=>f.itemId===p.itemId)).map(p=>{
+  const reviewFactIds=[...new Set(p.facts.flatMap(f=>f.factIds))],requested=repairHints.items?.find(f=>f.itemId===p.itemId)?.missingFactIds
+  const requiredFactIds=Array.isArray(requested)?[...new Set(requested.filter(id=>reviewFactIds.includes(id)))]:[]
+  return {itemId:p.itemId,reviewFactIds,requiredTimeText:p.scope.timeText,...(requiredFactIds.length?{requiredFactIds}:{})}
+ })}:null
  const generationContract=structuredClone(summarySchema)
  generationContract.properties.items.items.properties.itemId.enum=packets.map(p=>p.itemId)
  generationContract.properties.items.items.properties.claims.items.properties.factIds.items.enum=[...new Set(packets.flatMap(p=>p.facts.flatMap(f=>f.factIds)))]
  onCall?.()
- const generated=await model.structured({task:'professional-summary-generate',schema:generationContract,signal,samplingTemperature:0,instructions:'把已核验事实整理成自然、简洁、适合交接的中文标题和逐句摘要。只用facts，不诊断、不建议治疗、不加事实。factIds精确使用给定ID，每句关联所有依据。标题表达部位与表现，例如已有脚小拇指和被踢破的证据可规范为足小趾被踢后破损；不要只写破了。保留人物、时间、否定、未知、自述/观察/转述、数字和单位。没有提到不能写没有，建议不能写已经执行，先后不写因果。不要照搬字段名拼接；同一事件连贯表达；完整覆盖所有重要事实及已绑定回答。不把已更正内容写成当前事实。scope.timeText非空时，摘要至少一句必须逐字保留该时间原话，不从当前日期补时间。scope的成员归属只是人物范围，不必复述归属操作。repairHints若存在，只用于提醒上轮遗漏，不是新事实；仍只使用本轮facts，不把确认归属/要求整理的操作原话当症状。只能输出schema对象。',input:JSON.stringify({items:packets,...(generationRepair?{repairHints:generationRepair}:{})})})
+ const generated=await model.structured({task:'professional-summary-generate',schema:generationContract,signal,samplingTemperature:0,instructions:'把已核验事实整理成自然、简洁、适合交接的中文标题和逐句摘要。只用facts，不诊断、不建议治疗、不加事实。factIds精确使用给定ID，每句关联所有依据。标题表达部位与表现，例如已有脚小拇指和被踢破的证据可规范为足小趾被踢后破损；不要只写破了。保留人物、时间、否定、未知、自述/观察/转述、数字和单位。没有提到不能写没有，建议不能写已经执行，先后不写因果。不要照搬字段名拼接；同一事件连贯表达；完整覆盖所有重要事实及已绑定回答。不把已更正内容写成当前事实。scope.timeText非空时，摘要至少一句必须逐字保留该时间原话，不从当前日期补时间。scope的成员归属只是人物范围，不必复述归属操作。repairHints若存在，只用于提醒上轮遗漏，不是新事实；其中requiredFactIds必须逐一在claims.factIds出现，并用正文完整表达对应facts，不能只塞ID而漏正文；仍只使用本轮facts，不把确认归属/要求整理的操作原话当症状。只能输出schema对象。',input:JSON.stringify({items:packets,...(generationRepair?{repairHints:generationRepair}:{})})})
  const candidates=generated.value?.items
  if(!Array.isArray(candidates)||candidates.length!==packets.length||new Set(candidates.map(c=>c?.itemId)).size!==packets.length)throw fail('摘要未完整返回，原话仍保留',503,'AI_SUMMARY_INVALID')
  for(const packet of packets){
@@ -72,7 +76,7 @@ export async function generateSemanticSummaries(items,{model,sources,buildFacts,
   if(packet.sourceEvidence.some(f=>f.references.some(r=>r.sourceKind==='visual_observation'))&&!/照片|图片|图像|可见/u.test(c.claims.map(v=>v.text).join('')))throw summaryFailure('摘要遗漏图片观察来源','AI_SUMMARY_UNSUPPORTED','source_type_qualifier')
   for(const claim of c.claims){const local=criticalEvidence(packet,packet.facts.filter(f=>f.factIds.some(id=>claim.factIds.includes(id))));if(extraCritical(claim.text,local))throw summaryFailure('摘要关键值与所引事实不符','AI_SUMMARY_UNSUPPORTED','critical_value_mismatch')}
   const body=c.claims.map(v=>v.text).join('\n');if(measures(evidence).some(m=>!measures(body).includes(m)))throw summaryFailure('摘要遗漏关键数值或单位','AI_SUMMARY_INCOMPLETE','missing_measurement')
-  const covered=new Set(c.claims.flatMap(v=>v.factIds));if([...ids].some(id=>!covered.has(id)))throw summaryFailure('摘要遗漏已有事实，请重新整理','AI_SUMMARY_INCOMPLETE','fact_coverage')
+  const covered=new Set(c.claims.flatMap(v=>v.factIds)),missingFactIds=[...ids].filter(id=>!covered.has(id));if(missingFactIds.length){const error=summaryFailure('摘要遗漏已有事实，请重新整理','AI_SUMMARY_INCOMPLETE','fact_coverage');error.summaryRepair={items:[{itemId:packet.itemId,missingFactIds}]};throw error}
  }
  const verificationContract=structuredClone(verificationSchema)
  const verificationItem=verificationContract.properties.items.items.properties
