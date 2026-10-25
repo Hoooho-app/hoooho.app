@@ -65,3 +65,21 @@ jobs:
             outputs/symptom-followup/
             test-results/
             playwright-report/
+  cold-production-acceptance:
+    if: github.event_name == 'pull_request' && github.head_ref == 'codex/nurse-guidance-acceptance-20261025'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify the deployed cold-observation conversation and exact save
+        env:
+          HOOOHO_RUN_COLD_LIVE_ACCEPTANCE: '1'
+        run: node tests/dialogue/cold-api-live-acceptance.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cold-production-safe-result
+          path: outputs/nursing-record-production/cold-loop-acceptance.json
