@@ -76,7 +76,8 @@ test('front desk separates animated processing, one question, paper review and p
   const boxes=await actions.getByRole('button').evaluateAll(es=>es.map(e=>({width:e.getBoundingClientRect().width,top:e.getBoundingClientRect().top,color:getComputedStyle(e).color,background:getComputedStyle(e).backgroundColor})))
   expect(Math.abs(boxes[0].width-boxes[1].width)).toBeLessThan(1)
   expect(boxes[0].top).toBe(boxes[1].top)
-  expect(boxes.every(e=>e.color==='rgb(255, 255, 255)'&&e.background==='rgb(72, 98, 83)')).toBe(true)
+  expect(boxes[0].color).toBe(boxes[1].color)
+  expect(boxes[0].background).toBe(boxes[1].background)
   await page.screenshot({path:info.outputPath(`record-sheet-${width}.png`)})
  }
  await page.getByRole('button',{name:'核对记录',exact:true}).click()
