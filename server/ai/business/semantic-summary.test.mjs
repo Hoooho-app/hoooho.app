@@ -234,3 +234,21 @@ test('summary repair hints contain only this pass fact IDs and scope rather than
  }
  await run(f,model,{repairHints:{missingFacts:[{itemId:'item-1',quote:'只能来自遗漏引文的额外内容'}]}})
 })
+
+
+test('the verifier checks the complete record with server-owned scope rather than demanding attribution prose in every narrative',async()=>{
+ const f=factsFixture({raw:'今天脚小拇指被踢破了',entries:[['symptom','脚小拇指被踢破了']],timeText:'今天'}),model=fakeModel(),structured=model.structured
+ model.structured=async input=>{
+  if(input.task==='professional-summary-verify'){
+   const data=JSON.parse(input.input)
+   assert.deepEqual(data.candidates[0].recordScope,{subject:'current',timeText:'今天'})
+   assert.deepEqual(data.candidates[0].recordScope,data.facts[0].scope)
+   assert.equal(data.sourceInventory[0].text,f.sources[0].text)
+   assert.deepEqual(Object.keys(data.candidates[0].recordScope).sort(),['subject','timeText'])
+  }
+  return structured(input)
+ }
+ const [item]=await run(f,model,{sourceCoverage:true})
+ assert.equal(item.professionalSummary.verification.status,'verified')
+ assert.equal(validSemanticSummary(item.professionalSummary,item,{sources:f.sources}),true)
+})
