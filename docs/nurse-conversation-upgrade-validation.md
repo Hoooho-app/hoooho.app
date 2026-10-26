@@ -1,7 +1,21 @@
 # 前台对话升级：阶段验证证据
 
-本文件保留 2026-10-26 各版本的真实证据。当前已完成本地实现、回归和两条真实保存流程，已推送隔离功能分支；尚未合入 main、未发布 Production。后续修复不回填旧报告为 PASS；95% 理解正确率、无必要追问不高于 5%、临床审核和阿福对照均未证实。
+本文件保留 2026-10-26 各版本的真实证据。当前实现、回归和两条真实保存流程已通过，PR #546 已合入 main 并发布 Production；下文区分线上零模型验收与本地真实模型评测。后续修复不回填旧报告为 PASS；95% 理解正确率、无必要追问不高于 5%、临床审核和阿福对照均未证实。
 
+
+## Production 发布及线上验收（2026-10-26）
+
+- 实现提交 `1f108814c770765ac6df8977201cb1e7150c3dc7`；[PR #546](https://github.com/Hoooho-app/hoooho.app/pull/546) 已合入 main，应用合并提交 `fcf59ca2f86a68e0ede536bb8f9812ab54a44de1`。没有夹带用户其他工作树修改。
+- [CI run 40272276127](https://github.com/Hoooho-app/hoooho.app/actions/runs/40272276127) 的 verify 全部 PASS，含完整 31 对话、45 当前协议手机、4 症状过程、23 首页、5 first-child、4 pure-record、2 forest。单独旧分支限定的 cold-production job 按原条件 SKIP，未把它记 PASS。
+- Railway Production 部署 `c368a6b2-4fe4-48c7-89a1-4f891faff267` 于 2026-10-26T05:25:16Z SUCCESS，部署来源 main 与上述合并提交一致；实际 `/api/ai/audio/capabilities.runtime.commit` 前后均返回该完整 SHA。正式地址为 [hoooho.com](https://hoooho.com)。
+- `/`、`/api/health`、`/nurse-station`、`/health-events` 均 HTTP 200；health 为 ok。入口 HTML SHA256 `cc2433243442b8ad412d83fd2f869590772fd50386f2beef11791d88727d480b`；新入口 `/assets/index-CeK7HY4t.js` 与 `/assets/index-CUUlUgO0.css` 均 200、非空。
+- 线上仅运行零付费模型的合成原话流程：真实保留原话 → 用户明确确认对象 → `save_original` 正式持久化 → 原 ID/owned event/原文回读 → 相同输入版本重放同一回执且只有一条记录。原文为中性虚构流程文字，类别 other、来源 manual/model=null、发生时间未知，没有自动启用症状跟进。此路径和清理调用链经源码审计不经过供应商；不是供应商遥测统计。
+- 后台 Chrome 的 iPhone SE 预设实际打开正式前台与精确 owned recordId 详情，320×568、scale=1、scrollWidth=320，无 pageerror、5xx 或模型请求。截图已目视核对，发生时间显示“发生时间待确认”。没有更改用户右侧可视预览。
+- 最终线上结果见 [脱敏发布证据](evidence/nurse-conversation-production-20261026.json)。本地像素文件为 `outputs/nurse-conversation-upgrade-production/home-iphone-se.png` 和 `original-detail-iphone-se.png`。没有向生产页面注入候选、操作回执或成功气泡；Production 的真实模型成功气泡未重跑，本地实际睡眠/接种证据仍按各自版本记录。
+- 验收脚本前两次分别因测试昵称/密码长度被既有注册校验拒绝，没有创建账号；随后两次等待旧成员卡选择器超时，原话 API 保存和清理成功，保留原始失败报告与截图。按当前前台入口修正验收选择器后完整 PASS，没有修改产品 UI 来适配脚本。三次成功注册均仅操作各自合成成员，三份结果均确认记录、事件、成员已删除并注销会话；三个空合成账号保留，未借用真实用户账号或访问其健康数据。
+- 累计本地真实模型仍为 **197/200**；线上此验收没有消耗额外模型请求。95% 理解正确率、≤5% 无必要追问、完整 96 项真实模型、多事项全部连续组合、实体 iPhone、临床审核及阿福盲测仍未证实，不将小批通过扩大为总体效果结论。
+
+回退：对应用合并提交 `fcf59ca2` 使用普通、聚焦 revert PR，经相关测试、构建和 Production 部署验证；前一已运行应用提交为 `a6bb46fbac5f7b4380038cb02a9e93a322204c1f`（部署 `85bae306-ee55-4d28-a6e0-da928dec994c`）。不得用 force push、删除正式记录、回滚 Secret 或覆盖其他任务来回退。本次没有不可逆数据迁移，旧记录/草稿/协议保持兼容。
 
 ## 当前实现及兼容范围
 
@@ -24,7 +38,7 @@
 | TypeScript、资源/viewport/auth/PWA guards、Production build | PASS |
 | lint | N/A，项目没有 lint script |
 | 最终手机完整交互回归 | 45/45 PASS；后台 Chrome 375/390/430，保存动作另检查 320；真实本地 API/持久化 + 明确模型替身 |
-| 通用浏览器与兼容 | 对话 31/31 PASS；症状过程 4/4 PASS；首页修复后 22 项同批 + 空白 PDF 单项 PASS；first-child 5/5、pure-record 4/4、forest 2/2 PASS；新 CI 将全套重跑 |
+| 通用浏览器与兼容 | 对话 31/31 PASS；症状过程 4/4 PASS；首页完整 23/23 PASS；first-child 5/5、pure-record 4/4、forest 2/2 PASS；PR CI 已全套通过 |
 | diff check | PASS；未带入知识源 EOL、临时文件、Secret 或无关业务修改 |
 
 真实 `regression-1792977396356`：T15/C05/ASR01 三项、11 次实际请求，独立审阅本批 3/3 完整正确。T15 为真实原问原答候选；C05 不再新增“没有咳嗽”；ASR 实际上传原音、转写、饮用量及否定事实进入候选，未向用户显示无回执“已记录”。这不是全量正确率。
@@ -65,7 +79,7 @@
 
 现有正式记录的自由文字修改仍导向原详情核对，不让模型直接改写正式记录；指定部分候选保存继续走原核对页面，不能宣称所有组合指令均已实现。已有条目可按实际 owned ID 查询/导出/删除，未新增独立医疗建议或全会话聚合交接系统。
 
-Production 交付尚未执行，当前功能分支为 `codex/nurse-conversation-upgrade-20261026`。已集成远端 main `0a1bfc0d` 并保留其协议/来源核验/验收清理实现。当前仓库有效规则为 Production-only，Staging 已退役，不重建。当前 PR #546 已提交；修复后 CI 通过后才允许 main 集成及发布，不能用本地 PASS 声称线上通过。
+实现分支 `codex/nurse-conversation-upgrade-20261026` 已按 PR #546 合入并实际发布，精确版本和线上验证见本文件发布记录。保留远端 main `0a1bfc0d` 的协议/来源核验/验收清理实现。有效规则为 Production-only，Staging 已退役，没有创建或恢复 Staging。线上零模型保存通过不等于完整真实模型效果验收通过。
 
 ## 历史批次（不追溯回填）
 
