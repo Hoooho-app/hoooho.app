@@ -110,34 +110,3 @@ body .smart-record-home .nurse-turn--user>.nurse-turn-content{background:rgb(var
 @keyframes front-desk-dots{to{clip-path:inset(0 -25% 0 0)}}
 @media(max-width:359px){.smart-record-home .front-desk-processing--separate{grid-template-columns:88px minmax(0,1fr) auto}.smart-record-home .front-desk-processing--separate>.idle-nurse-visual{width:88px;height:88px}}
 @media(prefers-reduced-motion:reduce){.smart-record-home .front-desk-processing__dots{animation:none;clip-path:none}}
-
-/* V3: one text surface, with the existing recording feedback kept in place. */
-.smart-record-dialog,.smart-record-dialog h1,.smart-record-dialog h2,.smart-record-dialog h3{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif}
-.smart-record-dialog .nurse-turn--user>.nurse-turn-content{background:rgb(var(--hoho-color-surface-white));border-color:rgb(var(--hoho-color-border))}
-.smart-record-dialog .nurse-turn--assistant>.nurse-turn-content{background:rgb(var(--hoho-color-primary-soft));border-color:rgb(var(--hoho-color-primary-border))}
-.smart-record-dialog .nurse-turn-content{box-shadow:none;font-size:var(--hoho-font-size-card-title);line-height:1.625;padding:14px var(--hoho-space-4);overflow-wrap:anywhere}
-.smart-record-dialog .nurse-turn-content>p{font-size:inherit;line-height:inherit;white-space:pre-wrap;overflow-wrap:anywhere}
-.smart-record-dialog .nurse-turn-content>.voice-draft-status{font-size:var(--hoho-font-size-caption);line-height:1.54;color:rgb(var(--hoho-color-text-secondary));margin-top:var(--hoho-space-2)}
-.voice-text-editor{display:grid;gap:var(--hoho-space-2)}
-.voice-text-editor>textarea{min-height:120px;resize:vertical;width:100%;font:inherit;line-height:inherit;border:1px solid rgb(var(--hoho-color-border));border-radius:var(--hoho-radius-control);padding:var(--hoho-space-3);background:rgb(var(--hoho-color-surface-white))}
-.front-desk-recipient{display:flex;align-items:center;gap:var(--hoho-space-2);font-size:var(--hoho-font-size-caption);color:rgb(var(--hoho-color-text-secondary));min-width:0}
-.front-desk-recipient>.hoho-button{min-height:48px;white-space:normal;overflow-wrap:anywhere;text-align:left}
-.front-desk-welcome--compact .hoho-reception.hoho-health-card{min-height:0;padding:var(--hoho-space-3);box-shadow:none}
-.front-desk-welcome--compact .hoho-reception__media{width:48px;height:56px}
-.front-desk-welcome--compact .hoho-reception__copy>p{display:none}
-.front-desk-welcome--compact .hoho-reception__copy h2{font-size:var(--hoho-font-size-body);line-height:1.5}
-.front-desk-welcome--compact .hoho-reception__copy br{display:none}
-.smart-record-live-capture .smart-record-page__body{padding-bottom:calc(var(--hoho-space-4) + var(--capture-reading-reserve,0px));scroll-padding-bottom:var(--hoho-space-4)}
-.smart-record-dialog .smart-record-saved{gap:var(--hoho-space-2)}
-.smart-record-dialog .smart-record-saved strong{font-size:var(--hoho-font-size-body);font-weight:500;overflow-wrap:anywhere}
-.smart-record-dialog .smart-record-saved-actions{display:flex;align-items:center;gap:var(--hoho-space-2);flex-wrap:wrap}
-.smart-record-dialog .smart-record-saved-actions>.hoho-button{min-height:48px;white-space:normal;flex:1}
-.smart-record-review-footer>.hoho-button{min-height:48px;white-space:normal;overflow-wrap:anywhere}
-
-.smart-record-dialog .hoho-main-header--conversation>h1{font-family:inherit}
-.smart-record-home .front-desk-processing--compact{display:flex;padding:var(--hoho-space-2);border:0;background:transparent;box-shadow:none;gap:var(--hoho-space-2)}
-.smart-record-home .front-desk-processing--compact>.idle-nurse-visual{width:40px;height:40px;flex:0 0 40px}
-.front-desk-processing--compact .front-desk-processing__copy{flex:1;min-width:0;font-size:var(--hoho-font-size-caption);font-weight:400;overflow-wrap:anywhere}
-.front-desk-processing--compact>.hoho-button{min-height:48px;font-size:var(--hoho-font-size-caption);white-space:normal;flex:none}
-
-.front-desk-processing__avatar{width:40px;height:40px;object-fit:contain;flex:0 0 40px}

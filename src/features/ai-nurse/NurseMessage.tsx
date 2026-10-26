@@ -6,8 +6,7 @@ import './NurseConversation.css'
 import {Volume2,Square} from 'lucide-react'
 import {HohoButton} from '../../components/design-system/HohoButton'
 
-export function NurseMessage({ messageId, role, recorderName, children, assistantName = '值班护士', assistantAvatar, onRead, reading=false,readDisabled=false, conversation=false }: {
-  messageId?:string
+export function NurseMessage({ role, recorderName, children, assistantName = '值班护士', assistantAvatar, onRead, reading=false,readDisabled=false, conversation=false }: {
   role: 'assistant' | 'user'
   recorderName?: string
   children: ReactNode
@@ -19,7 +18,7 @@ export function NurseMessage({ messageId, role, recorderName, children, assistan
   readDisabled?:boolean
   conversation?:boolean
 }) {
-  return <div data-message-id={messageId} className={`nurse-turn nurse-turn--${role}${conversation?' nurse-turn--conversation':''}`} role={conversation?'group':undefined} aria-label={conversation?(role==='user'?'我的消息':'护护的回复'):undefined}>
+  return <div className={`nurse-turn nurse-turn--${role}${conversation?' nurse-turn--conversation':''}`} role={conversation?'group':undefined} aria-label={conversation?(role==='user'?'我的消息':'护护的回复'):undefined}>
     {!conversation&&(role === 'user'
       ? <span className="nurse-avatar nurse-avatar--user" role="img" aria-label={`${recorderName || '用户'}的头像`}>{userInitial(recorderName)}</span>
       : <span className="nurse-avatar nurse-avatar--assistant" role="img" aria-label={assistantName}>{assistantAvatar ?? <CompleteImage src={nursePortrait} alt="" />}</span>)}

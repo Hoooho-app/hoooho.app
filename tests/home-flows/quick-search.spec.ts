@@ -1,6 +1,5 @@
 import {test,expect} from '@playwright/test'
 import {TokenService} from '../../server/auth/token-service.mjs'
-import {seedLegacyPendingVoice} from '../helpers/legacy-voice'
 import {randomUUID} from 'node:crypto'
 const token=new TokenService('visit-sheet-e2e-secret',3600000).create({id:'visit-test'}),headers={Authorization:`Bearer ${token}`}
 
@@ -203,33 +202,24 @@ test('索引与识别都挂起时仍按总预算结束等待，旧结果不能�
  release();await speak();await expect(input).toHaveValue('新的查找');expect(calls).toBe(2)
 })
 
-test('V3退出时迟到的新音频不落盘，升级前保留的原录音字节仍完整',async({page,request})=>{
+test('共享录音逻辑在智能记录退出后仍保存迟到的最后音频字节',async({page,request})=>{
  const member=await request.post('/api/members',{headers,data:{name:'原件保护（虚构）',relationship:'child'}}),memberId=(await member.json()).id
  await page.addInitScript(({token,memberId})=>{
   sessionStorage.setItem('hoooho-auth-token',token);localStorage.setItem('hoooho-app',JSON.stringify({state:{authUser:{id:'visit-test'},currentMemberId:memberId,members:[],profile:null},version:5}))
   const descriptor=Object.getOwnPropertyDescriptor(MediaRecorder.prototype,'onstop')!
-  Object.defineProperty(MediaRecorder.prototype,'onstop',{...descriptor,set(handler){descriptor.set!.call(this,handler?function(this:MediaRecorder,event:Event){setTimeout(()=>{(window as any).__lateStops=((window as any).__lateStops??0)+1;handler.call(this,event)},350)}:null)}})
+  Object.defineProperty(MediaRecorder.prototype,'onstop',{...descriptor,set(handler){descriptor.set!.call(this,handler?function(this:MediaRecorder,event:Event){setTimeout(()=>handler.call(this,event),350)}:null)}})
  },{token,memberId})
  await page.goto('/smart-record?source=front-desk')
  const hold=page.getByRole('button',{name:'按住说话',exact:true});await expect(hold).toBeEnabled()
- const original=await seedLegacyPendingVoice(page,memberId),legacyKey=`home-smart:visit-test:${memberId}:new:retained:1700000000000:legacy`
- // Seed a historical archived draft without turning it into a new microphone
- // capture. Preserve its exact bytes while testing the changed V3 lifecycle.
- await page.evaluate(async({memberId,legacyKey})=>{
-  const db=await new Promise<IDBDatabase>(resolve=>{const r=indexedDB.open('hoooho-smart-record-drafts',1);r.onsuccess=()=>resolve(r.result)})
-  await new Promise<void>((resolve,reject)=>{const tx=db.transaction('drafts','readwrite'),store=tx.objectStore('drafts'),key=`home-smart:visit-test:${memberId}:new`,r=store.get(key);r.onsuccess=()=>{store.put({...r.result,archivedConversation:true},legacyKey);store.delete(key)};tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error)});db.close()
- },{memberId,legacyKey})
  await hold.focus();await page.keyboard.down('Space');await page.waitForTimeout(1100)
  await page.getByRole('button',{name:'返回',exact:true}).click();await page.keyboard.up('Space')
  await page.getByRole('button',{name:'保存草稿并退出',exact:true}).click();await expect(page).toHaveURL(/nurse-station$/)
- await expect.poll(()=>page.evaluate(()=>(window as any).__lateStops??0)).toBeGreaterThan(0)
- // Reopening must not persist new raw audio, even after delayed final bytes.
+ // Resume the same legacy draft route; the current home is the conversation itself.
  await page.goto('/smart-record?source=front-desk')
- const audit=await page.evaluate(async({memberId,legacyKey})=>{
+ await expect.poll(()=>page.evaluate(async memberId=>{
   const db=await new Promise<IDBDatabase>((resolve,reject)=>{const r=indexedDB.open('hoooho-smart-record-drafts',1);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)})
-  try{return await new Promise<{newAudio:number;legacy:string}>((resolve,reject)=>{const tx=db.transaction('drafts'),store=tx.objectStore('drafts'),current=store.get(`home-smart:visit-test:${memberId}:new`),old=store.get(legacyKey);tx.oncomplete=()=>{const file=old.result?.files?.[0];resolve({newAudio:(current.result?.files??[]).filter((f:any)=>f.type.startsWith('audio/')).length,legacy:file?`data:audio/wav;base64,${btoa(String.fromCharCode(...new Uint8Array(file.bytes)))}`:''})};tx.onerror=()=>reject(tx.error)})}finally{db.close()}
- },{memberId,legacyKey})
- expect(audit.newAudio).toBe(0);expect(audit.legacy).toBe(original)
+  try{return await new Promise<boolean>((resolve,reject)=>{const r=db.transaction('drafts').objectStore('drafts').get(`home-smart:visit-test:${memberId}:new`);r.onsuccess=()=>resolve(Boolean(r.result?.files?.some((file:any)=>file.type.startsWith('audio/')&&file.bytes?.byteLength>300)));r.onerror=()=>reject(r.error)})}finally{db.close()}
+ },memberId)).toBe(true)
 })
 
 test('录音文件读取永不结束时总时限仍恢复输入，不会进入无限准备状态',async({page,request})=>{
