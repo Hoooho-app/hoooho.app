@@ -47,6 +47,7 @@ async function setup(page: Page) {
       return send(route, { ...user(), avatar: '', email: null, phone: null, providers: [], hasPassword: true })
     }
     if (path === '/api/account/entry-state') return state.entryFailure ? send(route, { error: { code: 'TEMPORARY_FAILURE' } }, 503) : send(route, { familyMemberCount: 1, hasValidHealthRecord: true })
+    if (/\/front-desk-record$/.test(path)) return send(route, null)
     return send(route, [])
   })
   return state
@@ -285,4 +286,87 @@ test('a token rejected again after recovery preserves the route and requires rea
   await expect(page.getByRole('dialog', { name: '重新登录后继续' })).toBeVisible()
   await expect(page).toHaveURL(/account\/nickname/)
   expect(await originalInput!.evaluate(node => (node as HTMLInputElement).value)).toBe('拒绝后也保留')
+})
+
+test('a full local metadata cache cannot block a valid session or erase existing local originals',async({page},info)=>{
+ const state=await setup(page)
+ await page.addInitScript(()=>{
+  localStorage.setItem('health-original-preservation-check','synthetic immutable original')
+  const write=Storage.prototype.setItem
+  Storage.prototype.setItem=function(key,value){
+   if(key==='hoooho-app'){let payload;try{payload=JSON.parse(value)}catch{};if(payload?.state?.authUser)throw new DOMException('Synthetic full storage','QuotaExceededError')}
+   return write.call(this,key,value)
+  }
+ })
+ await page.goto('/account/nickname')
+ const input=page.getByRole('textbox',{name:/^昵称/})
+ await expect(input).toHaveValue('验收家长')
+ await input.fill('仍未发送的新输入')
+ await resume(page)
+ await expect.poll(()=>state.sessionCalls).toBe(2)
+ await expect(page.locator('.session-recovery-chip, .session-recovery-notice')).toHaveCount(0)
+ await expect(input).toHaveValue('仍未发送的新输入')
+ expect(await page.evaluate(()=>localStorage.getItem('health-original-preservation-check'))).toBe('synthetic immutable original')
+ expect(state.writes).toEqual([])
+ await page.screenshot({path:info.outputPath('full-cache-session-restored.png')})
+})
+
+test('an occupied session read lock cannot stop another tab from verifying its server session',async({page},info)=>{
+ const state=await setup(page)
+ await page.addInitScript(()=>{void navigator.locks.request('hoooho-browser-session',()=>new Promise<void>(()=>{}))})
+ await page.goto('/account/nickname')
+ await expect(page.getByRole('textbox',{name:/^昵称/})).toHaveValue('验收家长')
+ expect(state.sessionCalls).toBe(1)
+ expect(state.writes).toEqual([])
+ await expect(page.locator('[data-session-recovery-screen]')).toHaveCount(0)
+ await page.screenshot({path:info.outputPath('occupied-lock-session-restored.png')})
+})
+
+test('a browser denying Web Locks still reads the session once and does not repeat a failed HTTP request',async({page})=>{
+ const state=await setup(page)
+ state.mode='failure'
+ await page.addInitScript(()=>Object.defineProperty(navigator,'locks',{configurable:true,value:{request(){throw new DOMException('Synthetic denied locks','SecurityError')}}}))
+ await page.goto('/account/nickname')
+ await expect(page.getByRole('heading',{name:'暂时没能连接上',exact:true})).toBeVisible()
+ expect(state.sessionCalls).toBe(1)
+ state.mode='ok'
+ await page.getByRole('button',{name:'重新连接',exact:true}).click()
+ await expect(page.getByRole('textbox',{name:/^昵称/})).toHaveValue('验收家长')
+ expect(state.sessionCalls).toBe(2)
+ expect(state.writes).toEqual([])
+})
+
+test('an occupied lock never authenticates an expired session or exposes cached account data',async({page})=>{
+ const state=await setup(page)
+ state.mode='expired'
+ await page.addInitScript(()=>{void navigator.locks.request('hoooho-browser-session',()=>new Promise<void>(()=>{}))})
+ await page.goto('/account/nickname')
+ await expect(page).toHaveURL(/\/login/)
+ expect(state.sessionCalls).toBe(1)
+ await expect(page.getByText('验收家长',{exact:true})).toHaveCount(0)
+ expect(state.writes).toEqual([])
+ // A later return to the tab must still check the server, even though the
+ // initial pageshow no longer duplicates the acknowledged signed-out read.
+ await resume(page)
+ await expect.poll(()=>state.sessionCalls).toBe(2)
+ await expect(page).toHaveURL(/\/login/)
+ expect(state.writes).toEqual([])
+})
+
+test('the phone front desk and its nurse image load with a full cache and an occupied session lock',async({page},info)=>{
+ const state=await setup(page)
+ await page.addInitScript(()=>{
+  const write=Storage.prototype.setItem
+  Storage.prototype.setItem=function(key,value){if(key==='hoooho-app')throw new DOMException('Synthetic full storage','QuotaExceededError');return write.call(this,key,value)}
+  void navigator.locks.request('hoooho-browser-session',()=>new Promise<void>(()=>{}))
+ })
+ await page.goto('/nurse-station')
+ const image=page.getByRole('img',{name:'戴口罩的护士举手打招呼',exact:true})
+ await expect(image).toBeVisible()
+ await expect.poll(()=>image.evaluate(node=>(node as HTMLImageElement).complete&&(node as HTMLImageElement).naturalWidth>0)).toBe(true)
+ await expect(page.getByRole('button',{name:'按住说话',exact:true})).toBeEnabled()
+ await expect(page.locator('.session-recovery-chip, .session-recovery-notice, [data-session-recovery-screen]')).toHaveCount(0)
+ expect(state.sessionCalls).toBe(1);expect(state.writes).toEqual([])
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth)).toBe(false)
+ await page.screenshot({path:info.outputPath('front-desk-recovery-iphone-se.png'),fullPage:true})
 })

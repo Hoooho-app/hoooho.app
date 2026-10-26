@@ -1,9 +1,10 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { createJSONStorage, persist } from 'zustand/middleware'
 import type { AccountProfile, AuthSession, AuthUser, Member, UserProfile } from '../types'
 import { postAuthRequest } from '../services/auth'
 import { clearProfileSectionCache } from '../services/profileSectionStorage'
 import { resetBrowserRecoveryState } from '../services/browserRecoveryState'
+import { appCache } from '../services/appCacheStorage'
 
 const authTokenKey = 'hoooho-auth-token'
 const opsAuthTokenKey = 'hoooho-ops-auth-token'
@@ -108,6 +109,7 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: 'hoooho-app',
+      storage: createJSONStorage(() => appCache.storage),
       version: 5,
       migrate: (persisted) => {
         const { notifications: _removedNotifications, authToken: _removedAuthToken, opsAuthToken: _removedOpsAuthToken, ...state } = persisted as AppState & { notifications?: unknown }

@@ -7,6 +7,7 @@ import { clearProfileSectionCache, getProfileSectionSnapshot, loadProfileSection
 import { invalidateSessionRecoveryRequests, registerSessionRecoveryHandler } from '../../services/sessionRecoveryCoordinator'
 import { useBrowserRecoveryState, type RecoveryStage } from '../../services/browserRecoveryState'
 import { resolveCurrentChildId } from '../../features/family/currentChild'
+import { appCache } from '../../services/appCacheStorage'
 import type { AuthSession } from '../../types'
 import { SessionRecoveryScreen, SessionRecoveryNotice } from './SessionRecoveryView'
 
@@ -58,10 +59,25 @@ async function refreshBrowserSessionToken(generation: number) {
   hydrationControllers.add(controller)
   const timeout = window.setTimeout(() => controller.abort(), 10_000)
   try {
-    const read = () => authService.restore(useAppStore.getState().authToken ?? '', controller.signal)
-    const session = await (navigator.locks
-      ? navigator.locks.request('hoooho-browser-session', { signal: controller.signal }, read)
-      : read())
+    let started = false
+    const read = () => {
+      started = true
+      controller.signal.throwIfAborted()
+      return authService.restore(useAppStore.getState().authToken ?? '', controller.signal)
+    }
+    let session: AuthSession | { unauthenticated: true }
+    try {
+      // This is an idempotent session GET. A suspended tab must not hold up
+      // another tab's read; actual authentication stays authoritative on server.
+      session = await (navigator.locks
+        ? navigator.locks.request('hoooho-browser-session', { ifAvailable: true }, read)
+        : read())
+    } catch (error) {
+      if (started || controller.signal.aborted) throw error
+      // Some browser contexts disallow Web Locks. Never retry a started HTTP
+      // request here, and never replay login, logout or record mutations.
+      session = await read()
+    }
     assertCurrentRecovery(generation)
     if ('unauthenticated' in session) {
       if (state.authUser && useBrowserRecoveryState.getState().contextAccountId === state.authUser.id) {
@@ -119,7 +135,12 @@ export function restoreBrowserSession(_options: { transition?: boolean } = {}) {
         assertCurrentRecovery(generation)
         session = await refreshBrowserSessionToken(generation)
       }
-      if (!session) return null
+      if (!session) {
+        // An acknowledged signed-out session is also a completed connectivity
+        // check. The initial pageshow must not immediately repeat that read.
+        lastRecoveryAt = Date.now()
+        return null
+      }
       stage = 'members'
       useBrowserRecoveryState.setState({ stage })
       const controller = new AbortController()
@@ -129,7 +150,7 @@ export function restoreBrowserSession(_options: { transition?: boolean } = {}) {
         const members = (await familyMemberService.list(session.token, controller.signal)).map(adaptFamilyMember)
         assertCurrentRecovery(generation)
         if (useAppStore.getState().authUser?.id !== session.user.id) throw new StaleSessionRecoveryError('Account changed during recovery')
-        const preferred = previous.authUser?.id === session.user.id && previous.currentMemberId !== 'self' ? previous.currentMemberId : session.user.currentMemberId ?? ''
+        const preferred = appCache.isWritable() && previous.authUser?.id === session.user.id && previous.currentMemberId !== 'self' ? previous.currentMemberId : session.user.currentMemberId ?? ''
         const current = useAppStore.getState()
         if (JSON.stringify(current.members) !== JSON.stringify(members)) current.setMembers(members)
         const selected = resolveCurrentChildId(members, preferred)
