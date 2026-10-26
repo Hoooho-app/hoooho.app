@@ -1,7 +1,7 @@
 import { apiRequest } from '../../services/apiClient'
 
 type Snapshot = { id: string; text: string; state: 'connecting' | 'listening' | 'failed' | 'closed'; sequence: number; revision: number }
-type Options = { stream: MediaStream; memberId: string; token: string; onText: (text: string) => void; onUnavailable?: () => void }
+type Options = { stream: MediaStream; memberId: string; token: string; onText: (text: string) => void; onUnavailable?: (disconnected:boolean) => void }
 
 // Maintains the fractional source-frame offset across Web Audio callbacks.
 // Each output is genuine 16 kHz signed little-endian PCM, never relabelled AAC.
@@ -42,7 +42,7 @@ const base64 = (bytes: Uint8Array) => {
 // microphone, saves interim text, or invokes a second dialogue model.
 export function startLiveAudioPreview(options: Options, request = apiRequest) {
   const controller = new AbortController()
-  let stopped = false, unavailable = false, id = '', revision = -1, context: AudioContext | undefined
+  let stopped = false, unavailable = false, connected = false, id = '', revision = -1, context: AudioContext | undefined
   let source: MediaStreamAudioSourceNode | undefined, processor: ScriptProcessorNode | undefined, gain: GainNode | undefined
   let buffers: Uint8Array[] = [], queuedBytes = 0, pending = false, sequence = 0
   let poll: ReturnType<typeof setTimeout> | undefined
@@ -73,13 +73,15 @@ export function startLiveAudioPreview(options: Options, request = apiRequest) {
   }
   const fail = () => {
     if (stopped) return
-    if (!unavailable) { unavailable = true; options.onUnavailable?.() }
+    if (!unavailable) { unavailable = true; options.onUnavailable?.(connected) }
     stop()
   }
   const accept = (snapshot: Snapshot) => {
     if (stopped || snapshot.revision < revision) return
     revision = snapshot.revision
     if (snapshot.state === 'failed' || snapshot.state === 'closed') { fail(); return }
+    // A listening acknowledgement is a connection, even before any words.
+    if(snapshot.state==='listening')connected=true
     options.onText(snapshot.text)
   }
   const flush = async () => {

@@ -328,3 +328,30 @@ test('HealthEventRecord API 支持事实记录 CRUD、稳定排序和账号隔�
     await rm(dataDirectory, { recursive: true, force: true })
   }
 })
+
+
+function occurrenceSourceFixture() {
+  let row = { id:'time-source-record', accountId:'time-source-account', eventId:'time-source-event', type:'note', content:'合成原话：时间没有提供', sourceType:'text_record', sourceText:'合成原话：时间没有提供', occurredAt:'2026-10-01T08:15:42.000Z', journal:{categories:['other'],timePrecision:'unknown'}, aiProvenance:{time:{resolvedStart:null,resolvedEnd:null,precision:'unknown',defaulted:true},sources:[{sourceId:'actual-source',page:1,quote:'时间没有提供'}],fields:[{name:'conclusion',value:'时间没有提供'}],confirmed:true},caseContext:{identity:'pending',timeUnknown:true,attachmentIds:['keep-attachment'],originalText:'保留来源文字'} }
+  const service = new HealthEventRecordService({repository:{findById:async()=>row,update:async(_id,changes)=>{row={...row,...changes};return row}},events:{findById:async()=>({id:'time-source-event',accountId:'time-source-account',memberId:'time-source-child'})},organizations:{invalidateAndRecompute:async()=>undefined},changeAnnotations:{recompute:async()=>undefined}})
+  return {service,get row(){return row}}
+}
+test('content-only edit keeps unknown/defaulted occurrence and every original time source',async()=>{
+  const f=occurrenceSourceFixture(),before=structuredClone(f.row)
+  const result=await f.service.update('time-source-account',f.row.id,{content:'用户只更正正文'},new Date('2026-10-26T08:00:00Z'))
+  assert.equal(result.content,'用户只更正正文');assert.equal(result.occurredAt,before.occurredAt)
+  assert.equal(result.journal.timePrecision,'unknown');assert.deepEqual(result.aiProvenance,before.aiProvenance)
+  assert.deepEqual(result.caseContext,before.caseContext)
+  assert.equal(Object.hasOwn(result.revisions.at(-1).after,'occurredAt'),false)
+})
+test('explicit validated past occurrence supersedes unknown provenance without changing other sources',async()=>{
+  const f=occurrenceSourceFixture(),before=structuredClone(f.row),now=new Date('2026-10-26T08:00:00Z'),past='2026-10-02T11:20:00+08:00'
+  await assert.rejects(()=>f.service.update('other-account',f.row.id,{occurredAt:past},now))
+  await assert.rejects(()=>f.service.update('time-source-account',f.row.id,{occurredAt:'2030-01-01T00:00:00Z'},now),error=>error.code==='FUTURE_OCCURRED_AT')
+  assert.deepEqual(f.row,before)
+  const result=await f.service.update('time-source-account',f.row.id,{occurredAt:past,journal:{...f.row.journal,timePrecision:'exact'}},now)
+  assert.equal(result.occurredAt,'2026-10-02T03:20:00.000Z');assert.equal(result.journal.timePrecision,'exact')
+  assert.deepEqual(result.aiProvenance.time,{...before.aiProvenance.time,resolvedStart:result.occurredAt,precision:'exact',defaulted:false})
+  assert.deepEqual(result.aiProvenance.sources,before.aiProvenance.sources);assert.deepEqual(result.aiProvenance.fields,before.aiProvenance.fields)
+  assert.deepEqual(result.caseContext,{...before.caseContext,timeUnknown:false});assert.equal(result.sourceText,before.sourceText)
+  assert.equal(result.revisions.at(-1).before.caseContext.timeUnknown,true)
+})

@@ -3,14 +3,14 @@ import { randomUUID } from 'node:crypto'
 import { bailianConfiguration } from './providers/provider-config.mjs'
 
 const failure = (message, status = 503, code = 'ASR_LIVE_UNAVAILABLE') => Object.assign(new Error(message), { status, code })
-const unavailable = () => failure('实时文字暂不可用，录音仍在继续，松开后会完整整理')
+const unavailable = () => failure('实时文字暂不可用，请查看当前转写状态')
 const MAX_PCM_BYTES = 16000 * 2 * 91
 const MAX_CHUNK_BYTES = 32000
 const MODEL = 'qwen3-asr-flash-realtime'
 
 // A short-lived preview only. No audio/text is written to disk, logged, or
-// promoted into health facts. The existing original-audio pipeline remains
-// authoritative after the user releases the recording button.
+// promoted into health facts. Final transcription uses the existing batch ASR
+// endpoint; microphone callers can discard their temporary audio afterwards.
 export class LiveAudioPreviewService {
   constructor(options = {}) {
     this.env = options.env ?? process.env
@@ -39,7 +39,7 @@ export class LiveAudioPreviewService {
   }
   snapshot(session) {
     const text = [...session.final.values(), ...session.partial.values()].join('').slice(0, 15000)
-    return { id: session.id, text, state: session.state, sequence: session.sequence, revision: session.revision, ...(session.state === 'failed' ? { message: '实时文字连接已中断，录音仍在继续，松开后会完整整理' } : {}) }
+    return { id: session.id, text, state: session.state, sequence: session.sequence, revision: session.revision, ...(session.state === 'failed' ? { message: '实时文字连接已中断，请核对已识别文字' } : {}) }
   }
   owned(accountId, id) {
     const session = this.sessions.get(id)

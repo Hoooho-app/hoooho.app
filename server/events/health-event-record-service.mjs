@@ -254,6 +254,13 @@ export class HealthEventRecordService {
       if (effectiveJournal.sleep?.sleepAt) validateOccurredAt(effectiveJournal.sleep.sleepAt, now)
       if (effectiveJournal.diet?.startedAt) validateOccurredAt(effectiveJournal.diet.startedAt, now)
     }
+    // An explicitly supplied, validated occurrence time supersedes unknown or
+    // defaulted provenance. Content-only edits leave the original time untouched.
+    // Use the canonical validated date (e.g. a sleep endpoint), never the raw input.
+    if (Object.hasOwn(input, 'occurredAt')) {
+      if (record.aiProvenance) changes.aiProvenance = { ...record.aiProvenance, time: { ...record.aiProvenance.time, resolvedStart: changes.occurredAt, precision: 'exact', defaulted: false } }
+      if (record.caseContext || changes.caseContext) changes.caseContext = { ...(changes.caseContext ?? record.caseContext), timeUnknown: false }
+    }
     if (!Object.keys(changes).length) {
       throw new HealthEventRecordError('没有可更新的记录字段', 400, 'NO_RECORD_CHANGES')
     }
