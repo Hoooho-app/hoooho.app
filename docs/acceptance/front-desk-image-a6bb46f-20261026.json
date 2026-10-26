@@ -1,0 +1,75 @@
+{
+  "check": "production_front_desk_semantic_image_only",
+  "date": "2026-10-25T21:36:16.974Z",
+  "expectedCommit": "a6bb46fbac5f7b4380038cb02a9e93a322204c1f",
+  "runtimeCommit": "a6bb46fbac5f7b4380038cb02a9e93a322204c1f",
+  "syntheticOnly": true,
+  "passed": false,
+  "checks": [
+    "already-deployed runtime commit matches; no deployment requested",
+    "photo alone keeps original and asks clarification",
+    "photo with only punctuation keeps image and asks clarification"
+  ],
+  "questions": [
+    "目前还有出血吗？"
+  ],
+  "turnCount": null,
+  "summary": null,
+  "savedRecordCount": 0,
+  "idempotent": false,
+  "emptySyntheticAccountRetained": true,
+  "cleanup": {
+    "recordsDeleted": 0,
+    "eventsDeleted": 0,
+    "eventRecordsEmpty": true,
+    "eventsGone": true,
+    "memberDeleted": true,
+    "memberGone": true,
+    "logout": "revoked",
+    "complete": true
+  },
+  "photoDecision": {
+    "version": 2,
+    "intent": "record",
+    "subject": "current",
+    "subjectResolution": null,
+    "disposition": "summarize",
+    "organize": true,
+    "unresolvedItems": [
+      "具体受伤时间",
+      "破皮面积大小",
+      "是否疼痛",
+      "后续处理方式"
+    ],
+    "media": "document"
+  },
+  "finalQuestion": null,
+  "syntheticDiagnostic": {
+    "state": "failed",
+    "preview": "脚小趾表面破皮\n发生时间原话（待核对）：今天\n状态原文：今天被踢到\n模型引用（未验证）：今天被踢到\n症状原话：脚小趾表面破皮\n模型引用（未验证）：脚小趾表面破皮\n检查项目：尚未做处理\n模型引用（未验证）：尚未做处理"
+  },
+  "error": {
+    "recoveryAttempt": 1,
+    "timeCoverage": [
+      {
+        "itemIndex": 0,
+        "known": true,
+        "included": true
+      }
+    ],
+    "sourceSpans": [
+      {
+        "sourceIndex": 0,
+        "page": 1,
+        "start": 0,
+        "end": 25
+      }
+    ],
+    "verificationCodes": [
+      "verifier_missing_source_fact"
+    ],
+    "stage": "readable_photo_only",
+    "code": "AI_SUMMARY_INCOMPLETE",
+    "httpStatus": 422
+  }
+}

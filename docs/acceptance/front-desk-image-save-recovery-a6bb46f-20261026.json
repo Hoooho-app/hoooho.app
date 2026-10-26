@@ -1,0 +1,77 @@
+{
+  "check": "production_photo_initial_save_assertion_and_recovery",
+  "runtimeCommit": "a6bb46fbac5f7b4380038cb02a9e93a322204c1f",
+  "fullyAccepted": false,
+  "initialAttempt": {
+    "check": "production_front_desk_semantic_image_only",
+    "date": "2026-10-25T21:29:10.969Z",
+    "expectedCommit": "a6bb46fbac5f7b4380038cb02a9e93a322204c1f",
+    "runtimeCommit": "a6bb46fbac5f7b4380038cb02a9e93a322204c1f",
+    "syntheticOnly": true,
+    "passed": false,
+    "checks": [
+      "already-deployed runtime commit matches; no deployment requested",
+      "photo alone keeps original and asks clarification",
+      "photo with only punctuation keeps image and asks clarification",
+      "readable observation image alone becomes one source-backed, independently verified narrative after attribution"
+    ],
+    "questions": [
+      "目前还有出血吗？"
+    ],
+    "turnCount": null,
+    "summary": null,
+    "savedRecordCount": 1,
+    "idempotent": false,
+    "emptySyntheticAccountRetained": true,
+    "cleanup": {
+      "recordsDeleted": 0,
+      "eventsDeleted": 0,
+      "eventRecordsEmpty": false,
+      "eventsGone": false,
+      "memberDeleted": false,
+      "memberGone": false,
+      "logout": "revoked",
+      "complete": false
+    },
+    "photoDecision": {
+      "version": 2,
+      "intent": "record",
+      "subject": "current",
+      "subjectResolution": null,
+      "disposition": "summarize",
+      "organize": true,
+      "unresolvedItems": [
+        "是否出血",
+        "具体处理措施"
+      ],
+      "media": "document"
+    },
+    "finalQuestion": null,
+    "imageSummary": "今天脚小趾被踢到，表面破皮。尚未做处理。是否出血待确认。具体处理措施待确认。",
+    "error": {
+      "stage": "formal_save",
+      "code": "CHECK_SAVED_ORIGINAL_MISMATCH",
+      "httpStatus": null
+    }
+  },
+  "recoveryReadback": {
+    "check": "synthetic_photo_recovery_preflight",
+    "savedOriginalEqualsDraft": true,
+    "draftBeginsWithWhitespace": false,
+    "sourceAndDraftLength": 51,
+    "summaryReadbackMatches": true
+  },
+  "recoveryCleanup": {
+    "check": "synthetic_photo_recovery_cleanup",
+    "cleanup": {
+      "recordsDeleted": 1,
+      "eventsDeleted": 1,
+      "eventRecordsEmpty": true,
+      "eventsGone": true,
+      "memberDeleted": true,
+      "memberGone": true,
+      "complete": true
+    },
+    "logout": "revoked"
+  }
+}

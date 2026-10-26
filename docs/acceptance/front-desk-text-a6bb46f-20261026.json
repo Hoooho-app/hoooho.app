@@ -1,0 +1,41 @@
+{
+  "check": "production_front_desk_semantic_v2",
+  "date": "2026-10-25T21:41:06.184Z",
+  "expectedCommit": "a6bb46fbac5f7b4380038cb02a9e93a322204c1f",
+  "runtimeCommit": "a6bb46fbac5f7b4380038cb02a9e93a322204c1f",
+  "syntheticOnly": true,
+  "passed": false,
+  "checks": [
+    "already-deployed runtime commit matches; no deployment requested",
+    "punctuation produces a conversational reply with no fact projection",
+    "colloquial little-toe trauma is understood, clarified, and stopped without a canned keyword path"
+  ],
+  "questions": [
+    "目前还有出血吗？",
+    "破皮的地方大概有多大？"
+  ],
+  "turnCount": 2,
+  "summary": null,
+  "savedRecordCount": 0,
+  "idempotent": false,
+  "emptySyntheticAccountRetained": true,
+  "cleanup": {
+    "recordsDeleted": 0,
+    "eventsDeleted": 0,
+    "eventRecordsEmpty": true,
+    "eventsGone": true,
+    "memberDeleted": true,
+    "memberGone": true,
+    "logout": "revoked",
+    "complete": true
+  },
+  "syntheticDiagnostic": {
+    "state": "failed",
+    "preview": "脚小拇指表面破皮\n发生时间原话（待核对）：今天\n状态原文：今天那个脚就是小拇指破了，然后被踢到的。\n模型引用（未验证）：今天那个脚就是小拇指破了，然后被踢到的。\n部位：脚的小拇指表面\n模型引用（未验证）：是脚的小拇指表面破皮，今天刚被踢到；\n症状原话：破皮\n模型引用（未验证）：是脚的小拇指表面破皮，今天刚被踢到；\n状态原文：今天刚被踢到\n模型引用（未验证）：是脚的小拇指表面破皮，今天刚被踢到；\n症状原话：现在没有出血\n模型引用（未验证）：现在没有出血，能正常走路，还没有做处理。\n状态原文：能正常走路\n模型引用（未验证）：现在没有出血，能正常走路，还没有做处理。\n状态原文：还没有做处理\n模型引用（未验证）：现在没有出血，能正常走路，还没有做处理。"
+  },
+  "error": {
+    "stage": "professional_summary",
+    "code": "AI_ACCOUNT_CALL_LIMIT",
+    "httpStatus": 429
+  }
+}

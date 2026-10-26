@@ -1,3 +1,4 @@
+import {cleanupSyntheticMember} from './synthetic-acceptance-cleanup.mjs'
 import {authenticateSyntheticAccount} from './synthetic-acceptance-account.mjs'
 // One-shot real-provider verification against the already deployed binary.
 // Only this fresh synthetic account/member/records are mutated or removed.
@@ -16,7 +17,7 @@ const REPORT = 'outputs/nursing-record-production/semantic-image-only-acceptance
 const INPUTS = ['今天那个脚就是小拇指破了，然后被踢到的。','是脚的小拇指表面破皮，今天刚被踢到；现在没有出血，能正常走路，还没有做处理。','先按已经说过的情况记录，不再追问。不清楚的项目保留待确认。']
 let FULL_RAW = ''
 const cookies = new Map(), exactRecordIds = new Set(), exactEventIds = new Set()
-let token = '', accountId = '', memberId = '', stage = 'register', saveAttempted = false
+let token = '', accountId = '', memberId = '', stage = 'register', saveAttempted = false, activeDraftId = ''
 const result = {
   check: 'production_front_desk_semantic_image_only',
   date: new Date().toISOString(),
@@ -125,7 +126,9 @@ try {
   requireCheck(imageTurn.context.decision?.organize===true,'CHECK_READABLE_PHOTO_READY')
   const photoMessages=imageTurn.context.messages.filter(m=>m.kind!=='assistant'&&m.status==='completed'&&m.recordable!==false),files=photoMessages.flatMap(m=>m.files??[])
   requireCheck(files.some(f=>f.dataUrl===report.dataUrl),'CHECK_PHOTO_OWNER_NOT_RESOLVED')
-  const organized=await api(`/api/members/${memberId}/ai-drafts`,'POST',{text:userRaw(imageTurn.context),files,smartRecord:true,frontDeskRecord:true,frontContextId:imageTurn.context.id,semanticVersion:2,followUp:false,timezone:'Asia/Shanghai'})
+  FULL_RAW=userRaw(imageTurn.context).trim()
+  const organized=await api(`/api/members/${memberId}/ai-drafts`,'POST',{text:FULL_RAW,files,smartRecord:true,frontDeskRecord:true,frontContextId:imageTurn.context.id,semanticVersion:2,followUp:false,timezone:'Asia/Shanghai'})
+  requireCheck(organized.inputText===FULL_RAW,'CHECK_DRAFT_ORIGINAL_MISMATCH')
   requireCheck(organized.state==='ready'&&organized.items?.length===1&&organized.items[0].professionalSummary?.version==='professional-summary-v2'&&organized.items[0].professionalSummary.verification?.protocol==='source-entailment-v2'&&organized.items[0].professionalSummary.verification.sourceCoverage===true,'CHECK_PHOTO_NARRATIVE_READY')
   const description=organized.items[0].professionalSummary.text
   requireCheck(/脚|足/u.test(description)&&/趾/u.test(description)&&/破皮|破损/u.test(description)&&/踢/u.test(description),'CHECK_PHOTO_TEXT_FACTS')
@@ -133,54 +136,52 @@ try {
   result.imageSummary=description
   result.checks.push('readable observation image alone becomes one source-backed, independently verified narrative after attribution')
   requireCheck((await api('/api/events')).length===0,'CHECK_PHOTO_NO_AUTO_SAVE')
+  requireCheck(validId(organized.id),'CHECK_DRAFT_ID')
+  activeDraftId=organized.id
+  stage='formal_save'
+  saveAttempted=true
+  const saved=await api(`/api/members/${memberId}/ai-drafts/${organized.id}/save`,'POST',{version:organized.version,confirmed:true})
+  requireCheck(saved.state==='saved'&&Array.isArray(saved.result?.records)&&saved.result.records.length>0,'CHECK_SAVE_RESULT')
+  for(const ref of saved.result.records){
+    requireCheck(validId(ref.eventId)&&validId(ref.recordId),'CHECK_SAVE_REFERENCE')
+    exactEventIds.add(ref.eventId);exactRecordIds.add(ref.recordId)
+  }
+  requireCheck(saved.result.records.length===1&&saved.result.count===1,'CHECK_SAVE_RECORD_COUNT')
+  result.savedRecordCount=saved.result.count
+  const beforeRetry=new Map()
+  for(const eventId of exactEventIds){
+    const event=await api(`/api/events/${eventId}`)
+    requireCheck(event.memberId===memberId&&event.caseTracking!==true,'CHECK_NO_AUTO_FOLLOWUP')
+    const rows=await eventRecords(eventId)
+    beforeRetry.set(eventId,rows.map(record=>record.id).sort().join(','))
+    for(const ref of saved.result.records.filter(item=>item.eventId===eventId)){
+      const record=rows.find(item=>item.id===ref.recordId)
+      requireCheck(record?.content===description&&record.aiProvenance?.professionalSummary?.text===description,'CHECK_SAVED_SUMMARY_MISMATCH')
+      requireCheck(record.sourceText===FULL_RAW,'CHECK_SAVED_ORIGINAL_MISMATCH')
+    }
+  }
+  result.checks.push('photo-derived formal record reads back the same summary and full original; follow-up remains off')
+  stage='idempotent_save_retry'
+  const replay=await api(`/api/members/${memberId}/ai-drafts/${organized.id}/save`,'POST',{version:saved.version,confirmed:true})
+  requireCheck(replay.state==='saved'&&replay.result?.count===saved.result.count&&refsKey(replay)===refsKey(saved),'CHECK_SAVE_RETRY_REFERENCES')
+  for(const[eventId,before]of beforeRetry)requireCheck((await eventRecords(eventId)).map(record=>record.id).sort().join(',')===before,'CHECK_DUPLICATE_RECORD_AFTER_RETRY')
+  const eventsAfterRetry=await api('/api/events')
+  requireCheck(Array.isArray(eventsAfterRetry)&&eventsAfterRetry.length===exactEventIds.size&&eventsAfterRetry.every(event=>exactEventIds.has(event.id)),'CHECK_DUPLICATE_EVENT_AFTER_RETRY')
+  result.idempotent=true
+  result.checks.push('repeated photo-derived save returns identical references and creates no extra record or event')
   result.passed=true
 } catch (error) {
   if(memberId&&['professional_summary','readable_photo_only'].includes(stage))try{const draft=await api(`/api/members/${memberId}/ai-drafts`);result.syntheticDiagnostic={state:draft?.state,preview:draft?.preview?.text??null}}catch{}
   result.error = { ...([0,1].includes(error.recoveryAttempt)?{recoveryAttempt:error.recoveryAttempt}:{}),...(error.timeCoverage?{timeCoverage:error.timeCoverage}:{}),...(error.sourceSpans?{sourceSpans:error.sourceSpans,recoveryAttempt:error.recoveryAttempt}:{}),...(error.verificationCodes?{verificationCodes:error.verificationCodes}:{}),...(error.retryAfter?{retryAfterSeconds:error.retryAfter}:{}),...(error.validationMessage?{validationMessage:error.validationMessage}:{}),stage, code: error instanceof CheckError ? safeCode(error.code) : 'CHECK_INTERNAL_FAILURE', httpStatus: error instanceof CheckError ? error.status : null }
 } finally {
-  // Explicit exact-ID cleanup. Event DELETE does not cascade record rows, so
-  // records must be deleted while their owned parent event still exists.
+  // Only the newly created member and source/draft-verified records may be removed.
   let cleanupOk = true
-  if(saveAttempted&&!exactEventIds.size&&memberId){
+  if(memberId){
     try{
-      const ownedEvents=await api('/api/events','GET',undefined,15000)
-      requireCheck(Array.isArray(ownedEvents),'CHECK_CLEANUP_EVENT_LIST')
-      for(const event of ownedEvents.filter(event=>event.memberId===memberId)){
-        const records=await eventRecords(event.id)
-        requireCheck(records.every(record=>record.sourceText===FULL_RAW),'CHECK_CLEANUP_ORIGINAL_MISMATCH')
-        exactEventIds.add(event.id)
-        for(const record of records)exactRecordIds.add(record.id)
-      }
-      result.cleanup.receiptRecovered=exactEventIds.size>0
+      const cleanup=await cleanupSyntheticMember({api,memberId,accountId,fullRaw:FULL_RAW,draftId:activeDraftId,saveAttempted})
+      Object.assign(result.cleanup,cleanup)
+      cleanupOk=cleanup.complete===true
     }catch{cleanupOk=false}
-  }
-  for (const recordId of exactRecordIds) {
-    try { requireCheck((await api(`/api/records/${recordId}`, 'DELETE', {}, 20000))?.success === true, 'CHECK_RECORD_DELETE'); result.cleanup.recordsDeleted++ }
-    catch { cleanupOk = false }
-  }
-  let empty = true, gone = true
-  for (const eventId of exactEventIds) {
-    try { requireCheck((await eventRecords(eventId)).length === 0, 'CHECK_RECORDS_NOT_EMPTY') }
-    catch { empty = false; cleanupOk = false }
-    try {
-      requireCheck((await api(`/api/events/${eventId}`, 'DELETE', {}, 20000))?.success === true, 'CHECK_EVENT_DELETE')
-      result.cleanup.eventsDeleted++
-      requireCheck(await notFound(`/api/events/${eventId}`), 'CHECK_EVENT_STILL_EXISTS')
-      requireCheck(await notFound(`/api/events/${eventId}/records`), 'CHECK_EVENT_RECORDS_STILL_ACCESSIBLE')
-    } catch { gone = false; cleanupOk = false }
-  }
-  result.cleanup.eventRecordsEmpty = exactEventIds.size > 0 && empty
-  result.cleanup.eventsGone = exactEventIds.size > 0 && gone
-  if (saveAttempted && !exactEventIds.size) { cleanupOk = false; result.cleanup.saveReceiptMissing = true }
-  if (memberId) {
-    try {
-      const ownMember = await api(`/api/members/${memberId}`, 'GET', undefined, 15000)
-      requireCheck(ownMember.id === memberId && (!ownMember.accountId || ownMember.accountId === accountId), 'CHECK_CLEANUP_MEMBER_OWNERSHIP')
-      requireCheck((await api(`/api/members/${memberId}`, 'DELETE', {}, 20000))?.success === true, 'CHECK_MEMBER_DELETE')
-      result.cleanup.memberDeleted = true
-      result.cleanup.memberGone = await notFound(`/api/members/${memberId}`)
-      requireCheck(result.cleanup.memberGone, 'CHECK_MEMBER_STILL_EXISTS')
-    } catch { cleanupOk = false }
   }
   if (token || cookies.size) {
     try { result.cleanup.logout = (await api('/api/auth/logout', 'POST', {}, 15000))?.success === true ? 'revoked' : 'failed' }
