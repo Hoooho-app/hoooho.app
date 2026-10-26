@@ -1,5 +1,6 @@
 import {test,expect} from '@playwright/test'
 import {TokenService} from '../../server/auth/token-service.mjs'
+import {useLegacyFrontProtocol} from '../helpers/front-protocol-compat'
 import {finishNursingQuestions,waitForNurseReply} from '../helpers/nursing-interview'
 
 const token=new TokenService('visit-sheet-e2e-secret',3600000).create({id:'visit-test'})
@@ -21,7 +22,8 @@ async function send(page:import('@playwright/test').Page,text:string){
   await waitForNurseReply(page)
 }
 
-test('specific questions, bound quick answers, refresh, unknown stop and professional save',async({page,request},info)=>{
+test('[legacy protocol2] specific questions, bound quick answers, refresh, unknown stop and professional save',async({page,request},info)=>{
+  const legacy=await useLegacyFrontProtocol(page)
   await send(page,'身上有点东西，老挠')
   await expect(page.getByText('变化出现在哪个部位？可以点身体部位，也可以拍一张照片。',{exact:false})).toBeVisible()
   await expect(page.getByLabel('回答当前问题')).toBeVisible()
@@ -29,6 +31,7 @@ test('specific questions, bound quick answers, refresh, unknown stop and profess
   await page.getByLabel('对话输入').fill('还有一段待补充')
   const asked=await (await request.get(`/api/members/${memberId}/front-desk-record`,{headers})).json()
   expect(asked.interview.question.id).toMatch(/^semantic:/)
+  await legacy.assertContext()
   const submitted=page.waitForRequest(r=>r.url().endsWith('/recognition-jobs')&&r.method()==='POST')
   await page.getByRole('button',{name:'四肢',exact:true}).click()
   expect((await submitted).postDataJSON().input.answerTo.questionId).toBe(asked.interview.question.id)
@@ -50,13 +53,14 @@ test('specific questions, bound quick answers, refresh, unknown stop and profess
   await expect(page.getByLabel('回答当前问题')).toHaveCount(0)
   await page.screenshot({path:info.outputPath('focused-summary.png')})
   await page.getByRole('button',{name:'立即保存',exact:true}).click()
-  await expect(page.getByRole('button',{name:'查看',exact:true})).toBeVisible()
+  await expect(page.getByRole('button',{name:'查看记录',exact:true})).toBeVisible()
   await expect(page.getByLabel('回答当前问题')).toHaveCount(0)
   await expect(page.getByLabel('对话输入')).toHaveValue('还有一段待补充')
 })
 
 test('professional summary is primary and saving does not require opening original fields',async({page,request},info)=>{
   await send(page,'昨天小腿起了红点，老挠')
+  await finishNursingQuestions(page)
   await page.getByRole('button',{name:'核对记录',exact:true}).click()
   await expect(page.getByLabel('整理后的描述')).toContainText('反复抓挠')
   const originals=page.locator('details.smart-record-originals')
@@ -64,7 +68,7 @@ test('professional summary is primary and saving does not require opening origin
   await expect(originals.locator('dl')).not.toBeVisible()
   await page.screenshot({path:info.outputPath('professional-first-review.png')})
   await page.getByRole('button',{name:'保存',exact:true}).click()
-  await expect(page.getByRole('button',{name:'查看',exact:true})).toBeVisible()
+  await expect(page.getByRole('button',{name:'查看记录',exact:true})).toBeVisible()
   const context=await (await request.get(`/api/members/${memberId}/front-desk-record`,{headers})).json()
   const saved=await (await request.get(`/api/members/${memberId}/ai-drafts/${context.draftId}`,{headers})).json()
   const recordRef=saved.result.records[0]
@@ -74,8 +78,10 @@ test('professional summary is primary and saving does not require opening origin
   expect(record.sourceText).toBe('昨天小腿起了红点，老挠')
 })
 
-test('spoken no is interpreted only for the currently bound question',async({page,request},info)=>{
+test('[legacy protocol2] spoken no is interpreted only for the currently bound question',async({page,request},info)=>{
+  const legacy=await useLegacyFrontProtocol(page)
   await send(page,'孩子昨晚开始咳嗽')
+  await legacy.assertContext()
   await expect(page.getByLabel('回答当前问题')).toBeVisible()
   await request.get(`http://127.0.0.1:4198/voice?text=${encodeURIComponent('没有')}`)
   await page.getByRole('button',{name:'改用语音',exact:true}).click()
@@ -91,17 +97,52 @@ test('spoken no is interpreted only for the currently bound question',async({pag
   await expect(page.getByLabel('整理后的描述')).not.toContainText('没有呕吐')
   await page.screenshot({path:info.outputPath('voice-answer-summary.png')})
   await page.getByRole('button',{name:'保存',exact:true}).click()
-  await expect(page.getByRole('button',{name:'查看',exact:true})).toBeVisible()
+  await expect(page.getByRole('button',{name:'查看记录',exact:true})).toBeVisible()
 })
 
-test('a useful specific question is still offered when extraction has no item yet',async({page,request})=>{
+test('[legacy protocol2] a useful specific question is still offered when extraction has no item yet',async({page,request})=>{
+  const legacy=await useLegacyFrontProtocol(page)
   await request.post('http://127.0.0.1:4198/draft-data',{data:{items:[]}})
   await page.getByLabel('对话输入').fill('身上有点东西')
   await page.getByRole('button',{name:'发送',exact:true}).click()
   await expect(page.getByLabel('回答当前问题')).toBeVisible()
+  await legacy.assertContext()
   await expect(page.getByRole('button',{name:'先记下来',exact:true})).toHaveCount(0)
   await expect(page.getByRole('button',{name:'核对记录',exact:true})).toHaveCount(0)
   await page.getByLabel('回答当前问题',{exact:true}).getByRole('button',{name:'没注意',exact:true}).click()
-  await expect(page.getByText('原始描述已保留，暂未整理出可保存的记录。可以继续补充，也可以先保存原话。',{exact:true})).toBeVisible()
+  await expect(page.getByText('这次没有整理成功',{exact:true})).toBeVisible()
+  await expect(page.getByText('原话已保留',{exact:true})).toBeVisible()
+  await expect(page.getByRole('button',{name:'重试',exact:true})).toBeEnabled()
+  const failed=await(await request.get(`/api/members/${memberId}/recognition-jobs`,{headers})).json()
+  expect(failed.state).toBe('failed');expect(failed.error.code).toBe('AI_SUMMARY_INCOMPLETE')
+  const retained=await(await request.get(`/api/members/${memberId}/front-desk-record`,{headers})).json()
+  expect(retained.review?.items??[]).toHaveLength(0);expect(retained.saved??false).toBe(false)
+  expect(retained.messages.some((message:{text:string})=>message.text==='身上有点东西')).toBe(true)
+  await expect(page.getByRole('button',{name:'核对记录',exact:true})).toHaveCount(0)
+  await expect(page.locator('.smart-record-saved')).toHaveCount(0)
   await expect(page.getByRole('button',{name:'先保存原话',exact:true})).toBeEnabled()
+})
+
+
+test('restored protocol2 question remains bound when the current client sends protocol3',async({page,request})=>{
+  const legacy=await useLegacyFrontProtocol(page)
+  await send(page,'身上有点东西，老挠')
+  const before=await legacy.assertContext()
+  expect(before.interview.status).toBe('asking')
+  const originalQuestionId=before.interview.question.id
+  await page.getByLabel('对话输入').fill('刷新后仍保留的未提交内容')
+  await legacy.release()
+  await page.reload()
+  await expect(page.getByLabel('对话输入')).toHaveValue('刷新后仍保留的未提交内容')
+  await expect(page.getByLabel('回答当前问题')).toBeVisible()
+  const sent=page.waitForRequest(r=>r.method()==='POST'&&new URL(r.url()).pathname.endsWith('/recognition-jobs'))
+  await send(page,'左手臂')
+  const body=(await sent).postDataJSON()
+  expect(body.options.semanticVersion).toBe(3)
+  expect(body.input.answerTo).toEqual({contextId:before.id,questionId:originalQuestionId})
+  const after=await(await request.get(`/api/members/${memberId}/front-desk-record`,{headers})).json()
+  expect(after.id).toBe(before.id);expect(after.semanticVersion).toBe(2)
+  const answer=after.messages.find((message:{id:string})=>message.id===body.input.id)
+  expect(answer.text).toBe('左手臂');expect(answer.protocolVersion).toBe(2)
+  expect(after.messages.filter((message:{kind:string})=>message.kind==='text')).toHaveLength(2)
 })

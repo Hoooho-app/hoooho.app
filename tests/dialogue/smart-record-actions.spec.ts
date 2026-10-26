@@ -3,8 +3,9 @@ import {TokenService} from '../../server/auth/token-service.mjs'
 import {finishNursingQuestions} from '../helpers/nursing-interview'
 const token=new TokenService('visit-sheet-e2e-secret',3600000).create({id:'visit-test'})
 const headers={Authorization:`Bearer ${token}`}
+let memberId:string
 test.beforeEach(async({page,request})=>{
- const member=await (await request.post('/api/members',{headers,data:{name:'界面验证（虚构）',relationship:'child'}})).json()
+ const member=await (await request.post('/api/members',{headers,data:{name:'界面验证（虚构）',relationship:'child'}})).json();memberId=member.id
  await request.get('http://127.0.0.1:4198/success')
  await request.post('http://127.0.0.1:4198/draft-data',{data:{items:null}})
  await page.addInitScript(({token,memberId})=>{sessionStorage.setItem('hoooho-auth-token',token);localStorage.setItem('hoooho-app',JSON.stringify({state:{authUser:{id:'visit-test'},currentMemberId:memberId,members:[],profile:null},version:5}));let calls=0;Object.defineProperty(window,'__speechCalls',{get:()=>calls});if(window.speechSynthesis)window.speechSynthesis.speak=()=>{calls++}},{token,memberId:member.id})
@@ -19,10 +20,10 @@ test.beforeEach(async({page,request})=>{
 })
 test('automatic review, direct save ends input, exact record opens over its month',async({page})=>{
  await page.getByRole('button',{name:/^(?:先记下来|立即保存)$/}).click()
- await expect(page.getByRole('button',{name:'查看',exact:true})).toBeVisible()
+ await expect(page.getByRole('button',{name:'查看记录',exact:true})).toBeVisible()
  await expect(page.getByLabel('对话输入')).toHaveCount(0)
  expect(await page.evaluate(()=>(window as any).__speechCalls)).toBe(0)
- await page.getByRole('button',{name:'查看',exact:true}).click()
+ await page.getByRole('button',{name:'查看记录',exact:true}).click()
  await expect(page).toHaveURL(/view=month/)
  await expect(page).toHaveURL(/recordId=/)
  await expect(page).toHaveURL(/day=\d{4}-\d{2}-\d{2}/)
@@ -46,7 +47,7 @@ test('full review edits one field, adds and deletes cards, saves together',async
  await page.getByRole('button',{name:'新增记录',exact:true}).click()
  await page.getByRole('dialog').getByRole('textbox',{name:'原话',exact:true}).fill('胳膊有点痒')
  await page.getByRole('dialog').getByLabel('发生时间',{exact:true}).fill('昨天')
- await page.getByRole('button',{name:'添加',exact:true}).click()
+ await page.getByRole('button',{name:'添加为界面验证（虚构）的记录',exact:true}).click()
  await expect(page.locator('.smart-review-card')).toHaveCount(2)
  await page.getByRole('button',{name:'编辑胳膊有点痒的名称',exact:true}).click()
  await page.getByRole('button',{name:'删除这条记录',exact:true}).click()
@@ -54,14 +55,23 @@ test('full review edits one field, adds and deletes cards, saves together',async
  for(const width of [320,375,390]){await page.setViewportSize({width,height:667});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)}
  await page.screenshot({path:info.outputPath('review.png')})
  await page.getByRole('button',{name:'保存',exact:true}).click()
- await expect(page.getByRole('button',{name:'查看',exact:true})).toBeVisible()
+ await expect(page.getByRole('button',{name:'查看记录',exact:true})).toBeVisible()
 })
-test('zero extracted records offer no record actions',async({page,request})=>{
- await request.post('http://127.0.0.1:4198/draft-data',{data:{items:[]}})
+test('a zero-fact thank-you preserves the acknowledged candidate and new composer input',async({page,request})=>{
+ const before=await(await request.get(`/api/members/${memberId}/front-desk-record`,{headers})).json()
+ const reply='不客气，刚才那份草稿还保留着。'
+ await request.post('http://127.0.0.1:4198/front-reply-data',{data:{reply,contextId:'@context',responseMode:'conversation',taskRelation:'continue',subject:{kind:'unknown',memberId:null,label:null,sources:[]},recordChanges:[],nextQuestion:null,requestedAction:{type:'none',targetIds:[],targetVersion:null,confirmation:'none',quote:''},uncertainties:[],emergency:{currentChild:false,quote:''}}})
  await page.getByLabel('对话输入').fill('谢谢')
  await page.getByRole('button',{name:'发送',exact:true}).click()
- await expect(page.getByLabel('对话输入')).toBeEnabled()
- await expect(page.locator('.nurse-turn--assistant').last().getByRole('button',{name:/核对记录|直接记录/})).toHaveCount(0)
+ await page.getByLabel('对话输入').fill('这段尚未发送的新补充')
+ await expect(page.getByText(reply,{exact:true})).toBeVisible()
+ await expect(page.getByLabel('对话输入')).toHaveValue('这段尚未发送的新补充')
+ await expect(page.getByRole('button',{name:'核对记录',exact:true})).toBeEnabled()
+ await expect(page.getByText('已整理，请核对关键内容',{exact:true})).toHaveCount(0)
+ await expect(page.locator('.smart-record-saved')).toHaveCount(0)
+ const after=await(await request.get(`/api/members/${memberId}/front-desk-record`,{headers})).json()
+ expect(after.review.id).toBe(before.review.id);expect(after.review.version).toBe(before.review.version)
+ expect(after.review.items).toEqual(before.review.items);expect(after.recordResult??null).toBeNull()
 })
 test('delete the extracted record and save only a manual addition',async({page})=>{
  await page.getByRole('button',{name:'核对记录',exact:true}).click()
@@ -73,14 +83,15 @@ test('delete the extracted record and save only a manual addition',async({page})
  await page.getByRole('button',{name:'新增记录',exact:true}).click()
  await page.getByRole('dialog').getByRole('textbox',{name:'原话',exact:true}).fill('胳膊有点痒')
  await page.getByRole('dialog').getByLabel('发生时间',{exact:true}).fill('昨天')
- await page.getByRole('button',{name:'添加',exact:true}).click()
+ await page.getByRole('button',{name:'添加为界面验证（虚构）的记录',exact:true}).click()
  await page.getByRole('button',{name:'保存',exact:true}).click()
- await expect(page.getByRole('button',{name:'查看',exact:true})).toBeVisible()
- await page.getByRole('button',{name:'查看',exact:true}).click()
+ await expect(page.getByRole('button',{name:'查看记录',exact:true})).toBeVisible()
+ await page.getByRole('button',{name:'查看记录',exact:true}).click()
  await expect(page.getByRole('dialog')).toContainText('胳膊有点痒')
 })
 test('voice recording remains available and automatically gets the two record actions',async({page,request})=>{
- await request.post('http://127.0.0.1:4198/draft-data',{data:{items:['昨天脸颊有点红','今天胳膊有点痒'].map(text=>({category:'symptom',title:'合成观察记录',timeText:text.startsWith('昨天')?'昨天':'今天',subject:'current',archiveCategory:null,relationKey:null,fields:[{name:'symptom',value:text,quote:text,sourceId:'@first',page:1}]}))}})
+ // V3 provider binds all actual source segments; no stale @first voice override.
+ await request.post('http://127.0.0.1:4198/draft-data',{data:{items:null}})
  await request.get(`http://127.0.0.1:4198/voice?text=${encodeURIComponent('今天胳膊有点痒')}`)
  await page.getByRole('button',{name:'改用语音'}).click()
  const hold=page.getByRole('button',{name:'按住说话',exact:true})
@@ -89,6 +100,10 @@ test('voice recording remains available and automatically gets the two record ac
  await page.waitForTimeout(900);await page.keyboard.up('Space')
  await expect(page.locator('.nurse-turn--user').last()).toContainText('今天胳膊有点痒')
  await expect(page.locator('.smart-record-page audio')).toHaveCount(0)
+ await finishNursingQuestions(page)
+ const current=await(await request.get(`/api/members/${memberId}/front-desk-record`,{headers})).json()
+ expect(current.review.inputText).toContain('今天胳膊有点痒')
+ expect(current.review.sources.some((source:{text:string})=>source.text.includes('今天胳膊有点痒'))).toBe(true)
  await expect(page.locator('.nurse-turn--assistant').last().getByRole('button',{name:/核对记录/})).toBeEnabled()
  expect(await page.evaluate(()=>(window as any).__speechCalls)).toBe(0)
 })

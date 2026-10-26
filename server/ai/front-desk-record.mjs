@@ -50,7 +50,12 @@ export class FrontDeskRecord {
     await this.scope(accountId, memberId)
     if (typeof input.requestId !== 'string' || input.requestId.length > 180 || !Array.isArray(input.turns) || input.turns.length > 60 || input.turns.some(t=>typeof t.text!=='string'||t.text.length>5000)) throw fail('旧草稿内容无效',422,'FRONT_RECORD_INVALID')
     const id=`legacy-${fingerprint([accountId,memberId,input.requestId]).slice(0,32)}`
-    if ((await this.store.read()).contexts.some(c=>c.id===id)) return this.snapshot(accountId,memberId,id)
+    if ((await this.store.read()).contexts.some(c=>c.id===id)) {
+      // Old migrations predate versioned confirmation. Supply only missing
+      // counters from their owned retained originals, never reset a revision.
+      await accountTransaction(this.directory,async()=>this.store.update(data=>({...data,contexts:data.contexts.map(context=>context.id===id&&context.accountId===accountId&&context.memberId===memberId?{...context,version:context.version??1,evidenceVersion:context.evidenceVersion??0,originalsVersion:context.originalsVersion??(data.messages.some(message=>message.contextId===id&&message.accountId===accountId&&message.memberId===memberId&&[...message.files??[],...message.voices??[]].length)?1:0)}:context)})))
+      return this.snapshot(accountId,memberId,id)
+    }
     const files=await prepareDocuments(input.files??[])
     let voices
     try{voices=prepareVoiceOriginals(input.voiceFiles??[])}catch(error){
@@ -66,7 +71,7 @@ export class FrontDeskRecord {
     if(!turns.length)return null
     let draftId
     if(input.draftId){try{const draft=await this.business.get(accountId,memberId,input.draftId);if(draft.raw===turns.map(t=>t.text).filter(Boolean).join('\n'))draftId=draft.id}catch{/* Keep originals even if the old review expired. */}}
-    await accountTransaction(this.directory,async()=>this.store.update(data=>data.contexts.some(c=>c.id===id)?data:{...data,contexts:[...data.contexts,{id,accountId,memberId,updatedAt:at,createdAt:at,draftId,provisional:false}],messages:[...data.messages,...turns]}))
+    await accountTransaction(this.directory,async()=>this.store.update(data=>data.contexts.some(c=>c.id===id)?data:{...data,contexts:[...data.contexts,{id,accountId,memberId,updatedAt:at,createdAt:at,draftId,provisional:false,version:1,evidenceVersion:0,originalsVersion:files.documents.length||voices.length?1:0}],messages:[...data.messages,...turns]}))
     return this.snapshot(accountId,memberId,id)
   }
   async snapshot(accountId, memberId, contextId) {
@@ -205,7 +210,8 @@ export class FrontDeskRecord {
       guard?.()
       if (!context||context.closedAt) throw fail('未找到本次对话', 404, 'FRONT_RECORD_NOT_FOUND')
       // The original text must belong to this exact record intent.
-      const raw = data.messages.filter(m => m.contextId === contextId && m.kind !== 'assistant' && m.status === 'completed').sort(messageOrder).map(m => m.text).filter(Boolean).join('\n')
+      const scoped=data.messages.filter(message=>message.contextId===contextId&&message.accountId===accountId&&message.memberId===memberId)
+      const raw = (context.semanticVersion===2&&!context.understanding?factMessages(scoped):scoped.filter(message=>message.kind!=='assistant'&&message.status==='completed')).sort(messageOrder).map(message=>message.text).filter(Boolean).join('\n')
       if (draft.frontEvidenceVersion != null ? draft.frontEvidenceVersion !== (context.evidenceVersion??0) : raw !== draft.raw) throw fail('整理内容已变化，请重新整理', 409, 'FRONT_RECORD_CHANGED')
       return {...data,contexts:data.contexts.map(c=>c===context?{...c,draftId:draft.id,saved:draft.state==='saved',recordResult:draft.result??c.recordResult,updatedAt:this.now().toISOString()}:c)}
     })

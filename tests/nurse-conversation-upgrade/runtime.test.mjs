@@ -14,7 +14,7 @@ async function syntheticRuntime(t){
 }
 test('all runtime boundaries are hashed from their exact bytes, including legacy compatibility and source-summary verification',async t=>{
  const root=await syntheticRuntime(t),first=await captureRuntime(root)
- assert.equal(first.baseCommit,null);assert.equal(Object.keys(first.sources).length,25)
+ assert.equal(first.baseCommit,null);assert.equal(Object.keys(first.sources).length,27)
  for(const file of runtimeSources)assert.equal(first.sources[file],createHash('sha256').update(`synthetic source: ${file}\n`).digest('hex'))
  const changed='server/ai/business/semantic-summary.mjs'
  await writeFile(path.join(root,changed),'synthetic revised semantic verification\n')

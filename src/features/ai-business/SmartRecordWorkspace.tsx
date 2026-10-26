@@ -348,7 +348,9 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
   const rawSubjectConfirmed=!page||Boolean(eventId)||Boolean(rawContextMatches&&frontOriginalsConfirmed(rawContext,memberId))
   const rawIntentMatches=rawSaveTargetMatches(local.rawSaveTarget,rawContext,memberId)
   const rawReceiptRecovery=Boolean(local.rawSaveTarget?.state==='requested'&&local.rawSaveTarget.memberId===memberId&&local.rawSaveTarget.contextId===rawContext?.id&&rawContext.saved&&local.rawSaveTarget.originalsVersion===(rawContext.originalsVersion??0))
-  const rawCanOffer=page&&!eventId&&rawContextMatches&&!jobBusy&&!localStage&&(job?.state==='failed'||!review?.items.length&&['ready','needs_review'].includes(job?.state??'')&&frontHasOriginalFiles(rawContext))
+  const rawCanOffer=!jobBusy&&!localStage&&(page&&!eventId
+    ?rawContextMatches&&(job?.state==='failed'||!review?.items.length&&['ready','needs_review'].includes(job?.state??'')&&frontHasOriginalFiles(rawContext))
+    :job?.state==='failed'&&Boolean(hasVisibleConversationText(local.text)||local.files.length||job.inputStates?.some(input=>hasVisibleConversationText(input.text??''))))
   const contextSubjectPending=page&&!eventId&&rawContextMatches&&rawIntentMatches&&!rawSubjectConfirmed
   const contextSubjectCanConfirm=!rawSubject||['unknown','current'].includes(rawSubject.kind)
   const canSave=review?.state==='ready'&&review.inputText===local.text&&!subjectPending&&!local.pendingVoice&&!jobBusy&&!job?.unresolvedInputs?.length&&!localStage&&(!job||job.resultRevision===job.inputRevision&&['ready','needs_review'].includes(job.state))
@@ -536,7 +538,7 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
       if(home)changes.push({followUp:false})
       for(const itemId of review.deletedItemIds??[])changes.push({deleteItem:itemId})
       for(const item of review.items){
-        if(item.userAdded){changes.push({addItem:{id:item.id,category:item.category,text:item.fields[0].value,title:item.title,timeText:item.timeText}});continue}
+        if(item.userAdded){changes.push({addItem:{id:item.id,category:item.category,text:item.fields[0].value,title:item.title,timeText:item.timeText,subjectConfirmation:item.manualSubjectConfirmation}});continue}
         if(item.titleChanged)changes.push({itemId:item.id,field:'title',value:item.title})
         if(item.categoryChanged)changes.push({itemId:item.id,category:item.category})
         if(item.categoriesChanged)changes.push({itemId:item.id,visibilityCategories:item.visibilityCategories})
@@ -652,7 +654,7 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
       </section>)}
       <HohoButton fullWidth variant="secondary" disabled={busy} onClick={()=>void chooseDraft()}>开始新的记录</HohoButton>
       {error&&<p role="alert">{error}</p>}
-    </div> : stage==='review'&&review ? <SmartRecordReview review={review} disabled={busy||voice.busy} error={error} onChange={smartReview=>change({smartReview})}/> : <div className="nurse-conversation" aria-label="本次对话">
+    </div> : stage==='review'&&review ? <SmartRecordReview review={review} memberId={memberId} memberName={memberName||'当前成员'} disabled={busy||voice.busy} error={error} onChange={smartReview=>change({smartReview})}/> : <div className="nurse-conversation" aria-label="本次对话">
       {!page&&<p className="hoho-text-caption">记录对象：{memberName || '当前孩子'}{eventTitle ? ` · 正在补充：${eventTitle}` : ''}</p>}
       {!completed&&!home&&<NurseMessage role="assistant"><p>{greeting}</p></NurseMessage>}
       {timeline.map((turn,index)=><Fragment key={turn.id}>

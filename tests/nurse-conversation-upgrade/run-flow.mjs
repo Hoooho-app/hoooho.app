@@ -12,14 +12,15 @@ import {captureRuntime} from './runtime.mjs'
 import {completedSleepInput,loadSavedGuideImplementation,requireRealCandidate,assertSavedFlow} from './flow-contract.mjs'
 import {captureSavedFlow} from './screenshots.mjs'
 const directory=path.dirname(fileURLToPath(import.meta.url)),root=path.resolve(directory,'../..')
-if(process.argv.includes('--help')){console.log('Usage: node tests/nurse-conversation-upgrade/run-flow.mjs [--live] [--screenshots] [--max-model-requests=20] [--output=tests/nurse-conversation-upgrade/results/flow-unique]\nDefault NOT_RUN. Only fresh local synthetic account/data; existing Bailian only. Max 20 attempts across both real continuous save flows. No seeded dialogues or candidates. Screenshots use background Chrome with the exact iPhone SE preset after actual saves; dist must already be built.');process.exit(0)}
+if(process.argv.includes('--help')){console.log('Usage: node tests/nurse-conversation-upgrade/run-flow.mjs [--live] [--screenshots] [--kinds=sleep,vaccination] [--max-model-requests=20] [--output=tests/nurse-conversation-upgrade/results/flow-unique]\nDefault NOT_RUN. Only fresh local synthetic account/data; existing Bailian only. Max 20 attempts across the explicitly requested real continuous save flows. No seeded dialogues or candidates. Screenshots use background Chrome with the exact iPhone SE preset after actual saves; dist must already be built.');process.exit(0)}
 const arg=(name,fallback)=>process.argv.find(value=>value.startsWith(`--${name}=`))?.slice(name.length+3)??fallback
 const maxCalls=Number(arg('max-model-requests','20'));assert(Number.isInteger(maxCalls)&&maxCalls>=1&&maxCalls<=20)
+const kinds=arg('kinds','sleep,vaccination').split(',');assert(kinds.length>0&&new Set(kinds).size===kinds.length&&kinds.every(kind=>['sleep','vaccination'].includes(kind)),'Select distinct supported flow kinds')
 const output=path.resolve(arg('output',path.join(directory,'results',`flow-${Date.now()}`)))
 assert(output.startsWith(path.join(directory,'results')+path.sep),'Reports must stay inside evaluation results')
 await mkdir(output,{recursive:true})
 const screenshots=process.argv.includes('--screenshots')
-const report={status:'NOT_RUN',syntheticOnly:true,seededContext:false,productionRequests:0,modelRequests:0,maxModelRequests:maxCalls,modelReceipts:[],runtime:await captureRuntime(root),http:[],flows:[],uiBrowser:'NOT_RUN',screenshotsRequested:screenshots,clinicalReview:'NOT_PERFORMED',understandingAccuracy:null}
+const report={status:'NOT_RUN',syntheticOnly:true,requestedKinds:kinds,seededContext:false,productionRequests:0,modelRequests:0,maxModelRequests:maxCalls,modelReceipts:[],runtime:await captureRuntime(root),http:[],flows:[],uiBrowser:'NOT_RUN',screenshotsRequested:screenshots,clinicalReview:'NOT_PERFORMED',understandingAccuracy:null}
 const finish=async()=>{await writeFile(path.join(output,'report.json'),JSON.stringify(report,null,2));console.log(JSON.stringify({status:report.status,output,modelRequests:report.modelRequests,flows:report.flows.map(flow=>({kind:flow.kind,status:flow.status,recordIds:flow.saved?.records.map(record=>record.recordId)??[],errorCode:flow.errorCode??null})),reason:report.reason??null}))}
 if(!process.argv.includes('--live')){report.reason='Explicit --live is required; no application or provider was started.';await finish();process.exit(0)}
 const present={provider:process.env.AI_PROVIDER==='bailian',key:Boolean(process.env.BAILIAN_API_KEY?.trim()),baseUrl:Boolean(process.env.BAILIAN_BASE_URL?.trim())}
@@ -58,7 +59,7 @@ try{
  const {default:sharp}=await import('sharp')
  const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="1000"><rect width="1400" height="1000" fill="white"/>${['VACCINATION RECORD','PATIENT: SYNTHETIC-CHILD','VACCINE: HEPATITIS B VACCINE',`VACCINATION DATE: ${vaccinationDate}`,'DOSE NUMBER: 1','STATUS: ADMINISTERED / COMPLETED','Synthetic evaluation document'].map((line,index)=>`<text x="40" y="${80+index*120}" font-family="Arial,sans-serif" font-size="42" fill="black">${line}</text>`).join('')}</svg>`
  const png=await sharp(Buffer.from(svg)).png().toBuffer(),sha256=createHash('sha256').update(png).digest('hex');await writeFile(path.join(output,'synthetic-vaccination.png'),png)
- for(const kind of ['sleep','vaccination']){
+ for(const kind of kinds){
   const flow={kind,status:'RUNNING',turns:[]};report.flows.push(flow)
   try{
    let assetIds=[]

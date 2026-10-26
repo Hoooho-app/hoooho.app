@@ -10,6 +10,7 @@ import https from 'node:https'
 import { EventEmitter } from 'node:events'
 import { Readable } from 'node:stream'
 import { nurseFixtureOutput, isCurrentSituationTransport, currentSituationFixtureOutput } from './ai-fixture-contract.mjs'
+import { isExtendedFrontDeskFixtureRequest, extendedFrontDeskFixtureOutput } from './front-desk-v3-fixture.mjs'
 import { visitFixture } from '../../server/visit-sheets/fixtures.mjs'
 import { buildOccurrences } from '../../server/medication-reminders/medication-reminder-service.mjs'
 // Only this isolated fixture server can install the AI test double. Runtime code
@@ -44,6 +45,10 @@ if (process.env.VISIT_AI_TEST === '1') {
     if(body.text.format.name==='hoooho_front_desk_reply'){
       const input=JSON.parse(body.input),last=input.history.at(-1),contextId=last?.id??'new',knowledge=input.nursingKnowledge?.find(k=>k.contextId===contextId),asked=last?.interview?.askedKnowledgeQuestionIds??last?.interview?.askedQuestionIds??[]
       if(frontReply){const replace=value=>value==='@latest'?input.latest.id:value==='@context'?(input.conversation?.activeContextId??contextId):Array.isArray(value)?value.map(replace):value&&typeof value==='object'?Object.fromEntries(Object.entries(value).map(([key,item])=>[key,replace(item)])):value;return fixtureResponse({output:[{content:[{type:'output_text',text:JSON.stringify(replace(frontReply))}]}]})}
+      if(isExtendedFrontDeskFixtureRequest(body)){
+        const value=extendedFrontDeskFixtureOutput(input,{semanticDecision,visualOutput})
+        return fixtureResponse({output:[{content:[{type:'output_text',text:JSON.stringify(value)}]}]})
+      }
       const finish=/没注意|不清楚|先按已经|不再追问/u.test(input.latest.text)||last?.interview?.stopReason==='user_finished',node=finish?null:knowledge?.nodes.find(n=>!asked.includes(n.id)),topic=node?.domain??knowledge?.domain??'general'
       const slot=node?.id.endsWith('-onset')?'onset':({'skin-location':'location','skin-appearance':'appearance','injury-course':'course','injury-function':'impact','handling-response':'handling'}[node?.id]??'observation')
       const predicate=node?.id==='resp-effort'?'breathing_effort':null
@@ -68,7 +73,7 @@ if (process.env.VISIT_AI_TEST === '1') {
       if(bound)data.sources=data.sources.map(s=>({...s,text:(s.segments??[]).map(segment=>segment.text).join('')}))
       const first=data.sources[0]
       let items=draftItems?draftItems.map(i=>({...i,fields:i.fields.map(f=>({...f,sourceId:f.sourceId==='@first'?first.id:f.sourceId==='@visual'?data.sources.find(s=>s.sourceKind==='visual_observation')?.id:f.sourceId}))})):[{category:'symptom',title:'合成观察记录',timeText:first.text.includes('今天')?'今天':null,subject:'current',archiveCategory:null,relationKey:null,fields:[{name:'symptom',value:first.text,quote:first.text,sourceId:first.id,page:first.page}]}]
-      if(bound)items=items.map(item=>({...item,fields:!draftItems?sourceSegments.filter(s=>s.sourceId===first.id&&s.page===first.page&&s.text.trim()).map((s,index)=>({name:index?'statusRaw':'symptom',value:s.text,evidenceId:s.evidenceId})):item.fields.map(field=>{
+      if(bound)items=items.map(item=>({...item,fields:!draftItems?sourceSegments.filter(s=>s.text.trim()).map((s,index)=>({name:index?'statusRaw':'symptom',value:s.text,evidenceId:s.evidenceId})):item.fields.map(field=>{
         const source=data.sources.find(s=>s.id===field.sourceId&&s.page===field.page),segment=source&&source.text.includes(field.quote)?sourceSegments.find(s=>s.sourceId===field.sourceId&&s.page===field.page&&s.text.includes(field.value)):null
         return {name:field.name,value:field.value,evidenceId:segment?.evidenceId??'fixture-invalid-evidence-id'}
       })}))

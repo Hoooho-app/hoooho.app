@@ -9,6 +9,7 @@ import {readFileSync,mkdtempSync,rmSync} from 'node:fs'
 import {tmpdir} from 'node:os'
 import path from 'node:path'
 import { TokenService } from '../../server/auth/token-service.mjs'
+import {useLegacyFrontProtocol} from '../helpers/front-protocol-compat'
 import { finishNursingQuestions, waitForNurseReply } from '../helpers/nursing-interview'
 const token=new TokenService('visit-sheet-e2e-secret',3600000).create({id:'visit-test'})
 const headers={Authorization:`Bearer ${token}`}
@@ -26,7 +27,8 @@ test.beforeEach(async({page,request})=>{
  await expect(page.getByRole('button',{name:'按住说话',exact:true})).toBeEnabled()
 })
 
-test('front desk separates animated processing, one question, paper review and post-save actions',async({page,request},info)=>{
+test('[legacy protocol2] front desk separates animated processing, one question, paper review and post-save actions',async({page,request},info)=>{
+ const legacy=await useLegacyFrontProtocol(page)
  await page.emulateMedia({reducedMotion:'reduce'})
  await request.get('http://127.0.0.1:4198/delay?ms=10000')
  await typeText(page,'身体有点冷')
@@ -34,7 +36,8 @@ test('front desk separates animated processing, one question, paper review and p
  const processing=page.locator('.front-desk-processing--separate'),video=processing.locator('video')
  await expect(processing).toBeVisible()
  await expect(processing).not.toContainText('嗯，我了解了')
- await expect(page.locator('.nurse-turn--assistant').last()).toContainText('嗯，我了解了，我整理一下。')
+ // A pending operation has a real processing strip, not a synthetic reply.
+ await expect(page.locator('.nurse-turn--assistant')).toHaveCount(0)
  await expect(video).toHaveAttribute('playsinline','')
  await expect.poll(()=>video.evaluate(e=>{const v=e as HTMLVideoElement;return {playing:!v.paused&&v.currentTime>0,error:v.error?.code??0,ready:v.readyState}})).toMatchObject({playing:true,error:0})
  const firstTime=await video.evaluate(e=>(e as HTMLVideoElement).currentTime)
@@ -49,7 +52,7 @@ test('front desk separates animated processing, one question, paper review and p
   expect(boxes[0].x+boxes[0].width).toBeLessThanOrEqual(boxes[1].x)
   expect(boxes[1].x+boxes[1].width).toBeLessThanOrEqual(boxes[2].x)
   expect(await processing.getByRole('button').locator('span').evaluate(e=>getComputedStyle(e).color)).toBe('rgb(255, 255, 255)')
-  expect((await page.locator('.nurse-turn--assistant').last().locator('p').boundingBox())!.height).toBeLessThan(30)
+  expect((await processing.locator('strong').boundingBox())!.height).toBeLessThan(30)
   await page.screenshot({path:info.outputPath(`processing-${width}.png`)})
  }
  await processing.getByRole('button',{name:'停止处理',exact:true}).click()
@@ -58,6 +61,7 @@ test('front desk separates animated processing, one question, paper review and p
  await request.get('http://127.0.0.1:4198/delay?ms=400')
  await page.getByRole('button',{name:'继续处理',exact:true}).click()
  await expect(page.getByText(/是孩子自己说冷，还是你摸着觉得凉/)).toBeVisible()
+ await legacy.assertContext()
  await expect(page.getByLabel('回答当前问题').getByRole('button')).toHaveCount(4)
  await expect(page.getByRole('button',{name:/^(立即保存|核对记录|启用症状跟进|先记下来)$/})).toHaveCount(0)
  await expect(page.locator('.front-desk-record-sheet')).toHaveCount(0)
@@ -83,7 +87,7 @@ test('front desk separates animated processing, one question, paper review and p
  await page.getByRole('button',{name:'核对记录',exact:true}).click()
  await expect(page.getByRole('button',{name:'启用症状跟进',exact:true})).toHaveCount(0)
  await page.getByRole('button',{name:'保存',exact:true}).click()
- await expect(page.getByRole('button',{name:'查看',exact:true})).toBeVisible()
+ await expect(page.getByRole('button',{name:'查看记录',exact:true})).toBeVisible()
  await expect(page.getByRole('button',{name:'启用症状跟进',exact:true})).toBeVisible()
  await expect.poll(async()=>{
   const saved=await page.locator('.smart-record-saved').last().boundingBox(),body=await page.locator('.smart-record-page__body').boundingBox()
@@ -216,11 +220,11 @@ test('real review edits a field, saves through the original pipeline and opens t
  await page.getByRole('button',{name:'确定',exact:true}).click()
  await page.screenshot({path:info.outputPath('review.png')})
  await page.getByRole('button',{name:'保存',exact:true}).click()
- await expect(page.getByRole('button',{name:'查看',exact:true})).toBeVisible()
+ await expect(page.getByRole('button',{name:'查看记录',exact:true})).toBeVisible()
  await expect(page.getByRole('button',{name:'按住说话',exact:true})).toBeEnabled()
  await expect(page.locator('.record-entry-grid>button')).toHaveCount(5)
- expect((await page.getByRole('button',{name:'查看',exact:true}).boundingBox())!.height).toBeGreaterThanOrEqual(44)
- await page.getByRole('button',{name:'查看',exact:true}).click()
+ expect((await page.getByRole('button',{name:'查看记录',exact:true}).boundingBox())!.height).toBeGreaterThanOrEqual(44)
+ await page.getByRole('button',{name:'查看记录',exact:true}).click()
  await expect(page).toHaveURL(/recordId=/)
  await expect(page.getByRole('dialog')).toBeVisible()
  expect(await page.evaluate(()=>(window as any).__speechCalls)).toBe(0)
@@ -249,10 +253,12 @@ test('failed recording survives refresh, retries and remains readable after a ne
  await expect(page.getByRole('button',{name:/^重试$|^重试未完成的转写$/})).toBeVisible()
  await request.get('http://127.0.0.1:4198/success')
  await page.getByRole('button',{name:/^重试$|^重试未完成的转写$/}).click()
+ await finishNursingQuestions(page)
  await expect(page.getByRole('button',{name:'核对记录',exact:true})).toBeEnabled()
  await startNew(page)
  await typeText(page,'另一段对话：今天吃了一碗粥')
  await page.getByRole('button',{name:'发送',exact:true}).click()
+ await finishNursingQuestions(page)
  await expect(page.getByRole('button',{name:'核对记录',exact:true})).toBeEnabled()
  await page.getByRole('button',{name:'更多操作',exact:true}).click()
  await page.getByRole('menuitem',{name:'之前对话',exact:true}).click()
@@ -263,12 +269,16 @@ test('failed recording survives refresh, retries and remains readable after a ne
  await expect(page.locator('.nurse-conversation')).toContainText('另一段对话：今天吃了一碗粥')
 })
 
-test('camera retains the original image upload and feeding label opens its original form',async({page})=>{
+test('camera retains the original image upload and feeding label opens its original form',async({page,request})=>{
+ // A declared synthetic observation is a provider contract fixture, not a
+ // claim that the uploaded color swatch was understood by a real model.
+ await request.post('http://127.0.0.1:4198/draft-data',{data:{items:null,visualOutput:{kind:'observation',status:'readable',text:'',observations:[{text:'合成可见表现：局部发红',region:'图片中央'}]}}})
  const png=await sharp({create:{width:96,height:96,channels:3,background:'#eeccaa'}}).png().toBuffer()
  const chooser=page.waitForEvent('filechooser')
  await page.getByRole('button',{name:'添加照片、视频或文件',exact:true}).click()
  await page.getByRole('button',{name:'上传照片',exact:true}).click()
  await(await chooser).setFiles({name:'合成观察.png',mimeType:'image/png',buffer:png})
+ await finishNursingQuestions(page)
  await expect(page.getByRole('button',{name:'核对记录',exact:true})).toBeEnabled()
  await expect(page.getByRole('img',{name:'合成观察.png',exact:true})).toBeVisible()
  await startNew(page)
@@ -371,7 +381,7 @@ test('compact sidebar and clean light canvas carry through the shared health pag
  }
 })
 
-test('one camera exposes four native sources and PDF keeps a readable original',async({page})=>{
+test('one camera exposes four native sources and a blank PDF retains its original without a false candidate',async({page,request})=>{
  await page.getByRole('button',{name:'添加照片、视频或文件',exact:true}).click()
  const sheet=page.getByRole('dialog',{name:'添加附件',exact:true})
  for(const name of ['上传照片','拍照片','拍视频','选择文件'])await expect(sheet.getByRole('button',{name,exact:true})).toBeVisible()
@@ -383,7 +393,14 @@ test('one camera exposes four native sources and PDF keeps a readable original',
  await(await picker).setFiles({name:'虚构就诊原件.pdf',mimeType:'application/pdf',buffer:Buffer.from(await pdf.save())})
  const original=page.getByRole('group',{name:'PDF原件：虚构就诊原件.pdf',exact:true})
  await expect(original.getByRole('link',{name:'查看原件',exact:true})).toHaveAttribute('href',/^blob:/)
- await expect(page.getByRole('button',{name:'核对记录',exact:true})).toBeEnabled()
+ // This PDF has an actually blank page. Retention is not successful clinical
+ // extraction; keep the real original without manufacturing a review card.
+ await expect.poll(async()=>(await(await request.get(`/api/members/${memberId}/recognition-jobs`,{headers})).json())?.state).toBe('ready')
+ const completed=await(await request.get(`/api/members/${memberId}/recognition-jobs`,{headers})).json()
+ expect(completed.review?.items??[]).toHaveLength(0)
+ expect(completed.operationReceipt).toBeUndefined()
+ await expect(page.getByRole('button',{name:'核对记录',exact:true})).toHaveCount(0)
+ await expect(page.locator('.smart-record-saved')).toHaveCount(0)
  await page.reload()
  await expect(page.getByRole('group',{name:'PDF原件：虚构就诊原件.pdf',exact:true}).getByRole('link',{name:'下载PDF',exact:true})).toHaveAttribute('href',/^blob:/)
 })
@@ -454,7 +471,7 @@ test('failed video keeps its original across refresh and cannot save before atta
  expect(originals).toBe(1)
 })
 
-test('follow-up starts only with explicit dialogue opt-in and disappears when the last item ends',async({page,request})=>{
+test('follow-up starts only with explicit dialogue opt-in and disappears when the last item ends',async({page,request},info)=>{
  await typeText(page,'今天左前臂有点发红')
  await page.getByRole('button',{name:'发送',exact:true}).click()
  await finishNursingQuestions(page)
@@ -462,7 +479,7 @@ test('follow-up starts only with explicit dialogue opt-in and disappears when th
  await expect(page.getByRole('button',{name:'启用症状跟进',exact:true})).toHaveCount(0)
  await expect(page.getByRole('region',{name:'症状跟进',exact:true})).toHaveCount(0)
  await page.getByRole('button',{name:/^(立即保存|先记下来)$/}).click()
- await expect(page.getByRole('button',{name:'查看',exact:true})).toBeVisible()
+ await expect(page.getByRole('button',{name:'查看记录',exact:true})).toBeVisible()
  await expect(page.getByRole('region',{name:'症状跟进',exact:true})).toHaveCount(0)
  await startNew(page)
  await typeText(page,'今天右小腿有点发红')
@@ -487,6 +504,10 @@ test('follow-up starts only with explicit dialogue opt-in and disappears when th
  await expect(page.getByRole('button',{name:'启用症状跟进',exact:true})).toHaveCount(0)
  const card=page.getByRole('region',{name:'症状跟进',exact:true})
  await expect(card).toBeVisible()
+ await page.setViewportSize({width:375,height:667})
+ await card.scrollIntoViewIfNeeded()
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
+ await page.screenshot({path:info.outputPath('symptom-followup-mobile-375.png')})
  const cases=await(await request.get(`/api/members/${memberId}/cases`,{headers})).json()
  expect(cases.active).toHaveLength(1)
  const recovered=await request.post(`/api/members/${memberId}/cases/${cases.active[0].event.id}/recovery`,{headers,data:{action:'recover',requestId:crypto.randomUUID()}})
@@ -500,7 +521,7 @@ test('saved history continues in the selected conversation across refresh withou
  await typeText(page,original);await page.getByRole('button',{name:'发送',exact:true}).click()
  await finishNursingQuestions(page)
  await page.getByRole('button',{name:/^(立即保存|先记下来)$/}).click()
- await expect(page.getByRole('button',{name:'查看',exact:true})).toBeVisible()
+ await expect(page.getByRole('button',{name:'查看记录',exact:true})).toBeVisible()
  await startNew(page)
  await typeText(page,'另一段未发送的草稿')
  await page.getByRole('button',{name:'更多操作',exact:true}).click();await page.getByRole('menuitem',{name:'之前对话',exact:true}).click()
@@ -546,11 +567,13 @@ test('speech text appears before release and cancel leaves no submitted or saved
 })
 
 
-test('semantic punctuation stays conversational and invisible input never submits',async({page,request})=>{
+test('[legacy protocol2] semantic punctuation stays conversational and invisible input never submits',async({page,request})=>{
+ const legacy=await useLegacyFrontProtocol(page)
  const before=await (await request.get('http://127.0.0.1:4198/success')).json()
  await typeText(page,'？')
  await page.getByRole('button',{name:'发送',exact:true}).click()
  await expect(page.locator('.nurse-turn--assistant').last()).toContainText('发生了什么')
+ await legacy.assertContext()
  await expect(page.locator('.front-desk-record-sheet')).toHaveCount(0)
  const after=await (await request.get('http://127.0.0.1:4198/success')).json()
  expect(after.calls).toBe(before.calls)
@@ -561,12 +584,14 @@ test('semantic punctuation stays conversational and invisible input never submit
  expect((await (await request.get('http://127.0.0.1:4198/success')).json()).calls).toBe(before.calls)
 })
 
-test('semantic photo-only asks before extraction and keeps visual attribution after reload',async({page,request})=>{
+test('[legacy protocol2] semantic photo-only asks before extraction and keeps visual attribution after reload',async({page,request})=>{
+ const legacy=await useLegacyFrontProtocol(page)
  const decision={intent:'record',subject:'current',status:'ask',topic:'injury',question:{text:'这张照片记录的是今天的情况吗？',slot:'onset',predicate:null,unit:null,options:[{label:'今天',value:'今天开始'}]},unresolvedItems:[],media:'body'}
  await request.post('http://127.0.0.1:4198/draft-data',{data:{semanticDecision:decision}})
  const image=await sharp({create:{width:120,height:120,channels:3,background:'#a66922'}}).png().toBuffer()
  await page.getByLabel('从相册选择',{exact:true}).setInputFiles({name:'合成图片.png',mimeType:'image/png',buffer:image})
  await expect(page.getByText('这张照片记录的是今天的情况吗？',{exact:false})).toBeVisible()
+ await legacy.assertContext()
  await expect(page.locator('.front-desk-record-sheet')).toHaveCount(0)
  await page.reload()
  await expect(page.getByText('这张照片记录的是今天的情况吗？',{exact:false})).toBeVisible()
@@ -578,10 +603,12 @@ test('semantic photo-only asks before extraction and keeps visual attribution af
 })
 
 
-test('semantic courtesy preserves the same summary and save eligibility after reload',async({page,request})=>{
+test('[legacy protocol2] semantic courtesy preserves the same summary and save eligibility after reload',async({page,request})=>{
+ const legacy=await useLegacyFrontProtocol(page)
  await typeText(page,'今天脸颊发红，先按已经说过的情况记录，不再追问。')
  await page.getByRole('button',{name:'发送',exact:true}).click()
  await expect(page.getByRole('button',{name:'立即保存',exact:true})).toBeEnabled()
+ await legacy.assertContext()
  const text=await page.locator('.front-desk-record-sheet').innerText(),before=await(await request.get('http://127.0.0.1:4198/success')).json()
  await typeText(page,'谢谢')
  await page.getByRole('button',{name:'发送',exact:true}).click()
@@ -592,5 +619,5 @@ test('semantic courtesy preserves the same summary and save eligibility after re
  await page.reload()
  await expect(page.getByRole('button',{name:'立即保存',exact:true})).toBeEnabled()
  await page.getByRole('button',{name:'立即保存',exact:true}).click()
- await expect(page.getByRole('button',{name:'查看',exact:true})).toBeVisible()
+ await expect(page.getByRole('button',{name:'查看记录',exact:true})).toBeVisible()
 })

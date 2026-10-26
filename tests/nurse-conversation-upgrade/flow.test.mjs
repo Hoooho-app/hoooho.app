@@ -16,6 +16,13 @@ test('sleep evidence always refers to an ended Shanghai interval, including earl
   const evidence=completedSleepInput(now);assert(Date.parse(evidence.wakeDay+'T07:00:00+08:00')<=now);assert(evidence.text.includes('SYNTHETIC-CHILD'));assert(evidence.text.includes('暂不保存'))
  }
 })
+test('a selected flow reports its exact scope and cannot duplicate, omit or invent a kind',async()=>{
+ const run=args=>promisify(execFile)(process.execPath,['tests/nurse-conversation-upgrade/run-flow.mjs',...args],{cwd:root})
+ const {stdout}=await run(['--kinds=sleep']),summary=JSON.parse(stdout.trim())
+ const report=JSON.parse(await readFile(path.join(summary.output,'report.json'),'utf8'))
+ assert.deepEqual(report.requestedKinds,['sleep']);assert.equal(report.status,'NOT_RUN');assert.equal(report.modelRequests,0);assert.deepEqual(report.flows,[])
+ for(const selection of ['', 'sleep,sleep','unknown'])await assert.rejects(()=>run([`--kinds=${selection}`]))
+})
 test('the flow cannot manufacture a candidate from a failed job, conversation or empty draft',()=>{
  for(const job of [{state:'failed'},{state:'ready',frontDesk:{context:{id:'c',version:1}}},{state:'ready',frontDesk:{context:{id:'c',version:1}},review:{id:'d',state:'ready',items:[]}}])assert.throws(()=>requireRealCandidate(job))
  const draft={id:'d',state:'ready',items:[{id:'real-item'}]},context={id:'c',version:1};assert.equal(requireRealCandidate({state:'ready',review:draft,frontDesk:{context}}).draft,draft)

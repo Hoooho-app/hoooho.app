@@ -136,7 +136,7 @@ test('empty conversation and a completed save return without a draft prompt',asy
  await page.getByRole('button',{name:'发送',exact:true}).click()
  await finishNursingQuestions(page)
  await page.getByRole('button',{name:/^(?:先记下来|立即保存)$/}).click()
- await expect(page.getByRole('button',{name:'查看',exact:true})).toBeVisible()
+ await expect(page.getByRole('button',{name:'查看记录',exact:true})).toBeVisible()
  await page.getByRole('button',{name:'返回',exact:true}).click()
  await expect(page).toHaveURL(/\/nurse-station$/)
  await expect(page.getByRole('dialog',{name:'退出智能记录'})).toHaveCount(0)

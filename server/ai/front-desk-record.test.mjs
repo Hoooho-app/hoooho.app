@@ -8,6 +8,7 @@ import {PDFDocument} from 'pdf-lib'
 import {FrontDeskRecord} from './front-desk-record.mjs'
 import {FamilyMemberRepository} from '../members/repositories/family-member-repository.mjs'
 import {HealthEventService} from '../events/health-event-service.mjs'
+import {AIBusinessService} from './business/service.mjs'
 
 async function setup(t){
  const dataDirectory=await mkdtemp(path.join(os.tmpdir(),'hoooho-front-record-'));t.after(()=>rm(dataDirectory,{recursive:true,force:true}))
@@ -142,6 +143,38 @@ test('legacy originals migrate once, retain wrong recorder declaration and never
  const first=await f.service.retainLegacy('synthetic',f.member.id,input),again=await f.service.retainLegacy('synthetic',f.member.id,input)
  assert.equal(first.id,again.id);assert.equal(first.messages.length,2);assert.equal(first.messages[1].voices[0].dataUrl,original.dataUrl);assert.equal(first.messages[1].voices[0].unreadable,true);assert.equal(f.calls.length,0)
  assert.equal(await f.service.latest('synthetic',f.other.id),null)
+})
+test('protocol2 checkpoint excludes courtesy while new factual input and foreign scope still invalidate it',async t=>{
+ const f=await setup(t),first=await f.service.submit('synthetic',f.member.id,{id:'legacy-fact',kind:'text',text:'今天咳嗽'})
+ await f.service.store.update(data=>({...data,contexts:data.contexts.map(({understanding,...context})=>context.id===first.context.id?{...context,semanticVersion:2}:{...context,understanding}),messages:[...data.messages.map(message=>message.id==='legacy-fact'?{...message,recordable:true}:message),{id:'courtesy',contextId:first.context.id,accountId:'synthetic',memberId:f.member.id,kind:'text',text:'谢谢',status:'completed',recordable:false,inputAt:Date.now()+1}]}))
+ // A program-held receipt is supplied here; actual persistence is exercised
+ // separately by the browser and business transaction tests.
+ f.service.business.get=async()=>({id:'saved-draft',raw:'今天咳嗽',state:'saved',result:{count:1,records:[{recordId:'receipt-record',eventId:'receipt-event'}]}})
+ await f.service.checkpoint('synthetic',f.member.id,first.context.id,{draftId:'saved-draft'})
+ assert.equal((await f.service.snapshot('synthetic',f.member.id,first.context.id)).saved,true)
+ await assert.rejects(()=>f.service.checkpoint('synthetic',f.other.id,first.context.id,{draftId:'saved-draft'}),{code:'FRONT_RECORD_NOT_FOUND'})
+ await f.service.store.update(data=>({...data,messages:[...data.messages,{id:'new-fact',contextId:first.context.id,accountId:'synthetic',memberId:f.member.id,kind:'text',text:'还有头疼',status:'completed',recordable:true,inputAt:Date.now()+2}]}))
+ await assert.rejects(()=>f.service.checkpoint('synthetic',f.member.id,first.context.id,{draftId:'saved-draft'}),{code:'FRONT_RECORD_CHANGED'})
+})
+test('migrated originals retain a confirmable version and can be explicitly saved once without a model',async t=>{
+ const f=await setup(t),raw='这段合成原话只用于迁移保存验收。'
+ const business=new AIBusinessService({dataDirectory:f.service.directory,model:{async structured(){throw new Error('Original preservation must not call a model')}},logger:{info(){},warn(){}}})
+ f.service.business=business
+ const input={requestId:'legacy-version-save',turns:[{text:raw}]}
+ const migrated=await f.service.retainLegacy('synthetic',f.member.id,input)
+ assert.equal(migrated.version,1);assert.equal(migrated.evidenceVersion,0)
+ // Also repair pre-existing legacy contexts that lack these counters.
+ await f.service.store.update(data=>({...data,contexts:data.contexts.map(({version,evidenceVersion,originalsVersion,...context})=>context.id===migrated.id?context:{...context,version,evidenceVersion,originalsVersion})}))
+ const restored=await f.service.retainLegacy('synthetic',f.member.id,input)
+ assert.equal(restored.version,1);assert.equal(restored.originalsVersion,0)
+ const confirmed=await f.service.confirmSubject('synthetic',f.member.id,restored.id,{expectedVersion:restored.version})
+ const request={confirmed:true,expectedContextVersion:confirmed.version}
+ const saved=await f.service.saveOriginal('synthetic',f.member.id,restored.id,request)
+ const again=await f.service.saveOriginal('synthetic',f.member.id,restored.id,request)
+ assert.deepEqual(again.savedDraft.result,saved.savedDraft.result)
+ const record=await business.records.getOwnedRecord('synthetic',saved.savedDraft.result.records[0].recordId)
+ assert.equal(record.sourceText,raw);assert.equal(record.aiProvenance.provider,'manual')
+ assert.equal((await business.records.repository.findByAccountId('synthetic')).length,1);assert.equal(f.calls.length,0)
 })
 test('explicit removal archives only failed message; completed submissions and other member stay intact',async t=>{
  const f=await setup(t),completed=await f.service.submit('synthetic',f.member.id,{id:'submitted',kind:'text',text:'今天吃了粥'})

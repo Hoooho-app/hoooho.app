@@ -17,13 +17,14 @@
 
 | 检查 | 实际结果 |
 |---|---|
-| AI/business/front/recognition/供应商及评测设施 | 1302/1302 PASS；最终提示词文字变更另复测 understanding 49/49 PASS |
+| AI/business/front/recognition/供应商及评测设施 | 1322/1322 PASS（含明确的 UI 替身契约测试） |
 | Client | 780/780 PASS |
 | Server | 242/242 PASS，前置 Guest 21/21 PASS |
 | 主分支合成账号/清理设施 | 18 PASS、11 SKIP（实际线上验收开关未开启），不把 skip 记 PASS |
 | TypeScript、资源/viewport/auth/PWA guards、Production build | PASS |
 | lint | N/A，项目没有 lint script |
 | 最终手机完整交互回归 | 45/45 PASS；后台 Chrome 375/390/430，保存动作另检查 320；真实本地 API/持久化 + 明确模型替身 |
+| 通用浏览器与兼容 | 对话 31/31 PASS；症状过程 4/4 PASS；首页修复后 22 项同批 + 空白 PDF 单项 PASS；first-child 5/5、pure-record 4/4、forest 2/2 PASS；新 CI 将全套重跑 |
 | diff check | PASS；未带入知识源 EOL、临时文件、Secret 或无关业务修改 |
 
 真实 `regression-1792977396356`：T15/C05/ASR01 三项、11 次实际请求，独立审阅本批 3/3 完整正确。T15 为真实原问原答候选；C05 不再新增“没有咳嗽”；ASR 实际上传原音、转写、饮用量及否定事实进入候选，未向用户显示无回执“已记录”。这不是全量正确率。
@@ -35,13 +36,28 @@
 - `tests/nurse-conversation-upgrade/results/flow-1792977460496/sleep-saved-iphone-se.png`
 - `tests/nurse-conversation-upgrade/results/flow-1792977460496/vaccination-saved-iphone-se.png`
 
-两图已目视核对：无残留保存进度气泡、无浮动按钮遮挡、主按钮绿底白字、统一“查看记录”和“知道了”。截图来自实际模型与保存链路，不是图稿。上述 flow 与三项目标回放使用相同 25 项 runtime 哈希；后续组合场景仅修改 understanding 的通用提示词，界面/保存/路由/来源核验代码未改变。不能把后续提示词版本冒充成此 flow 当时版本。
+两图已目视核对：无残留保存进度气泡、无浮动按钮遮挡、主按钮绿底白字、统一“查看记录”和“知道了”。截图来自实际模型与保存链路，不是图稿。上述 flow 与三项目标回放使用相同 25 项 runtime 哈希。后续 CI 暴露的兼容、原文和手动归属修复另行验证；这些旧图和旧运行不能冒充后续 27 项源码哈希的同版本运行。
 
 独立组合 `holdout-1792977643804`：6 项、10 次请求；5 捕获结果中 2/5 完整正确，1 应用失败，整体 BLOCKED，保留不改。H08 包装量 scope 错误被空候选门拦截；H05/H09/H10 分别暴露失败语境解释、双问和背景条件未结构化保留的问题，没有本批实际错成员或未授权正式写入。根据这批修复的重跑是已见回归，不能再称未见 holdout。
 
 已见回归 `holdout-1792978038025`：3 项、3 次请求，H08/H09 改进成立；H05 又补造了无真实错误回执支持的失败原因，独立审阅仍 BLOCKED，原报告保留。最终通用错误原因约束的真实复测另录；不得从当前缺少资料反推历史失败原因。
 
-当前累计 191/200，后续最终请求仍由集中硬预算限制；纯程序/浏览器替身不消耗模型调用预算。未新增付费模型或复制生产健康数据。
+最终已见回归 `holdout-1792978242715`：2 项、2 次实际请求。H05 不再编造失败原因或执行隐式重试，仍有可省的后续追问，未把它记为真实 pending 草稿恢复；H10 将环境温度实际保留为 scope=context，无健康候选。独立审阅未见本批关键错误，普通质量严格为 1/2 完整正确，不外推总体指标。
+
+当前源码真实 `flow-1792990375901`：明确只请求 sleep，4 次实际调用；API_AND_BROWSER_FLOW_PASS，记录 ID `feb37e6c-103d-4d19-b22f-cdd5b8137193`。归属确认、独立来源 seal、上海睡眠区间、保存零新增模型请求、幂等原 ID、查看、返回未提交输入和“知道了”均独立核实。其 27 项关键文件字节哈希与当前工作树全部一致；本批没有运行接种。`sourceText` 是精确选中的健康原话子串；完整输入和标点保留于 savedDraft.inputText，不能声称 `sourceText` 与整条含主体/操作指令的输入完全相等。全健康分句覆盖同一消息时的标点完整恢复另由实际浏览器 nursing-v3 保存逐字断言与纯回归证明。
+
+最新实际睡眠截图：`tests/nurse-conversation-upgrade/results/flow-1792990375901/sleep-saved-iphone-se.png`。症状跟进实际 375px 截图：`test-results/symptom-followup-current-screen/home-follow-up-starts-only-778d3-ars-when-the-last-item-ends/symptom-followup-mobile-375.png`，该图来自真实本地 API/持久化和明确的模型替身，不是实际 AI 理解评分。
+
+累计实际调用 **197/200**，逐批 report.modelRequests 已汇总核对；不再发起额外模型调用。纯程序/浏览器替身不消耗该预算，未复制生产健康数据。
+
+## CI 发现的修复与接口兼容
+
+首个 PR #546 CI 保留为失败证据，未跳过测试或放松生产 schema/source 守卫。明确旧协议问卷用例标为 protocol2 并实际核对其 context；其余通用用例保留 protocol3，测试参与者通过真实按钮明确归属，新增当前 45 项 mobile suite 到同一 CI。零候选的空白 PDF 改为验证真实原件可访问、无候选或假成功；它本来没有可提取的健康内容。
+
+- `server/ai/front-desk-record.mjs`：旧迁移缺失版本补齐；旧 protocol2 checkpoint 使用其既有 factMessages，礼貌消息不破坏实际保存回执，新增健康事实与跨成员继续拒绝。
+- `server/ai/business/front-desk-original-text.mjs`、`service.mjs`：所选真实分句覆盖完整同域消息时保留原标点，否则仅保留相关精确片段，不引入遗漏的他人内容，不按同文字去重不同真实消息。
+- `src/features/ai-business/SmartRecordWorkspace.tsx`：恢复已有症状补充识别失败后的原话保存入口，保留新前台的上下文/版本保护。
+- `SmartRecordReview.tsx`、`smartRecordTypes.ts`、`service.mjs`：手动新增的原有按钮明确显示记录对象，发送 additive `addItem.subjectConfirmation={memberId,confirmed:true}`；新 ledger 只在真实用户确认、owned context/evidence 和既有 PATCH version 均匹配时接受，来源标 manual/model=null。旧协议/已存记录不迁移，旧本地手工条目可在现有核对页补明确归属；普通模型不能生成该用户操作。
 
 ## 尚未证实与发布边界
 
@@ -49,7 +65,7 @@
 
 现有正式记录的自由文字修改仍导向原详情核对，不让模型直接改写正式记录；指定部分候选保存继续走原核对页面，不能宣称所有组合指令均已实现。已有条目可按实际 owned ID 查询/导出/删除，未新增独立医疗建议或全会话聚合交接系统。
 
-Production 交付尚未执行，当前功能分支为 `codex/nurse-conversation-upgrade-20261026`。已集成远端 main `0a1bfc0d` 并保留其协议/来源核验/验收清理实现。当前仓库有效规则为 Production-only，Staging 已退役，不重建。通过 CI 与剩余阻断后才允许 main 集成及发布，不能用本地 PASS 声称线上通过。
+Production 交付尚未执行，当前功能分支为 `codex/nurse-conversation-upgrade-20261026`。已集成远端 main `0a1bfc0d` 并保留其协议/来源核验/验收清理实现。当前仓库有效规则为 Production-only，Staging 已退役，不重建。当前 PR #546 已提交；修复后 CI 通过后才允许 main 集成及发布，不能用本地 PASS 声称线上通过。
 
 ## 历史批次（不追溯回填）
 
