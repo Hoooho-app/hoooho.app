@@ -4,6 +4,8 @@ on:
     paths:
       - 'src/components/auth/**'
       - 'src/services/browserRecoveryState.ts'
+      - 'src/services/appCacheStorage.ts'
+      - 'src/services/appCacheStorage.test.ts'
       - 'src/services/profileSectionStorage.ts'
       - 'src/services/apiClient.ts'
       - 'src/store/useAppStore.ts'
@@ -31,6 +33,7 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npm run test:client
       - run: npm run test:auth
+      - run: node --test server/auth/password-http-types.test.mjs server/auth/password-token-revocation.test.mjs
       - run: npm run build
       - run: npx playwright test --config tests/session-recovery/playwright.config.ts --reporter=line
       - run: npx playwright test --config tests/welcome/playwright.config.ts --reporter=line
