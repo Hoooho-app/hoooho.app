@@ -1,0 +1,61 @@
+{
+  "applicationCommit": "fcf59ca2f86a68e0ede536bb8f9812ab54a44de1",
+  "implementationCommit": "1f108814c770765ac6df8977201cb1e7150c3dc7",
+  "pullRequest": 546,
+  "ciRun": 40272276127,
+  "ciVerification": "PASS",
+  "deploymentId": "c368a6b2-4fe4-48c7-89a1-4f891faff267",
+  "deploymentStatus": "SUCCESS",
+  "productionOnly": true,
+  "liveSmoke": {
+    "status": "PASS",
+    "expectedCommit": "fcf59ca2f86a68e0ede536bb8f9812ab54a44de1",
+    "runtimeCommit": "fcf59ca2f86a68e0ede536bb8f9812ab54a44de1",
+    "syntheticOnly": true,
+    "externalModelRequests": 0,
+    "modelCountBasis": "audited endpoint allowlist and deterministic server call chain; not a provider telemetry measurement",
+    "checks": [
+      "health_and_exact_deployed_commit",
+      "fresh_synthetic_account",
+      "legacy_retention_without_generation",
+      "explicit_subject_confirmation",
+      "actual_manual_original_record",
+      "durable_receipt_and_idempotent_replay",
+      "unknown_occurrence_and_no_active_case",
+      "production_home_and_exact_owned_original_detail_in_background_iphone_se"
+    ],
+    "cleanup": {
+      "recordsDeleted": 1,
+      "eventsDeleted": 1,
+      "eventRecordsEmpty": true,
+      "eventsGone": true,
+      "memberDeleted": true,
+      "memberGone": true,
+      "complete": true
+    },
+    "emptySyntheticAccountRetained": true,
+    "browser": {
+      "status": "PASS",
+      "emulatedDevice": "iPhone SE",
+      "physicalDevice": "NOT_RUN",
+      "viewport": {
+        "width": 320,
+        "height": 568,
+        "scrollWidth": 320,
+        "scale": 1
+      },
+      "pageErrors": [],
+      "serverFailures": [],
+      "blockedMutations": [],
+      "exactOwnedRecordVisible": true,
+      "successBubble": "NOT_TESTED_IN_PRODUCTION"
+    },
+    "cleanupAttempts": 1,
+    "completedAt": "2026-10-26T05:39:19.453Z"
+  },
+  "retainedEmptySyntheticAccounts": 3,
+  "fullModelAcceptance": "NOT_COMPLETE",
+  "physicalPhone": "NOT_RUN",
+  "clinicalReview": "NOT_RUN",
+  "afuBlindComparison": "NOT_RUN"
+}
