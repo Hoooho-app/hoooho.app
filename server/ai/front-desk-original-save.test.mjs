@@ -59,6 +59,14 @@ test('explicit original save persists one neutral manual record, exact original 
   assert.equal(internal.recognitionBinding, undefined)
 })
 
+test('original receipt lists only the exact accepted source IDs and never closes unrelated failed inputs',async t=>{
+ const f=await fixture(t,{messages:({message})=>[message,{...message,id:'unaccepted',status:'failed',acceptedInput:false,text:'未接收的其他输入'},{...message,id:'another-context',contextId:'other-context',text:'另一事项'},{...message,id:'assistant',kind:'assistant',text:'不能当成原话'}]})
+ const result=await saveFrontDeskOriginal(f.args),receipt=result.context.operationReceipts.find(r=>r.type==='save_original')
+ assert.deepEqual(receipt.sourceMessageIds,['original-message'])
+ assert.deepEqual((await saveFrontDeskOriginal(f.args)).context.operationReceipts[0].sourceMessageIds,['original-message'])
+ assert.equal((await f.front.store.read()).messages.find(m=>m.id==='unaccepted').status,'failed')
+})
+
 test('manual text review preserves original source and binds its corrected text to the exact save receipt',async t=>{
  const f=await fixture(t),input={...f.args.input,reviewText:'用户核对后的文字，不补充病情判断。'}
  const first=await saveFrontDeskOriginal({...f.args,input}),again=await saveFrontDeskOriginal({...f.args,input})

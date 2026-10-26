@@ -140,7 +140,7 @@ export async function saveFrontDeskOriginal({ front, business, accountId, member
     await assertCurrent()
     if (savedDraft.state !== 'saved' || savedDraft.result?.records?.length !== 1 || !id(savedDraft.result.records[0].recordId)) throw fail('保存结果尚未确认', 409, 'FRONT_SAVE_RECEIPT_MISSING')
     await front.checkpoint(accountId, memberId, contextId, { draftId }, () => signal?.throwIfAborted())
-    const savedReceipt = { operationId, reviewSignature, type: 'save_original', contextId, inputContextVersion: expected, targetId: draftId, targetVersion: 1, confirmedVersion: 1, state: 'saved', recordIds: [savedDraft.result.records[0].recordId], savedDraft }
+    const savedReceipt = { operationId, reviewSignature, sourceMessageIds:messages.map(message=>message.id), type: 'save_original', contextId, inputContextVersion: expected, targetId: draftId, targetVersion: 1, confirmedVersion: 1, state: 'saved', recordIds: [savedDraft.result.records[0].recordId], savedDraft }
     await front.store.update(data => {
       signal?.throwIfAborted()
       const current = data.contexts.find(current => current.id === contextId && current.accountId === accountId && current.memberId === memberId)

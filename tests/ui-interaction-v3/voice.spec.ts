@@ -299,6 +299,8 @@ test('V3 failed text uses explicit manual review, one real original save and exa
  await expect(manual).toHaveCount(0)
  const receipt=page.locator('.smart-record-saved').filter({has:page.getByRole('button',{name:'查看记录',exact:true})})
  await expect(receipt).toHaveCount(1);await expect(receipt).toContainText(memberName)
+ await expect(page.getByRole('button',{name:'重试这条消息',exact:true})).toHaveCount(0)
+ await expect(page.getByRole('button',{name:'移除这条未成功的消息',exact:true})).toHaveCount(0)
  const readRecords=async()=>await(await request.get(`/api/events/${reference.eventId}/records`,{headers})).json()
  const records=await readRecords(),record=records.find((r:any)=>r.id===reference.recordId)
  expect(records).toHaveLength(1);expect(record).toBeTruthy();expect(record.content).toBe(edited)
@@ -341,6 +343,9 @@ test('V3 failed text uses explicit manual review, one real original save and exa
  expect((await readRecords()).find((r:any)=>r.id===reference.recordId).content).toBe(edited)
  await noAudioDrafts(page)
  await page.screenshot({path:info.outputPath('manual-review-real-local-receipt-return.png')})
+ await page.reload();await expect(page.getByLabel('对话输入')).toHaveValue(nextInput)
+ await expect(page.getByRole('button',{name:'重试这条消息',exact:true})).toHaveCount(0)
+ await expect(page.getByRole('button',{name:'移除这条未成功的消息',exact:true})).toHaveCount(0)
 })
 
 test('V3 lost manual-save receipt reopens locked and replays the exact original operation',async({page,request},info)=>{

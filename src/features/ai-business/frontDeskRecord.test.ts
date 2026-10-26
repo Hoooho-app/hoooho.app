@@ -4,6 +4,16 @@ import {restoreFrontContext} from './frontDeskRecord.ts'
 import {fileIdentity,type CaptureDraft} from './captureDraft.ts'
 
 const local=():CaptureDraft=>({text:'另一件旧事情',files:[],conversationInput:'还没发送的中文',occurredAt:'2026-01-01T10:00',timeUnknown:false,requestId:'local'})
+
+test('原话真实回执只收掉对应来源消息的旧失败状态，其他失败与未提交输入仍保留',()=>{
+ const context:any={id:'manual',saved:true,updatedAt:'2026-10-12T00:00:00Z',messages:[{id:'saved-source',kind:'text',text:'已核对原话',contextId:'manual',status:'failed'},{id:'unaccepted',kind:'text',text:'另一条未接收输入',contextId:'manual',status:'failed'}],operationReceipts:[{operationId:'original-save',type:'save_original',targetId:'manual-draft',targetVersion:1,state:'saved',sourceMessageIds:['saved-source'],recordIds:['record'],savedDraft:{id:'manual-draft',state:'saved',result:{records:[{recordId:'record',eventId:'event',memberId:'member'}]}}}]}
+ const restored=restoreFrontContext(context,local())
+ assert.equal(restored.conversationTurns?.find(t=>t.id==='saved-source')?.status,'completed')
+ assert.equal(restored.conversationTurns?.find(t=>t.id==='unaccepted')?.status,'failed')
+ assert.equal(restored.conversationInput,'还没发送的中文')
+ const legacy=restoreFrontContext({...context,operationReceipts:context.operationReceipts.map((r:any)=>({...r,sourceMessageIds:undefined}))},local())
+ assert.equal(legacy.conversationTurns?.find(t=>t.id==='saved-source')?.status,'failed')
+})
 test('模型选择的记录上下文只汇总该事件用户来源，护士回复不进入整理',()=>{
  const restored=restoreFrontContext({id:'food',updatedAt:'2026-10-12T00:00:00Z',messages:[{id:'input-1',kind:'text',text:'吃了半碗粥',contextId:'food',status:'completed'},{id:'reply-1',kind:'assistant',text:'收到。',contextId:'food',status:'completed'}]},local())
  assert.equal(restored.text,'吃了半碗粥');assert.equal(restored.conversationInput,'还没发送的中文');assert.equal(restored.requestId,'food');assert.equal(restored.conversationTurns?.length,2)

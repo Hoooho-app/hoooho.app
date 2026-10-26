@@ -516,7 +516,8 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
       if(target?.state==='failed'){await persist({...originalSource,rawSaveTarget:{...target,state:'requested'}});return}
     }
     pending.current=true;setBusy(true);setError('')
-    const source=current.current,jobId=source.recognitionJobId
+    let source=current.current
+    const jobId=source.recognitionJobId
     let guide=source.rawSavedGuide
     try{
       await writes.current.catch(()=>undefined)
@@ -530,6 +531,8 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
           guide=savedRecordGuides(result.savedDraft,memberId,memberName)[0]
           if(result.savedDraft.state!=='saved'||!guide)throw new Error('保存结果尚未确认，原件仍保留，请重试')
           savedContext=result.context
+          const savedSources=new Set(result.context.operationReceipts?.flatMap(receipt=>receipt.state==='saved'&&receipt.type==='save_original'&&receipt.savedDraft.id===result.savedDraft.id&&receipt.savedDraft.state==='saved'?receipt.sourceMessageIds??[]:[]))
+          source={...source,conversationTurns:source.conversationTurns?.map(turn=>savedSources.has(turn.id)?{...turn,status:'completed',error:undefined,errorCode:undefined}:turn)}
         }else{
           const inputs=source.recognitionSnapshot?.inputStates?.map(input=>input.text).filter(Boolean)??[]
           const text=[source.text,...inputs.filter(text=>!source.text.includes(text))].filter(Boolean).join('\n'),files=source.files
