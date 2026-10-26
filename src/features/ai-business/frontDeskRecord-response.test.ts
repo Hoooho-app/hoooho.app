@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {restoreFrontContext,type FrontContext} from './frontDeskRecord.ts'
+import {completedFrontSaveReplyIds,restoreFrontContext,type FrontContext} from './frontDeskRecord.ts'
 import type {CaptureDraft} from './captureDraft.ts'
 import type {SmartRecordDraft} from './smartRecordTypes.ts'
 
@@ -56,4 +56,35 @@ test('an older saved context cannot clear a newer candidate or its unsent input 
  assert.equal(after.smartReview,before.smartReview);assert.equal(after.text,before.text)
  assert.equal(after.files[0],photo);assert.equal(after.conversationInput,before.conversationInput)
  assert.equal(after.frontContextId,'new-context');assert.equal(after.frontContextVersion,4)
+})
+test('legacy nonrecordable replies remain visible but do not become record input; protocol3 keeps its ledger semantics',()=>{
+ const legacy={...response(),resultKind:undefined,understanding:undefined,messages:response().messages.map(message=>message.kind==='text'?{...message,protocolVersion:2,recordable:false}:message)}
+ const restored=restoreFrontContext(legacy,local())
+ assert.equal(restored.text,'');assert.equal(restored.conversationTurns?.[0].text,'谢谢')
+ assert.equal(restoreFrontContext({...legacy,messages:legacy.messages.map(message=>({...message,protocolVersion:3}))},local()).text,'谢谢')
+})
+
+
+test('only the exact persisted save receipt supersedes its pending reply and keeps the message original',()=>{
+ const context=response('saved')
+ context.messages=[{id:'save-input:reply',kind:'assistant',text:'正在保存这条记录。',contextId:context.id,status:'completed'},{id:'natural:reply',kind:'assistant',text:'原来的自然回复。',contextId:context.id,status:'completed'}]
+ const saved={...review(),state:'saved' as const,result:{count:1,records:[{recordId:'saved-record',eventId:'saved-event',category:'sleep' as const}]}}
+ context.operationReceipts=[{operationId:'save-input:save:3',type:'save',targetId:'candidate',targetVersion:3,state:'saved',savedDraft:saved,recordIds:['saved-record']}]
+ assert.deepEqual([...completedFrontSaveReplyIds(context)],['save-input:reply'])
+ const after=restoreFrontContext(context,local())
+ assert.equal(after.conversationTurns?.find(turn=>turn.id==='save-input:reply')?.completedOperation,true)
+ assert.equal(after.conversationTurns?.find(turn=>turn.id==='save-input:reply')?.text,'正在保存这条记录。')
+ assert.equal(after.conversationTurns?.find(turn=>turn.id==='natural:reply')?.completedOperation,undefined)
+ const following=restoreFrontContext({...response(),previousMessages:context.messages},after)
+ assert.equal(following.conversationTurns?.find(turn=>turn.id==='save-input:reply')?.completedOperation,true)
+})
+
+test('a requested save and incomplete or unrelated receipts do not hide the reply',()=>{
+ const context=response('saved')
+ context.messages=[{id:'save-input:reply',kind:'assistant',text:'我来保存这份记录。',contextId:context.id,status:'completed'}]
+ assert.deepEqual([...completedFrontSaveReplyIds(context)],[])
+ context.operationReceipts=[{operationId:'save-input:save:3',type:'save',targetId:'candidate',targetVersion:3,state:'saved',savedDraft:{...review(),state:'saved',result:{count:0,records:[]}},recordIds:[]}]
+ assert.deepEqual([...completedFrontSaveReplyIds(context)],[])
+ context.operationReceipts[0]={...context.operationReceipts[0],operationId:'other-input:save:3',savedDraft:{...review(),state:'saved',result:{count:1,records:[{recordId:'record',eventId:'event',category:'sleep'}]}}}
+ assert.deepEqual([...completedFrontSaveReplyIds(context)],[])
 })

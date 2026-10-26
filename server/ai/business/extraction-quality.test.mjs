@@ -6,6 +6,24 @@ import path from 'node:path'
 import { AIBusinessService } from './service.mjs'
 import { FamilyMemberRepository } from '../../members/repositories/family-member-repository.mjs'
 import { isCurrentPositiveSymptom } from '../health-fact-policy.mjs'
+import {reconcileExtraction} from './extraction-quality.mjs'
+
+test('literal replacement coverage excludes only the withdrawn label and still requires real negative observations',async()=>{
+ const quote='不是咳嗽，是皮疹',role={version:'literal-replacement-v1',targetFactId:'old',oldValue:'咳嗽',newValue:'皮疹',quote,messageId:'correction'}
+ const makeSource=(text,literalCorrection=role)=>({id:'corrected',page:1,text,status:'readable',changeType:'correct',literalCorrection})
+ const item=(source,values)=>({id:'one',category:'symptom',title:'观察',timeText:null,archiveCategory:null,fields:values.map(value=>({name:'symptom',value,sources:[{sourceId:source.id,page:1,quote:value,start:source.text.indexOf(value),end:source.text.indexOf(value)+value.length}]}))})
+ const context={referenceNow:'2026-10-25T08:00:00Z',timezone:'Asia/Shanghai'},source=makeSource(quote)
+ assert.deepEqual((await reconcileExtraction([item(source,['皮疹'])],[source],context))[0].fields.map(field=>field.value),['皮疹'])
+ const independent=makeSource(quote+'。没有呕吐。')
+ await assert.rejects(()=>reconcileExtraction([item(independent,['皮疹'])],[independent],context),{code:'AI_EVIDENCE_MISMATCH'})
+ await reconcileExtraction([item(independent,['皮疹','没有呕吐'])],[independent],context)
+ const explicit=makeSource('不是咳嗽，是没有咳嗽',{...role,newValue:'没有咳嗽',quote:'不是咳嗽，是没有咳嗽'})
+ await assert.rejects(()=>reconcileExtraction([item(explicit,['咳嗽'])],[explicit],context),{code:'AI_EVIDENCE_MISMATCH'})
+ await reconcileExtraction([item(explicit,['没有咳嗽'])],[explicit],context)
+ const ordinary=makeSource('不是咳嗽，是皮疹',undefined);delete ordinary.literalCorrection
+ await assert.rejects(()=>reconcileExtraction([item(ordinary,['皮疹'])],[ordinary],context),{code:'AI_EVIDENCE_MISMATCH'})
+ assert.equal(source.text,quote)
+})
 
 // Test doubles reconstructed from the visible draft, NOT a replay of the lost
 // provider response. No production session, account or upstream is used.

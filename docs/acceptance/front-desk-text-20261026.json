@@ -1,0 +1,36 @@
+{
+  "check": "production_front_desk_semantic_v2",
+  "date": "2026-10-25T20:55:58.268Z",
+  "expectedCommit": "1497e5c61594cc11d87dc332416f5f8eea0f2c19",
+  "runtimeCommit": "1497e5c61594cc11d87dc332416f5f8eea0f2c19",
+  "syntheticOnly": true,
+  "passed": true,
+  "checks": [
+    "already-deployed runtime commit matches; no deployment requested",
+    "punctuation produces a conversational reply with no fact projection",
+    "colloquial little-toe trauma is understood, clarified, and stopped without a canned keyword path",
+    "natural title and independently verified narrative preserve toe, trauma, time, denial and unperformed handling",
+    "formal record reads back the same summary and full original; symptom follow-up remains off",
+    "repeated save returns identical references and creates no extra record or event"
+  ],
+  "questions": [
+    "小拇指破皮的地方现在有渗血或者红肿吗？",
+    "破皮的地方有没有红肿或者孩子觉得疼呢？"
+  ],
+  "turnCount": 2,
+  "summary": "今天足小趾表面被踢后出现破皮。目前无出血，能正常走路，尚未进行处理。伤口外观及疼痛感待确认。",
+  "savedRecordCount": 1,
+  "idempotent": true,
+  "emptySyntheticAccountRetained": true,
+  "cleanup": {
+    "recordsDeleted": 1,
+    "eventsDeleted": 1,
+    "eventRecordsEmpty": true,
+    "eventsGone": true,
+    "memberDeleted": true,
+    "memberGone": true,
+    "logout": "revoked",
+    "complete": true
+  },
+  "title": "足小趾被踢后表面破皮"
+}

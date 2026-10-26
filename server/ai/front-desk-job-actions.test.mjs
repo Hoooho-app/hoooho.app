@@ -177,7 +177,7 @@ for (const [subject, text] of [['unknown', '今天咳嗽'], ['other', '爸爸今
   const ready = await f.settled(1)
   assert.equal(ready.state, 'ready', JSON.stringify(ready.error))
   assert.equal(ready.review.items[0].subjectConfirmed, false)
-  await assert.rejects(() => f.business.save('synthetic', f.member.id, ready.review.id, { version: ready.review.version, confirmed: true }), { code: 'FRONT_SUBJECT_UNCONFIRMED' })
+  await assert.rejects(() => f.business.save('synthetic', f.member.id, ready.review.id, { version: ready.review.version, confirmed: true }), { code: subject==='other'?'FRONT_SUBJECT_MISMATCH':'FRONT_SUBJECT_UNCONFIRMED' })
   await f.submitSave(ready.review, ready.frontDesk.context)
   const rejected = await f.settled(2)
   assert.equal(rejected.frontDesk.context.actionPlan.type, 'clarify')
@@ -343,6 +343,19 @@ test('context confirmation cannot assign an explicitly other person to the selec
   await assert.rejects(() => f.front.confirmSubject('synthetic', f.member.id, ready.contextId, { expectedVersion: ready.frontDesk.context.version }), { code: 'FRONT_SUBJECT_MISMATCH' })
   assert.equal((await f.business.read('synthetic', f.member.id, ready.review.id)).items[0].subjectConfirmed, false)
   assert.equal((await f.records()).length, 0)
+})
+
+test('ledger ownership has one context authority, including drafts changed through an older confirmation endpoint',async t=>{
+ const f=await fixture(t,{subject:'unknown'})
+ await f.submit('facts','今天咳嗽')
+ const ready=await f.settled(1)
+ await assert.rejects(()=>f.business.edit('synthetic',f.member.id,ready.review.id,{version:ready.review.version,subjectConfirmed:true}),{code:'FRONT_SUBJECT_CONFIRM_CONTEXT_REQUIRED'})
+ assert.equal((await f.business.get('synthetic',f.member.id,ready.review.id)).version,ready.review.version)
+ // Simulate an old persisted confirmation; current source ownership still wins.
+ await f.business.store.update(data=>({...data,drafts:data.drafts.map(draft=>draft.id===ready.review.id?{...draft,items:draft.items.map(item=>({...item,subject:'current',subjectConfirmed:true,subjectMemberId:f.member.id}))}:draft)}))
+ await f.front.store.update(data=>({...data,contexts:data.contexts.map(context=>context.id===ready.contextId?{...context,subject:{kind:'other',memberId:null,label:'爸爸'}}:context)}))
+ await assert.rejects(()=>f.business.save('synthetic',f.member.id,ready.review.id,{version:ready.review.version,confirmed:true}),{code:'FRONT_SUBJECT_MISMATCH'})
+ assert.equal((await f.records()).length,0)
 })
 
 test('a displayed unique draft and an actual save question allow affirmative confirmation to persist once', async t => {

@@ -18,6 +18,7 @@ test.beforeEach(async({page,request})=>{
  const response=await request.post('/api/members',{headers,data:{name:'退出验证（虚构）',relationship:'child'}})
  expect(response.ok()).toBe(true);memberId=(await response.json()).id
  await request.get('http://127.0.0.1:4198/success')
+ await request.get('http://127.0.0.1:4198/delay?ms=400')
  await request.post('http://127.0.0.1:4198/draft-data',{data:{items:null}})
  await page.addInitScript(({token,memberId})=>{sessionStorage.setItem('hoooho-auth-token',token);localStorage.setItem('hoooho-app',JSON.stringify({state:{authUser:{id:'visit-test'},currentMemberId:memberId,members:[],profile:null},version:5}))},{token,memberId})
  await page.goto('/nurse-station')
@@ -50,24 +51,30 @@ test('save on back preserves unsent input; dismissing the prompt stays in the co
  await reenter(page)
  await expect(page.getByLabel('对话输入')).toHaveValue('还没有发送的观察')
 })
-test('saving while ASR is pending keeps original recording bytes for retry on reentry',async({page})=>{
- await page.route('**/api/ai/audio/transcriptions',async route=>{await new Promise(resolve=>setTimeout(resolve,1500));await route.fulfill({status:503,json:{error:{code:'ASR_TIMEOUT'}}}).catch(()=>undefined)})
+test('failed ASR keeps original recording bytes and retries after saving and reentry',async({page,request})=>{
+ // Transcription now runs in the durable server job, so fail its actual provider
+ // instead of intercepting the retired direct browser transcription request.
+ await request.get('http://127.0.0.1:4198/voice?text='+encodeURIComponent('今天没有呕吐'))
+ await request.get('http://127.0.0.1:4198/failure')
  await page.getByRole('button',{name:'改用语音'}).click()
  const hold=page.getByRole('button',{name:'按住说话',exact:true})
  await hold.focus();await page.keyboard.down('Space')
  await expect(page.getByRole('button',{name:'正在录音，松开即结束'})).toBeVisible()
  await page.waitForTimeout(900);await page.keyboard.up('Space')
- await expect(page.getByText('这段录音还在，要我再听一次吗？',{exact:true})).toBeVisible()
+ await expect(page.getByRole('button',{name:/^重试$|^重试未完成的转写$/})).toBeVisible()
  await page.getByRole('button',{name:'返回',exact:true}).click()
  await page.getByRole('button',{name:'保存草稿并退出',exact:true}).click()
  await reenter(page)
- await expect(page.getByText('这段录音还在，要我再听一次吗？',{exact:true})).toBeVisible()
- await expect(page.getByRole('button',{name:'再试一次',exact:true})).toBeVisible()
+ await expect(page.getByRole('button',{name:/^重试$|^重试未完成的转写$/})).toBeVisible()
  expect(await page.evaluate(async memberId=>{
   const db=await new Promise<IDBDatabase>((resolve,reject)=>{const r=indexedDB.open('hoooho-smart-record-drafts',1);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)})
   const draft=await new Promise<any>((resolve,reject)=>{const r=db.transaction('drafts').objectStore('drafts').get(`home-smart:visit-test:${memberId}:new`);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)});db.close()
-  return Boolean(draft.pendingVoice&&draft.files.length&&draft.pendingVoice.bytes.byteLength>300)
+  return Boolean(draft.recognitionJobId&&draft.files.some((file:any)=>file.type.startsWith('audio/')&&file.bytes.byteLength>300))
  },memberId)).toBe(true)
+ await request.get('http://127.0.0.1:4198/success')
+ await page.getByRole('button',{name:/^重试$|^重试未完成的转写$/}).click()
+ await waitForNurseReply(page)
+ await expect(page.locator('.nurse-turn--user')).toContainText('今天没有呕吐')
 })
 test('save preserves the submitted conversation, nurse reply and review',async({page})=>{
  await page.getByLabel('对话输入').fill('今天头皮发痒')

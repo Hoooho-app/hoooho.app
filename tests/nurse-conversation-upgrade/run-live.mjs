@@ -103,7 +103,7 @@ try{
     const receipt=await must(`/api/members/${member.id}/recognition-assets?${new URLSearchParams({name:asset.name,lastModified:String(Date.now())})}`,'POST',asset.bytes,{'Content-Type':asset.mimeType});uploaded.push({id:receipt.id,kind:asset.mimeType.startsWith('audio/')?'voice':'image',fixtureId:asset.id,sha256:hash})
    }
    if(uploaded.length||viaJobs){
-    const jobId=randomUUID(),voice=uploaded.find(asset=>asset.kind==='voice'),created=await request(`/api/members/${member.id}/recognition-jobs`,'POST',{id:jobId,mode:'front',scopeKey:`eval:${sample.id}`,input:{id:inputId,kind:sample.latestInput.kind,text:sample.latestInput.text,inputAt:Date.now(),assetIds:uploaded.map(asset=>asset.id),...(voice?{asrAssetId:voice.id}:{}),...(seeded.length?{contextId}:{})},options:{frontDeskRecord:true,smartRecord:true,followUp:false}})
+    const jobId=randomUUID(),voice=uploaded.find(asset=>asset.kind==='voice'),created=await request(`/api/members/${member.id}/recognition-jobs`,'POST',{id:jobId,mode:'front',scopeKey:`eval:${sample.id}`,input:{id:inputId,kind:sample.latestInput.kind,text:sample.latestInput.text,inputAt:Date.now(),assetIds:uploaded.map(asset=>asset.id),...(voice?{asrAssetId:voice.id}:{}),...(seeded.length?{contextId}:{})},options:{semanticVersion:3,frontDeskRecord:true,smartRecord:true,followUp:false}})
     if(!created.ok)response=created
     else{
      let job=created.value

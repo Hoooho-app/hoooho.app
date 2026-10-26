@@ -15,9 +15,9 @@ export interface FrontUnderstanding {
   recordChanges?:FrontValue[];nextQuestion?:string|FrontValue|null;requestedAction?:string|FrontValue|null
   uncertainties?:(string|FrontValue)[]
 }
-export interface FrontMessage {originalFileCount?:number;understanding?:FrontUnderstanding;resultKind?:FrontResultKind;targetContextId?:string;answerTo?:{contextId:string;questionId:string};id:string;kind:'text'|'voice'|'image'|'assistant';text:string;at?:string;inputAt?:number;contextId:string;status:'pending'|'completed'|'failed'|'discarded';files?:FrontFile[];voices?:FrontFile[]}
+export interface FrontMessage {recordable?:boolean;protocolVersion?:number;originalFileCount?:number;understanding?:FrontUnderstanding;resultKind?:FrontResultKind;targetContextId?:string;answerTo?:{contextId:string;questionId:string};id:string;kind:'text'|'voice'|'image'|'assistant';text:string;at?:string;inputAt?:number;contextId:string;status:'pending'|'completed'|'failed'|'discarded';files?:FrontFile[];voices?:FrontFile[]}
 export interface FrontFile {name:string;mimeType:string;dataUrl:string;lastModified?:number}
-export interface FrontContext {originalsSubjectConfirmed?:boolean;originalsVersion?:number;subject?:FrontSubject;frontSubject?:FrontSubject;subjectConfirmed?:boolean;version?:number;understanding?:FrontUnderstanding;resultKind?:FrontResultKind;previousMessages?:FrontMessage[];interview?:NursingInterview;id:string;updatedAt:string;saved?:boolean;recordResult?:SmartRecordDraft['result'];review?:SmartRecordDraft;messages:FrontMessage[]}
+export interface FrontContext {operationReceipts?:RecognitionOperationReceipt[];semanticVersion?:number;originalsSubjectConfirmed?:boolean;originalsVersion?:number;subject?:FrontSubject;frontSubject?:FrontSubject;subjectConfirmed?:boolean;version?:number;understanding?:FrontUnderstanding;resultKind?:FrontResultKind;previousMessages?:FrontMessage[];interview?:NursingInterview;id:string;updatedAt:string;saved?:boolean;recordResult?:SmartRecordDraft['result'];review?:SmartRecordDraft;messages:FrontMessage[]}
 export const voiceTurnId=(file:File)=>`voice:${file.name}:${file.lastModified}`
 export function restoreFrontFile(file:FrontFile) {
   const binary=atob(file.dataUrl.split(',')[1]),bytes=Uint8Array.from(binary,c=>c.charCodeAt(0))
@@ -32,19 +32,24 @@ export function recordOperationTurn(receipt:RecognitionOperationReceipt|undefine
   if(receipt.type==='query'&&!original)return
   return {id:`operation:${receipt.operationId}`,role:'assistant',text:receipt.type==='export'?'记录已准备好，可下载。':original.slice(0,320)+(original.length>320?'…':''),at,status:'completed',operationResult:receipt}
 }
+/** A real save receipt supersedes only its own pending operation reply. */
+export function completedFrontSaveReplyIds(context:FrontContext):Set<string> {
+  const receipts=(context.operationReceipts??[]).filter(receipt=>receipt.state==='saved'&&receipt.savedDraft.state==='saved'&&receipt.savedDraft.result?.records?.some(record=>record.recordId&&record.eventId))
+  return new Set(context.messages.filter(message=>message.kind==='assistant'&&message.id.endsWith(':reply')&&receipts.some(receipt=>receipt.operationId===`${message.id.slice(0,-6)}:${receipt.type}:${receipt.targetVersion}`)).map(message=>message.id))
+}
 /** Model selection changes the record intent, never destroys the chat history. */
 export function restoreFrontContext(context:FrontContext,local:CaptureDraft):CaptureDraft {
-  const files:File[]=[],turns:CaptureTurn[]=[]
+  const files:File[]=[],turns:CaptureTurn[]=[],completedReplies=completedFrontSaveReplyIds(context)
   for(const message of context.messages){
     if(message.status==='discarded')continue
     const media=[...(message.files??[]),...(message.voices??[])].map(restoreFrontFile)
     files.push(...media)
     const previous=local.conversationTurns?.find(turn=>turn.id===message.id)
-    turns.push({continuationId:message.targetContextId,answerTo:message.answerTo,id:message.id,text:message.text,at:message.inputAt??Date.parse(message.at??context.updatedAt),role:message.kind==='assistant'?'assistant':'user',kind:message.kind==='assistant'?undefined:message.kind,fileKeys:media.map(fileIdentity),status:message.status,contextId:context.id,reviewId:previous?.reviewId,recordCount:previous?.recordCount})
+    turns.push({completedOperation:completedReplies.has(message.id)||previous?.completedOperation,continuationId:message.targetContextId,answerTo:message.answerTo,id:message.id,text:message.text,at:message.inputAt??Date.parse(message.at??context.updatedAt),role:message.kind==='assistant'?'assistant':'user',kind:message.kind==='assistant'?undefined:message.kind,fileKeys:media.map(fileIdentity),status:message.status,contextId:context.id,reviewId:previous?.reviewId,recordCount:previous?.recordCount})
   }
   const previousTurns:CaptureTurn[]=(context.previousMessages??[]).filter(message=>message.status!=='discarded').map(message=>{
     const media=[...(message.files??[]),...(message.voices??[])].map(restoreFrontFile)
-    return {id:message.id,text:message.text,at:message.inputAt??Date.parse(message.at??context.updatedAt),role:message.kind==='assistant'?'assistant':'user',kind:message.kind==='assistant'?undefined:message.kind,fileKeys:media.map(fileIdentity),status:message.status==='discarded'?undefined:message.status,contextId:message.contextId}
+    return {completedOperation:local.conversationTurns?.find(turn=>turn.id===message.id)?.completedOperation,id:message.id,text:message.text,at:message.inputAt??Date.parse(message.at??context.updatedAt),role:message.kind==='assistant'?'assistant':'user',kind:message.kind==='assistant'?undefined:message.kind,fileKeys:media.map(fileIdentity),status:message.status==='discarded'?undefined:message.status,contextId:message.contextId}
   })
   const pending=(local.conversationTurns??[]).filter(t=>t.role!=='assistant'&&t.status&&t.status!=='completed'&&!turns.some(s=>s.id===t.id))
   const operations=(local.conversationTurns??[]).filter(turn=>turn.operationResult&&!turns.some(value=>value.id===turn.id)&&!previousTurns.some(value=>value.id===turn.id))
@@ -59,7 +64,7 @@ export function restoreFrontContext(context:FrontContext,local:CaptureDraft):Cap
   // extraction. Explicit candidates, including an empty withdrawal result, do.
   let review=savedCurrent?undefined:preserve?(local.smartReview??context.review):context.review&&retainSmartRecordEdits(context.review,local.smartReview?.id===context.review.id?local.smartReview:undefined)
   if(preserve&&review&&context.review?.id===review.id&&context.review.version===review.version&&context.review.state==='ready')review={...review,state:'ready'}
-  const narrative=turns.filter(t=>t.role==='user'&&t.status==='completed').map(t=>t.text).filter(Boolean).join('\n')
+  const narrative=context.messages.filter(message=>message.kind!=='assistant'&&message.status==='completed'&&(message.protocolVersion===3||message.recordable!==false)).map(message=>message.text).filter(Boolean).join('\n')
   const text=savedCurrent?'':preserve?(local.text||context.review?.inputText||''):(resultKind||changed)&&context.review?context.review.inputText:narrative
   const retainedFiles=preserve?[...new Map([...files,...local.files,...extra].map(file=>[fileIdentity(file),file])).values()]:[...(savedCurrent?[]:files),...extra]
   const keepCurrentContext=Boolean(context.saved&&!savedCurrent)

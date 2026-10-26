@@ -86,21 +86,24 @@ function normalizeSources(sources, options) {
 }
 
 const escapePattern = value => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-const otherPerson = /爸爸|父亲|妈妈|母亲|哥哥|姐姐|弟弟|妹妹|爷爷|奶奶|外公|外婆|祖父|祖母|朋友|同事|邻居|别人|他人|其他人|另一个孩子|其他孩子|兄妹|兄弟俩|姐妹俩|亲戚|本人|我自己/gu
+const identityPattern = value => value==='我'?'我(?!家|们)':escapePattern(value)
+const otherPerson = /爸爸|父亲|妈妈|母亲|哥哥|姐姐|弟弟|妹妹|爷爷|奶奶|外公|外婆|祖父|祖母|朋友|同事|邻居|别人|他人|其他人|另一个孩子|其他孩子|兄妹|兄弟俩|姐妹俩|亲戚|本人|我自己|我(?!家|们)|孩子|宝宝|宝贝|患儿|小孩/gu
 const nonIdentity = /(?:不是|并非|不属于|不记给|不要记给|别记给|是否|是不是|不确定(?:是)?).{0,12}$|(?:另一个|其他)$|(?:朋友|同事|邻居|别人|他人|其他人|另一个|其他|亲戚).{0,12}(?:孩子|宝宝|宝贝|小孩)/u
 const quotedMaterials = text => String(text).replace(/```[\s\S]*?```|“[^”]*”|「[^」]*」|『[^』]*』|"[^"]*"|^\s*>.*$/gmu, match => match.replace(/[^\n]/g, ' '))
 
 /** Program-derived identity evidence; a member ID alone never grants identity. */
 export function frontDeskSubjectConfirmations({ member, members = [], message } = {}) {
   if (!member?.id || !activeMessage(message)) return []
-  const aliases = members.filter(candidate => !candidate.isSelf && candidate.relationship === 'child').length === 1 && member.relationship === 'child' ? ['孩子', '宝宝', '宝贝', '患儿'] : member.isSelf ? ['本人', '我自己'] : []
-  const labels = [...new Set([member.name, ...aliases].filter(Boolean))]
+  const aliases = members.filter(candidate => !candidate.isSelf && candidate.relationship === 'child').length === 1 && member.relationship === 'child' ? ['孩子', '宝宝', '宝贝', '患儿'] : member.isSelf ? ['本人', '我自己','我'] : []
+  const uniqueName=!members.some(candidate=>candidate.id!==member.id&&String(candidate.name??'').normalize('NFKC').trim()===String(member.name??'').normalize('NFKC').trim())
+  const labels = [...new Set([uniqueName?member.name:null, ...aliases].filter(Boolean))]
   if (!labels.length) return []
   const original = String(message.text ?? ''), text = quotedMaterials(original)
-  const sources = [...text.matchAll(new RegExp(labels.map(escapePattern).sort((a, b) => b.length - a.length).join('|'), 'gu'))].flatMap(match => {
+  const sources = [...text.matchAll(new RegExp([...labels].sort((a,b)=>b.length-a.length).map(identityPattern).join('|'), 'gu'))].flatMap(match => {
     const clause = evidenceClause(text, match.index, match.index + match[0].length)
     const before = text.slice(clause.start, match.index)
     if (nonIdentity.test(before) || /(?:朋友|同事|邻居|别人|他人|亲戚).{0,12}(?:孩子|宝宝|宝贝|小孩)/u.test(clause.text)) return []
+    if(member.isSelf&&/^(?:的)?(?:孩子|宝宝|宝贝|患儿|小孩)/u.test(text.slice(match.index+match[0].length,clause.end)))return []
     return [{ messageId: message.id, attachmentId: null, quote: original.slice(match.index, match.index + match[0].length) }]
   })
   return sources.length ? [{ memberId: member.id, label: member.name, aliases, otherLabels: members.filter(candidate => candidate.id !== member.id).map(candidate => candidate.name).filter(Boolean), confirmed: true, sources }] : []
@@ -126,7 +129,7 @@ function identityScope(context, grant) {
   const text = quotedMaterials(context.original), prefix = text.slice(context.clause.start, context.end)
   const mentions = [
     ...prefix.matchAll(otherPerson),
-    ...prefix.matchAll(new RegExp([...labels, ...grant.otherLabels ?? []].map(escapePattern).sort((a, b) => b.length - a.length).join('|'), 'gu'))
+    ...prefix.matchAll(new RegExp([...labels, ...grant.otherLabels ?? []].sort((a,b)=>b.length-a.length).map(identityPattern).join('|'), 'gu'))
   ].map(match => ({ label: match[0], at: match.index, end: match.index + match[0].length }))
   const unique = [...new Map(mentions.map(mention => [`${mention.at}:${mention.label}`, mention])).values()].sort((a, b) => a.at - b.at || b.end - a.end)
   const last = unique.at(-1), named = Boolean(last && labels.includes(last.label))
@@ -270,6 +273,7 @@ function normalizeChanges(changes, options) {
     if (!change || !['add', 'correct', 'retract'].includes(change.type) || !bounded(change.text, 1600) || !polarities.includes(change.polarity)) throw invalid()
     const sources = normalizeSources(change.sources, options)
     if (!sources.length) throw invalid('事实变化必须有原消息或原件来源')
+    if(change.type==='add'&&sources.every(source=>{const message=allMessages(options).get(source.messageId);return (options.contexts??[]).some(context=>context.id===message?.contextId&&context.saved)}))throw invalid('已保存的历史只能作为背景，本轮没有新增记录依据')
     if (change.type !== 'retract' && (!clean(change.text) || !sources.some(source => source.quote.includes(change.text)))) throw invalid('事实内容必须保留来源原话')
     validateSourceModality(change, sources, options)
     // Reuse the existing scoped evidence parser: source presence alone must not
@@ -351,6 +355,21 @@ function falseSuccessClaim(reply) {
   return claims
 }
 
+function withoutPrematureRecordMarker(reply, changes, options) {
+  if(!changes.some(change=>change.scope!=='context')||(options.operationReceipts??[]).some(receipt=>receipt.success===true&&['save','save_original'].includes(receipt.type)))return reply
+  // Status belongs to the persistence receipt. Remove only a leading generic
+  // status marker, preserving the model's actual response and question. Formal
+  // save claims, quoted material, bare success bubbles and other operations
+  // still fail the receipt check below; this is not a replacement reply.
+  const plain=quotedMaterials(reply)
+  if(/保存|入档|记好|档案|随记|删除|导出|已(?:经)?(?:为[你您]|帮[你您]|替[你您])?记录(?:好|完成|成功|到|进|在)/u.test(plain))return reply
+  const marker=/(^|[。！？!?\n]\s*)(?:我(?:这边)?\s*)?已(?:经)?(?:(?:为|帮|替)[你您])?记录(?:了)?[：:、，,\s]*/gu
+  const ranges=[...plain.matchAll(marker)].filter(match=>/[\p{L}\p{N}]/u.test(plain.slice(match.index+match[0].length).split(/[。！？!?；;\n]/u)[0])).map(match=>({start:match.index+match[1].length,end:match.index+match[0].length}))
+  let result=reply
+  for(const range of ranges.reverse())result=result.slice(0,range.start)+result.slice(range.end)
+  return result.trim()||reply
+}
+
 /** Validate v2 output, while old stored/fixture responses retain their old shape. */
 export function normalizeFrontDeskUnderstanding(value, options = {}) {
   if (!value || !bounded(value.reply, 1200, false)) throw invalid()
@@ -376,7 +395,7 @@ export function normalizeFrontDeskUnderstanding(value, options = {}) {
   const emergency = value.emergency ?? { currentChild: false, quote: '' }
   if (typeof emergency.currentChild !== 'boolean' || !bounded(emergency.quote, 1600)) throw invalid()
   const requestedAction = normalizeAction(value.requestedAction, options, nextUncertainties)
-  let reply=value.reply.trim()
+  let reply=withoutPrematureRecordMarker(value.reply.trim(),recordChanges,options)
   const maskedReply=quotedMaterials(reply),shownRange=[...maskedReply.matchAll(/[^。！？.!?\n]*[?？]/gu)].at(-1)
   const shown=shownRange?reply.slice(shownRange.index,shownRange.index+shownRange[0].length).trim():null
   if(nextQuestion&&!shown&&reply.includes(nextQuestion.text)&&!maskedReply.includes(nextQuestion.text))nextQuestion=null

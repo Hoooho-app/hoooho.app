@@ -118,6 +118,27 @@ test('conversation preserves the prior candidate and explicit save waits for the
   expect(records.filter((r:{id:string})=>r.id===saved.result.records[0].recordId)).toHaveLength(1)
   await expect(page.getByRole('button',{name:'查看记录',exact:true})).toBeVisible()
   await expect(page.getByRole('button',{name:'知道了',exact:true})).toBeVisible()
+  await expect(page.getByText('正在保存这条记录。',{exact:true})).toHaveCount(0)
+  await expect(page.getByText('已回应',{exact:true})).toHaveCount(0)
+  // Exercise the saved actions near the floating shortcut on SE 320px and
+  // each project's ordinary phone width. No visible user browser is changed.
+  const originalViewport=page.viewportSize()!
+  for(const width of [...new Set([320,originalViewport.width])]){
+    await page.setViewportSize({width,height:originalViewport.height})
+    const dismiss=page.getByRole('button',{name:'知道了',exact:true})
+    await dismiss.scrollIntoViewIfNeeded()
+    await page.locator('.smart-record-page__body').evaluate(element=>{element.scrollTop=Math.max(0,element.scrollTop-40)})
+    await expect.poll(async()=>page.evaluate(()=>{
+      const jump=document.querySelector('.front-desk-jump-wrap button'),buttons=[...document.querySelectorAll('.smart-record-saved-actions button')]
+      if(!jump)return true
+      const a=jump.getBoundingClientRect()
+      return buttons.every(button=>{const b=button.getBoundingClientRect();return a.right<=b.left||a.left>=b.right||a.bottom<=b.top||a.top>=b.bottom})
+    })).toBe(true)
+    await noOverflow(page)
+    if(width===320){await page.locator('.smart-record-page__body').evaluate(element=>element.scrollTo({top:element.scrollHeight}));await page.screenshot({path:info.outputPath('saved-after-real-receipt-320.png')})}
+  }
+  await page.setViewportSize(originalViewport)
+  await page.locator('.smart-record-page__body').evaluate(element=>element.scrollTo({top:element.scrollHeight}))
   await noOverflow(page);await page.screenshot({path:info.outputPath('saved-after-real-receipt.png')})
   if(!await page.getByLabel('对话输入').isVisible())await page.getByRole('button',{name:'改用文字',exact:true}).click()
   await page.getByLabel('对话输入').fill('下一条尚未发送的新内容')
@@ -148,6 +169,30 @@ test('export downloads the exact receipt snapshot and keeps its old bubble after
   await frontReply(request,response('不客气，原记录和下载入口都还在。'));job=await send(page,'谢谢');await settle(request,job.id,job.inputRevision)
   await expect(page.getByRole('button',{name:'下载记录',exact:true})).toHaveCount(1)
   await page.reload();await expect(page.getByRole('button',{name:'下载记录',exact:true})).toHaveCount(1)
+})
+
+test('viewing the exact saved record preserves new text and photo without an exit confirmation',async({page,request})=>{
+  const {context}=await candidate(page,request,`${memberName}昨晚碰到右脚小趾`)
+  await frontReply(request,response('我会保存这份已经核对的记录。',{responseMode:'operation',requestedAction:{type:'save',targetIds:[context.review.id],targetVersion:context.review.version,confirmation:'explicit',quote:'保存这条'}}))
+  const job=await send(page,'保存这条'),saved=await settle(request,job.id,job.inputRevision),record=saved.operationReceipt.savedDraft.result.records[0]
+  await expect(page.getByRole('button',{name:'查看记录',exact:true})).toBeVisible()
+  const bytes=await sharp({create:{width:45,height:46,channels:3,background:'#bdd8ce'}}).png().toBuffer()
+  await frontReply(request,response('这张新图片先保留在当前对话。',{contextId:'new',taskRelation:'new'}))
+  const accepted=page.waitForResponse(response=>new URL(response.url()).pathname.endsWith('/recognition-jobs')&&response.request().method()==='POST')
+  await page.getByLabel('从相册选择',{exact:true}).setInputFiles({name:'返回后仍在的新照片.png',mimeType:'image/png',buffer:bytes})
+  const ack=await accepted,newJob=await ack.json();await settle(request,newJob.id,newJob.inputRevision)
+  await expect(page.getByRole('button',{name:'保存原件',exact:true})).toBeVisible()
+  if(!await page.getByLabel('对话输入').isVisible())await page.getByRole('button',{name:'改用文字',exact:true}).click()
+  await page.getByLabel('对话输入').fill('查看旧记录前还没发送的新内容')
+  await page.getByRole('button',{name:'查看记录',exact:true}).click()
+  await expect.poll(()=>new URL(page.url()).searchParams.get('recordId')).toBe(record.recordId)
+  await expect(page.getByRole('dialog',{name:/保存这次草稿/})).toHaveCount(0)
+  expect(new URL(page.url()).searchParams.get('memberId')).toBe(memberId)
+  await page.goBack()
+  await expect(page.getByRole('heading',{name:'前台',exact:true})).toBeVisible()
+  await expect(page.getByLabel('对话输入')).toHaveValue('查看旧记录前还没发送的新内容')
+  await expect(page.getByRole('img',{name:'返回后仍在的新照片.png',exact:true})).toHaveCount(1)
+  await expect(page.getByRole('dialog',{name:/保存这次草稿/})).toHaveCount(0)
 })
 
 test('image-only input uploads and receives a sourced preview without inferring a child record',async({page,request},info)=>{

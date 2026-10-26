@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {bindFrontDeskAnswerContext,frontDeskQuestionClaims} from './front-desk-answer-context.mjs'
+import {buildFrontDeskFactSources} from './front-desk-source-context.mjs'
 
 const source={id:'fact-answer',page:1,text:'39',questionContext:{id:'temperature',messageId:'asked',text:'刚量的体温是多少摄氏度？',target:'temperature_celsius'}}
 const field=(name,value,id=source.id)=>({name,value,sources:[{sourceId:id,page:1,quote:value}],editedBy:'model'})
@@ -33,4 +34,47 @@ test('an added positive observation is not labelled a correction or hidden behin
  const correction=[{id:'item',category:'symptom',fields:[field('correction','咳得厉害','positive')]}]
  bindFrontDeskAnswerContext(correction,[{...sources[1],changeType:'correct'}])
  assert.equal(correction[0].fields[0].name,'correction')
+})
+
+const correctedSources=(oldValue='咳嗽',newValue='打喷嚏')=>{
+ const before=oldValue==='今天'?'孩子今天咳嗽':`孩子今天${oldValue}`,after=`不是${oldValue}，是${newValue}`
+ return buildFrontDeskFactSources({facts:[{id:'old',contextId:'c',status:'superseded',text:before,polarity:'affirmed',subject:{kind:'unknown'},sources:[{messageId:'m1',quote:before}]},{id:'new',contextId:'c',status:'active',replaces:'old',text:after,polarity:'affirmed',subject:{kind:'unknown'},sources:[{messageId:'m2',quote:after}]}],messages:[{id:'m1',contextId:'c',kind:'text',status:'completed',text:before},{id:'m2',contextId:'c',kind:'text',status:'completed',text:after}]})
+}
+const correctionField=(name,value)=>({name,value,sources:[{sourceId:'new',page:1,quote:'不是咳嗽，是打喷嚏',start:0,end:9,valueStart:'不是咳嗽，是打喷嚏'.indexOf(value),valueEnd:'不是咳嗽，是打喷嚏'.indexOf(value)+value.length}],editedBy:'model'})
+test('captured C05 drops a withdrawn negative label and projects only the literal replacement into facts',()=>{
+ const sources=correctedSources(),original=structuredClone(sources)
+ const items=[{id:'item',category:'symptom',fields:[correctionField('symptom','打喷嚏'),correctionField('symptom','不是咳嗽'),correctionField('statusRaw','不是咳嗽，是打喷嚏')]}]
+ bindFrontDeskAnswerContext(items,sources)
+ assert.deepEqual(items[0].fields.map(field=>field.value),['打喷嚏','打喷嚏'])
+ for(const field of items[0].fields){assert.equal(field.sources[0].quote,'不是咳嗽，是打喷嚏');assert.equal(field.sources[0].valueStart,6);assert.equal(field.sources[0].valueEnd,9)}
+ assert.deepEqual(sources,original,'full replacement wording remains the original source, not a newly assembled sentence')
+})
+
+test('a literal replacement can itself explicitly supply a negative observation',()=>{
+ const sources=correctedSources('咳嗽','没有咳嗽')
+ const item={id:'item',category:'symptom',fields:[{name:'symptom',value:'不是咳嗽，是没有咳嗽',sources:[{sourceId:'new',page:1,quote:'不是咳嗽，是没有咳嗽'}],editedBy:'model'}]}
+ bindFrontDeskAnswerContext([item],sources)
+ assert.deepEqual(item.fields.map(field=>field.value),['没有咳嗽'])
+})
+
+test('correction projection requires a real source role and leaves independent negatives and explicit user edits intact',()=>{
+ const sources=correctedSources(),unbound=sources.map(({literalCorrection,...source})=>source)
+ const bare={id:'item',category:'symptom',fields:[correctionField('symptom','不是咳嗽')]}
+ bindFrontDeskAnswerContext([bare],unbound)
+ assert.equal(bare.fields[0].value,'不是咳嗽','changeType alone cannot reinterpret a user source')
+ const manual={id:'manual',category:'symptom',fields:[{...correctionField('statusRaw','不是咳嗽，是打喷嚏'),editedBy:'user',confirmed:true}]}
+ bindFrontDeskAnswerContext([manual],sources)
+ assert.equal(manual.fields[0].value,'不是咳嗽，是打喷嚏')
+ const negative={id:'negative',page:1,text:'没有咳嗽',polarity:'negated',changeType:'add'}
+ const item={id:'item',category:'symptom',fields:[correctionField('symptom','不是咳嗽'),field('symptom','没有咳嗽','negative')]}
+ bindFrontDeskAnswerContext([item],[...sources,negative])
+ assert.deepEqual(item.fields.map(field=>field.value),['没有咳嗽'])
+})
+
+for(const [oldValue,newValue] of [['今天','昨晚'],['400','800'],['左脚','右脚'],['牛奶','米粥']])test(`literal correction projects ${oldValue} to the exact new ${newValue} without converting or joining text`,()=>{
+ const sources=correctedSources(oldValue,newValue),quote=`不是${oldValue}，是${newValue}`
+ const item={id:'item',category:'other',fields:[{name:'conclusion',value:quote,sources:[{sourceId:'new',page:1,quote}],editedBy:'model'}]}
+ bindFrontDeskAnswerContext([item],sources)
+ assert.equal(item.fields[0].value,newValue)
+ assert.equal(item.fields[0].sources[0].quote,quote)
 })

@@ -4,6 +4,7 @@ import { MedicalSummaryError } from '../medical-summary-service.mjs'
 import { fail } from './contract.mjs'
 
 export class BusinessModel {
+  sourceReferences = true
   constructor(options = {}) { this.provider = options.provider ?? createAIProvider(options); this.audioProvider = options.audioProvider ?? (options.provider?.name !== 'bailian' && options.provider ? options.provider : createAudioProvider('TTS', options)); this.logger=options.logger??console;const limit=Number(options.maxTokens??process.env.AI_BUSINESS_MAX_OUTPUT_TOKENS??16000);this.maxTokens=Number.isInteger(limit)&&limit>=3000&&limit<=32000?limit:16000 }
   async structured({ task, schema, instructions, input, vision = false, signal, syntheticEvidence, onSyntheticOutput, onReadableOutput, samplingTemperature }) {
     const p=this.provider
@@ -13,7 +14,7 @@ export class BusinessModel {
     const started=Date.now(), model=p.name==='bailian'?(vision?p.visionModel:p.model):vision?(process.env.AI_VISION_MODEL||p.model):(process.env.AI_DRAFT_MODEL||p.model)
     try {
       const timeout=p.config?.timeoutMs??60000
-      const response=await p.fetch(`${p.baseUrl}/responses`,{method:'POST',task,syntheticEvidence,onSyntheticOutput,onReadableOutput,headers:{Authorization:`Bearer ${p.apiKey}`,'Content-Type':'application/json'},signal:signal?AbortSignal.any([signal,AbortSignal.timeout(timeout)]):AbortSignal.timeout(timeout),body:JSON.stringify({model,instructions,input,store:false,...(p.name==='bailian'&&samplingTemperature!==undefined?{temperature:samplingTemperature}:{}),max_output_tokens:Math.min(this.maxTokens,Math.max(3000,Math.ceil(JSON.stringify(input).length/2)+1000)),text:{format:{type:'json_schema',name:task==='front-desk-dialogue'?'hoooho_front_desk_reply':'hoooho_business',strict:true,schema}}})})
+      const response=await p.fetch(`${p.baseUrl}/responses`,{method:'POST',task,syntheticEvidence,onSyntheticOutput,onReadableOutput,headers:{Authorization:`Bearer ${p.apiKey}`,'Content-Type':'application/json'},signal:signal?AbortSignal.any([signal,AbortSignal.timeout(timeout)]):AbortSignal.timeout(timeout),body:JSON.stringify({model,instructions,input,store:false,...(p.name==='bailian'&&samplingTemperature!==undefined?{temperature:samplingTemperature}:{}),max_output_tokens:Math.min(this.maxTokens,Math.max(3000,Math.ceil(JSON.stringify(input).length/2)+1000)),text:{format:{type:'json_schema',name:task==='front-desk-dialogue'?'hoooho_front_desk_reply':['professional-summary-generate','professional-summary-verify','front-desk-visual-source'].includes(task)?task.replaceAll('-','_'):'hoooho_business',strict:true,schema}}})})
       if(!response.ok)throw Object.assign(new Error('业务整理接口不可用'),{status:response.status,upstream:await readOpenAIErrorDetails(response)})
       const result=await response.json()
       if(result.status==='incomplete'||result.incomplete_details)throw fail('资料整理未完整返回，草稿未更新，请缩小资料范围',503,'AI_OUTPUT_INCOMPLETE')

@@ -14,12 +14,46 @@ const options = (latest, extra = {}) => ({ latestMessage: latest, contextIds: ['
 const change = (text, extra = {}) => ({ type: 'add', targetId: null, text, polarity: 'affirmed', subject: subject(), sources: [source(text)], ...extra })
 const normalize = (value, latest, extra = {}) => normalizeFrontDeskUnderstanding(value, options(latest, extra))
 
+test('first-person ownership does not bind possessive descriptions of a child to the selected adult',()=>{
+ const member={id:'self',name:'家长',isSelf:true},members=[member,{id:'child',name:'小禾',relationship:'child'}]
+ for(const text of ['我家孩子今天咳嗽','我们家宝宝今天咳嗽','我的孩子今天咳嗽','我自己的宝宝今天咳嗽']){
+  const latest=message(text),grants=frontDeskSubjectConfirmations({member,members,message:latest})
+  assert.deepEqual(grants,[],text)
+  const proposed=subject({kind:'current',memberId:member.id,label:member.name,sources:[source(text)]})
+  const result=normalize(understanding({subject:proposed,recordChanges:[change(text,{subject:proposed})]}),latest,{subjectMembers:members,confirmedSubjects:grants})
+  assert.equal(result.recordChanges[0].subject.confirmed,false,text)
+ }
+ const latest=message('我现在咳嗽'),grants=frontDeskSubjectConfirmations({member,members,message:latest})
+ const proposed=subject({kind:'current',memberId:member.id,sources:[source(latest.text)]})
+ assert.equal(normalize(understanding({recordChanges:[change(latest.text,{subject:proposed})]}),latest,{subjectMembers:members,confirmedSubjects:grants}).recordChanges[0].subject.confirmed,true)
+})
+
+test('shared names alone do not identify a member and first-person health facts do not inherit a child receipt',()=>{
+ const member={id:'child',name:'小禾',relationship:'child'},latest=message('小禾今天咳嗽')
+ assert.deepEqual(frontDeskSubjectConfirmations({member,members:[member,{id:'another-child',name:'小禾',relationship:'child'}],message:latest}),[])
+ const confirmation={contextId:'context-1',contextVersion:2,memberId:'child',at:'2026-10-25T12:00:00Z'}
+ const receipt={kind:'current',memberId:'child',label:'小禾',confirmed:true,confirmedBy:'user',confirmation,sources:[]}
+ const actual=message('我现在头疼')
+ const result=normalize(understanding({recordChanges:[change(actual.text)]}),actual,{activeContextId:'context-1',activeContextVersion:2,contexts:[{id:'context-1',version:2,subject:receipt}],subjectMembers:[member],confirmedSubjects:[receipt]})
+ assert.equal(result.recordChanges[0].subject.kind,'unknown')
+ assert.equal(result.recordChanges[0].subject.confirmed,false)
+})
+
 test('schema supports zero changes, no follow-up question and separate action requests', () => {
   const schema = frontDeskUnderstandingSchema({ contextIds: ['context-1'], questionIds: ['temperature'] })
   assert.equal(schema.properties.recordChanges.minItems, undefined)
   assert.ok(schema.properties.nextQuestion.anyOf.some(item => item.type === 'null'))
   assert.deepEqual(schema.properties.contextId.enum, ['new', 'context-1'])
   assert.equal(schema.properties.requestedAction.additionalProperties, false)
+})
+
+test('courtesy cannot create a new occurrence solely from an already saved original',()=>{
+ const history=message('昨天咳嗽','old-source',{contextId:'saved-history'}),latest=message('谢谢')
+ const extra={messages:[history],contextIds:['context-1','saved-history'],contexts:[{id:'context-1'},{id:'saved-history',saved:true}]}
+ assert.throws(()=>normalize(understanding({recordChanges:[change('咳嗽',{sources:[source('昨天咳嗽','old-source')]})]}),latest,extra),{code:'FRONT_RECORD_REPLY_INVALID'})
+ const current=message('今天又咳嗽')
+ const result=normalize(understanding({recordChanges:[change(current.text,{sources:[source(current.text),source('昨天咳嗽','old-source')]})]}),current,extra)
+ assert.equal(result.recordChanges[0].text,current.text)
 })
 
 test('validated natural reply survives ordinary punctuation, chat, short answers and consultation', () => {
@@ -388,6 +422,18 @@ test('context-only city conditions stay in context without a health-candidate ac
 test('a context city reply cannot claim formal save or a completed health draft',()=>{
  const latest=message('杭州'),recordChanges=[change('杭州',{scope:'context'})]
  for(const reply of ['杭州已保存。','城市已保存，可在健康随记查看。','杭州已入档。','城市已记好，可在健康档案查看。','已整理好这条健康记录。'])assert.throws(()=>normalize(understanding({reply,recordChanges}),latest,{allowDeferredCandidateFeedback:true}),{code:'FRONT_RECORD_REPLY_INVALID'},reply)
+})
+
+test('an unreceipted leading record-status marker is removed without replacing the natural reply',()=>{
+ const latest=message('今天上午喝了一百二十毫升牛奶，没有呕吐'),recordChanges=[change('今天上午喝了一百二十毫升牛奶',{scope:'record'}),change('没有呕吐',{scope:'record',polarity:'negated'})]
+ for(const [reply,expected] of [
+  ['收到。已记录今天上午喝了一百二十毫升牛奶，没有呕吐。请问是哪位成员？','收到。今天上午喝了一百二十毫升牛奶，没有呕吐。请问是哪位成员？'],
+  ['我已经为您记录了今天的原话。还有要补充的吗？','今天的原话。还有要补充的吗？'],
+  ['已记录：今天上午喝奶，没有呕吐。','今天上午喝奶，没有呕吐。']
+ ])assert.equal(normalize(understanding({reply,responseMode:'record',recordChanges}),latest).reply,expected)
+ for(const reply of ['已保存今天的记录。','已经入档了。','已记录，可在健康随记查看。','已记录。','已记录了。','我已经为您记录了。','已记录：。','已记录，','已记录好了。','已记录到记录列表。','已删除这条记录。','已记录今天喝奶。已保存。'])assert.throws(()=>normalize(understanding({reply,responseMode:'record',recordChanges}),latest),{code:'FRONT_RECORD_REPLY_INVALID'},reply)
+ for(const reply of ['尚未记录今天的情况。','如果显示“已记录”，也不等于已保存。','原话是“已记录今天的情况”。'])assert.equal(normalize(understanding({reply,responseMode:'record',recordChanges}),latest).reply,reply)
+ assert.throws(()=>normalize(understanding({reply:'已记录今天的情况。',responseMode:'record'}),latest),{code:'FRONT_RECORD_REPLY_INVALID'})
 })
 
 test('organize feedback is deferred only for real record changes or a matching current candidate receipt',()=>{

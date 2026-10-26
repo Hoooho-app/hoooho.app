@@ -9,7 +9,7 @@ import { useAppStore } from '../../store/useAppStore'
 import { localDateTimeValue, localDateTimeToIso } from '../../utils/healthOccurredAt'
 import { appendCaptureTurn,beginCaptureFinalization,captureDraft, checkpointCaptureDraft, fileIdentity, hasCaptureContent, pendingCaptureCancellations, retainedCaptureDrafts, type CaptureDraft, type CaptureTurn } from './captureDraft'
 import {ProfessionalRecordSummary} from './ProfessionalRecordSummary'
-import {recordOperationTurn,restoreFrontContext, restoreFrontFile, type FrontContext} from './frontDeskRecord'
+import {completedFrontSaveReplyIds,recordOperationTurn,restoreFrontContext, restoreFrontFile, type FrontContext} from './frontDeskRecord'
 import {confirmRawSaveTarget,frontHasOriginalFiles,frontOriginalsConfirmed,rawSaveTargetMatches} from './frontOriginalSave'
 import {RecordMedia} from './RecordMedia'
 import {FrontDeskVideoRecorder} from './FrontDeskVideoRecorder'
@@ -64,6 +64,7 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
   const [trackingEvent,setTrackingEvent]=useState<string|null>(null)
   const trackingLock=useRef(false)
   const openingRecord=useRef(false)
+  const recordDestination=useRef<{url:string;identity:string}>()
   const rawFinalizing=useRef(false),liveVoicePreview=useRef(new Map<string,string>())
   const completedGuideIds=useRef(new Set<string>())
   const presentedDraft=useRef<{id:string;version:number}>()
@@ -80,12 +81,34 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
   const blocker=useBlocker(({currentLocation,nextLocation})=>{
     const entry=nextLocation.state
     const internalRecord=home&&nextLocation.pathname==='/health-events'&&entry?.frontDeskReturn===true&&entry?.calendarIdentity===`${accountId}:${memberId}`&&['symptom','diet','sleep','elimination','medication','visit'].includes(entry?.nurseRecordEntry)
-    return !internalRecord&&!allowLeave.current&&(unfinished||voiceBusy.current)&&(currentLocation.pathname!==nextLocation.pathname||currentLocation.search!==nextLocation.search)
+    const savedRecord=recordDestination.current?.url===`${nextLocation.pathname}${nextLocation.search}`&&recordDestination.current.identity===`${accountId}:${memberId}`&&current.current.returningFromRecord===true&&memberId===useAppStore.getState().currentMemberId&&accountId===(useAppStore.getState().authUser?.id??'guest')
+    return !internalRecord&&!savedRecord&&!allowLeave.current&&(unfinished||voiceBusy.current)&&(currentLocation.pathname!==nextLocation.pathname||currentLocation.search!==nextLocation.search)
   })
   useEffect(()=>{if(blocker.state==='blocked')setExitOpen(true)},[blocker.state])
   const freshDraft=():CaptureDraft=>({text:initialText,files:[],occurredAt:localDateTimeValue(),timeUnknown:false,requestId:crypto.randomUUID(),eventId})
   const returning=useRef(false),followScroll=useRef(true),scrollOpened=useRef(false),followingUntil=useRef(0)
   const [showJump,setShowJump]=useState(false)
+  const updateJump=()=>{
+    const element=scrollBody.current
+    if(!home||!element)return
+    const near=element.scrollHeight-element.scrollTop-element.clientHeight<80
+    if(performance.now()>=followingUntil.current||near)followScroll.current=near
+    // A floating shortcut must never occupy the saved record's action area.
+    const bounds=element.getBoundingClientRect()
+    const actionsAtBottom=[...element.querySelectorAll('.smart-record-saved-actions')].some(actions=>{const rect=actions.getBoundingClientRect();return rect.top<bounds.bottom&&rect.bottom>bounds.bottom-80})
+    setShowJump(!near&&!actionsAtBottom&&Boolean(current.current.conversationTurns?.length))
+  }
+  useEffect(()=>{
+    if(!home||!ready||stage!=='conversation')return
+    const element=scrollBody.current
+    if(!element)return
+    const observer=new ResizeObserver(updateJump)
+    observer.observe(element)
+    const conversation=element.querySelector('.nurse-conversation')
+    if(conversation)observer.observe(conversation)
+    const frame=requestAnimationFrame(updateJump)
+    return()=>{observer.disconnect();cancelAnimationFrame(frame)}
+  },[home,ready,stage,key,local.savedGuides,local.recognitionSnapshot?.seq])
   const persist=async(value:CaptureDraft)=>{const next={...value,updatedAt:Date.now()};current.current=next;checkpointCaptureDraft(key,next);if(mounted.current)setLocal(next);const write=writes.current.catch(()=>undefined).then(()=>captureDraft(key,next));writes.current=write;try{await write}catch(e){if(mounted.current)setError('本机草稿保存失败，请保持页面打开后重试');throw e}}
   const change=(patch:Partial<CaptureDraft>)=>void persist({...current.current,...patch}).catch(()=>undefined)
   useEffect(()=>{
@@ -208,7 +231,7 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
       const {assetIds,asrAssetId}=await uploadFiles(files,epoch,controller.signal,audio&&!turn?.text?audio:undefined);assertWork(epoch)
       const occurredAt=input.capturedAt??new Date().toISOString()
       if(Date.parse(occurredAt)>Date.now())throw new Error('发生时间不能晚于现在')
-      const body={id,mode:page&&!eventId?'front':'record',scopeKey:page&&!eventId?'front':`record:${eventId??'new'}`,input:{id:turn?.id??crypto.randomUUID(),kind:turn?.kind??'text',...(turn?.continuationId?{contextId:turn.continuationId}:{}),text:turn?.text??input.text,inputAt:turn?.at??Date.now(),assetIds,asrAssetId,...(turn?.answerTo?{answerTo:turn.answerTo}:{}),...(turn?.presentedDraft?{presentedDraft:turn.presentedDraft}:{}),...(turn?.expectedContextVersion!==undefined?{expectedContextVersion:turn.expectedContextVersion}:{})},options:{initialText:(!page||eventId)&&!current.current.recognitionSnapshot?(turn?.text&&input.text.endsWith(turn.text)?input.text.slice(0,-turn.text.length).trim():input.text):undefined,task:'record',eventId:input.eventId||null,smartRecord:true,frontDeskRecord:page,confirmOccurrenceTime:false,followUp:home?Boolean(input.followUpEnabled):page||!conversational,selectedOccurredAt:occurredAt,timezone:Intl.DateTimeFormat().resolvedOptions().timeZone,id:input.smartReview?.id,version:input.smartReview?.version}}
+      const body={id,mode:page&&!eventId?'front':'record',scopeKey:page&&!eventId?'front':`record:${eventId??'new'}`,input:{id:turn?.id??crypto.randomUUID(),kind:turn?.kind??'text',...(turn?.continuationId?{contextId:turn.continuationId}:{}),text:turn?.text??input.text,inputAt:turn?.at??Date.now(),assetIds,asrAssetId,...(turn?.answerTo?{answerTo:turn.answerTo}:{}),...(turn?.presentedDraft?{presentedDraft:turn.presentedDraft}:{}),...(turn?.expectedContextVersion!==undefined?{expectedContextVersion:turn.expectedContextVersion}:{})},options:{initialText:(!page||eventId)&&!current.current.recognitionSnapshot?(turn?.text&&input.text.endsWith(turn.text)?input.text.slice(0,-turn.text.length).trim():input.text):undefined,task:'record',semanticVersion:page&&!eventId?3:1,eventId:input.eventId||null,smartRecord:true,frontDeskRecord:page,confirmOccurrenceTime:false,followUp:home?Boolean(input.followUpEnabled):page||!conversational,selectedOccurredAt:occurredAt,timezone:Intl.DateTimeFormat().resolvedOptions().timeZone,id:input.smartReview?.id,version:input.smartReview?.version}}
       assertWork(epoch)
       const accepted=await request<RecognitionJob>(recognitionUrl(memberId),'POST',body)
       assertWork(epoch)
@@ -467,25 +490,36 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
     if(local.rawSaveTarget?.state==='requested'&&(rawIntentMatches&&rawSubjectConfirmed||rawReceiptRecovery)&&!busy&&!jobBusy&&!localStage&&!voice.busy&&!pending.current)void saveOriginal()
   },[ready,local.rawSaveTarget,rawIntentMatches,rawSubjectConfirmed,rawReceiptRecovery,busy,jobBusy,localStage,voice.busy])
   async function viewSavedRecord(guide:SavedRecordGuide){
-    if(guide.memberId!==useAppStore.getState().currentMemberId)return
-    setError('')
+    if(openingRecord.current||pending.current||guide.memberId!==useAppStore.getState().currentMemberId)return
+    const epoch=workEpoch.current
+    openingRecord.current=true;pending.current=true;setBusy(true);setStatus('正在打开记录…');setError('')
+    let checkpointed=false
     try{
-      const acknowledgedRaw=current.current.rawSavedGuide?.id===guide.id
-      const checkpoint=persist({...current.current,returningFromRecord:true,returnScrollTop:scrollBody.current?.scrollTop??0})
-      if(acknowledgedRaw)await checkpoint.catch(()=>undefined);else await checkpoint
-      if(followupReturn&&eventId){
-        const params=new URLSearchParams({memberId,eventId,recordId:guide.recordId})
-        navigate(`/cases?${params}`);return
-      }
-      if(guide.sectionId&&guide.entryId){navigate(savedRecordUrl(guide));return}
+      await initialization.current
+      if(voice.state==='listening'||voice.state==='requesting')voice.stop()
+      // Recorder finalization registers a durable byte write synchronously.
+      // Await that write and all queued edits before permitting this exact route.
+      await captureDraft(key);await writes.current;assertWork(epoch)
+      await persist({...current.current,returningFromRecord:true,returnScrollTop:scrollBody.current?.scrollTop??0})
+      checkpointed=true;assertWork(epoch)
       const records=await request<{id:string;occurredAt:string;journal?:Parameters<typeof journalOccurrenceAt>[0] & {timePrecision?:string}}[]>(`/api/events/${encodeURIComponent(guide.eventId)}/records`,'GET')
       const record=records.find(item=>item.id===guide.recordId)
       if(!record)throw new Error('记录暂不可访问')
-      if(guide.memberId!==useAppStore.getState().currentMemberId)return
-      const day=record.journal?.timePrecision==='unknown'?null:getLocalDateKey(journalOccurrenceAt(record.journal,record.occurredAt))
-      const params=new URLSearchParams({memberId,eventId:guide.eventId,recordId:guide.recordId,view:'month',...(day?{day,month:day.slice(0,7)}:{})})
-      navigate(`/health-events?${params}`,{state:{calendarIdentity:`${accountId}:${memberId}`}})
-    }catch{if(mounted.current)setError('这条记录已不存在或暂不可访问')}
+      assertWork(epoch)
+      let destination:string
+      if(followupReturn&&eventId){
+        const params=new URLSearchParams({memberId,eventId,recordId:guide.recordId})
+        destination=`/cases?${params}`
+      }else if(guide.sectionId&&guide.entryId)destination=savedRecordUrl(guide)
+      else{
+        const day=record.journal?.timePrecision==='unknown'?null:getLocalDateKey(journalOccurrenceAt(record.journal,record.occurredAt))
+        const params=new URLSearchParams({memberId,eventId:guide.eventId,recordId:guide.recordId,view:'month',...(day?{day,month:day.slice(0,7)}:{})})
+        destination=`/health-events?${params}`
+      }
+      recordDestination.current={url:destination,identity:`${accountId}:${memberId}`}
+      navigate(destination,{state:{calendarIdentity:`${accountId}:${memberId}`,frontDeskReturn:true}})
+    }catch{recordDestination.current=undefined;if(mounted.current&&epoch===workEpoch.current)setError(checkpointed?'这条记录已不存在或暂不可访问':'当前对话尚未保存在本机，请重试查看记录')}
+    finally{openingRecord.current=false;pending.current=false;if(mounted.current){setBusy(false);setStatus('')}}
   }
   function downloadRecord(turn:CaptureTurn){
     const result=turn.operationResult
@@ -543,7 +577,7 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
   const savedBubble=(guide:SavedRecordGuide)=><NurseMessage conversation={home} key={guide.id} role="assistant"><div className="smart-record-saved" data-save-id={guide.id}><p><Check size={18} aria-hidden="true"/>{guide.text}</p>{!guide.dismissed&&<><div className="smart-record-saved-actions"><HohoButton disabled={busy} onClick={()=>void viewSavedRecord(guide)}>查看记录</HohoButton><HohoButton variant="secondary" disabled={busy} onClick={()=>change({savedGuides:dismissSavedRecordGuide(current.current.savedGuides??[],guide.id)})}>知道了</HohoButton></div>{home&&guide.category==='symptom'&&(guide.followUpEnabled?<span className="hoho-text-caption" role="status">症状跟进已启用</span>:<HohoButton variant="text" size="small" disabled={busy||trackingEvent!==null} loading={trackingEvent===guide.eventId} onClick={()=>void enableSavedFollowup(guide)}>启用症状跟进</HohoButton>)}</>}</div></NurseMessage>
   const visibleTurns:(CaptureTurn & {savedGuide?:SavedRecordGuide})[]=[...(local.conversationTurns??(local.text?[{id:'legacy',text:local.text}]:[])),...(local.savedGuides??[]).filter(guide=>guide.memberId===memberId).map(guide=>({id:guide.id,text:'',at:guide.at,savedGuide:guide}))]
   const recordActions=(turn?:CaptureTurn)=>{
-    const stale=Boolean(turn&&turn.id!==local.conversationTurns?.filter(item=>item.role==='assistant').at(-1)?.id)
+    const stale=Boolean(turn&&turn.id!==(job?.frontDesk?.replyId??local.conversationTurns?.filter(item=>item.role==='assistant').at(-1)?.id))
     if(completed||stale||jobBusy||localStage||dialogueBusy)return null
     const count=review?.items.length??0
     const interview=local.nursingInterview
@@ -605,7 +639,8 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
     finally{openingRecord.current=false}
   }
   const homeShortcuts=<RecordEntryActions conversation disabled={!ready||busy||voice.busy||dialogueBusy||jobBusy||!!localStage} identity={`${accountId}:${memberId}`} onSmartRecord={()=>undefined} onRecord={(category,kind)=>void openRecordEntry(category,kind)}/>
-  const timeline=visibleTurns.filter(turn=>completed?Boolean(turn.savedGuide&&completedGuideIds.current.has(turn.savedGuide.id)):Boolean((home||page&&!eventId)&&turn.savedGuide)||!turn.savedGuide&&turn.id!==job?.frontDesk?.replyId&&(!page||!hiddenTurns.current.has(turn.id))).sort((a,b)=>(a.at??0)-(b.at??0))
+  const savedOperationReply=Boolean(job?.frontDesk&&completedFrontSaveReplyIds(job.frontDesk.context).has(job.frontDesk.replyId))
+  const timeline=visibleTurns.filter(turn=>!turn.completedOperation).filter(turn=>completed?Boolean(turn.savedGuide&&completedGuideIds.current.has(turn.savedGuide.id)):Boolean((home||page&&!eventId)&&turn.savedGuide)||!turn.savedGuide&&turn.id!==job?.frontDesk?.replyId&&(!page||!hiddenTurns.current.has(turn.id))).sort((a,b)=>(a.at??0)-(b.at??0))
   const processingLabel=localStage==='uploading'?'接收中':localStage==='converting'||job?.stage==='converting'||job?.stage==='transcribing'?'转写中':job?.stage==='reading'?'读图中':['organizing','publishing'].includes(job?.stage??'')?'整理中':'理解中'
   const body=<>
     {resumeChoices ? <div className="smart-record-resume">
@@ -627,7 +662,7 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
       {!job&&(!page||eventId)&&!!local.files.filter(f=>!f.type.startsWith('audio/')).length&&<NurseMessage conversation={home} role="user" recorderName={recorderName}>{local.files.filter(f=>!f.type.startsWith('audio/')).map((file,i)=><div key={`${file.name}:${i}`} className="dialogue-file"><span>{file.name}</span><HohoButton variant="text" aria-label={`移除图片${i+1}`} disabled={busy||voice.busy} onClick={()=>change({files:local.files.filter(f=>f!==file),smartReview:review?{...review,state:'changed'}:undefined})}><X size={16}/></HohoButton></div>)}</NurseMessage>}
       {local.rawSavedGuide&&<NurseMessage conversation={home} role="assistant"><p>{local.rawSavedGuide.text}</p><HohoButton onClick={()=>void viewSavedRecord(local.rawSavedGuide!)}>查看记录</HohoButton></NurseMessage>}
       {home&&!local.rawSavedGuide&&!completed&&(jobBusy||localStage)&&<><FrontDeskProcessing separate statusText={processingLabel} job={job} onStop={()=>void taskCommand('pause')} disabled={commandBusy||busy}/></>}
-      {!local.rawSavedGuide&&!completed&&(job||localStage)&&!(home&&(jobBusy||localStage))&&<NurseMessage conversation={home} role="assistant">{jobBusy||!!localStage?<FrontDeskProcessing statusText={processingLabel}/>:job?.frontDesk?.context.messages.find(m=>m.id===job.frontDesk?.replyId)?.text&&<p>{job.frontDesk.context.messages.find(m=>m.id===job.frontDesk?.replyId)?.text}</p>}{contextSubjectPending&&!review?.items.length&&subjectConfirmation}{(!review?.items.length||!['ready','needs_review'].includes(job?.state??'')||!!job?.unresolvedInputs?.length)&&<RecognitionProgress overview onSaveOriginal={rawCanOffer?()=>void saveOriginal():undefined} saveOriginalLabel={frontHasOriginalFiles(rawContext)?'保存原件':'先保存原话'} job={job} localStage={localStage} onCommand={type=>void taskCommand(type)} commandBusy={commandBusy||busy}/>}
+      {!local.rawSavedGuide&&!completed&&!savedOperationReply&&(job||localStage)&&!(home&&(jobBusy||localStage))&&<NurseMessage conversation={home} role="assistant">{jobBusy||!!localStage?<FrontDeskProcessing statusText={processingLabel}/>:job?.frontDesk?.context.messages.find(m=>m.id===job.frontDesk?.replyId)?.text&&<p>{job.frontDesk.context.messages.find(m=>m.id===job.frontDesk?.replyId)?.text}</p>}{contextSubjectPending&&!review?.items.length&&subjectConfirmation}{(!review?.items.length||!['ready','needs_review'].includes(job?.state??'')||!!job?.unresolvedInputs?.length)&&<RecognitionProgress overview onSaveOriginal={rawCanOffer?()=>void saveOriginal():undefined} saveOriginalLabel={frontHasOriginalFiles(rawContext)?'保存原件':'先保存原话'} job={job} localStage={localStage} onCommand={type=>void taskCommand(type)} commandBusy={commandBusy||busy}/>}
       {!jobBusy&&!localStage&&recordActions()}</NurseMessage>}
       {(!ready||voice.state==='listening'||voice.state==='requesting'||busy)&&!jobBusy&&!localStage&&<NurseMessage conversation={home} role="assistant"><p role="status">{!ready?'我在找回刚才的内容，请稍等。':voice.state==='listening'?'我在听，松开后整理这一段。':voice.state==='requesting'?'正在打开麦克风。':status||'正在保存…'}</p></NurseMessage>}
       {(error||progressError||voice.error)&&<NurseMessage conversation={home} role="assistant"><p role="alert">{error||progressError||voice.error}。你刚才的内容还在，可以再试一次。</p></NurseMessage>}
@@ -676,5 +711,5 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
     }catch{leaving.current=false;setExiting(false);setExitError(keepDraft?'草稿保存失败，请重试。当前内容仍在。':'退出未完成，请重试。当前内容仍在。')}
   }
   const exitDialog=<BottomSheetSurface open={exitOpen} viewportAware label="退出智能记录" title="保存这次草稿吗？" onClose={cancelExit} footer={<><HohoButton fullWidth loading={exiting} onClick={()=>void finishExit(true)}>保存草稿并退出</HohoButton><HohoButton fullWidth variant="secondary" disabled={exiting} onClick={()=>void finishExit(false)}>不保存并退出</HohoButton></>}><p>保存后，下次可以接着记录；不保存，下次将重新开始。</p>{exitError&&<p role="alert">{exitError}</p>}</BottomSheetSurface>
-  return <>{page||stage==='review' ? <section className={`smart-record-page smart-record-dialog${home?' smart-record-home':''}`} aria-label={stage==='review'?'核对记录':'智能记录'} style={{top:viewport.top,height:viewport.height}}>{home&&stage==='conversation'?<MainAppHeader conversation title="前台" showInstallApp={false} action={homeActions}/>:<WebPageHeader title={stage==='review'?'核对记录':'智能记录'} onBack={()=>stage==='review'?setStage('conversation'):close()}/>}<div ref={scrollBody} onWheel={()=>{if(home)followingUntil.current=0}} onTouchStart={()=>{if(home)followingUntil.current=0}} onScroll={()=>{if(!home)return;const e=scrollBody.current;if(!e)return;const near=e.scrollHeight-e.scrollTop-e.clientHeight<80;if(performance.now()<followingUntil.current&&!near)return;followScroll.current=near;setShowJump(!near&&Boolean(current.current.conversationTurns?.length))}} className="smart-record-page__body">{home&&stage==='conversation'&&<FrontDeskWelcome/>}{homeNotice&&<p className="front-desk-notice" role="status">{homeNotice}</p>}{body}</div>{home&&showJump&&<div className="front-desk-jump-wrap"><HohoButton size="icon" aria-label="回到最新消息" onClick={()=>{followScroll.current=true;followingUntil.current=performance.now()+450;setShowJump(false);scrollBody.current?.scrollTo({top:scrollBody.current.scrollHeight,behavior:'smooth'})}}><ArrowDown size={20} aria-hidden="true"/></HohoButton></div>}{footer&&<footer className="smart-record-page__footer">{home&&stage==='conversation'&&homeShortcuts}{footer}</footer>}</section> : <BottomSheetSurface open viewportAware size="workspace" className="smart-record-dialog nurse-conversation-sheet" layerClassName="symptom-input-layer" leading={<Stethoscope size={21} aria-hidden="true"/>} dismissText="收起" title="智能记录" label="智能记录" onClose={close} footer={footer}>{body}</BottomSheetSurface>}{exitDialog}</>
+  return <>{page||stage==='review' ? <section className={`smart-record-page smart-record-dialog${home?' smart-record-home':''}`} aria-label={stage==='review'?'核对记录':'智能记录'} style={{top:viewport.top,height:viewport.height}}>{home&&stage==='conversation'?<MainAppHeader conversation title="前台" showInstallApp={false} action={homeActions}/>:<WebPageHeader title={stage==='review'?'核对记录':'智能记录'} onBack={()=>stage==='review'?setStage('conversation'):close()}/>}<div ref={scrollBody} onWheel={()=>{if(home)followingUntil.current=0}} onTouchStart={()=>{if(home)followingUntil.current=0}} onScroll={updateJump} className="smart-record-page__body">{home&&stage==='conversation'&&<FrontDeskWelcome/>}{homeNotice&&<p className="front-desk-notice" role="status">{homeNotice}</p>}{body}</div>{home&&showJump&&<div className="front-desk-jump-wrap"><HohoButton size="icon" aria-label="回到最新消息" onClick={()=>{followScroll.current=true;followingUntil.current=performance.now()+450;setShowJump(false);scrollBody.current?.scrollTo({top:scrollBody.current.scrollHeight,behavior:'smooth'})}}><ArrowDown size={20} aria-hidden="true"/></HohoButton></div>}{footer&&<footer className="smart-record-page__footer">{home&&stage==='conversation'&&homeShortcuts}{footer}</footer>}</section> : <BottomSheetSurface open viewportAware size="workspace" className="smart-record-dialog nurse-conversation-sheet" layerClassName="symptom-input-layer" leading={<Stethoscope size={21} aria-hidden="true"/>} dismissText="收起" title="智能记录" label="智能记录" onClose={close} footer={footer}>{body}</BottomSheetSurface>}{exitDialog}</>
 }

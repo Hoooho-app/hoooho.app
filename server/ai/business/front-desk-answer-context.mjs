@@ -1,12 +1,31 @@
 import {symptomItemCorePhrase} from '../../../shared/symptom-core-phrase.mjs'
+import {frontDeskLiteralCorrection} from './front-desk-source-context.mjs'
 // An answer retains the actual question as context. Neither the question nor
 // the currently selected member supplies a new clinical fact or medication.
 const bareAnswer=/^(?:(?:暂时|还|不太)?(?:不知道|不清楚|没注意|没留意|没有|没|有|嗯|好|是|不是)|[+\-]?\d+(?:[.．]\d+)?\s*(?:[a-zA-Z℃°%]+)?)[。！!\s]*$/u
 const questionFor=source=>source?.questionContext&&typeof source.questionContext.text==='string'&&source.questionContext.text.trim()&&typeof source.questionContext.id==='string'&&typeof source.questionContext.messageId==='string'?source.questionContext:null
 const matchingSources=(field,sources)=>(field.sources??[]).flatMap(ref=>sources.filter(source=>source.id===ref.sourceId&&source.page===ref.page&&source.text?.includes(ref.quote)&&ref.quote.includes(field.value)))
 
+function correctionFields(fields,sources){
+ return fields.flatMap(field=>{
+  if(field.editedBy==='user')return [field]
+  const matches=matchingSources(field,sources),roles=matches.map(frontDeskLiteralCorrection)
+  if(!roles.length||roles.some(role=>!role)||new Set(roles.map(role=>JSON.stringify(role))).size!==1)return [field]
+  const role=roles[0],value=field.value.trim().replace(/[。；;！!？?]+$/u,'')
+  // “不是old” withdraws the earlier label. It does not observe “没有old”.
+  if(value.replace(/^(?:并)?(?:不是|非)\s*/u,'')===role.oldValue&&value!==role.oldValue)return []
+  if(value!==role.quote)return [field]
+  return [{...field,value:role.newValue,nameResolution:{original:field.name,source:'literal_replacement'},sources:field.sources.map(ref=>{
+   const source=sources.find(source=>source.id===ref.sourceId&&source.page===ref.page),start=source?.text.indexOf(ref.quote),at=ref.quote.lastIndexOf(role.newValue)
+   const {valueStart,valueEnd,...original}=ref
+   return {...original,...(start>=0&&at>=0?{valueStart:start+at,valueEnd:start+at+role.newValue.length}:{})}
+  })}]
+ })
+}
+
 export function bindFrontDeskAnswerContext(items,sources=[]){
  for(const item of items){
+  item.fields=correctionFields(item.fields,sources)
   const answers=new Map()
   item.fields=item.fields.map(field=>{
    const refs=matchingSources(field,sources)

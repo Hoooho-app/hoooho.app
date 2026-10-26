@@ -38,7 +38,7 @@ async function api(route,method='GET',body,headers={}){
 }
 async function turn(flow,text,{context,presentedDraft,assetIds=[]}={}){
  const jobId=randomUUID(),messageId=randomUUID(),input={id:messageId,kind:assetIds.length?'image':'text',text,inputAt:Date.now(),assetIds,...(context?{contextId:context.id,expectedContextVersion:context.version}:{}),...(presentedDraft?{presentedDraft:{id:presentedDraft.id,version:presentedDraft.version}}:{})}
- const submitted={id:jobId,mode:'front',scopeKey:'front',input,options:{frontDeskRecord:true,smartRecord:true,followUp:false,timezone:'Asia/Shanghai'}}
+ const submitted={id:jobId,mode:'front',scopeKey:'front',input,options:{semanticVersion:3,frontDeskRecord:true,smartRecord:true,followUp:false,timezone:'Asia/Shanghai'}}
  const snapshot={messageId,jobId,userInput:input,modelCallsBefore:report.modelRequests};flow.turns.push(snapshot)
  let job=await api(`/api/members/${member.id}/recognition-jobs`,'POST',submitted),deadline=Date.now()+300000
  while(['queued','running','publishing'].includes(job.state)&&Date.now()<deadline)job=await api(`/api/members/${member.id}/recognition-jobs/${jobId}?afterSeq=${job.seq}&waitMs=25000`)

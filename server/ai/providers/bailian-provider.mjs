@@ -1,3 +1,4 @@
+import {visualSourceSchema} from '../business/visual-source-contract.mjs'
 import Ajv from 'ajv'
 import {linkedAISignal,traceMetadata} from './telemetry.mjs'
 import { createHash } from 'node:crypto'
@@ -16,6 +17,7 @@ const validators = new Map()
 // inner payload still passes the unchanged strict caller schema. No defaults,
 // field coercion, multi-page merging or clinical extraction normalization.
 const singlePageOCRSchema = JSON.stringify({type:'object',additionalProperties:false,required:['text','status'],properties:{text:{type:'string'},status:{type:'string',enum:['readable','uncertain','blank']}}})
+const singlePageVisualSourceSchema=JSON.stringify(visualSourceSchema)
 const tokenCount = value => Number.isInteger(value) && value >= 0 && value < 10000000 ? value : null
 const messages = {
   authentication: '百炼鉴权失败，请检查后端新密钥与北京地域是否匹配；原内容仍保留',
@@ -60,8 +62,8 @@ export class BailianProvider extends OpenAIProvider {
       if (imageCount > config.maxImages || characters > config.maxInputCharacters) throw configurationError('资料超过单次 AI 输入限制，请分批处理；原文未截断', 'AI_INPUT_LIMIT')
       const model = imageCount ? config.visionModel : config.model
       const fallbackTask = imageCount ? (format.name === 'health_image_analysis' ? 'image-analysis' : 'document-page') : format.name === 'hoooho_medical_summary' ? 'medical-summary' : format.name === 'health_ai_output' ? 'health-organization' : 'draft-extraction'
-      const taskNames=new Set(['front-desk-dialogue','document-page','draft-extraction','food-label-read','food-label-coverage','food-label-translate','medical-summary','image-analysis','health-organization','product-help','feedback-interview','nurse-dialogue','nurse-assessment','nurse-organization','symptom-media-observations'])
-      const schemaTasks={hoooho_product_help:'product-help',hoooho_feedback_interview:'feedback-interview',hoooho_feedback_chat:'feedback-interview',hoooho_nurse_v1:'nurse-organization',hoooho_nurse_chat:'nurse-dialogue',hoooho_nurse_assessment:'nurse-assessment',symptom_media_observations:'symptom-media-observations',hoooho_front_desk_reply:'front-desk-dialogue'}
+      const taskNames=new Set(['front-desk-dialogue','professional-summary-generate','professional-summary-verify','front-desk-visual-source','document-page','draft-extraction','food-label-read','food-label-coverage','food-label-translate','medical-summary','image-analysis','health-organization','product-help','feedback-interview','nurse-dialogue','nurse-assessment','nurse-organization','symptom-media-observations'])
+      const schemaTasks={professional_summary_generate:'professional-summary-generate',professional_summary_verify:'professional-summary-verify',front_desk_visual_source:'front-desk-visual-source',hoooho_product_help:'product-help',hoooho_feedback_interview:'feedback-interview',hoooho_feedback_chat:'feedback-interview',hoooho_nurse_v1:'nurse-organization',hoooho_nurse_chat:'nurse-dialogue',hoooho_nurse_assessment:'nurse-assessment',symptom_media_observations:'symptom-media-observations',hoooho_front_desk_reply:'front-desk-dialogue'}
       const task=taskNames.has(init.task)?init.task:schemaTasks[format.name]??fallbackTask
       const signal=linkedAISignal(init.signal)
       signal?.throwIfAborted()
@@ -112,19 +114,24 @@ export class BailianProvider extends OpenAIProvider {
           if (imageCount === 1 && format.name === 'hoooho_business' && JSON.stringify(format.schema) === singlePageOCRSchema && Array.isArray(value) && value.length === 1 && validate(value[0])) {
             value = value[0]; ocrEnvelope = 'single-page-array'
           }
+          let visualEnvelope
+          if(imageCount===1&&format.name==='front_desk_visual_source'&&JSON.stringify(format.schema)===singlePageVisualSourceSchema&&Array.isArray(value)&&value.length===1){
+            if(validate(value[0])){value=value[0];visualEnvelope='single-source-array'}
+            else if(value[0]&&typeof value[0]==='object'&&!Array.isArray(value[0])&&Object.keys(value[0]).length===1&&validate(Object.values(value[0])[0])){value=Object.values(value[0])[0];visualEnvelope='single-source-keyed-array'}
+          }
           let dialogueEnvelope
           if(imageCount===1&&format.name==='hoooho_front_desk_reply'&&Array.isArray(value)&&value.length===1&&validate(value[0])){value=value[0];dialogueEnvelope='single-reply-array'}
           if (!validate(value)) {
             const d=schemaFailureDiagnostic(format.schema,validate.errors?.[0]),error=outputFailure('百炼输出未通过结构校验；原内容未更新',d.stage,d.fieldPath,d.reason)
             // Shape only, never scalar values or unrecognised property names.
             // The home reply contract can be diagnosed without clinical text.
-            if(format.name==='hoooho_front_desk_reply'){
+            if(['hoooho_front_desk_reply','front_desk_visual_source'].includes(format.name)){
               const first=Array.isArray(value)?value[0]:value
-              error.validation.outputShape={root:value===null?'null':Array.isArray(value)?'array':typeof value,length:Array.isArray(value)?value.length:null,element:first===null?'null':Array.isArray(first)?'array':typeof first,fields:Object.fromEntries(['reply','contextId','action','text','status','description','caption','content','data','result','image','image_description','observations','0'].filter(key=>first&&Object.hasOwn(Object(first),key)).map(key=>[key,typeof first[key]]))}
+              error.validation.outputShape={propertyCount:first&&typeof first==='object'&&!Array.isArray(first)?Object.keys(first).length:null,soleNestedType:first&&typeof first==='object'&&!Array.isArray(first)&&Object.keys(first).length===1?typeof Object.values(first)[0]:null,root:value===null?'null':Array.isArray(value)?'array':typeof value,length:Array.isArray(value)?value.length:null,element:first===null?'null':Array.isArray(first)?'array':typeof first,fields:Object.fromEntries(['kind','observations','reply','contextId','action','text','status','description','caption','content','data','result','image','image_description','observations','0'].filter(key=>first&&Object.hasOwn(Object(first),key)).map(key=>[key,typeof first[key]]))}
             }
             throw error
           }
-          const diagnostics = { ...traceMetadata(),queueWaitMs, network:transportTimings(response), provider: this.name, model, task, elapsedMs: Date.now() - started, inputTokens: tokenCount(result.usage?.prompt_tokens), outputTokens: tokenCount(result.usage?.completion_tokens), requestId: upstream.requestId, success: true, ...(ocrEnvelope ? {ocrEnvelope} : {}),...(dialogueEnvelope?{dialogueEnvelope}:{}) }
+          const diagnostics = { ...traceMetadata(),queueWaitMs, network:transportTimings(response), provider: this.name, model, task, elapsedMs: Date.now() - started, inputTokens: tokenCount(result.usage?.prompt_tokens), outputTokens: tokenCount(result.usage?.completion_tokens), requestId: upstream.requestId, success: true, ...(ocrEnvelope ? {ocrEnvelope} : {}),...(dialogueEnvelope?{dialogueEnvelope}:{}),...(visualEnvelope?{visualEnvelope}:{}) }
           this.logger.info('[Hoooho AI] provider usage', JSON.stringify(diagnostics))
           return Response.json({ output: [{ content: [{ type: 'output_text', text: JSON.stringify(value) }] }],
             usage: { input_tokens: diagnostics.inputTokens, output_tokens: diagnostics.outputTokens }, diagnostics }, { headers: upstream.requestId ? { 'x-request-id': upstream.requestId } : {} })

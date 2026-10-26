@@ -69,5 +69,5 @@ test('raw completion capture is opt-in, synthetic local only, bounded and exclud
 test('runtime fingerprint includes base commit and the actual model plus all requested source boundaries',async()=>{
  const runtime=await captureRuntime(path.resolve(import.meta.dirname,'../..'));assert.match(runtime.baseCommit,/^[a-f0-9]{40}$/u)
  for(const file of runtimeSources)assert.match(runtime.sources[file],/^[a-f0-9]{64}$/u)
- for(const file of ['server/ai/business/model.mjs','server/ai/front-desk-actions.mjs','server/ai/front-desk-reply-safety.mjs','server/ai/business/front-desk-source-context.mjs','server/ai/business/front-desk-answer-context.mjs'])assert(Object.hasOwn(runtime.sources,file),file)
+ for(const file of ['server/ai/business/model.mjs','server/ai/front-desk-actions.mjs','server/ai/front-desk-reply-safety.mjs','server/ai/business/front-desk-source-context.mjs','server/ai/business/front-desk-answer-context.mjs','server/ai/front-desk-legacy-semantic-record.mjs','server/ai/business/semantic-summary.mjs','server/ai/business/source-references.mjs','server/ai/business/front-desk-semantics.mjs'])assert(Object.hasOwn(runtime.sources,file),file)
 })

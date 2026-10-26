@@ -17,9 +17,12 @@ const positions = (original, part) => {
 
 function citations(fact, byId) {
   return array(fact.sources).flatMap(ref => {
-    if (!ref || ref.attachmentId || !text(ref.quote) || !text(fact.text)) return []
+    if (!ref || !text(ref.quote) || !text(fact.text)) return []
     const message = byId.get(ref.messageId)
     if (!userSource(message) || !sameScope(fact, message)) return []
+    // ASR text remains an exact source tied to the retained original. An image
+    // caption or untranscribed recording cannot masquerade as a transcript.
+    if(ref.attachmentId&&!(message.kind==='voice'&&message.transcriptVerified===true&&array(message.voices).some(file=>file.id===ref.attachmentId&&file.mimeType?.startsWith('audio/'))))return []
     const candidates = positions(text(message.text), ref.quote).flatMap(start => positions(ref.quote, fact.text).map(offset => {
       const factStart = start + offset, factEnd = factStart + fact.text.length
       return { ref, message, factStart, factEnd, clause: evidenceClause(message.text, factStart, factEnd) }
@@ -57,7 +60,9 @@ function questionContext(cites, messages) {
 
 function sourceMetadata(fact, cites, messages) {
   const question = questionContext(cites, messages)
-  return { factId: fact.id, subject: clone(fact.subject), polarity: fact.polarity, changeType: changeType(fact), ...(question ? { questionContext: question } : {}) }
+  const instants=[...new Set(cites.map(cite=>cite.message.inputAt??Date.parse(cite.message.at)).filter(Number.isFinite))]
+  const sourceAt=instants.length===1?new Date(instants[0]).toISOString():null
+  return { ...(sourceAt?{sourceAt}:{}),factId: fact.id, subject: clone(fact.subject), polarity: fact.polarity, changeType: changeType(fact), ...(question ? { questionContext: question } : {}) }
 }
 
 function literalReplacement(fact, cites) {
@@ -67,11 +72,27 @@ function literalReplacement(fact, cites) {
     for (const match of cite.message.text.matchAll(pattern)) {
       const before = match[1].trim(), after = match[2].trim()
       const newStart = match.index + match[0].lastIndexOf(after), newEnd = newStart + after.length
-      if (before && after && before !== after && fact.text.includes(after) && cite.factStart <= newStart && cite.factEnd >= newEnd) replacements.push({ before, after })
+      if (before && after && before !== after && fact.text.includes(after) && cite.factStart <= newStart && cite.factEnd >= newEnd) replacements.push({ before, after,quote:match[0].replace(/^[，,。；;！!？?\n]\s*/u,'').trim(),messageId:cite.message.id })
     }
   }
   const unique = new Map(replacements.map(replacement => [JSON.stringify(replacement), replacement]))
   return unique.size === 1 ? [...unique.values()][0] : null
+}
+
+function replacementRole(fact,target,replacement,targetCites){
+ if(!target||!usable(target)||target.status!=='superseded'||target.retractedBy||target.saved||target.recordId||array(target.recordIds).length||!sameScope(fact,target)||target.supersededBy&&fact.changeId&&target.supersededBy!==fact.changeId||!targetCites.length||literalReplacement(target,targetCites))return null
+ const offsets=positions(text(target.text),replacement.before)
+ if(offsets.length!==1)return null
+ const at=offsets[0],end=at+replacement.before.length
+ if(/^[+-]?\d+(?:\.\d+)?$/u.test(replacement.before)&&(/[\d.]/u.test(text(target.text[at-1]))||/[\d.]/u.test(text(target.text[end]))))return null
+ return {version:'literal-replacement-v1',targetFactId:target.id,oldValue:replacement.before,newValue:replacement.after,quote:replacement.quote,messageId:replacement.messageId}
+}
+
+/** Program-owned replacement roles describe wording, not negative findings. */
+export function frontDeskLiteralCorrection(source){
+ const role=source?.literalCorrection
+ if(source?.changeType!=='correct'||role?.version!=='literal-replacement-v1'||!['targetFactId','oldValue','newValue','quote','messageId'].every(key=>text(role[key]).trim())||role.oldValue===role.newValue||!text(source.text).includes(role.quote)||!role.quote.includes(role.oldValue)||!role.quote.includes(role.newValue))return null
+ return role
 }
 
 const trimFragment = fragment => fragment.replace(/^[\s，,。；;！!？?、：:]+|[\s，,。；;！!？?、：:]+$/gu, '')
@@ -118,11 +139,14 @@ export function buildFrontDeskFactSources({ facts = [], messages = [] } = {}) {
     const cites = citations(fact, byId)
     if (!cites.length || seen.has(fact.id)) continue
     seen.add(fact.id)
-    sources.push({ id: fact.id, page: 1, text: [...new Set(cites.map(cite => cite.clause.text))].join('\n'), status: 'readable', ...sourceMetadata(fact, cites, messages), originalReferences: clone(cites.map(cite => cite.ref)) })
+    const source={ id: fact.id, page: 1, text: [...new Set(cites.map(cite => cite.clause.text))].join('\n'), status: 'readable', ...sourceMetadata(fact, cites, messages), originalReferences: clone(cites.map(cite => cite.ref)) }
+    sources.push(source)
     const replacement = fact.replaces && literalReplacement(fact, cites)
     if (!replacement || array(facts).filter(candidate => active(candidate) && candidate.replaces === fact.replaces).length !== 1) continue
     const target = ledger.get(fact.replaces)
-    const retained = retainedSources(fact, target, replacement, target ? citations(target, byId) : [], messages)
+    const targetCites=target?citations(target,byId):[],role=replacementRole(fact,target,replacement,targetCites)
+    if(role){source.literalCorrection=role;if(!source.text.includes(role.quote))source.text=role.quote}
+    const retained = retainedSources(fact, target, replacement, targetCites, messages)
     for (const source of retained) if (!seen.has(source.id)) { seen.add(source.id); sources.push(source) }
   }
   return sources

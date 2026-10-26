@@ -1,3 +1,4 @@
+import {visualSourceSchema} from '../business/visual-source-contract.mjs'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { mkdtemp, rm } from 'node:fs/promises'
@@ -196,4 +197,30 @@ test('摘要业务仍复用去标识化输入、引用校验，不把百炼推�
   let input;const p=provider(async(_url,init)=>{input=JSON.parse(init.body);return success({overview:'疑似食物相关，尚未确诊。',keyPoints:[{text:'疑似食物相关，尚未确诊',sectionId:'record',quote:'疑似食物相关，尚未确诊'}],missingInformation:[]})})
   const result=await new MedicalSummaryService({provider:p,logger:silent}).generate({sections:[{id:'record',title:'合成来源',lines:['[record:synthetic] 疑似食物相关，尚未确诊','姓名：合成孩子']}]},'synthetic-summary')
   assert.equal(result.provider,'bailian');assert.equal(result.keyPointEvidence[0].sourceId,'record:synthetic');assert.doesNotMatch(JSON.stringify(input.messages[1]),/姓名|合成孩子/)
+})
+
+
+test('single-image visual source unwraps only one fully valid source without changing its text or observations',async()=>{
+ const input=[{role:'user',content:[{type:'input_image',image_url:'data:image/png;base64,AA=='}]}]
+ for(const original of [{kind:'document',status:'readable',text:'今天脚小趾表面破皮',observations:[]},{kind:'observation',status:'readable',text:'',observations:[{region:'图片中央',text:'局部发红'}]}]){
+  const model=modelFor(async()=>success([original]))
+  const result=await model.structured({task:'front-desk-visual-source',schema:visualSourceSchema,instructions:'synthetic',vision:true,input})
+  assert.deepEqual(result.value,original);assert.equal(result.diagnostics.visualEnvelope,'single-source-array')
+ }
+ const valid={kind:'document',status:'readable',text:'合成原文',observations:[]}
+ for(const payload of [[],[valid,valid],[{text:'只有文字'}],[{...valid,status:'normal'}],[{...valid,diagnosis:'不允许'}]]){
+  const model=modelFor(async()=>success(payload))
+  await assert.rejects(()=>model.structured({task:'front-desk-visual-source',schema:visualSourceSchema,instructions:'synthetic',vision:true,input}),{code:'AI_OUTPUT_INVALID'})
+ }
+ const model=modelFor(async()=>success([valid]))
+ await assert.rejects(()=>model.structured({task:'front-desk-visual-source',schema:visualSourceSchema,instructions:'synthetic',input:'not an image'}),{code:'AI_OUTPUT_INVALID'})
+})
+
+
+test('single visual image permits one keyed transport envelope only when the sole payload is fully valid',async()=>{
+ const source={kind:'document',status:'readable',text:'合成原文',observations:[]},input=[{role:'user',content:[{type:'input_image',image_url:'data:image/png;base64,AA=='}]}]
+ const call=(payload,images=input)=>modelFor(async()=>success(payload)).structured({task:'front-desk-visual-source',schema:visualSourceSchema,instructions:'synthetic',vision:true,input:images})
+ const r=await call([{'image_1':source}]);assert.deepEqual(r.value,source);assert.equal(r.diagnostics.visualEnvelope,'single-source-keyed-array')
+ for(const payload of [[{image_1:source,image_2:source}],[{image_1:{...source,status:'normal'}}],[{image_1:{...source,diagnosis:'不允许'}}],[{image_1:[source]}],[{image_1:{nested:source}}],[{image_1:source},{image_2:source}]])await assert.rejects(()=>call(payload),{code:'AI_OUTPUT_INVALID'})
+ await assert.rejects(()=>call([{image_1:source}],[{role:'user',content:[...input[0].content,...input[0].content]}]),e=>['AI_OUTPUT_INVALID','AI_INPUT_LIMIT'].includes(e.code))
 })

@@ -1,7 +1,7 @@
 import { itemRecordCategories } from '../../../shared/record-categories.mjs'
 export const smartRecordCategories = itemRecordCategories
 export type ProfessionalSummary = {version:string;text:string;claims:{text:string;factIds:string[]}[]}
-export type NursingInterview = {version:string;status:'asking'|'ready'|'urgent';domain:string|null;turnCount:number;askedQuestionIds:string[];stopReason:string|null;question:{id:string;text:string;options:{label:string;value:string}[];sourceIds:string[]}|null}
+export type NursingInterview = {semantic?:{version:number;intent:string;subject:string;disposition:string;organize:boolean;unresolvedItems:string[];media:string};version:string;status:'asking'|'ready'|'urgent';domain:string|null;turnCount:number;askedQuestionIds:string[];stopReason:string|null;question:{id:string;text:string;options:{label:string;value:string}[];sourceIds:string[]}|null}
 export type SmartRecordField = {name:string;value:string;editedBy?:string;sources:{quote:string}[]}
 export type SmartRecordItem = {subjectConfirmed?:boolean;subjectLabel?:string;professionalSummary?:ProfessionalSummary|null;id:string;category:string;visibilityCategories?:string[];categoriesChanged?:boolean;title:string;timeText:string|null;time:{resolvedStart:string|null;precision:string;defaulted?:boolean};fields:SmartRecordField[];categoryChanged?:boolean;timeChanged?:boolean;userAdded?:boolean;titleChanged?:boolean}
 export function smartRecordTimeLabel(item: SmartRecordItem) {

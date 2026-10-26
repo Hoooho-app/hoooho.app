@@ -9,6 +9,16 @@ function corrected(oldText, correctionText, { old = {}, next = {}, messages = []
   return { facts: [fact('old', oldText, 'before', { status: 'superseded', supersededBy: 'change-2', ...old }), fact('new', correctionText, 'after', { replaces: 'old', changeId: 'change-2', ...next })], messages: [message('before', oldText), message('after', correctionText), ...messages] }
 }
 const retained = sources => sources.filter(source => source.retainedFromFactId)
+test('verified voice attachment citations retain the actual transcript and original audio reference',()=>{
+ const input={facts:[fact('voice-fact','没有呕吐','voice',{sources:[{messageId:'voice',attachmentId:'audio-1',quote:'没有呕吐'}]})],messages:[message('voice','喝了牛奶，没有呕吐。',{kind:'voice',transcriptVerified:true,voices:[{id:'audio-1',mimeType:'audio/wav'}]})]}
+ const result=buildFrontDeskFactSources(input)
+ assert.equal(result.length,1)
+ assert.equal(result[0].text,'没有呕吐')
+ assert.equal(result[0].originalReferences[0].attachmentId,'audio-1')
+ for(const changed of [{transcriptVerified:false},{voices:[{id:'different',mimeType:'audio/wav'}]},{kind:'text'},{text:'喝了牛奶。'}])assert.equal(buildFrontDeskFactSources({...input,messages:[{...input.messages[0],...changed}]}).length,0)
+ const image={...input.messages[0],kind:'image',voices:[],files:[{id:'audio-1',mimeType:'image/png'}]}
+ assert.equal(buildFrontDeskFactSources({...input,messages:[image]}).length,0)
+})
 function assertTrueReferences(sources, messages) {
   for (const source of sources) for (const reference of source.originalReferences) {
     const original = messages.find(message => message.id === reference.messageId)
@@ -27,6 +37,20 @@ test('an active fact expands only to its exact original evidence clause with sta
   assertTrueReferences(result, input.messages)
   result[0].subject.label = 'local mutation'
   assert.deepEqual(input, snapshot)
+})
+
+test('captured C05 literal label correction marks the withdrawn label separately from the new observation',()=>{
+ const input=corrected('孩子今天咳嗽','不是咳嗽，是打喷嚏')
+ const sources=buildFrontDeskFactSources(input),source=sources.find(source=>source.id==='new')
+ assert.equal(source.text,'不是咳嗽，是打喷嚏')
+ assert.deepEqual(source.literalCorrection,{version:'literal-replacement-v1',targetFactId:'old',oldValue:'咳嗽',newValue:'打喷嚏',quote:'不是咳嗽，是打喷嚏',messageId:'after'})
+ assert.deepEqual(source.originalReferences,input.facts[1].sources)
+ assert.deepEqual(retained(sources).map(source=>source.text),['孩子今天'])
+ assertTrueReferences(sources,input.messages)
+ for(const mutate of [input=>{input.facts[0].status='retracted'},input=>{input.facts[0].text='孩子今天打嗝'},input=>{input.facts[0].contextId='foreign-context'},input=>{input.facts[1].replaces='missing'}]){
+  const changed=structuredClone(input);mutate(changed)
+  assert.equal(buildFrontDeskFactSources(changed)[0].literalCorrection,undefined)
+ }
 })
 
 test('a literal onset correction retains cough as a separate exact fragment and drops the standalone identity prefix', () => {
@@ -68,7 +92,7 @@ test('a short new literal value can bind the complete real correction without fa
   const input = corrected('孩子今天开始咳嗽', '不是今天，是昨晚')
   input.facts[1].text = '昨晚'
   const result = buildFrontDeskFactSources(input)
-  assert.equal(result[0].text, '是昨晚')
+  assert.equal(result[0].text, '不是今天，是昨晚')
   assert.deepEqual(retained(result).map(source => source.text), ['开始咳嗽'])
   assertTrueReferences(result, input.messages)
 })
