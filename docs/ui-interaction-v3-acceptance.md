@@ -67,7 +67,7 @@ V3浏览器测试的 MediaRecorder、WebAudio、编码、应用 API、IDB、保�
 
 用户先前授权200次本地合成评测，原任务已用197次；本轮其后实际3次达到200。用户明确追加10次后，又使用8次，当前累计208/210，剩余2次。启动环境失败、缺 ws 和路径错误的运行由计数器确认供应商请求为0，不计入消耗。配置仅经 Railway CLI 只读传给白名单本地进程，没有保存密钥，没有读取或复制生产健康数据。
 
-真实 WS 握手为101并收到 session.created，随后供应商返回 AccessDenied.Unpurchased；真实 batch ASR 也返回403和相同权限码。用户报告开通后两次复核仍未放行。没有真实中间文字或真实最终转写通过的证据，不报实时能力、准确率或延迟达标。暂留2次额度待同一北京工作空间/密钥的模型权限真正生效后复测，不更换供应商/模型/密钥。
+真实 WS 握手为101并收到 session.created，随后供应商返回 AccessDenied.Unpurchased；真实 batch ASR 也返回403和相同权限码。用户报告开通后多次复核仍未放行。没有真实中间文字或真实最终转写通过的证据，不报实时能力、准确率或延迟达标。暂留2次额度待同一北京工作空间/密钥的模型权限真正生效后复测，不更换供应商/模型/密钥。
 
 官方端点核对：[Qwen-ASR-Realtime连接流程](https://help.aliyun.com/en/model-studio/qwen-asr-realtime-interaction-process)。当前workspace专属域名符合官方模板，本轮未修改端点。
 
