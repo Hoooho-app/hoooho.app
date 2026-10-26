@@ -1,3 +1,4 @@
+import {buildFrontDeskFactSources} from './business/front-desk-source-context.mjs'
 import {factMessages} from './business/front-desk-semantics.mjs'
 import {QuickRecordPhotoService} from '../events/quick-record-photo-service.mjs'
 import {reuseRecognitionPhoto} from './recognition-asset-reuse.mjs'
@@ -7,15 +8,20 @@ import { mkdirSync } from 'node:fs'
 import { open, readFile, rename, unlink } from 'node:fs/promises'
 import { createHash, randomUUID } from 'node:crypto'
 import { DatabaseSync } from 'node:sqlite'
-import { withStorageLock } from '../auth/storage/transaction.mjs'
+import { accountTransaction, withStorageLock } from '../auth/storage/transaction.mjs'
 import {registerRecognitionInstance} from './recognition-lifecycle.mjs'
 import { fail, fingerprint } from './business/contract.mjs'
+import {hasConversationInput} from '../../shared/conversation-input.mjs'
+import {frontRecordVersion} from './front-desk-record-targets.mjs'
+import fieldLabels from '../../shared/ai-business-field-labels.json' with {type:'json'}
 
 const validId=value=>typeof value==='string'&&/^[A-Za-z0-9:_-]{1,180}$/.test(value)
 const unresolved=j=>Object.keys(j.inputErrors??{}).filter(id=>!(j.excludedInputs??[]).includes(id))
 const waiting=j=>['queued','running','publishing'].includes(j.state)
 const cleanName=value=>String(value||'原件').replace(/[\\/\x00-\x1f]/g,'').slice(0,120)
-const publicJob=j=>{if(!j)return null;const result=Object.fromEntries(Object.entries(j).filter(([key])=>!['accountId','memberId','inputs','options','owner','leaseUntil','transcripts','cursor','digest','commandIds','draftVersion','outbox','activeMs','baseText'].includes(key)));if(j.frontDesk)result.frontDesk={...j.frontDesk,context:{...j.frontDesk.context,review:j.review??j.frontDesk.context.review,messages:j.frontDesk.context.messages.map(m=>({...m,files:(m.files??[]).map(({dataUrl,...f})=>f),voices:(m.voices??[]).map(({dataUrl,...f})=>f)}))}};result.inputStates=(j.inputs??[]).map((item,index)=>({id:item.id,status:j.inputErrors?.[item.id]?'failed':index<(j.cursor??0)?'completed':'pending',text:j.transcripts?.[item.id]??item.text}));result.unresolvedInputs=unresolved(j).map(id=>({id,...j.inputErrors[id]}));return result}
+const snapshotText=snapshot=>snapshot.items.map(item=>[item.title,`发生时间：${item.timeText??'未明确'}`,...item.fields.map(field=>`${fieldLabels[field.name]??'记录'}：${field.value}\n${(field.sources??[]).map(ref=>`来源${snapshot.sources?.find(source=>source.id===ref.sourceId)?.name?`（${snapshot.sources.find(source=>source.id===ref.sourceId).name} 第${ref.page}页）`:''}：「${ref.quote}」`).join('\n')}`)].join('\n')).join('\n\n')
+const publicFrontMessage=({originalFiles,mediaPreparation,...message})=>({...message,originalFileCount:originalFiles?.length??message.originalFileCount??0,files:(message.files??[]).map(({dataUrl,...file})=>file),voices:(message.voices??[]).map(({dataUrl,...file})=>file)})
+const publicJob=j=>{if(!j)return null;const result=Object.fromEntries(Object.entries(j).filter(([key])=>!['accountId','memberId','inputs','options','owner','leaseUntil','transcripts','cursor','digest','commandIds','draftVersion','outbox','activeMs','baseText'].includes(key)));if(j.frontDesk)result.frontDesk={...j.frontDesk,context:{...j.frontDesk.context,review:j.review??j.frontDesk.context.review,messages:j.frontDesk.context.messages.map(publicFrontMessage)}};result.inputStates=(j.inputs??[]).map((item,index)=>({id:item.id,status:j.inputErrors?.[item.id]?'failed':index<(j.cursor??0)?'completed':'pending',text:j.transcripts?.[item.id]??item.text}));result.unresolvedInputs=unresolved(j).map(id=>({id,...j.inputErrors[id]}));return result}
 const mediaTypes=/^(?:application\/pdf|image\/(?:jpeg|png|webp|heic|heif)|audio\/(?:wav|webm|mp4|ogg)(?:;\s*codecs=(?:"[a-z0-9., _-]+"|[a-z0-9.,_-]+))?)$/i
 
 // One SQLite WAL database on the existing persistent volume. It stores task
@@ -102,7 +108,7 @@ export class RecognitionJobs {
     try{return await withStorageLock(async()=>{
       signal?.throwIfAborted();await this.scope(accountId,memberId);await beforeCommit?.();signal?.throwIfAborted()
       const duplicate=this.db.prepare('SELECT document FROM assets WHERE id=?').get(id);if(duplicate){await unlink(temporary);return this.assetPublic(JSON.parse(duplicate.document))}
-      await rename(temporary,file);renamed=true;const directory=await open(this.directory,'r');try{await directory.sync()}finally{await directory.close()}
+      await rename(temporary,file);renamed=true;const directory=await open(this.directory,'r');try{await directory.sync()}catch(error){if(process.platform!=='win32'||!['EPERM','EINVAL','EISDIR'].includes(error.code))throw error}finally{await directory.close()}
       signal?.throwIfAborted()
       const asset={id,accountId,memberId,hash,mimeType,name:cleanName(name),lastModified:Number.isFinite(lastModified)?lastModified:0,bytes:buffer.length,createdAt:new Date(this.now()).toISOString()}
       this.db.prepare('INSERT OR IGNORE INTO assets VALUES(?,?,?,?)').run(id,accountId,memberId,JSON.stringify(asset));committed=true;return this.assetPublic(asset)
@@ -116,6 +122,8 @@ export class RecognitionJobs {
     await this.scope(accountId,memberId)
     if(!validId(input.id)||!validId(input.input?.id)||!['front','record','structured','transcription'].includes(input.mode)||!['text','voice','image'].includes(input.input.kind)||typeof input.input.text!=='string'||input.input.text.length>15000)throw fail('识别任务内容无效',422,'RECOGNITION_INVALID')
     const item={id:input.input.id,kind:input.input.kind,text:input.input.text,inputAt:Number.isFinite(input.input.inputAt)?Math.min(input.input.inputAt,this.now()):this.now(),assetIds:input.input.assetIds??[],asrAssetId:input.input.asrAssetId??null}
+    if(input.input.presentedDraft!==undefined){const draft=input.input.presentedDraft;if(!draft||!validId(draft.id)||!Number.isSafeInteger(draft.version)||draft.version<1)throw fail('已展示草稿标识无效',422);item.presentedDraft={id:draft.id,version:draft.version}}
+    if(input.input.expectedContextVersion!==undefined){if(!Number.isSafeInteger(input.input.expectedContextVersion)||input.input.expectedContextVersion<1)throw fail('对话版本无效',422);item.expectedContextVersion=input.input.expectedContextVersion}
     if(input.input.contextId!==undefined){
       if(input.mode!=='front'||!validId(input.input.contextId))throw fail('对话归属无效',422,'RECOGNITION_CONTEXT_INVALID')
       item.contextId=input.input.contextId
@@ -128,8 +136,8 @@ export class RecognitionJobs {
     if(!Array.isArray(item.assetIds)||item.assetIds.length>12)throw fail('原件最多12份',413)
     const originals=item.assetIds.map(id=>this.asset(accountId,memberId,id));if(originals.reduce((n,a)=>n+a.bytes,0)>15*1024*1024)throw fail('原件总大小不能超过15 MB',413)
     if(item.asrAssetId){const a=this.asset(accountId,memberId,item.asrAssetId);if(a.mimeType!=='audio/wav')throw fail('转写音频格式无效',415)}
-    if(!item.text.trim()&&!originals.length)throw fail('请先输入内容或上传原件')
-    const options=input.options??{};if(input.mode==='front')item.protocolVersion=options.semanticVersion===2?2:1;if(JSON.stringify(options).length>10000)throw fail('任务参数过长')
+    if(!hasConversationInput({text:item.text,assetIds:item.assetIds}))throw fail('请先输入内容或上传原件')
+    const options=input.options??{};if(input.mode==='front')item.protocolVersion=options.semanticVersion===3?3:options.semanticVersion===2?2:1;if(JSON.stringify(options).length>10000)throw fail('任务参数过长')
     const j=await withStorageLock(async()=>{await this.scope(accountId,memberId);return this.transaction(()=>{
       let job=this.raw(input.id)
       if(job&&(job.accountId!==accountId||job.memberId!==memberId))throw fail('未找到这次识别任务',404,'RECOGNITION_NOT_FOUND')
@@ -160,7 +168,7 @@ export class RecognitionJobs {
       if(expired&&['ready','needs_review','failed'].includes(j.state)&&j.draftId===before.draftId){j.state='failed';j.draftId=null;j.draftVersion=null;j.options={...j.options,id:undefined,version:undefined};this.db.prepare('DELETE FROM outbox WHERE job_id=?').run(id)}
       if(input.type==='use_text'){if(j.state!=='needs_review'||!j.review)throw fail('请先完成可用文字的整理',409);j.excludedInputs=[...new Set([...(j.excludedInputs??[]),...unresolved(j)])];j.state='ready';j.stage='ready'}
       else if(input.type==='pause'||input.type==='discard'){j.state=input.type==='pause'?'paused':'discarded';j.stage=j.state;j.cancelEpoch++;j.leaseUntil=0;j.owner=null}
-      else {if(!['paused','failed','needs_review'].includes(j.state))return j;if(input.type==='retry'&&unresolved(j).length){j.cursor=Math.min(...unresolved(j).map(id=>j.inputs.findIndex(i=>i.id===id)));j.inputErrors={}}const outbox=this.db.prepare('SELECT document FROM outbox WHERE job_id=?').get(j.id);j.state=outbox&&JSON.parse(outbox.document).revision===j.inputRevision?'publishing':'queued';j.stage=j.state;j.error=null;j.activeMs=0;j.processingStartedAt=new Date(this.now()).toISOString()}
+      else {if(!['paused','failed','needs_review'].includes(j.state))return j;if(input.type==='retry'&&unresolved(j).length){j.retryInputIds=unresolved(j);j.cursor=Math.min(...unresolved(j).map(id=>j.inputs.findIndex(i=>i.id===id)));j.inputErrors={}}const outbox=this.db.prepare('SELECT document FROM outbox WHERE job_id=?').get(j.id);j.state=outbox&&JSON.parse(outbox.document).revision===j.inputRevision?'publishing':'queued';j.stage=j.state;j.error=null;j.activeMs=0;j.processingStartedAt=new Date(this.now()).toISOString()}
       j.commandIds=[...j.commandIds,input.id].slice(-200);return this.put(j)
     })})
     const active=this.active.get(JSON.stringify([accountId,memberId]));if(active?.id===id&&['pause','discard'].includes(input.type))active.controller.abort()
@@ -208,30 +216,52 @@ export class RecognitionJobs {
           if(j.transcripts[item.id])text=j.transcripts[item.id]
           else {
             await phase({stage:'transcribing'})
-            if(!item.asrAssetId)throw fail('录音原件已保留，请重新转码后重试',422,'RECOGNITION_AUDIO_REQUIRED')
-            const [wav]=await this.materialize(j,[item.asrAssetId]),attempt=randomUUID()
+            const attempt=randomUUID()
             this.db.prepare('INSERT INTO attempts VALUES(?,?,?)').run(attempt,id,JSON.stringify({stage:'transcribing',revision:j.cursor+1,state:'calling',startedAt:new Date(this.now()).toISOString()}))
-            let result
-            try{result=await this.audio.transcribe(wav,j.accountId,signal)}catch(error){this.guard(id,epoch,signal);await this.updateActive(id,epoch,signal,{cursor:j.cursor+1,inputErrors:{...this.raw(id).inputErrors,[item.id]:{code:error.code??'ASR_UNAVAILABLE',message:'这段录音尚未转写，原件仍保留'}}});continue}
-            this.guard(id,epoch,signal);text=result.transcript
-            const transcripts={...this.raw(id).transcripts,[item.id]:text};await this.updateActive(id,epoch,signal,{transcripts,transcript:{inputId:item.id,text}})
-            this.db.prepare('UPDATE attempts SET document=? WHERE id=?').run(JSON.stringify({stage:'transcribing',revision:j.cursor+1,state:'completed',requestId:result.requestId??null}),attempt)
+            let result,problem
+            try{
+              if(!item.asrAssetId)throw fail('录音原件已保留，请重新转码后重试',422,'RECOGNITION_AUDIO_REQUIRED')
+              const [wav]=await this.materialize(j,[item.asrAssetId]);result=await this.audio.transcribe(wav,j.accountId,signal)
+              this.guard(id,epoch,signal)
+              if(!hasConversationInput({text:result.transcript}))problem={code:'ASR_EMPTY_TRANSCRIPT',message:'这段录音没有可确认的文字，原音仍保留'}
+            }catch(error){this.guard(id,epoch,signal);problem={code:error.code??'ASR_UNAVAILABLE',message:'这段录音尚未转写，原音仍保留'}}
+            if(problem){
+              this.db.prepare('UPDATE attempts SET document=? WHERE id=?').run(JSON.stringify({stage:'transcribing',revision:j.cursor+1,state:'failed',code:problem.code}),attempt)
+              await this.updateActive(id,epoch,signal,{inputErrors:{...this.raw(id).inputErrors,[item.id]:problem},...(!files.length?{cursor:j.cursor+1}:{})})
+              if(!files.length){
+                if(j.mode==='front'&&item.protocolVersion!==2)await this.front.submit(j.accountId,j.memberId,{id:item.id,protocolVersion:item.protocolVersion??1,kind:item.kind,text:'',inputAt:item.inputAt,files:[],voiceFiles,...(item.contextId?{contextId:item.contextId}:{}),...(item.answerTo?{answerTo:item.answerTo}:{}),...(item.presentedDraft?{presentedDraft:item.presentedDraft}:{}),...(item.expectedContextVersion?{expectedContextVersion:item.expectedContextVersion}:{})},signal,{inputProblem:problem})
+                continue
+              }
+              text=''
+            }else{
+              text=result.transcript
+              await this.updateActive(id,epoch,signal,{transcripts:{...this.raw(id).transcripts,[item.id]:text},transcript:{inputId:item.id,text}})
+              this.db.prepare('UPDATE attempts SET document=? WHERE id=?').run(JSON.stringify({stage:'transcribing',revision:j.cursor+1,state:'completed',requestId:result.requestId??null}),attempt)
+            }
           }
         }
         if(j.mode==='front'){
           await phase({stage:'responding'})
-          const result=await this.front.submit(j.accountId,j.memberId,{id:item.id,protocolVersion:item.protocolVersion??1,kind:item.kind,text,inputAt:item.inputAt,files,voiceFiles,...(item.contextId?{contextId:item.contextId}:{}),...(item.answerTo?{answerTo:item.answerTo}:{})},signal)
-          await this.updateActive(id,epoch,signal,{frontDesk:{...result,context:{...result.context,review:undefined,messages:result.context.messages.map(({originalFiles,...m})=>({...m,files:(m.files??[]).map(({dataUrl,...f})=>f),voices:(m.voices??[]).map(({dataUrl,...f})=>f)}))}},contextId:result.context.id})
+          const result=await this.front.submit(j.accountId,j.memberId,{id:item.id,protocolVersion:item.protocolVersion??1,kind:item.kind,text,inputAt:item.inputAt,files,voiceFiles,...(j.retryInputIds?.includes(item.id)?{retryMedia:true}:{}),...(item.contextId?{contextId:item.contextId}:{}),...(item.answerTo?{answerTo:item.answerTo}:{}),...(item.presentedDraft?{presentedDraft:item.presentedDraft}:{}),...(item.expectedContextVersion?{expectedContextVersion:item.expectedContextVersion}:{})},signal,{deferCandidateFeedback:true,transcriptionVerified:item.kind==='voice'&&Boolean(this.raw(id).transcripts[item.id]),retryTranscription:item.kind==='voice'&&j.retryInputIds?.includes(item.id)&&hasConversationInput({text})})
+          await this.updateActive(id,epoch,signal,{frontDesk:{...result,context:{...result.context,review:undefined,messages:result.context.messages.map(publicFrontMessage)}},contextId:result.context.id,...(result.context.mediaProblems?.length?{inputErrors:{...this.raw(id).inputErrors,[item.id]:{code:'FRONT_MEDIA_PARTIAL',message:result.context.mediaProblems.map(problem=>problem.name+'：'+problem.message).join('；')}}}:{})})
         }
         await this.updateActive(id,epoch,signal,{cursor:j.cursor+1})
       }
       j=this.guard(id,epoch,signal);const revision=j.inputRevision
-      if(j.mode==='transcription'){if(unresolved(j).length)throw fail('录音尚未转写，原件保留，请重试',422,'RECOGNITION_INPUT_PENDING');await this.updateActive(id,epoch,signal,{state:'ready',stage:'ready',resultRevision:revision,owner:null,leaseUntil:0});return}
+      if(j.mode==='transcription'){if(unresolved(j).length)throw fail('录音尚未转写，原件保留，请重试',422,'RECOGNITION_INPUT_PENDING');await this.updateActive(id,epoch,signal,{state:'ready',stage:'ready',resultKind:'transcription',resultRevision:revision,owner:null,leaseUntil:0});return}
       if(j.mode==='front'&&!j.contextId)throw fail('这段录音尚未转写，原件仍保留，可以重试或继续文字输入',422,'RECOGNITION_INPUT_PENDING')
       let input
       if(j.mode==='front'){
         const context=(await this.front.snapshot(j.accountId,j.memberId,j.contextId));this.guard(id,epoch,signal)
-        if(context.saved){await this.updateActive(id,epoch,signal,{state:'ready',stage:'ready',resultRevision:revision,owner:null,leaseUntil:0});return}
+        if(['save','save_original','readback','cancel','stop','query','export','delete','update'].includes(context.actionPlan?.type)){
+          await this.executeFrontAction(j,context,epoch,signal,revision);return
+        }
+        if(context.saved||['conversation','no_change'].includes(context.resultKind)){
+          const review=context.saved?null:context.review??null
+          if(review?.state==='ready')await this.business.bindRecognition(j.accountId,j.memberId,review.id,{jobId:id,revision},signal)
+          await this.updateActive(id,epoch,signal,{state:unresolved(j).length?'needs_review':'ready',stage:'ready',resultKind:context.saved?'saved':context.resultKind,resultRevision:revision,review,draftId:review?.id??null,frontDesk:{...j.frontDesk,context},owner:null,leaseUntil:0})
+          return
+        }
         if(context.decision?.organize===false){
           // A courtesy/explanation adds no facts. Keep only the server snapshot's
           // exact same ready review and rebind its save guard to this revision.
@@ -249,8 +279,11 @@ export class RecognitionJobs {
           try{const draft=await this.business.get(j.accountId,j.memberId,context.draftId);if(draft.frontContextId===context.id&&draft.state!=='saved')previousReview={id:draft.id,version:draft.version}}catch(error){if(error.code!=='AI_DRAFT_NOT_FOUND')throw error}
           this.guard(id,epoch,signal)
         }
-        const turns=factMessages(context.messages)
-        input={...j.options,text:turns.map(m=>m.text).filter(Boolean).join('\n'),files:turns.flatMap(m=>m.files??[]),voiceFiles:turns.flatMap(m=>m.voices??[]),id:previousReview?.id,version:previousReview?.version,smartRecord:true,frontDeskRecord:true,semanticVersion:context.semanticVersion??1,frontContextId:context.id}
+        const ledger=Boolean(context.understanding&&!context.understanding.recordChangesPending)
+        const turns=ledger?context.messages.filter(message=>message.kind!=='assistant'&&message.status==='completed'):factMessages(context.messages)
+        const allowedSources=ledger?new Set([...(context.facts??[]).filter(fact=>fact.status==='active').flatMap(fact=>fact.sources.map(ref=>ref.messageId)),...buildFrontDeskFactSources({facts:context.facts,messages:turns}).flatMap(source=>(source.originalReferences??[]).map(ref=>ref.messageId))]):null
+        const originals=allowedSources?turns.filter(turn=>allowedSources.has(turn.id)):turns
+        input={...j.options,text:turns.map(message=>message.text).filter(Boolean).join('\n'),files:originals.flatMap(message=>message.files??[]),voiceFiles:originals.flatMap(message=>message.voices??[]),id:previousReview?.id,version:previousReview?.version,smartRecord:true,frontDeskRecord:true,semanticVersion:ledger?(this.business.model?.sourceReferences===true?2:1):context.semanticVersion??1,frontContextId:context.id}
       }else{
         // Structured submissions are full snapshots; previous revisions remain
         // immutable inputs and are never concatenated into new health facts.
@@ -271,12 +304,76 @@ export class RecognitionJobs {
       await withStorageLock(()=>this.transaction(()=>{const current=this.guard(id,epoch,signal);this.db.prepare('INSERT OR REPLACE INTO outbox VALUES(?,?)').run(id,JSON.stringify(outbox));this.put({...current,state:'publishing',stage:'publishing',resultKey:outbox.resultKey})}))
       await this.publish(id)
     }catch(error){
-      await withStorageLock(()=>{const current=this.raw(id);if(!current||current.cancelEpoch!==epoch||current.owner!==this.owner||current.state==='discarded')return
+      await withStorageLock(async()=>{let current=this.raw(id);if(!current||current.cancelEpoch!==epoch||current.owner!==this.owner||current.state==='discarded')return
+        const input=current.inputs[current.cursor]??current.inputs.at(-1)
+        const accepted=current.mode==='front'&&this.front.contextForMessage&&input?await this.front.contextForMessage(current.accountId,current.memberId,input.id).catch(()=>null):null
+        current=this.raw(id);if(!current||current.cancelEpoch!==epoch||current.owner!==this.owner||current.state==='discarded')return
         if(current.inputRevision>j.inputRevision||active.controller.signal.aborted&&current.state==='running'){current.state='queued';current.stage='queued';current.error=null}
-        else {current.state='failed';current.stage='failed';current.error={code:error.code??(signal.aborted?'RECOGNITION_TIMEOUT':'RECOGNITION_FAILED'),message:error.status&&error.status<500?error.message:signal.aborted?'处理时间较长，原件和已完成步骤保留，可以重试':'这一步未完成，原件和已完成步骤保留，可以重试'}}
+        else {current.state='failed';current.stage='failed';current.error={code:error.code??(signal.aborted?'RECOGNITION_TIMEOUT':'RECOGNITION_FAILED'),message:error.status&&error.status<500?error.message:signal.aborted?'处理时间较长，原件和已完成步骤保留，可以重试':'这一步未完成，原件和已完成步骤保留，可以重试'}
+          if(accepted){current.contextId=accepted.id;current.frontDesk={messageId:input.id,replyId:`${input.id}:reply`,context:{...accepted,messages:accepted.messages.map(publicFrontMessage)}}}
+        }
         current.owner=null;current.leaseUntil=0;this.put(current)
       })
     }finally{clearInterval(heartbeat);const current=this.raw(id);this.logger.info?.('[Hoooho recognition] task completed',{...traceMetadata(),requestId:fingerprint(id).slice(0,24),revision:current?.inputRevision??null,state:current?.state??'removed',elapsedMs:this.now()-started});if(current){current.activeMs=['ready','needs_review'].includes(current.state)?0:(current.activeMs??0)+this.now()-started;this.put(current,false)}}
+  }
+  async executeFrontAction(job,context,epoch,signal,revision){
+    const plan=context.actionPlan,id=job.id
+    // The model proposes an action. Only this owner/version fenced service
+    // operation may turn it into a genuine receipt.
+    return accountTransaction(this.business.directory,async()=>{
+      const current=this.guard(id,epoch,signal)
+      if(current.inputRevision!==revision||current.inputs.at(-1)?.id!==plan.sourceMessageId)throw fail('操作对应的消息已变化',409,'RECOGNITION_REVISION_CONFLICT')
+      const fresh=await this.front.snapshot(job.accountId,job.memberId,context.id)
+      if(!fresh||fresh.closedAt||fresh.version!==plan.executionContextVersion||fresh.actionPlan?.operationId!==plan.operationId)throw fail('对话版本已有变化，请重新核对',409,'FRONT_RECORD_CHANGED')
+      if(['cancel','stop'].includes(plan.type)){
+        // Stop optional interview without deleting either candidate or input.
+        await this.front.store.update(data=>({...data,contexts:data.contexts.map(c=>c.id===context.id?{...c,optionalQuestionsStopped:true,interview:c.interview?{...c.interview,status:'ready',question:null,stage:'ready',nextQuestion:null}:c.interview}:c)}))
+        const stopped=await this.front.snapshot(job.accountId,job.memberId,context.id)
+        this.put({...current,state:unresolved(current).length?'needs_review':'ready',stage:'ready',resultKind:'no_change',resultRevision:revision,review:stopped.review??null,draftId:stopped.review?.id??null,frontDesk:{...current.frontDesk,context:stopped},owner:null,leaseUntil:0})
+        if(stopped.review?.state==='ready')await this.business.bindRecognition(job.accountId,job.memberId,stopped.review.id,{jobId:id,revision},signal)
+        return
+      }
+      if(plan.targetKind==='record'){
+        const record=await this.business.records.getOwnedRecord(job.accountId,plan.targetId),event=await this.business.events.get(job.accountId,record.eventId)
+        if(event.memberId!==job.memberId||frontRecordVersion(record)!==plan.targetVersion)throw fail('这条记录已变化或暂不可访问',409,'FRONT_RECORD_TARGET_CHANGED')
+        const p=record.aiProvenance,snapshot={inputText:record.content,items:p?[{title:event.title,timeText:p.timeText??null,fields:p.fields??[]}]:[{title:event.title,timeText:record.journal?.timePrecision==='unknown'?null:record.occurredAt,fields:[{name:'conclusion',value:record.content,sources:[]}]}],sources:p?.sources??[]}
+        let receipt
+        if(plan.type==='delete'){
+          await this.business.records.delete(job.accountId,record.id)
+          receipt={operationId:plan.operationId,type:'delete',targetId:record.id,targetVersion:plan.targetVersion,state:'completed',text:'这条记录已删除。',snapshot:{inputText:'',items:[]}}
+        }else if(plan.type==='query'||plan.type==='export')receipt={operationId:plan.operationId,type:plan.type,targetId:record.id,targetVersion:plan.targetVersion,state:'completed',snapshot,...(plan.type==='export'?{fileName:'护护记录.txt',text:snapshotText(snapshot)}:{})}
+        else throw fail('请在这条记录详情中核对修改后保存',409,'FRONT_RECORD_EDIT_REVIEW_REQUIRED')
+        await this.front.store.update(data=>({...data,contexts:data.contexts.map(c=>c.id===context.id?{...c,operationReceipts:[...(c.operationReceipts??[]).filter(r=>r.operationId!==receipt.operationId),receipt].slice(-50)}:c)}))
+        this.put({...current,state:'ready',stage:'ready',resultKind:'no_change',resultRevision:revision,review:null,draftId:null,operationReceipt:receipt,frontDesk:{...current.frontDesk,context:await this.front.snapshot(job.accountId,job.memberId,context.id)},owner:null,leaseUntil:0})
+        return
+      }
+      if(plan.type==='delete'||plan.type==='update')throw fail('请先在草稿预览中核对要修改的内容',409,'FRONT_DRAFT_EDIT_REVIEW_REQUIRED')
+      let draft=await this.business.read(job.accountId,job.memberId,plan.targetId)
+      if(plan.type==='query'||plan.type==='export'){
+        if(draft.version!==plan.targetVersion)throw fail('目标记录已有变化',409,'AI_DRAFT_VERSION_CONFLICT')
+        // Exact snapshot, no record creation or model-generated export claims.
+        const snapshot={inputText:draft.items.flatMap(item=>item.fields.map(field=>field.value)).join('\n'),items:draft.items,sources:draft.sources}
+        const receipt={operationId:plan.operationId,type:plan.type,targetId:draft.id,targetVersion:draft.version,state:'completed',snapshot,...(plan.type==='export'?{fileName:'护护记录.txt',text:snapshotText(snapshot)}:{})}
+        this.put({...current,state:'ready',stage:'ready',resultKind:'no_change',resultRevision:revision,review:draft,draftId:draft.id,operationReceipt:receipt,frontDesk:{...current.frontDesk,context:fresh},owner:null,leaseUntil:0})
+        await this.business.bindRecognition(job.accountId,job.memberId,draft.id,{jobId:id,revision},signal)
+        return
+      }
+      if(draft.state!=='saved'){
+        if(draft.version!==plan.targetVersion||unresolved(current).length)throw fail('记录版本已变化或仍有未完成输入，请先核对',409,'RECOGNITION_REVISION_CONFLICT')
+        if(plan.itemIds?.length&& (plan.itemIds.length!==draft.items.length||draft.items.some(item=>!plan.itemIds.includes(item.id))))throw fail('请在草稿中选择并核对需要保存的内容',409,'FRONT_SAVE_SELECTION_REQUIRED')
+        await this.business.bindRecognition(job.accountId,job.memberId,draft.id,{jobId:id,revision},signal)
+        // Save's existing transaction rechecks this durable revision at both
+        // ends. New input cannot slip in while the storage barrier is held.
+        this.put({...current,state:'ready',stage:'ready',resultRevision:revision,review:draft,draftId:draft.id})
+        draft=await this.business[plan.type==='save_original'?'saveOriginal':'save'](job.accountId,job.memberId,draft.id,{version:plan.targetVersion,confirmed:true})
+      }
+      if(!draft.result?.records?.length)throw fail('保存结果尚未确认，请重试',409,'FRONT_SAVE_RECEIPT_MISSING')
+      await this.front.checkpoint(job.accountId,job.memberId,context.id,{draftId:draft.id},()=>{const latest=this.raw(id);signal.throwIfAborted();if(latest.cancelEpoch!==epoch||latest.inputRevision!==revision)throw fail('本次操作已变化',409)})
+      const receipt={operationId:plan.operationId,type:plan.type,targetId:draft.id,targetVersion:plan.targetVersion,confirmedVersion:plan.targetVersion,state:'saved',savedDraft:draft,recordIds:draft.result.records.map(record=>record.recordId)}
+      await this.front.store.update(data=>({...data,contexts:data.contexts.map(c=>c.id===context.id?{...c,operationReceipts:[...(c.operationReceipts??[]).filter(r=>r.operationId!==receipt.operationId),receipt]}:c)}))
+      const savedContext=await this.front.snapshot(job.accountId,job.memberId,context.id)
+      this.put({...this.raw(id),state:'ready',stage:'ready',resultKind:'saved',resultRevision:revision,review:draft,draftId:draft.id,operationReceipt:receipt,frontDesk:{...current.frontDesk,context:savedContext},owner:null,leaseUntil:0,error:null})
+    })
   }
   async publish(id){
     const row=this.db.prepare('SELECT document FROM outbox WHERE job_id=?').get(id);if(!row)return
@@ -289,11 +386,11 @@ export class RecognitionJobs {
       // Include the published context so clients can consume the ready response
       // directly. Public serialization below strips private original bytes.
       const context=await this.front.snapshot(j.accountId,j.memberId,outbox.contextId)
-      if(context)frontDesk={...frontDesk,context:{...context,review,messages:context.messages.map(({originalFiles,...m})=>({...m,files:(m.files??[]).map(({dataUrl,...f})=>f),voices:(m.voices??[]).map(({dataUrl,...f})=>f)}))}}
+      if(context)frontDesk={...frontDesk,context:{...context,review,messages:context.messages.map(publicFrontMessage)}}
     }
     await withStorageLock(()=>this.transaction(()=>{const latest=this.raw(id);if(latest.state!=='publishing'||latest.inputRevision!==outbox.revision||latest.cancelEpoch!==j.cancelEpoch)return
       const needsReview=!!(unresolved(latest).length||review.documentWarnings?.length||review.unmappedRows?.length||review.sources?.some(s=>s.status==='uncertain'))
-      this.put({...latest,state:needsReview?'needs_review':'ready',stage:'ready',review,frontDesk,resultRevision:outbox.revision,draftVersion:review.version,owner:null,leaseUntil:0,error:null})
+      this.put({...latest,state:needsReview?'needs_review':'ready',stage:'ready',resultKind:needsReview?'partial':review.items.length?'candidates':'no_change',review,frontDesk,resultRevision:outbox.revision,draftVersion:review.version,owner:null,leaseUntil:0,error:null})
       this.db.prepare('DELETE FROM outbox WHERE job_id=?').run(id)
     }))
   }

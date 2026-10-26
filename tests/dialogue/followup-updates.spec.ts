@@ -57,7 +57,7 @@ test('mixed symptom and feeding notices clear on opening the day calendar',async
  await add.getByLabel('发生时间',{exact:true}).fill('今天')
  await add.getByRole('button',{name:'添加',exact:true}).click()
  await page.getByRole('button',{name:'保存',exact:true}).click()
- await expect(page.getByRole('button',{name:'查看',exact:true})).toHaveCount(2)
+ await expect(page.getByRole('button',{name:'查看记录',exact:true})).toHaveCount(2)
  await page.getByRole('button',{name:'返回',exact:true}).click()
  await expect(page.getByRole('button',{name:/^症状跟进/}).getByRole('img',{name:'有新内容'})).toBeVisible()
  const menu=page.getByRole('button',{name:'打开菜单',exact:true})

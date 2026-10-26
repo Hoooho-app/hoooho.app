@@ -5,6 +5,7 @@ import { HohoButton } from './HohoButton'
 import { HoldToTalkButton } from './HoldToTalkButton'
 import { BottomSheetSurface } from './BottomSheetSurface'
 import './DialogueComposer.css'
+import {hasVisibleConversationText} from '../../../shared/conversation-input.mjs'
 
 export type DialoguePhotoSource = 'camera' | 'album' | 'video' | 'file'
 /** A 44px row; choice and recording feedback float above it. */
@@ -21,7 +22,7 @@ export function DialogueComposer({ text, onTextChange, onSend, onStart, onStop, 
   const [typing, setTyping] = useState(initialTyping), [photoOpen, setPhotoOpen] = useState(false)
   const input = useRef<HTMLTextAreaElement>(null), root = useRef<HTMLDivElement>(null)
   const menuId = useId()
-  const hasText=Boolean(text.replace(/[\p{Cf}\u0000-\u0008\u000b\u000c\u000e-\u001f]/gu,'').trim())
+  const hasText=hasVisibleConversationText(text.replace(/[\p{Cf}\u0000-\u0008\u000b\u000c\u000e-\u001f]/gu,''))
   const composing=useRef(false),textBlocked=disabled||(processing&&!allowTextWhileProcessing)
   useEffect(() => {
     if (!photoOpen || variant === 'conversation') return

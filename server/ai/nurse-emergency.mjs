@@ -36,3 +36,10 @@ export function confirmedCurrentEmergency(assessment, latestUser){
   }
   return false
 }
+
+// Reuse the exact existing provenance gate before any optional model work.
+export function confirmedCurrentEmergencyQuote(text){
+  if(typeof text!=='string')return null
+  for(const match of text.matchAll(importantObservationPattern))if(confirmedCurrentEmergency({currentChild:true,quote:match[0]},{text}))return match[0]
+  return null
+}

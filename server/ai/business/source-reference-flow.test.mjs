@@ -31,7 +31,7 @@ async function fixture(t,{repair=false,invalidId=false,returnLegacy=false}={}){
   }
   if(input.task==='professional-summary-generate')return {value:{items:data.items.map(p=>({itemId:p.itemId,title:'足小趾破皮',claims:p.facts.map(f=>({text:f.text,factIds:f.factIds}))}))},diagnostics:{provider:'synthetic'}}
   assert.equal(input.task,'professional-summary-verify');verifications++
-  assert.deepEqual(data.facts[0].scope,{subject:'current',timeText:'今天'})
+  assert.deepEqual(data.facts[0].scope,{subject:'current',timeText:'今天',phase:'candidate',subjectConfirmationRequired:false})
   const missing=repair&&verifications===1
   return {value:{items:data.candidates.map(c=>({itemId:c.itemId,titleSupported:true,complete:!missing,problems:missing?['missing_fact']:[],missingFacts:missing?[{itemId:c.itemId,sourceId:'input',page:1,quote:'被踢到了。'}]:[],claims:c.claims.map((_,index)=>({index,supported:true}))}))},diagnostics:{provider:'synthetic'}}
  }}

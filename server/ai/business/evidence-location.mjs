@@ -7,7 +7,7 @@ function positions(text,part){const result=[];let at=0;while((at=text.indexOf(pa
 const timeKey=text=>text.replace(/昨日/gu,'昨天').replace(/今日/gu,'今天').replace(/\s/gu,'')
 // Repeated quotes are candidate ranges, never a promise that the first match is
 // the right occurrence. A chosen value range travels with its exact quote.
-export function locateEvidence(source,quote,value,field,item,path,sourceAssertions=clinicalAssertions(source.text)){
+export function locateEvidence(source,quote,value,field,item,path,sourceAssertions=clinicalAssertions(source.text),{allowOtherSubject=false}={}){
  const candidates=[],failures=[]
  for(const start of positions(source.text,quote))for(const offset of positions(quote,value)){
   const valueStart=start+offset,valueEnd=valueStart+value.length
@@ -20,7 +20,7 @@ export function locateEvidence(source,quote,value,field,item,path,sourceAssertio
     invalid={rule:q.start>=start&&q.end<=start+quote.length?'negation_scope':'negation_prefix',message:'引文或字段遗漏了该事项的否定或不确定限定，请核对完整原话'};break
    }
    const observation=item.category==='symptom'||['symptom','reaction'].includes(field.name)
-   if(observation&&context.subject==='other'){
+   if(observation&&context.subject==='other'&&!allowOtherSubject){
     invalid={rule:'subject_context',message:'原话描述的是其他人物，不能保存为当前人物的症状'};break
    }
    if(observation&&['conditional','future'].includes(context.temporality)){

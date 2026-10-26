@@ -51,7 +51,7 @@ test('supplement saves to the same symptom and opens its process above other fol
  await page.getByRole('button',{name:/^(?:先记下来|立即保存)$/}).last().click()
  await expect(page.getByText('已保存，可在症状跟进的变化过程查看。',{exact:true})).toBeVisible()
  const records=await(await request.get(`/api/events/${saved.eventId}/records`,{headers})).json();const record=records.find((r:any)=>r.sourceText===text);expect(record).toBeTruthy();expect(record.content).toBe(record.aiProvenance.professionalSummary.text);expect(record.content).toContain('瘙痒');expect(record.sourceText).toBe(text)
- await page.getByRole('button',{name:'查看',exact:true}).click();await expect(page).toHaveURL(/\/cases\?/)
+ await page.getByRole('button',{name:'查看记录',exact:true}).click();await expect(page).toHaveURL(/\/cases\?/)
  expect(new URL(page.url()).searchParams.get('eventId')).toBe(saved.eventId);expect(new URL(page.url()).searchParams.get('recordId')).toBe(record.id)
  const card=page.locator('.case-followup-card').first();await expect(card).toHaveAttribute('data-case-id',saved.eventId)
  await expect(card.locator('.case-followup-timeline')).toBeVisible();await expect(page.locator('.case-followup-timeline')).toHaveCount(1)
@@ -66,7 +66,7 @@ test('saving original after model failure also returns to the symptom process',a
  await supplement(page,saved.eventId,'手臂有点痒，原话保留测试')
  await page.getByRole('button',{name:'先保存原话',exact:true}).click({timeout:30000})
  await expect(page.getByText('已保存，可在症状跟进的变化过程查看。',{exact:true})).toBeVisible()
- await page.getByRole('button',{name:'查看',exact:true}).click();await expect(page).toHaveURL(/\/cases\?/)
+ await page.getByRole('button',{name:'查看记录',exact:true}).click();await expect(page).toHaveURL(/\/cases\?/)
  const recordId=new URL(page.url()).searchParams.get('recordId');expect(recordId).toBeTruthy();const line=page.locator(`[data-case-id="${saved.eventId}"] [data-record-id="${recordId}"]`);await expect(line.locator('.case-followup-record-summary')).toHaveText('手臂瘙痒');await line.getByText('查看完整原文',{exact:true}).click();await expect(line.locator('details[open]')).toContainText('手臂有点痒，原话保留测试')
 })
 

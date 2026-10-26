@@ -3,7 +3,7 @@ on:
   push:
     branches: [codex/smart-record-progress-20261016]
   pull_request:
-    paths: ['server/ai/**', 'src/features/ai-business/**', 'tests/dialogue/**', 'tests/conversation-home/**', '.github/workflows/smart-record-verification.yml']
+    paths: ['server/ai/**', 'src/features/ai-business/**', 'tests/dialogue/**', 'tests/helpers/**', 'tests/visit-sheet/**', 'tests/nurse-frontdesk-upgrade-mobile/**', 'tests/conversation-home/**', '.github/workflows/smart-record-verification.yml']
 permissions:
   contents: read
 jobs:
@@ -49,11 +49,15 @@ jobs:
       - run: node --import ./scripts/register-node-ts-loader.mjs --test src/features/case-continuity/followupPresentation.test.ts src/features/ai-business/liveAudioPreview.test.ts src/features/ai-business/frontDeskRecord.test.ts
       - run: TZ=Asia/Shanghai node --import ./scripts/register-node-ts-loader.mjs --test src/pages/NurseStation/firstChildSetupModel.test.ts
       - run: node --test tests/dialogue/synthetic-acceptance-account.test.mjs tests/dialogue/synthetic-acceptance-cleanup.test.mjs
+      - run: node --test tests/visit-sheet/front-desk-v3-fixture.test.mjs
       - run: npm run test:help
       - run: npm run build
       - run: npx playwright test --config tests/dialogue/symptom-followup.config.ts
       - if: ${{ !cancelled() }}
         run: npx playwright test --config tests/dialogue/playwright.config.ts recognition-progress.spec.ts smart-record-actions.spec.ts smart-record-exit.spec.ts nursing-record.spec.ts nurse-dialogue-guidance.spec.ts --grep-invert 'saving while ASR is pending'
+      - name: Verify current protocol3 front-desk mobile flows
+        if: ${{ !cancelled() }}
+        run: npx playwright test --config tests/nurse-frontdesk-upgrade-mobile/playwright.config.ts
       - run: npx playwright test --config tests/conversation-home/playwright.config.ts
       - run: npx playwright test --config tests/conversation-home/first-child.config.ts
       - run: npx playwright test --config tests/conversation-home/pure-record.config.ts

@@ -75,6 +75,27 @@ test('medication names and original dose and route remain literal',()=>{
   const summary=buildProfessionalSummary(item([fact('medicationName','合成药名'),fact('doseOriginal','0.5 mg'),fact('route','口服')],{category:'medication'}))
   assert.equal(summary.text,'药品：合成药名；原剂量：0.5 mg；使用途径：口服。')
 })
+
+test('vaccination doseOriginal is labelled as the literal vaccination dose sequence rather than medication amount',()=>{
+  const input=item([fact('vaccineName','合成疫苗'),fact('doseOriginal','1')],{category:'vaccination'})
+  const before=structuredClone(input),summary=buildProfessionalSummary(input)
+  assert.equal(summary.text,'疫苗：合成疫苗；接种剂次：1。')
+  assert.deepEqual(summary.claims[1],{text:'接种剂次：1',factIds:['item-1:field:1']})
+  assert.doesNotMatch(summary.text,/原剂量|毫升|mg|mL/u)
+  assert.deepEqual(input,before,'doseOriginal and its literal evidence are not rewritten')
+  assert.equal(validateProfessionalSummary(summary,input),true)
+})
+
+test('vaccination dose sequence preserves unknown, ordinal and combined literal dose expressions',()=>{
+  for(const value of ['第1剂','剂次不清楚','第2剂，0.5 mL']){
+    const input=item([fact('doseOriginal',value)],{category:'vaccination'})
+    const summary=buildProfessionalSummary(input)
+    assert.equal(summary.text,`接种剂次：${value}。`)
+    assert.equal(input.fields[0].value,value)
+    assert.equal(input.fields[0].sources[0].quote,value)
+  }
+  assert.equal(buildProfessionalSummary(item([fact('doseOriginal','1')],{category:'medication'})).text,'原剂量：1。')
+})
 test('a loose or mismatched source falls back rather than being promoted to a professional summary',()=>{
   assert.equal(buildProfessionalSummary(item([{name:'symptom',value:'咳嗽',sources:[]}])),null)
   assert.equal(buildProfessionalSummary(item([fact('symptom','咳嗽','鼻塞')])),null)

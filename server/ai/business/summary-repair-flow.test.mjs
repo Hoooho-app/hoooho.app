@@ -75,7 +75,7 @@ async function fixture(t,{mode='summary_success',holdSecond=false}={}){
   assert.equal(input.task,'professional-summary-verify')
   verifications++
   assert.equal(data.sourceInventory[0].text,raw)
-  assert.deepEqual(data.candidates[0].recordScope,{subject:'current',timeText:'今天'})
+  assert.deepEqual(data.candidates[0].recordScope,{subject:'current',timeText:'今天',phase:'candidate',subjectConfirmationRequired:false})
   const missingQuote=mode==='source_then_summary'&&extractions===1?'今天被踢到。':mode==='summary_then_source'?'红肿情况暂不清楚。':null
   return {value:{items:data.candidates.map(c=>({itemId:c.itemId,titleSupported:true,complete:!missingQuote,problems:missingQuote?['missing_fact']:[],missingFacts:missingQuote?[{itemId:c.itemId,sourceId:'input',page:1,quote:missingQuote}]:[],claims:c.claims.map((_,index)=>({index,supported:true}))}))},diagnostics:{provider:'synthetic'}}
  }}

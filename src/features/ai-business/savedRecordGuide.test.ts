@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {savedRecordGuides,savedRecordUrl} from './savedRecordGuide'
+import {dismissSavedRecordGuide,savedRecordGuides,savedRecordUrl} from './savedRecordGuide'
 import type {SmartRecordDraft} from './smartRecordTypes'
 const draft=(id:string,recordId:string):SmartRecordDraft=>({id,version:2,state:'saved',inputText:'原话',items:[],result:{count:1,records:[{eventId:'event',recordId,memberId:'member',category:'sleep'}]}})
 test('success guides require persisted results and keep exact identities across subsequent saves',()=>{
@@ -19,4 +19,11 @@ test('profile guides point to exact persisted category and entry, unknown types 
   assert.equal(new URL(savedRecordUrl(guide),'https://example.test').searchParams.get('entryId'),'3/vaccine')
   saved.result!.records[0].category='other';saved.result!.records[0].profileEntries=[]
   assert.equal(savedRecordGuides(saved,'member')[0].text,'记录已记好，可在健康随记查看。')
+})
+test('dismissing one guide preserves its saved destination and other guides without mutation',()=>{
+ const first=savedRecordGuides(draft('first','record-1'),'member')[0],second=savedRecordGuides(draft('second','record-2'),'member')[0]
+ const dismissed=dismissSavedRecordGuide([first,second],first.id)
+ assert.equal(first.dismissed,undefined);assert.equal(dismissed[0].dismissed,true)
+ assert.equal(savedRecordUrl(dismissed[0]),savedRecordUrl(first));assert.equal(dismissed[0].recordId,'record-1')
+ assert.equal(dismissed[1],second)
 })

@@ -89,7 +89,7 @@ export class EventAttachmentService {
       throw new EventAttachmentError('未找到这张照片', 404, 'EVENT_ATTACHMENT_NOT_FOUND')
     }
     if (!attachment.storageKey) {
-      const embedded = /^data:(image\/(?:png|jpeg|webp|heic|heif)|application\/pdf);base64,([A-Za-z0-9+/=]+)$/.exec(attachment.dataUrl ?? '')
+      const embedded = /^data:(image\/(?:png|jpeg|webp|heic|heif)|application\/pdf|audio\/(?:wav|webm|mp4|ogg|mpeg)(?:;\s*codecs=(?:"[a-z0-9., _-]+"|[a-z0-9.,_-]+))?);base64,([A-Za-z0-9+/=]+)$/.exec(attachment.dataUrl ?? '')
       if (embedded) { let file = { mimeType: embedded[1], buffer: Buffer.from(embedded[2], 'base64') }; if (variant === 'preview' && /^image\/hei[cf]$/.test(file.mimeType)) { const normalized = await normalizePhoto({ name: attachment.name, mimeType: file.mimeType, dataUrl: attachment.dataUrl }); file = { mimeType: normalized.mimeType, buffer: Buffer.from(normalized.dataUrl.split(',')[1], 'base64') } }; return variant === 'preview' ? imagePreview(file) : file }
       throw new EventAttachmentError('附件原件暂不可用', 404, 'EVENT_ATTACHMENT_NOT_FOUND')
     }

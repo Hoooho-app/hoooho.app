@@ -66,7 +66,14 @@ export function eventsApiPlugin(options = {}) {
     configureServer(server) {
       recognition=new RecognitionJobs({...config,events,business:cases.business,frontDesk,audio:new AudioTranscriptionService(config)})
       cases.business.assertRecognitionCurrent=draft=>recognition.assertCurrent(draft)
-      server.httpServer?.once('close',()=>void recognition.close())
+      server.httpServer?.once('close',()=>{
+        void recognition.close()
+        // Windows keeps an open SQLite handle locked after HTTP shutdown.
+        // Idle dev/test services can release it immediately; in-flight workers
+        // keep their handle until their cancellation fence has settled.
+        const release=()=>{if(recognition.active.size){const timer=setTimeout(release,25);timer.unref()}else recognition.db.close()}
+        release()
+      })
       server.middlewares.use(async (request, response, next) => {
         const pathname = new URL(request.url ?? '/', 'http://localhost').pathname
         if(recognitionRoute(pathname)){try{const result=await recognitionApi(recognition,readAccountId(request,tokens),request,pathname,limit=>readJson(request,limit));return sendJson(response,result.status??200,result.data)}catch(error){return sendJson(response,error.status??500,{error:{code:error.code??'RECOGNITION_UNAVAILABLE',message:error.status?error.message:'识别服务暂不可用，原件保留'}})}}
@@ -78,7 +85,8 @@ export function eventsApiPlugin(options = {}) {
         if(history&&request.method==='GET'){try{const query=new URL(request.url,'http://localhost').searchParams;response.setHeader('Cache-Control','no-store');return sendJson(response,200,await frontDesk.history(readAccountId(request,tokens),decodeURIComponent(history[1]),{query:query.get('q')??'',offset:Number(query.get('offset')??0)}))}catch(error){return sendJson(response,error.status??500,{error:{code:error.code??'FRONT_HISTORY_UNAVAILABLE',message:error.status?error.message:'对话记录暂不可用'}})}}
         const front=/^\/api\/members\/([^/]+)\/front-desk-record(?:\/contexts\/([^/]+))?$/.exec(pathname)
         if(front){
-          try{const accountId=readAccountId(request,tokens),memberId=decodeURIComponent(front[1]);if(request.method==='GET'&&front[2])return sendJson(response,200,await frontDesk.conversation(accountId,memberId,decodeURIComponent(front[2])));if(request.method==='GET'&&!front[2])return sendJson(response,200,await frontDesk.latest(accountId,memberId));if(request.method==='DELETE'&&!front[2])return sendJson(response,200,await frontDesk.closeSession(accountId,memberId));if(request.method==='POST'){const input=await readJson(request,22*1024*1024);return sendJson(response,200,front[2]?(input.action==='resume'?await frontDesk.resume(accountId,memberId,decodeURIComponent(front[2])):await frontDesk.checkpoint(accountId,memberId,decodeURIComponent(front[2]),input)):input.kind==='legacy'?await frontDesk.retainLegacy(accountId,memberId,input):await frontDesk.submit(accountId,memberId,input))}return sendJson(response,405,{error:{code:'METHOD_NOT_ALLOWED',message:'请求方法不支持'}})}catch(error){return sendJson(response,error.status??500,{error:{code:error.code??'FRONT_RECORD_UNAVAILABLE',message:error.status?error.message:'智能记录暂不可用，内容保留'}})}
+          const controller=new AbortController();response.once('close',()=>{if(!response.writableEnded)controller.abort()})
+          try{const accountId=readAccountId(request,tokens),memberId=decodeURIComponent(front[1]);if(request.method==='GET'&&front[2])return sendJson(response,200,await frontDesk.conversation(accountId,memberId,decodeURIComponent(front[2])));if(request.method==='GET'&&!front[2])return sendJson(response,200,await frontDesk.latest(accountId,memberId));if(request.method==='DELETE'&&!front[2])return sendJson(response,200,await frontDesk.closeSession(accountId,memberId));if(request.method==='POST'){const input=await readJson(request,22*1024*1024);return sendJson(response,200,front[2]?(input.action==='save_original'?await frontDesk.saveOriginal(accountId,memberId,decodeURIComponent(front[2]),input,controller.signal):input.action==='confirm_subject'?await frontDesk.confirmSubject(accountId,memberId,decodeURIComponent(front[2]),input):input.action==='resume'?await frontDesk.resume(accountId,memberId,decodeURIComponent(front[2])):await frontDesk.checkpoint(accountId,memberId,decodeURIComponent(front[2]),input)):input.kind==='legacy'?await frontDesk.retainLegacy(accountId,memberId,input):await frontDesk.submit(accountId,memberId,input,controller.signal))}return sendJson(response,405,{error:{code:'METHOD_NOT_ALLOWED',message:'请求方法不支持'}})}catch(error){return sendJson(response,error.status??500,{error:{code:error.code??'FRONT_RECORD_UNAVAILABLE',message:error.status?error.message:'智能记录暂不可用，内容保留'}})}
         }
         if (/^\/api\/members\/[^/]+\/nurse-drafts(?:\/|$)/.test(pathname)) {
           try { const result = await nurseApiResult(nurse, readAccountId(request, tokens), request.method, pathname, limit => readJson(request, limit)); return sendJson(response, result.status ?? 200, result.data) }

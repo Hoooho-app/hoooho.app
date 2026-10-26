@@ -29,6 +29,7 @@ export function bodyLocations(raw) {
 // A schema is not a factual validator. Every extracted value must be supported
 // by an exact quote in a supplied source, not by the model's confidence score.
 function validateExtractionContent(output, sources, options={}) {
+  const {preserveUnassigned=false}=options
   if (!output || !Array.isArray(output.items) || output.items.length > 30) throw fail('整理结果格式无效，未更新草稿')
   if(output.items.length===30)throw fail('结果已达到单批事项上限，请分批核对，未将可能遗漏的内容保存为完整结果',422,'AI_SOURCE_LIMIT')
   const observationScopes=new Map()
@@ -36,39 +37,42 @@ function validateExtractionContent(output, sources, options={}) {
   const items=output.items.flatMap((item, index) => {
     if (Object.keys(item).some(key => !['category','title','timeText','fields','archiveCategory','subject','relationKey'].includes(key))) throw fail('整理结果包含不允许的字段')
     if (!categories.includes(item.category) || !['current','other','unknown'].includes(item.subject) || !Array.isArray(item.fields) || item.fields.length > 50) throw fail('记录分类或主体无效')
-    if (item.subject !== 'current') return []
+    if (item.subject !== 'current'&&!preserveUnassigned) return []
+    const allowOtherSubject=preserveUnassigned&&item.subject!=='current'
     const fields = item.fields.map((field,fieldIndex) => {
       if (!fieldNames.includes(field.name) || !Number.isInteger(field.page) || field.page < 1) throw fail('字段或来源位置无效')
       const source = sources.find(source => source.id === field.sourceId && source.page === field.page)
       const quote = safeText(field.quote, 4000)
       let value = safeText(field.value, 4000),evidenceProjection
       const scopedObservation=options.verbatimObservations&&['symptom','reaction','chiefComplaint','quality','statusRaw','location','handling'].includes(field.name)
-      // New dialogue summaries have a separate semantic generation stage. If
-      // the supplier paraphrases an observation, discard that value and use its
-      // exact, supplied quote; every scope check below still applies.
+      // Semantic observations retain the actual quote when a provider paraphrases;
+      // all polarity, subject, temporal and field checks still apply afterwards.
       if(scopedObservation&&source&&quote&&source.text.includes(quote)&&value&&!quote.includes(value)){value=quote;evidenceProjection='verbatim_quote'}
       const fieldPath=`/items/${index}/fields/${fieldIndex}`
       if (!source || !quote || !source.text.includes(quote) || !value || !quote.includes(value)) throw evidenceFailure('部分内容与原文不一致，请核对，未保存生成结果',fieldPath,!source?'source_missing':!quote?'quote_missing':!source.text.includes(quote)?'quote_not_in_source':!value?'value_missing':'value_not_in_quote')
       if(scopedObservation){
-        const scope=locateEvidence(source,quote,value,{...field,name:'symptom'},item,fieldPath,sourceAssertions.get(source))
+        const scope=locateEvidence(source,quote,value,{...field,name:'symptom'},item,fieldPath,sourceAssertions.get(source),{allowOtherSubject})
         if(!observationScopes.has(source))observationScopes.set(source,nursingObservationContext(source.text).clauses)
-        if(observationScopes.get(source).some(c=>c.subject==='other'&&c.start<scope.valueEnd&&c.end>scope.valueStart))throw evidenceFailure('这段观察属于其他人物，原话已保留',fieldPath,'subject_context')
+        if(!allowOtherSubject&&observationScopes.get(source).some(c=>c.subject==='other'&&c.start<scope.valueEnd&&c.end>scope.valueStart))throw evidenceFailure('这段观察属于其他人物，原话已保留',fieldPath,'subject_context')
       }
-      const located=locateEvidence(source,quote,value,field,item,fieldPath,sourceAssertions.get(source))
+      const located=locateEvidence(source,quote,value,field,item,fieldPath,sourceAssertions.get(source),{allowOtherSubject})
       return { name: field.name, value,...(evidenceProjection?{evidenceProjection}:{}), sources: [{ sourceId: source.id, page: source.page, quote, ...located,...(source.sourceKind==='visual_observation'?{sourceKind:'visual_observation'}:{}) }], confirmed: false, editedBy: 'model' }
     })
     const timeText = item.timeText == null ? null : safeText(item.timeText, 100)
+    const itemSources=new Set(fields.flatMap(f=>f.sources.map(s=>`${s.sourceId}:${s.page}`)))
+    const amendedTimeSources=timeText&&preserveUnassigned?sources.filter(source=>source.text.includes(timeText)&&sources.some(related=>itemSources.has(`${related.id}:${related.page}`)&&(source.factId&&related.amendedBy===source.factId||source.amendedBy&&related.factId===source.amendedBy))):[]
     if (!fields.length) return []
     if (item.archiveCategory != null && !archiveCategories.includes(item.archiveCategory)) throw fail('归档栏目无效')
     const title = item.category === 'symptom' ? symptomItemCorePhrase({fields}) : fields[0].value.slice(0,80)
-    return [{ id: `item-${index + 1}`, category: item.category, title, timeText, fields, archiveCategory: item.archiveCategory ?? null, relationKey: safeText(item.relationKey, 100) || null }]
+    return [{ id: `item-${index + 1}`, category: item.category, title, timeText, fields,...(amendedTimeSources.length?{timeSources:amendedTimeSources.map(source=>({sourceId:source.id,page:source.page,quote:timeText}))}:{}),archiveCategory: item.archiveCategory ?? null, relationKey: safeText(item.relationKey, 100) || null,...(preserveUnassigned?{subject:item.subject}:{}) }]
   })
   for(const item of items){
     const itemSources=new Set(item.fields.flatMap(f=>f.sources.map(s=>`${s.sourceId}:${s.page}`)))
     const sameSource=item.fields.some(field=>field.sources.some(ref=>ref.quote.includes(item.timeText)))||sources.some(source=>itemSources.has(`${source.id}:${source.page}`)&&source.text.includes(item.timeText))
+    const amended=(item.timeSources??[]).some(ref=>{const source=sources.find(s=>s.id===ref.sourceId&&s.page===ref.page);return source&&ref.quote===item.timeText&&source.text.includes(ref.quote)})
     const bound=options.timeEvidence?.(item,items)??[]
     const supported=bound.some(ref=>{const source=sources.find(s=>s.id===ref.sourceId&&s.page===ref.page);return source&&Number.isInteger(ref.start)&&Number.isInteger(ref.end)&&source.text.slice(ref.start,ref.end)===ref.quote&&ref.quote.includes(item.timeText)})
-    if(item.timeText&&!sameSource&&!supported)throw fail('发生时间缺少同一条资料的原文依据')
+    if(item.timeText&&!sameSource&&!amended&&!supported)throw fail('发生时间缺少同一条资料的原文依据')
   }
   return items
 }
@@ -128,13 +132,14 @@ export function buildJournal(item,{semanticVersion=1}={}) {
 
 // Matching never crosses scope: caller supplies one authenticated member only.
 // Different date, dose, result, polarity or episode remain separate variants.
-export function mergeItems(items) {
+export function mergeItems(items, {preserveOccurrences=false}={}) {
   const result = [], byKey = new Map()
   for (const item of items) {
-    const key = fingerprint({ category:item.category, occurredAt:item.occurredAt ?? item.time?.resolvedStart ?? item.timeText, fields:item.fields.map(({name,value})=>({name,value})).sort((a,b)=>a.name.localeCompare(b.name)||a.value.localeCompare(b.value)) })
+    const occurrence=preserveOccurrences?{sources:[...new Set(item.fields.flatMap(field=>(field.sources??[{sourceId:field.sourceId,page:field.page}]).map(ref=>`${ref.sourceId}:${ref.page}`)))].sort()}:{}
+    const key = fingerprint({ ...occurrence,category:item.category, occurredAt:item.occurredAt ?? item.time?.resolvedStart ?? item.timeText, fields:item.fields.map(({name,value})=>({name,value})).sort((a,b)=>a.name.localeCompare(b.name)||a.value.localeCompare(b.value)) })
     let existing = byKey.get(key)
     const anchor = name=>item.fields.find(f=>f.name===name)?.value
-    if(!existing&&['visit','examination'].includes(item.category)&&item.time?.resolvedStart&&anchor('institution'))existing=result.find(other=>other.category===item.category&&other.time?.resolvedStart===item.time.resolvedStart&&other.fields.some(f=>f.name==='institution'&&f.value===anchor('institution'))&&(item.category==='visit'||anchor('testName')&&other.fields.some(f=>f.name==='testName'&&f.value===anchor('testName')))&&!item.fields.some(f=>other.fields.some(o=>o.name===f.name&&o.value!==f.value)))
+    if(!preserveOccurrences&&!existing&&['visit','examination'].includes(item.category)&&item.time?.resolvedStart&&anchor('institution'))existing=result.find(other=>other.category===item.category&&other.time?.resolvedStart===item.time.resolvedStart&&other.fields.some(f=>f.name==='institution'&&f.value===anchor('institution'))&&(item.category==='visit'||anchor('testName')&&other.fields.some(f=>f.name==='testName'&&f.value===anchor('testName')))&&!item.fields.some(f=>other.fields.some(o=>o.name===f.name&&o.value!==f.value)))
     if (!existing) { const copy = structuredClone(item); copy.fields = copy.fields.map(f=>({...f,sources:f.sources??[{sourceId:f.sourceId,page:f.page,quote:f.quote}]})); result.push(copy); byKey.set(key,copy); continue }
     for (const f of item.fields) {
       const target = existing.fields.find(other => other.name === f.name && other.value === f.value)

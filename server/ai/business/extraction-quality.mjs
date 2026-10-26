@@ -3,6 +3,7 @@ import { LocalFactProvider, extractTimeMentions } from '../providers/local-fact-
 import { resolveItemTime } from './contract.mjs'
 import { outputFailure } from '../providers/output-diagnostics.mjs'
 import { evidenceFailure } from './evidence-diagnostics.mjs'
+import {frontDeskLiteralCorrection} from './front-desk-source-context.mjs'
 
 const symptomFields=new Set(['symptom','location','severityOriginal','handling'])
 const noMedication = /^(?:今天|昨天|昨晚|目前|暂时)?\s*(?:未用药|没有用药|没用药|未服药|没有服药|没服药|没有吃药|没吃药|未吃药)[。！!]?$/u
@@ -34,7 +35,15 @@ export function normalizeRoutineActivity(item) {
 // remove negation, infer diagnoses, or replace the supplier's extracted facts.
 export async function reconcileExtraction(items,sources,context){
  const parsed=new Map(),local=new LocalFactProvider()
- for(const source of sources)parsed.set(`${source.id}:${source.page}`,await local.organize(source.text))
+ for(const source of sources){
+  const role=frontDeskLiteralCorrection(source),at=role?source.text.indexOf(role.quote):-1
+  // A validated wording replacement withdraws the old label. It is not a new
+  // negative observation. Mask only that exact prefix for this read-only
+  // coverage parser; retain the full original and every independent finding.
+  const end=at>=0&&at===source.text.lastIndexOf(role.quote)?at+role.quote.lastIndexOf(role.newValue):-1
+  const coverageText=end>at?source.text.slice(0,at)+' '.repeat(end-at)+source.text.slice(end):source.text
+  parsed.set(`${source.id}:${source.page}`,await local.organize(coverageText))
+ }
  const reconciled=items.map((item,index)=>{
   const result=structuredClone(item)
   normalizeMedicationAbsence(result)

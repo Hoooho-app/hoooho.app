@@ -1,6 +1,7 @@
 import {validSemanticSummary} from './semantic-summary.mjs'
 import { interpretNursingAnswer } from './nursing-interview.mjs'
 import { clinicalAssertions, clinicalContext } from '../../../shared/clinical-evidence.mjs'
+import {frontDeskQuestionClaims} from './front-desk-answer-context.mjs'
 
 export const PROFESSIONAL_SUMMARY_VERSION = 'professional-summary-v1'
 
@@ -93,7 +94,8 @@ export function buildProfessionalSummary(item, {sources}={}) {
     if(sources&&!sources.some(s=>typeof s.text==='string'&&s.text.includes(answer.answerText)))return null
   }
   const withoutShortAnswers=value=>answers.length||retired.length?value.split(/\r?\n/).filter(line=>![...answers,...retired].some(a=>line.trim()===a.answerText.trim())).join('，'):value
-  const fields=item.fields.map((field,index)=>({field,id:`${item.id}:field:${index}`,value:(field.sources?.some(ref=>ref.sourceKind==='visual_observation')?'照片中可见：':'')+(observationalFields.has(field.name)?normalizeObservation(withoutShortAnswers(field.value)):clean(withoutShortAnswers(field.value)))}))
+  const canonicalQuestionClaims=frontDeskQuestionClaims(item,sources)
+  const fields=item.fields.map((field,index)=>({field,id:`${item.id}:field:${index}`,value:canonicalQuestionClaims.some(claim=>claim.answerText===field.value.trim()&&(field.sources??[]).some(ref=>ref.sourceId===claim.sourceId))?'':(field.sources?.some(ref=>ref.sourceKind==='visual_observation')?'照片中可见：':'')+(observationalFields.has(field.name)?normalizeObservation(withoutShortAnswers(field.value)):clean(withoutShortAnswers(field.value)))}))
   const claims=[]
   const add=(text,factIds)=>{
     text=clean(text)
@@ -112,10 +114,11 @@ export function buildProfessionalSummary(item, {sources}={}) {
   }
   for(const entry of fields){
     if(!entry.value||entry===primary||entry===location&&mergedLocation)continue
-    const label=['sleepAt','wakeAt'].includes(entry.field.name)&&/(?:没有|未|没).{0,8}观察|哭闹|安抚|继续睡|入睡困难|睡不着/.test(entry.value)?'睡眠观察':labels[entry.field.name]??entry.field.name
+    const label=item.category==='vaccination'&&entry.field.name==='doseOriginal'?'接种剂次':['sleepAt','wakeAt'].includes(entry.field.name)&&/(?:没有|未|没).{0,8}观察|哭闹|安抚|继续睡|入睡困难|睡不着/.test(entry.value)?'睡眠观察':labels[entry.field.name]??entry.field.name
     add(plainFields.has(entry.field.name)?entry.value:`${label}：${entry.value}`,[entry.id])
   }
   for(const answer of answers)add(answer.text,['answer:'+answer.sourceMessageId])
+  for(const claim of canonicalQuestionClaims)add(claim.text,claim.factIds)
   const time=clean(item.timeText)
   let addedTime=false
   if(time){

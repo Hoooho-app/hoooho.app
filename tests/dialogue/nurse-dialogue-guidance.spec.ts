@@ -1,4 +1,5 @@
 import {test,expect} from '@playwright/test'
+import {useLegacyFrontProtocol} from '../helpers/front-protocol-compat'
 import {TokenService} from '../../server/auth/token-service.mjs'
 
 const token=new TokenService('visit-sheet-e2e-secret',3600000).create({id:'visit-test'})
@@ -16,17 +17,19 @@ test.beforeEach(async({page,request})=>{
   await page.getByRole('button',{name:'改用文字'}).click()
 })
 
-test('cold narrative asks relevant questions before the summary and offers equal record actions',async({page},info)=>{
+test('[legacy protocol2] cold narrative asks relevant questions before the summary and offers equal record actions',async({page},info)=>{
+  const legacy=await useLegacyFrontProtocol(page)
   await page.getByLabel('对话输入').fill('身体有点冷')
   await page.getByRole('button',{name:'发送',exact:true}).click()
   const processing=page.locator('.front-desk-processing')
-  await expect(processing).toContainText('嗯，我了解了，我整理一下。')
-  await expect(processing).toContainText('整理中')
+  await expect(processing).toContainText('正在处理这次内容，请稍等。')
+  await expect(processing).toContainText(/接收中|理解中/)
   const video=processing.locator('video')
   await expect(video).toHaveAttribute('playsinline','')
   expect(await video.evaluate(el=>(el as HTMLVideoElement).muted)).toBe(true)
   expect(await processing.locator('.idle-nurse-visual').evaluate(el=>getComputedStyle(el).position)).toBe('relative')
   await expect(page.getByText(/是孩子自己说冷，还是你摸着觉得凉/)).toBeVisible()
+  await legacy.assertContext()
   await expect(processing).toHaveCount(0)
   await expect(page.locator('.recognition-steps')).toHaveCount(0)
   await expect(page.locator('.smart-professional-summary')).toHaveCount(0)
@@ -56,7 +59,10 @@ test('cold narrative asks relevant questions before the summary and offers equal
   await expect(page.getByRole('heading',{name:'核对记录',exact:true})).toBeVisible()
 })
 
-test('reduced motion keeps a visible static nurse while real processing continues',async({page})=>{
+test('reduced motion keeps a visible static nurse while real processing continues',async({page,request})=>{
+  const reply='身体有点冷的描述收到了，可以先核对原话。'
+  const unknown={kind:'unknown',memberId:null,label:null,sources:[]}
+  await request.post('http://127.0.0.1:4198/front-reply-data',{data:{reply,contextId:'new',responseMode:'record',taskRelation:'new',subject:unknown,recordChanges:[{type:'add',targetId:null,text:'身体有点冷',scope:'record',polarity:'affirmed',subject:unknown,sources:[{messageId:'@latest',attachmentId:null,quote:'身体有点冷'}]}],nextQuestion:null,requestedAction:{type:'none',targetIds:[],targetVersion:null,confirmation:'none',quote:''},uncertainties:[],emergency:{currentChild:false,quote:''}}})
   await page.emulateMedia({reducedMotion:'reduce'})
   await page.getByLabel('对话输入').fill('身体有点冷')
   await page.getByRole('button',{name:'发送',exact:true}).click()
@@ -64,5 +70,5 @@ test('reduced motion keeps a visible static nurse while real processing continue
   await expect(video).toBeVisible()
   expect(await video.evaluate(el=>getComputedStyle(el).opacity)).toBe('1')
   expect(await video.evaluate(el=>(el as HTMLVideoElement).paused)).toBe(true)
-  await expect(page.getByText(/是孩子自己说冷，还是你摸着觉得凉/)).toBeVisible()
+  await expect(page.getByText(reply,{exact:true})).toBeVisible()
 })
