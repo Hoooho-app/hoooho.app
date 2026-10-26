@@ -79,6 +79,8 @@ async function replay({ receipt, business, front, accountId, memberId, contextId
 /** Explicit original preservation, independent of recognition jobs or AI. */
 export async function saveFrontDeskOriginal({ front, business, accountId, memberId, contextId, input, signal } = {}) {
   if (!input || input.confirmed !== true || !id(contextId)) throw fail('请明确确认保存原话和原件', 422, 'FRONT_ORIGINAL_CONFIRMATION_REQUIRED')
+  if(input.reviewText!==undefined&&(typeof input.reviewText!=='string'||!input.reviewText.trim()||input.reviewText.trim().length>4900))throw fail('请核对有效文字后保存',422,'FRONT_ORIGINAL_REVIEW_INVALID')
+  const reviewSignature=input.reviewText===undefined?null:hash(input.reviewText.trim())
   const expected = input.expectedContextVersion ?? input.expectedVersion
   if (!version(expected) || input.expectedContextVersion != null && input.expectedVersion != null && input.expectedContextVersion !== input.expectedVersion) throw fail('对话版本无效，请重新核对', 409, 'FRONT_CONTEXT_CHANGED')
   if (!front?.directory || front.directory !== business?.directory) throw new TypeError('Front desk and business storage must match')
@@ -92,6 +94,7 @@ export async function saveFrontDeskOriginal({ front, business, accountId, member
     if (!context) throw fail('未找到本次对话', 404, 'FRONT_RECORD_NOT_FOUND')
     if (context.operationReceipts != null && !Array.isArray(context.operationReceipts)) throw fail('保存回执无效，请重新核对', 409, 'FRONT_RECORD_CHANGED')
     const receipt = context.operationReceipts?.find(receipt => receipt.operationId === operationId && receipt.inputContextVersion === expected)
+    if(receipt&&(receipt.reviewSignature??null)!==reviewSignature)throw fail('这次核对内容已有变化，请查看原保存结果',409,'FRONT_ORIGINAL_REVIEW_CHANGED')
     if (receipt) return replay({ receipt, business, front, accountId, memberId, contextId, draftId, signal })
     if (context.saved) throw fail('这次对话已有保存结果，请查看原记录', 409, 'FRONT_RECORD_ALREADY_SAVED')
     if (context.closedAt || unavailable(context) || context.version !== expected || front.inFlight?.has(JSON.stringify([accountId, memberId]))) throw fail('对话已有更新或已结束，请重新核对', 409, 'FRONT_CONTEXT_CHANGED')
@@ -116,8 +119,9 @@ export async function saveFrontDeskOriginal({ front, business, accountId, member
     const quotes = raw ? [{ sourceId: 'original-text', page: 1, quote: raw }] : []
     // Long originals remain complete in sourceText and the immutable source;
     // the neutral content label stays inside the existing 5000-char limit.
-    const value = raw && raw.length <= 4900 ? raw : title
-    const draft = { id: draftId, accountId, memberId, version: 1, state: 'ready', raw, referenceNow: now.toISOString(), timezone: 'Asia/Shanghai', task: 'record', manualOriginal: true, smartRecord: true, frontDeskRecord: true, followUp: false, confirmOccurrenceTime: false, selectedOccurredAt: null, sourceIdentity: 'parent', targetEventId: null, sourceRecordId: null, frontContextId: contextId, frontEvidenceVersion: evidenceVersion, frontSubject: structuredClone(context.subject), frontUnderstanding: { version: FRONT_DESK_UNDERSTANDING_VERSION, recordChangesPending: false }, documents: files.filter(file => !file.mimeType.startsWith('audio/')), voices: files.filter(file => file.mimeType.startsWith('audio/')), pages: [], sources, items: [{ id: 'original', category: 'other', title, subject: 'current', subjectConfirmed: true, subjectMemberId: memberId, archiveCategory: null, timeText: null, fields: [{ name: 'conclusion', value, sources: quotes, confirmed: true, editedBy: 'user' }] }], questions: [], conflicts: [], diagnostics: [], history: [], unmappedRows: [], documentWarnings: [], expiresAt: new Date(now.getTime() + 86400000).toISOString() }
+    const value = input.reviewText?.trim() ?? (raw && raw.length <= 4900 ? raw : title)
+    const reviewTextChanged=input.reviewText!==undefined&&value!==raw.trim()
+    const draft = { id: draftId, accountId, memberId, version: 1, state: 'ready', raw, referenceNow: now.toISOString(), timezone: 'Asia/Shanghai', task: 'record', manualOriginal: true, reviewTextChanged, smartRecord: true, frontDeskRecord: true, followUp: false, confirmOccurrenceTime: false, selectedOccurredAt: null, sourceIdentity: 'parent', targetEventId: null, sourceRecordId: null, frontContextId: contextId, frontEvidenceVersion: evidenceVersion, frontSubject: structuredClone(context.subject), frontUnderstanding: { version: FRONT_DESK_UNDERSTANDING_VERSION, recordChangesPending: false }, documents: files.filter(file => !file.mimeType.startsWith('audio/')), voices: files.filter(file => file.mimeType.startsWith('audio/')), pages: [], sources, items: [{ id: 'original', category: 'other', title, subject: 'current', subjectConfirmed: true, subjectMemberId: memberId, archiveCategory: null, timeText: null, fields: [{ name: 'conclusion', value, sources: quotes, confirmed: true, editedBy: 'user' }] }], questions: [], conflicts: [], diagnostics: [], history: reviewTextChanged?[raw]:[], unmappedRows: [], documentWarnings: [], expiresAt: new Date(now.getTime() + 86400000).toISOString() }
     draft.items = draft.items.map(item => business.resolve(item, draft))
     const assertCurrent = async () => {
       signal?.throwIfAborted()
@@ -136,7 +140,7 @@ export async function saveFrontDeskOriginal({ front, business, accountId, member
     await assertCurrent()
     if (savedDraft.state !== 'saved' || savedDraft.result?.records?.length !== 1 || !id(savedDraft.result.records[0].recordId)) throw fail('保存结果尚未确认', 409, 'FRONT_SAVE_RECEIPT_MISSING')
     await front.checkpoint(accountId, memberId, contextId, { draftId }, () => signal?.throwIfAborted())
-    const savedReceipt = { operationId, type: 'save_original', contextId, inputContextVersion: expected, targetId: draftId, targetVersion: 1, confirmedVersion: 1, state: 'saved', recordIds: [savedDraft.result.records[0].recordId], savedDraft }
+    const savedReceipt = { operationId, reviewSignature, sourceMessageIds:messages.map(message=>message.id), type: 'save_original', contextId, inputContextVersion: expected, targetId: draftId, targetVersion: 1, confirmedVersion: 1, state: 'saved', recordIds: [savedDraft.result.records[0].recordId], savedDraft }
     await front.store.update(data => {
       signal?.throwIfAborted()
       const current = data.contexts.find(current => current.id === contextId && current.accountId === accountId && current.memberId === memberId)

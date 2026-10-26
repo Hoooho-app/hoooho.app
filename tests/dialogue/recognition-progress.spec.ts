@@ -35,9 +35,9 @@ test('exit during processing responds and reopening recovers the same task',asyn
  await expect(page.locator('.nurse-turn--user')).toContainText('今天脸颊发红');await confirmFrontSubject(page);await expect(page.getByRole('button',{name:'核对记录',exact:true})).toBeEnabled()
 })
 test('pause keeps originals and resume uses the same job identity',async({page,request})=>{
- await send(page,'今天脸颊发红，先按已经说过的情况记录，不再追问。');await expect(page.getByRole('button',{name:'停止处理'})).toBeVisible()
+ await send(page,'今天脸颊发红，先按已经说过的情况记录，不再追问。');await expect(page.getByRole('button',{name:'停止整理'})).toBeVisible()
  const before=await(await request.get(`/api/members/${memberId}/recognition-jobs`,{headers})).json()
- await page.getByRole('button',{name:'停止处理'}).click();await expect(page.getByTestId('recognition-progress')).toHaveAttribute('data-stage','paused')
+ await page.getByRole('button',{name:'停止整理'}).click();await expect(page.getByTestId('recognition-progress')).toHaveAttribute('data-stage','paused')
  await page.getByRole('button',{name:'继续处理'}).click();await confirmFrontSubject(page);await expect(page.getByRole('button',{name:'核对记录',exact:true})).toBeEnabled()
  const after=await(await request.get(`/api/members/${memberId}/recognition-jobs`,{headers})).json();expect(after.id).toBe(before.id)
 })

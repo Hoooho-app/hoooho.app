@@ -15,6 +15,7 @@ import { DietRecordFlow } from './DietRecordFlow'
 import { TopicalRecordFlow } from './TopicalRecordFlow'
 import { getLocalDateKey } from '../../utils/localCalendarDate'
 import { DailyRecordOrigin } from './DailyRecordSheets'
+import { RecordOriginals } from '../../features/ai-business/RecordOriginals'
 
 export function JournalRecordDetail({ eventId, recordId, startSleepCorrection = false, onChanged, onClose }: {
   eventId: string
@@ -112,6 +113,7 @@ export function JournalRecordDetail({ eventId, recordId, startSleepCorrection = 
   }} />
   const mealInterval = record?.journal?.diet?.startedAt && record.journal.diet.endedAt ? record.journal.diet : null
   if (record && (completedSleep || mealInterval)) {
+    const userOriginal=['text_record','voice_record'].includes(record.sourceType??'')?record.sourceText?.trim()||'':''
     return <ActivityIntervalDetail
       endAt={completedSleep?.wakeAt ?? mealInterval?.endedAt ?? ''}
       kind={completedSleep ? 'sleep' : 'meal'}
@@ -129,7 +131,12 @@ export function JournalRecordDetail({ eventId, recordId, startSleepCorrection = 
       }}
       startAt={completedSleep?.sleepAt ?? mealInterval?.startedAt ?? record.occurredAt}
       title={completedSleep ? '睡眠' : mealInterval?.name ?? mealInterval?.meal ?? '喂养/用餐'}
-      information={<>{origin}<p>{record.content}</p>{record.note && <p>{record.note}</p>}{mealInterval && <DietInformation diet={mealInterval} />}{completedSleep && <p>{[completedSleep.quality, ...(completedSleep.observations ?? []), completedSleep.otherNote].filter(Boolean).join('、')}</p>}</>}
+      recordTitle={record.aiProvenance?.title?.trim()||undefined}
+      description={record.content}
+      memberName={state.data.member.name}
+      recordedAt={record.createdAt}
+      information={<>{origin}{record.note && <p>{record.note}</p>}{mealInterval && <DietInformation diet={mealInterval} />}{completedSleep && <p>{[completedSleep.quality, ...(completedSleep.observations ?? []), completedSleep.otherNote].filter(Boolean).join('、')}</p>}</>}
+      sources={<>{userOriginal&&<details className="record-user-original"><summary>用户原话</summary><p className="symptom-record-original">{userOriginal}</p></details>}<RecordOriginals key={record.id} eventId={record.eventId} recordId={record.id} attachmentIds={record.aiProvenance?.attachmentIds}/></>}
     />
   }
 
@@ -164,8 +171,13 @@ function preciseLocalValue(date = new Date()) {
   return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 19)
 }
 
-function ActivityIntervalDetail({ endAt, kind, onClose, onDelete, onSave, startAt, title, information }: {
+function ActivityIntervalDetail({ endAt, kind, onClose, onDelete, onSave, startAt, title, recordTitle, description, memberName, recordedAt, information, sources }: {
+  recordTitle?: string
+  description?: string
+  memberName?: string
+  recordedAt?: string
   information?: ReactNode
+  sources?: ReactNode
   endAt: string
   kind: 'sleep' | 'meal'
   onClose: () => void
@@ -201,7 +213,7 @@ function ActivityIntervalDetail({ endAt, kind, onClose, onDelete, onSave, startA
   }
   return <BottomSheetSurface label={`${title}记录详情`} onClose={close} open title={`${title}记录详情`}>
     <div className="activity-interval-detail" data-activity-kind={kind}>
-      {editing ? <div className="sleep-correction-fields"><label><span>开始时间</span><input aria-label={`${title}开始时间`} max={localDateTimeValue()} onChange={(event) => setStartInput(event.target.value)} type="datetime-local" value={startInput} /></label><label><span>结束时间</span><input aria-label={`${title}结束时间`} max={localDateTimeValue()} onChange={(event) => setEndInput(event.target.value)} type="datetime-local" value={endInput} /></label>{durationMinutes > 0 && <p>{`总时长：${Math.floor(durationMinutes / 60)}小时${durationMinutes % 60}分钟`}</p>}{(validationError || error) && <p role="alert">{validationError || error}</p>}<div className="activity-interval-actions"><HohoButton disabled={busy} onClick={() => setEditing(false)} variant="secondary">取消</HohoButton><HohoButton disabled={Boolean(validationError)} loading={busy} onClick={() => void save()}>保存时间</HohoButton></div></div> : <><dl><div><dt>开始时间</dt><dd>{new Date(startAt).toLocaleString('zh-CN', { hour12: false })}</dd></div><div><dt>结束时间</dt><dd>{new Date(endAt).toLocaleString('zh-CN', { hour12: false })}</dd></div><div><dt>总时长</dt><dd>{preciseDuration(startAt, endAt)}</dd></div></dl>{information}<HohoButton fullWidth onClick={() => setEditing(true)}>修改起止时间</HohoButton><button className="sleep-delete-action" onClick={() => void remove()} type="button">删除这条记录</button>{error && <p role="alert">{error}</p>}</>}
+      {editing ? <div className="sleep-correction-fields"><label><span>开始时间</span><input aria-label={`${title}开始时间`} max={localDateTimeValue()} onChange={(event) => setStartInput(event.target.value)} type="datetime-local" value={startInput} /></label><label><span>结束时间</span><input aria-label={`${title}结束时间`} max={localDateTimeValue()} onChange={(event) => setEndInput(event.target.value)} type="datetime-local" value={endInput} /></label>{durationMinutes > 0 && <p>{`总时长：${Math.floor(durationMinutes / 60)}小时${durationMinutes % 60}分钟`}</p>}{(validationError || error) && <p role="alert">{validationError || error}</p>}<div className="activity-interval-actions"><HohoButton disabled={busy} onClick={() => setEditing(false)} variant="secondary">取消</HohoButton><HohoButton disabled={Boolean(validationError)} loading={busy} onClick={() => void save()}>保存时间</HohoButton></div></div> : <>{recordTitle&&<h3>{recordTitle}</h3>}{description&&<p className="symptom-record-original">{description}</p>}{memberName&&<p className="hoho-text-caption">记录对象：{memberName}</p>}<dl><div><dt>开始时间</dt><dd>{new Date(startAt).toLocaleString('zh-CN', { hour12: false })}</dd></div><div><dt>结束时间</dt><dd>{new Date(endAt).toLocaleString('zh-CN', { hour12: false })}</dd></div><div><dt>总时长</dt><dd>{preciseDuration(startAt, endAt)}</dd></div>{recordedAt&&Number.isFinite(Date.parse(recordedAt))&&<div><dt>记录时间</dt><dd>{new Date(recordedAt).toLocaleString('zh-CN', { hour12: false })}</dd></div>}</dl>{information}{sources}<HohoButton fullWidth onClick={() => setEditing(true)}>修改起止时间</HohoButton><button className="sleep-delete-action" onClick={() => void remove()} type="button">删除这条记录</button>{error && <p role="alert">{error}</p>}</>}
     </div>
   </BottomSheetSurface>
 }

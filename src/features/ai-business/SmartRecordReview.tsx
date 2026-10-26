@@ -8,7 +8,7 @@ import { localDateTimeValue } from '../../utils/healthOccurredAt'
 import { ProfessionalRecordSummary } from './ProfessionalRecordSummary'
 
 type Editing = {itemId:string;field:string;value:string;label:string} | {field:'new';category:string;value:string;timeText:string}
-export function SmartRecordReview({review,memberId,memberName,disabled,error,onChange}:{review:SmartRecordDraft;memberId?:string;memberName?:string;disabled:boolean;error:string;onChange:(review:SmartRecordDraft)=>void}){
+export function SmartRecordReview({review,memberId,memberName,disabled,error,onChange,onChangeMember}:{review:SmartRecordDraft;memberId?:string;memberName?:string;onChangeMember?:()=>void;disabled:boolean;error:string;onChange:(review:SmartRecordDraft)=>void}){
   const [editing,setEditing]=useState<Editing|null>(null),[formError,setFormError]=useState('')
   const open=(value:Editing)=>{setFormError('');setEditing(value)}
   const remove=(itemId:string)=>{
@@ -31,18 +31,22 @@ export function SmartRecordReview({review,memberId,memberName,disabled,error,onC
     setEditing(null)
   }
   const row=(item:SmartRecordItem,label:string,value:string,field:string)=><div className="smart-review-row" key={field}><dt>{label}</dt><dd>{value||'未填写'}</dd><HohoButton variant="text" size="small" disabled={disabled} aria-label={`编辑${item.title}的${label}`} onClick={()=>open({itemId:item.id,field,value:field==='time'?item.timeText??(item.time.resolvedStart?localDateTimeValue(new Date(item.time.resolvedStart)).replace('T',' '):''):value,label})}>编辑</HohoButton></div>
+  const subjectPending=review.subjectConfirmed===false||review.items.some(item=>item.subjectConfirmed===false)
+  const originalText=review.inputText.trim()
+  const timeLabel=(item:SmartRecordItem)=>!item.timeText?.trim()&&(item.time.precision==='unknown'||item.time.defaulted)?'未填写':smartRecordTimeLabel(item)
   return <div className="smart-record-review" aria-label="核对记录">
+    <div className="smart-review-subject"><span className="hoho-text-caption">记录对象</span>{onChangeMember&&<HohoButton variant="text" disabled={disabled} onClick={onChangeMember}>换一个孩子</HohoButton>}<strong>{subjectPending?'对象待确认 · 尚未保存':memberName||'当前成员'}</strong>{subjectPending&&memberName&&<span className="hoho-text-caption">当前选择：{memberName}</span>}</div>
     {review.items.map(item=><HealthCard key={item.id} className="smart-record-item smart-review-card">
       <header><strong>{item.title}</strong><HohoButton variant="text" size="small" disabled={disabled} aria-label={`编辑${item.title}的名称`} onClick={()=>open({itemId:item.id,field:'title',value:item.title,label:item.category==='symptom'?'症状':'记录名称'})}>编辑</HohoButton></header>
       <ProfessionalRecordSummary item={item}/>
+      {!item.professionalSummary?.text&&<p className="smart-review-description">{item.fields.filter(field=>isKeyRecordField(item.category,field.name)).map(field=>field.value).filter(Boolean).join('；')}</p>}
       {item.userAdded&&memberId&&(!item.manualSubjectConfirmation?.confirmed||item.manualSubjectConfirmation.memberId!==memberId)&&<HohoButton variant="text" size="small" disabled={disabled} onClick={()=>onChange({...review,items:review.items.map(current=>current.id===item.id?{...current,subjectConfirmed:true,manualSubjectConfirmation:{memberId,confirmed:true}}:current)})}>这是{memberName||'当前成员'}的记录</HohoButton>}
-      <dl>{row(item,'记录类型',recordCategoryLabels[item.category]??'其他','category')}
-        {!item.professionalSummary&&item.fields.filter(field=>isKeyRecordField(item.category,field.name)).map(field=>row(item,item.fields.length===1||field.name==='symptom'?'原话':field.name==='durationMinutes'?'睡眠时长':(fieldLabels as Record<string,string>)[field.name]??field.name,field.value,field.name))}
-        {row(item,'发生时间',smartRecordTimeLabel(item),'time')}
+      <dl>{row(item,'发生时间',timeLabel(item),'time')}
+        {row(item,'记录类型',recordCategoryLabels[item.category]??'其他','category')}
       </dl>
-      {item.professionalSummary&&<details className="smart-record-originals"><summary>查看和修改原始内容</summary><dl>{item.fields.filter(field=>isKeyRecordField(item.category,field.name)).map(field=>row(item,item.fields.length===1||field.name==='symptom'?'原话':(fieldLabels as Record<string,string>)[field.name]??field.name,field.value,field.name))}</dl></details>}
+      {(originalText||item.fields.some(field=>isKeyRecordField(item.category,field.name)))&&<details className="smart-record-originals"><summary>{originalText?'用户原话':'整理字段'}</summary>{originalText&&<p className="smart-review-original-text">{originalText}</p>}<dl>{item.fields.filter(field=>isKeyRecordField(item.category,field.name)).map(field=>row(item,item.fields.length===1||field.name==='symptom'?'原话':field.name==='durationMinutes'?'睡眠时长':(fieldLabels as Record<string,string>)[field.name]??field.name,field.value,field.name))}</dl></details>}
     </HealthCard>)}
-    <HohoButton variant="secondary" disabled={disabled||review.items.length>=30} onClick={()=>open({field:'new',category:'symptom',value:'',timeText:''})}><Plus size={18} aria-hidden="true"/>新增记录</HohoButton>
+    <HohoButton variant="text" disabled={disabled||review.items.length>=30} onClick={()=>open({field:'new',category:'symptom',value:'',timeText:''})}><Plus size={18} aria-hidden="true"/>新增记录</HohoButton>
     {error&&<p role="alert">{error}</p>}
     {editing&&<BottomSheetSurface open viewportAware label={editing.field==='new'?'新增记录':'编辑记录'} title={editing.field==='new'?'新增记录':'itemId' in editing?editing.label:'编辑记录'} onClose={()=>setEditing(null)} footer={<HohoButton fullWidth disabled={disabled} onClick={commit}>{editing.field==='new'?`添加为${memberName||'当前成员'}的记录`:'确定'}</HohoButton>}>
       <div className="smart-review-editor">

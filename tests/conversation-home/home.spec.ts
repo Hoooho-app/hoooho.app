@@ -10,6 +10,7 @@ import {tmpdir} from 'node:os'
 import path from 'node:path'
 import { TokenService } from '../../server/auth/token-service.mjs'
 import {useLegacyFrontProtocol} from '../helpers/front-protocol-compat'
+import {seedLegacyPendingVoice} from '../helpers/legacy-voice'
 import { finishNursingQuestions, waitForNurseReply } from '../helpers/nursing-interview'
 const token=new TokenService('visit-sheet-e2e-secret',3600000).create({id:'visit-test'})
 const headers={Authorization:`Bearer ${token}`}
@@ -27,23 +28,22 @@ test.beforeEach(async({page,request})=>{
  await expect(page.getByRole('button',{name:'按住说话',exact:true})).toBeEnabled()
 })
 
-test('[legacy protocol2] front desk separates animated processing, one question, paper review and post-save actions',async({page,request},info)=>{
+test('[legacy protocol2] front desk separates compact processing, one question, paper review and post-save actions',async({page,request},info)=>{
  const legacy=await useLegacyFrontProtocol(page)
  await page.emulateMedia({reducedMotion:'reduce'})
  await request.get('http://127.0.0.1:4198/delay?ms=10000')
  await typeText(page,'身体有点冷')
  await page.getByRole('button',{name:'发送',exact:true}).click()
- const processing=page.locator('.front-desk-processing--separate'),video=processing.locator('video')
+ const processing=page.locator('.front-desk-processing--compact')
  await expect(processing).toBeVisible()
  await expect(processing).not.toContainText('嗯，我了解了')
  // A pending operation has a real processing strip, not a synthetic reply.
  await expect(page.locator('.nurse-turn--assistant')).toHaveCount(0)
- await expect(video).toHaveAttribute('playsinline','')
- await expect.poll(()=>video.evaluate(e=>{const v=e as HTMLVideoElement;return {playing:!v.paused&&v.currentTime>0,error:v.error?.code??0,ready:v.readyState}})).toMatchObject({playing:true,error:0})
- const firstTime=await video.evaluate(e=>(e as HTMLVideoElement).currentTime)
- await expect.poll(()=>video.evaluate(e=>(e as HTMLVideoElement).currentTime)).toBeGreaterThan(firstTime)
- await expect(processing.getByText(/已等待 [1-9]\d* 秒/)).toBeVisible()
- await expect(page.getByRole('button',{name:'停止处理',exact:true})).toHaveCount(1)
+ await expect(processing.locator('video')).toHaveCount(0)
+ await expect(processing.getByRole('img',{name:'护护护士',exact:true})).toBeVisible()
+ await expect(processing.locator('[role=status]')).toBeVisible()
+ await expect(processing.getByText(/已等待 [1-9]\d* 秒/)).toHaveCount(0)
+ await expect(page.getByRole('button',{name:'停止整理',exact:true})).toHaveCount(1)
  await expect(page.getByRole('button',{name:'暂停整理',exact:true})).toHaveCount(0)
  for(const width of [320,375,390]){
   await page.setViewportSize({width,height:844})
@@ -51,11 +51,10 @@ test('[legacy protocol2] front desk separates animated processing, one question,
   const boxes=await processing.locator(':scope>*').evaluateAll(es=>es.map(e=>e.getBoundingClientRect().toJSON()))
   expect(boxes[0].x+boxes[0].width).toBeLessThanOrEqual(boxes[1].x)
   expect(boxes[1].x+boxes[1].width).toBeLessThanOrEqual(boxes[2].x)
-  expect(await processing.getByRole('button').locator('span').evaluate(e=>getComputedStyle(e).color)).toBe('rgb(255, 255, 255)')
-  expect((await processing.locator('strong').boundingBox())!.height).toBeLessThan(30)
+  expect(await processing.getByRole('button',{name:'停止整理',exact:true}).evaluate(e=>getComputedStyle(e).backgroundColor)).toBe('rgba(0, 0, 0, 0)')
   await page.screenshot({path:info.outputPath(`processing-${width}.png`)})
  }
- await processing.getByRole('button',{name:'停止处理',exact:true}).click()
+ await processing.getByRole('button',{name:'停止整理',exact:true}).click()
  await expect(processing).toHaveCount(0)
  await expect(page.getByRole('button',{name:'继续处理',exact:true})).toBeEnabled()
  await request.get('http://127.0.0.1:4198/delay?ms=400')
@@ -86,7 +85,7 @@ test('[legacy protocol2] front desk separates animated processing, one question,
  }
  await page.getByRole('button',{name:'核对记录',exact:true}).click()
  await expect(page.getByRole('button',{name:'启用症状跟进',exact:true})).toHaveCount(0)
- await page.getByRole('button',{name:'保存',exact:true}).click()
+ await page.getByRole('button',{name:/^保存给/}).click()
  await expect(page.getByRole('button',{name:'查看记录',exact:true})).toBeVisible()
  await expect(page.getByRole('button',{name:'启用症状跟进',exact:true})).toBeVisible()
  await expect.poll(async()=>{
@@ -219,7 +218,7 @@ test('real review edits a field, saves through the original pipeline and opens t
  await page.getByRole('dialog').getByRole('textbox',{name:'症状',exact:true}).fill('脸颊观察')
  await page.getByRole('button',{name:'确定',exact:true}).click()
  await page.screenshot({path:info.outputPath('review.png')})
- await page.getByRole('button',{name:'保存',exact:true}).click()
+ await page.getByRole('button',{name:/^保存给/}).click()
  await expect(page.getByRole('button',{name:'查看记录',exact:true})).toBeVisible()
  await expect(page.getByRole('button',{name:'按住说话',exact:true})).toBeEnabled()
  await expect(page.locator('.record-entry-grid>button')).toHaveCount(5)
@@ -242,19 +241,29 @@ test('leaving with unsent input keeps the existing draft guard and restores the 
 })
 
 
-test('failed recording survives refresh, retries and remains readable after a new conversation',async({page,request})=>{
- await request.get('http://127.0.0.1:4198/failure')
- const hold=page.getByRole('button',{name:'按住说话',exact:true})
- await hold.focus();await page.keyboard.down('Space')
- await expect(page.getByRole('button',{name:'正在录音，松开即结束',exact:true})).toBeVisible()
- await page.waitForTimeout(650);await page.keyboard.up('Space')
- await expect(page.getByRole('button',{name:/^重试$|^重试未完成的转写$/})).toBeVisible()
+test('historical pending recording survives refresh, retries and keeps its exact original after a new conversation',async({page,request})=>{
+ // Preserve the pre-V3 recovery contract with a genuine legacy IDB snapshot.
+ // New microphone captures intentionally have no durable audio under V3.
+ const original=await seedLegacyPendingVoice(page,memberId)
  await page.reload()
- await expect(page.getByRole('button',{name:/^重试$|^重试未完成的转写$/})).toBeVisible()
+ await request.get('http://127.0.0.1:4198/failure')
+ await page.getByRole('button',{name:'再试一次',exact:true}).click()
+ await expect(page.getByRole('button',{name:'重新整理',exact:true})).toBeVisible()
+ await page.reload()
+ await expect(page.getByRole('button',{name:'重新整理',exact:true})).toBeVisible()
  await request.get('http://127.0.0.1:4198/success')
- await page.getByRole('button',{name:/^重试$|^重试未完成的转写$/}).click()
+ await page.getByRole('button',{name:'重新整理',exact:true}).click()
  await finishNursingQuestions(page)
  await expect(page.getByRole('button',{name:'核对记录',exact:true})).toBeEnabled()
+ // The legacy reader migrates completed local transcripts on reopening. Check
+ // the actual server acknowledgement and original bytes at that boundary.
+ await page.reload()
+ const contextId=await page.evaluate(async memberId=>{const db=await new Promise<IDBDatabase>(resolve=>{const r=indexedDB.open('hoooho-smart-record-drafts',1);r.onsuccess=()=>resolve(r.result)});const value=await new Promise<any>(resolve=>{const tx=db.transaction('drafts'),r=tx.objectStore('drafts').get(`home-smart:visit-test:${memberId}:new`);r.onsuccess=()=>resolve(r.result)});db.close();return value?.frontContextId},memberId)
+ expect(contextId).toBeTruthy()
+ const contextResponse=await request.get(`/api/members/${memberId}/front-desk-record/contexts/${contextId}`,{headers});expect(contextResponse.ok()).toBe(true)
+ const context=await contextResponse.json();expect(context.id).toBe(contextId)
+ const originalVoices=context.messages.flatMap((m:any)=>m.voices??[])
+ expect(originalVoices.some((v:any)=>v.dataUrl===original)).toBe(true)
  await startNew(page)
  await typeText(page,'另一段对话：今天吃了一碗粥')
  await page.getByRole('button',{name:'发送',exact:true}).click()
@@ -263,7 +272,9 @@ test('failed recording survives refresh, retries and remains readable after a ne
  await page.getByRole('button',{name:'更多操作',exact:true}).click()
  await page.getByRole('menuitem',{name:'之前对话',exact:true}).click()
  await page.locator('.conversation-history-list button').filter({hasText:'本机草稿'}).filter({hasText:'今天没有呕吐'}).click()
- await expect(page.getByLabel('语音原件')).toBeVisible()
+ await expect(page.locator('.nurse-conversation')).toContainText('今天没有呕吐')
+ const retained=await(await request.get(`/api/members/${memberId}/front-desk-record/contexts/${context.id}`,{headers})).json()
+ expect(retained.messages.flatMap((m:any)=>m.voices??[]).some((v:any)=>v.dataUrl===original)).toBe(true)
  await expect(page.locator('.nurse-conversation')).not.toContainText('另一段对话：今天吃了一碗粥')
  await page.getByRole('button',{name:'回到当前对话',exact:true}).click()
  await expect(page.locator('.nurse-conversation')).toContainText('另一段对话：今天吃了一碗粥')
@@ -349,8 +360,8 @@ test('the processing strip stop preserves a real task and resumes it',async({pag
  await request.get('http://127.0.0.1:4198/delay?ms=4000')
  await typeText(page,'昨天左前臂有点发红')
  await page.getByRole('button',{name:'发送',exact:true}).click()
- await expect(page.getByRole('button',{name:'停止处理',exact:true})).toBeEnabled()
- await page.getByRole('button',{name:'停止处理',exact:true}).click()
+ await expect(page.getByRole('button',{name:'停止整理',exact:true})).toBeEnabled()
+ await page.getByRole('button',{name:'停止整理',exact:true}).click()
  await expect(page.getByRole('button',{name:'继续处理',exact:true})).toBeEnabled()
  await request.get('http://127.0.0.1:4198/delay?ms=200')
  await page.getByRole('button',{name:'继续处理',exact:true}).click()
@@ -556,8 +567,10 @@ test('speech text appears before release and cancel leaves no submitted or saved
  const hold=page.getByRole('button',{name:'按住说话',exact:true})
  await hold.focus();await page.keyboard.down('Space')
  await expect(page.getByRole('button',{name:'正在录音，松开即结束',exact:true})).toBeVisible()
- await expect(page.getByLabel('正在说的话')).toContainText('孩子今天左手有点红')
- const overlay=page.locator('.hoho-hold-feedback--conversation');await expect(overlay.getByLabel('正在说的话')).toBeVisible()
+ const draft=page.locator('.nurse-turn--user[data-message-id^="voice:"]')
+ await expect(draft).toHaveCount(1);await expect(draft).toContainText('孩子今天左手有点红')
+ const overlay=page.locator('.hoho-hold-feedback--conversation');await expect(overlay.getByLabel('正在说的话')).toHaveCount(0)
+ await expect(overlay).not.toContainText('孩子今天左手有点红')
  await page.screenshot({path:info.outputPath('live-speech-before-release.png')})
  await expect(page.getByRole('button',{name:'正在录音，松开即结束',exact:true})).toBeVisible()
  await page.keyboard.press('Escape');await page.keyboard.up('Space')

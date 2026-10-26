@@ -133,3 +133,29 @@ test('hung preview GET has a deadline and releases preview audio without stoppin
   t.mock.timers.tick(8001); await tick()
   assert.equal(warnings, 1); assert(Context.latest.closed)
 })
+
+
+test('unavailable preview before a listening acknowledgement reports a capability fallback',async t=>{
+ installContext(t)
+ const failed:boolean[]=[]
+ const request=(async()=>{throw new Error('synthetic unavailable at open')}) as typeof apiRequest
+ const stop=startLiveAudioPreview({...options(()=>undefined),onUnavailable:disconnected=>failed.push(disconnected)},request);t.after(stop)
+ await tick();await tick()
+ assert.deepEqual(failed,[false])
+ assert(Context.latest.closed)
+})
+
+test('a disconnected acknowledged stream is an interruption even before its first text',async t=>{
+ installContext(t)
+ const failed:boolean[]=[],texts:string[]=[]
+ const request=(async(_path:string,init:Parameters<typeof apiRequest>[1])=>{
+  if(init.method==='DELETE')return {}
+  if(init.method==='POST')return snapshot(1,'')
+  throw new Error('synthetic disconnected stream with no words yet')
+ }) as typeof apiRequest
+ const stop=startLiveAudioPreview({...options(text=>texts.push(text)),onUnavailable:disconnected=>failed.push(disconnected)},request);t.after(stop)
+ await tick();await tick()
+ assert.deepEqual(texts,[''])
+ assert.deepEqual(failed,[true])
+ assert(Context.latest.closed)
+})

@@ -15,7 +15,7 @@ import { createChildAvatarSelection, cycleChildAvatar, serializeChildAvatar } fr
 import { formatChildProfileAge, getChildBirthdayBounds } from '../../utils/childProfile'
 import type { FamilyMemberApiDto } from '../../types'
 import { childRecorderOptions, childSetupFields, childSetupLabels, firstChildStorageKey, firstChildVoiceKey, firstIncompleteField, newFirstChildDraft, parseFirstChildAnswer, recorderLabel, restoreFirstChildDraft, type ChildSetupField, type FirstChildDraft } from './firstChildSetupModel'
-import reportImage from '../../../public/images/child-record-report-camera.8076af1b81.webp?inline'
+import reportImage from '../../../public/images/child-record-report-camera.8076af1b81.webp?url&inline'
 import './FirstChildSetup.css'
 
 function readDraft(accountId: string) {

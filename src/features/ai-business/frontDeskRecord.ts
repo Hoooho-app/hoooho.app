@@ -40,12 +40,13 @@ export function completedFrontSaveReplyIds(context:FrontContext):Set<string> {
 /** Model selection changes the record intent, never destroys the chat history. */
 export function restoreFrontContext(context:FrontContext,local:CaptureDraft):CaptureDraft {
   const files:File[]=[],turns:CaptureTurn[]=[],completedReplies=completedFrontSaveReplyIds(context)
+  const savedOriginalIds=new Set((context.saved?context.operationReceipts??[]:[]).flatMap(receipt=>receipt.state==='saved'&&receipt.type==='save_original'&&receipt.savedDraft?.state==='saved'&&receipt.savedDraft.result?.records?.length&&Array.isArray(receipt.sourceMessageIds)?receipt.sourceMessageIds:[]))
   for(const message of context.messages){
     if(message.status==='discarded')continue
     const media=[...(message.files??[]),...(message.voices??[])].map(restoreFrontFile)
     files.push(...media)
     const previous=local.conversationTurns?.find(turn=>turn.id===message.id)
-    turns.push({completedOperation:completedReplies.has(message.id)||previous?.completedOperation,continuationId:message.targetContextId,answerTo:message.answerTo,id:message.id,text:message.text,at:message.inputAt??Date.parse(message.at??context.updatedAt),role:message.kind==='assistant'?'assistant':'user',kind:message.kind==='assistant'?undefined:message.kind,fileKeys:media.map(fileIdentity),status:message.status,contextId:context.id,reviewId:previous?.reviewId,recordCount:previous?.recordCount})
+    turns.push({completedOperation:completedReplies.has(message.id)||previous?.completedOperation,continuationId:message.targetContextId,answerTo:message.answerTo,id:message.id,text:message.text,at:message.inputAt??Date.parse(message.at??context.updatedAt),role:message.kind==='assistant'?'assistant':'user',kind:message.kind==='assistant'?undefined:message.kind,fileKeys:media.map(fileIdentity),status:savedOriginalIds.has(message.id)&&message.kind!=='assistant'&&message.status==='failed'?'completed':message.status,contextId:context.id,reviewId:previous?.reviewId,recordCount:previous?.recordCount})
   }
   const previousTurns:CaptureTurn[]=(context.previousMessages??[]).filter(message=>message.status!=='discarded').map(message=>{
     const media=[...(message.files??[]),...(message.voices??[])].map(restoreFrontFile)
