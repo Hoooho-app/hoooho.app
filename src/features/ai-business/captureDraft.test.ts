@@ -1,6 +1,42 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { guestDraftKeys } from './captureDraft.ts'
+import { recoverPreviousInteractionDraft, type CaptureDraft } from './captureDraft.ts'
+
+test('回滚兼容只恢复未发送文字，保留原件且不重放新版保存意图',()=>{
+ const file=new File(['immutable-original'],'report.png',{type:'image/png'})
+ const original:CaptureDraft={text:'已提交原话',conversationInput:'新的未发送输入',files:[file],requestId:'same-request',occurredAt:'2026-01-01T10:00',timeUnknown:true,
+  voiceTextDraft:{id:'voice-1',text:'尚未提交的部分转写',at:123,incomplete:true},
+  rawSaveTarget:{memberId:'member-a',contextId:'context-a',contextVersion:4,originalsVersion:2,state:'saving'}}
+ const recovered=recoverPreviousInteractionDraft(original)
+ assert.equal(recovered.conversationInput,'新的未发送输入\n尚未提交的部分转写')
+ assert.equal(recovered.text,original.text);assert.equal(recovered.requestId,original.requestId)
+ assert.equal(recovered.files[0],file);assert.equal(recovered.timeUnknown,true)
+ assert.equal(recovered.rawSaveTarget,undefined);assert.equal(recovered.voiceTextDraft,undefined)
+ assert.equal(recovered.interactionRollbackRecovery?.rawSaveTarget,original.rawSaveTarget)
+ assert.equal(recovered.interactionRollbackRecovery?.voiceTextDraft,original.voiceTextDraft)
+ assert.equal(recoverPreviousInteractionDraft(recovered),recovered,'Repeated reads cannot append the same recovery twice')
+ assert.equal(original.rawSaveTarget?.state,'saving','The source snapshot stays unchanged')
+})
+
+test('新版核对文字和不可变原话均保留，不自动改写候选或生成记录',()=>{
+ const original:CaptureDraft={text:'不可变原话',conversationInput:'',files:[],requestId:'original-context',occurredAt:'',timeUnknown:true,
+  manualTextReview:{contextId:'context-a',contextVersion:2,sourceText:'不可变原话',text:'用户更正的文字',open:true,requested:true}}
+ const recovered=recoverPreviousInteractionDraft(original)
+ assert.equal(recovered.conversationInput,'用户更正的文字');assert.equal(recovered.text,'不可变原话')
+ assert.equal(recovered.smartReview,undefined);assert.equal(recovered.aiDraftId,undefined)
+ assert.equal(recovered.interactionRollbackRecovery?.manualTextReview?.sourceText,'不可变原话')
+ assert.equal(recovered.manualTextReview,undefined)
+})
+
+test('关闭的核对内容不复活，相同待发送文字不重复，旧草稿保持原行为',()=>{
+ const old:CaptureDraft={text:'原话',conversationInput:'待发送',files:[],requestId:'same',occurredAt:'',timeUnknown:true}
+ assert.equal(recoverPreviousInteractionDraft(old),old)
+ const closed=recoverPreviousInteractionDraft({...old,manualTextReview:{contextId:'c',contextVersion:1,sourceText:'原话',text:'已取消核对',open:false,requested:false}})
+ assert.equal(closed.conversationInput,'待发送')
+ const same=recoverPreviousInteractionDraft({...old,voiceTextDraft:{id:'v',at:1,text:'待发送',incomplete:true}})
+ assert.equal(same.conversationInput,'待发送')
+})
 
 test('快速返回同一成员只等待录音原件最终写入，不等待AI且不阻塞其他上下文',async()=>{
  const {beginCaptureFinalization,captureDraft}=await import('./captureDraft.ts'),previous=Object.getOwnPropertyDescriptor(globalThis,'indexedDB')

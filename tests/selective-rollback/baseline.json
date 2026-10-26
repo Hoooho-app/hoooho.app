@@ -1,0 +1,24 @@
+{
+  "baselineRuntime": "fcf59ca2f86a68e0ede536bb8f9812ab54a44de1",
+  "endedAt": "2026-10-26T13:46:33+08:00",
+  "productionDeployment": "c368a6b2-4fe4-48c7-89a1-4f891faff267",
+  "identicalFiles": {
+    "server/ai/live-audio-preview.mjs": "b5920ba8a06beb5f96159084ac0569e55b24a5463a836c68f83df77675a84f56",
+    "src/components/design-system/DialogueComposer.tsx": "d0941b1653471c86f9543b7e05d4cdd414f164f277bc9b557eebdc9347378988",
+    "src/features/ai-business/RecognitionProgress.tsx": "52c7a549e5736522a78eea42365c7ed9e80f9119c47ee522a0688d8bfa2d6fd8",
+    "src/features/ai-business/RecordOriginals.tsx": "4457b72531739c4e8b56bd3081424ad992ba0f066f73df36c75d62e2260e2097",
+    "src/features/ai-business/SmartRecordReview.tsx": "1e62370f4e5b0efb6d0b3f223871a291c57acc025549dfa98bb1710108da201b",
+    "src/features/ai-business/caseCapture.css": "2db6515073eb476a5e640ad966f25d617422d596e5926cc75a9495cfcbb0368c",
+    "src/features/ai-business/liveAudioPreview.ts": "49041cad3c58d215b99d17f8a76290d3db913cdd69a756b670e47a84a71edac8",
+    "src/features/ai-business/useSmartRecordVoice.ts": "72536a278bf98dea54989bacee130036f9ef033a21b73d4a91cc6b37bb8786b6",
+    "src/features/ai-nurse/NurseMessage.tsx": "b2106c47cc7a98528c14a3fc9a882994521ddcbb959e56aa040651f2d1b12ef1",
+    "src/pages/HealthEvents/JournalRecordDetail.tsx": "ad55d381da72ca11ac8a0bc6315c8d33ab7ca1ed27d6ecf125481f6d5a61b528",
+    "src/pages/HealthEvents/index.tsx": "fe60db1b057078b7f9ec9e8b13321d1514de87599f9d89d8050fc93943ff8a4a",
+    "src/pages/NurseStation/FrontDeskProcessing.tsx": "e3d9030e296900827990b6948305f6f02a10d9c9be1dc5d8ca2044c9b89160f4",
+    "src/pages/NurseStation/FrontDeskWelcome.tsx": "54391f6256cdc75e5fb74050f6b6b7e92b1547d35b9e0b2d648ffeb6541ed23b",
+    "src/pages/NurseStation/conversationHome.css": "051ef9ef27b8abd84369ba267f411234f6980ed7936daf5dd4058ec2c57d22ca",
+    "server/ai/front-desk-record.mjs": "d0da1b44117ab540f1e875cb8e5cf0d4ddcfddf103cb706e57b61cba0f3eedee",
+    "server/ai/front-desk-understanding.mjs": "2b0c394c006680263d329878faae8dfd139c9eaafe39eb98a48229d1721931f0",
+    "server/ai/business/nursing-interview.mjs": "7683ec6865d83d0c66c396ed6303fb07ee158f7dd723d278e3a9de15e4642132"
+  }
+}

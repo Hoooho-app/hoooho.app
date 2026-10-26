@@ -10,7 +10,7 @@ export function savedRecordGuides(draft:SmartRecordDraft, memberId:string, membe
     const destinations=record.profileEntries?.length?record.profileEntries:[undefined]
     return destinations.map(profile=>{
       const name=record.category==='vaccination'?'接种记录':record.category&&record.category!=='other'?(record.categories??[record.category]).map(c=>recordCategoryLabels[c]).filter(Boolean).join('、'):undefined
-      return {id:`${draft.id}:${record.recordId}:${profile?.entryId??'journal'}`,memberId,memberName:memberName?.trim()||undefined,title:record.title?.trim()||undefined,itemId:record.itemId,eventId:record.eventId,recordId:record.recordId,category:record.category,sectionId:profile?.sectionId,entryId:profile?.entryId,followUpEnabled:record.category==='symptom'&&draft.followUp!==false,text:profile?`${name??'记录'}已保存，可在健康档案查看。`:`${name??'记录'}已保存，可在健康日历查看。`,at:Date.now()}
+      return {id:`${draft.id}:${record.recordId}:${profile?.entryId??'journal'}`,memberId,memberName:memberName?.trim()||undefined,title:record.title?.trim()||undefined,itemId:record.itemId,eventId:record.eventId,recordId:record.recordId,category:record.category,sectionId:profile?.sectionId,entryId:profile?.entryId,followUpEnabled:record.category==='symptom'&&draft.followUp!==false,text:profile?`${name??'记录'}已保存，可在健康档案查看。`:`${name??'记录'}已记好，可在健康随记查看。`,at:Date.now()}
     })
   })
 }

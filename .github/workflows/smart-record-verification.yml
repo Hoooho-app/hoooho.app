@@ -3,7 +3,7 @@ on:
   push:
     branches: [codex/smart-record-progress-20261016]
   pull_request:
-    paths: ['server/ai/**', 'src/features/ai-business/**', 'tests/dialogue/**', 'tests/helpers/**', 'tests/visit-sheet/**', 'tests/nurse-frontdesk-upgrade-mobile/**', 'tests/ui-interaction-v3/**', 'tests/conversation-home/**', '.github/workflows/smart-record-verification.yml']
+    paths: ['server/ai/**', 'src/features/ai-business/**', 'tests/dialogue/**', 'tests/helpers/**', 'tests/visit-sheet/**', 'tests/nurse-frontdesk-upgrade-mobile/**', 'tests/selective-rollback/**', 'tests/conversation-home/**', '.github/workflows/smart-record-verification.yml']
 permissions:
   contents: read
 jobs:
@@ -45,12 +45,13 @@ jobs:
             npx playwright install-deps chromium
             node -e "$hoho_browser_smoke"
           fi
-      - run: node --test server/events/case-continuity-service.test.mjs server/ai/recognition-jobs.test.mjs server/ai/front-desk-record.test.mjs server/ai/front-desk-resume.test.mjs server/ai/front-desk-original-save.test.mjs server/ai/recognition-context.test.mjs server/ai/live-audio-preview.test.mjs server/ai/business/*.test.mjs
-      - run: node --import ./scripts/register-node-ts-loader.mjs --test src/features/case-continuity/followupPresentation.test.ts src/features/ai-business/liveAudioPreview.test.ts src/features/ai-business/frontDeskRecord.test.ts
+      - run: node --test server/events/health-event-record-service.test.mjs server/events/case-continuity-service.test.mjs server/ai/recognition-jobs.test.mjs server/ai/front-desk-record.test.mjs server/ai/front-desk-resume.test.mjs server/ai/front-desk-original-save.test.mjs server/ai/recognition-context.test.mjs server/ai/live-audio-preview.test.mjs server/ai/business/*.test.mjs
+      - run: node --import ./scripts/register-node-ts-loader.mjs --test src/features/case-continuity/followupPresentation.test.ts src/features/ai-business/liveAudioPreview.test.ts src/features/ai-business/frontDeskRecord.test.ts src/features/ai-business/captureDraft.test.ts src/features/ai-business/savedRecordGuide.test.ts
       - run: TZ=Asia/Shanghai node --import ./scripts/register-node-ts-loader.mjs --test src/pages/NurseStation/firstChildSetupModel.test.ts
       - run: node --test tests/dialogue/synthetic-acceptance-account.test.mjs tests/dialogue/synthetic-acceptance-cleanup.test.mjs
       - run: node --test tests/visit-sheet/front-desk-v3-fixture.test.mjs
       - run: npm run test:help
+      - run: node --test tests/selective-rollback/baseline-contract.test.mjs
       - run: npm run build
       - run: npx playwright test --config tests/dialogue/symptom-followup.config.ts
       - if: ${{ !cancelled() }}
@@ -58,9 +59,8 @@ jobs:
       - name: Verify current protocol3 front-desk mobile flows
         if: ${{ !cancelled() }}
         run: npx playwright test --config tests/nurse-frontdesk-upgrade-mobile/playwright.config.ts
-      - name: Verify V3 microphone text, original review and exact return
-        if: ${{ !cancelled() }}
-        run: npx playwright test --config tests/ui-interaction-v3/playwright.config.ts
+      - name: Verify selective rollback draft and data compatibility
+        run: npx playwright test --config tests/selective-rollback/playwright.config.ts
       - run: npx playwright test --config tests/conversation-home/playwright.config.ts
       - run: npx playwright test --config tests/conversation-home/first-child.config.ts
       - run: npx playwright test --config tests/conversation-home/pure-record.config.ts

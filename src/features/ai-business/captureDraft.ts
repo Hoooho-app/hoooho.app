@@ -2,8 +2,18 @@ import type { BodyLocationSelection } from '../body-location'
 import type { ObservationResult } from '../case-continuity/types'
 import {storeDraftFile,restoreDraftFile,type StoredDraftFile} from './draftFiles'
 export interface CaptureTurn {completedOperation?:boolean;operationResult?:import('./recognitionJobs').CompletedRecordOperation;presentedDraft?:{id:string;version:number};expectedContextVersion?:number;continuationId?:string;answerTo?:{contextId:string;questionId:string};id:string;text:string;at?:number;role?:'user'|'assistant';kind?:'text'|'voice'|'image';fileKeys?:string[];status?:'pending'|'transcribing'|'completed'|'failed';error?:string;errorCode?:string;contextId?:string;reviewId?:string;recordCount?:number}
-export interface CaptureDraft { manualTextReview?:{contextId:string;contextVersion:number;sourceText:string;text:string;open:boolean;requested:boolean}; voiceTextDraft?:{id:string;text:string;at:number;incomplete:boolean;originalTranscript?:string}; deferredSubjectContextId?:string; rawSaveTarget?:import('./frontOriginalSave').RawSaveTarget; frontSubject?:import('./frontDeskRecord').FrontSubject; frontContextVersion?:number; followUpEnabled?:boolean; resumeContextId?:string; nursingInterview?:import('./smartRecordTypes').NursingInterview; archivedConversation?:boolean; caseRecognitionDraft?:{id:string;version:number}; visitMaterials?: import('../visit-materials/types').VisitMaterialsDeviceDraft; rawSavedGuide?:import('./savedRecordGuide').SavedRecordGuide; recognitionSubmittedFiles?:string[]; appliedVoiceJobIds?:string[]; recognitionJobId?:string; recognitionAssets?:Record<string,string>; recognitionSnapshot?:import('./recognitionJobs').RecognitionJob; pendingRecognitionCommand?:{id:string;type:'discard'}; savedGuides?: import('./savedRecordGuide').SavedRecordGuide[]; returnScrollTop?:number; returningFromRecord?:boolean; text: string; updatedAt?:number; frontContextId?:string; conversationInput?: string; conversationTurns?: CaptureTurn[]; voiceTranscript?:string; files: File[]; occurredAt: string; capturedAt?: string; timeUnknown: boolean; requestId: string; eventId?: string; supplement?: string; bodyLocations?: string[]; locations?: BodyLocationSelection[]; result?: ObservationResult; aiDraftId?: string; identity?: import('../case-continuity/types').MaterialIdentity; pendingVoice?: File; smartReview?: import('./smartRecordTypes').SmartRecordDraft }
+export interface CaptureDraft { interactionRollbackRecovery?:{voiceTextDraft?:CaptureDraft["voiceTextDraft"];manualTextReview?:CaptureDraft["manualTextReview"];rawSaveTarget?:CaptureDraft["rawSaveTarget"]}; manualTextReview?:{contextId:string;contextVersion:number;sourceText:string;text:string;open:boolean;requested:boolean}; voiceTextDraft?:{id:string;text:string;at:number;incomplete:boolean;originalTranscript?:string}; deferredSubjectContextId?:string; rawSaveTarget?:import('./frontOriginalSave').RawSaveTarget; frontSubject?:import('./frontDeskRecord').FrontSubject; frontContextVersion?:number; followUpEnabled?:boolean; resumeContextId?:string; nursingInterview?:import('./smartRecordTypes').NursingInterview; archivedConversation?:boolean; caseRecognitionDraft?:{id:string;version:number}; visitMaterials?: import('../visit-materials/types').VisitMaterialsDeviceDraft; rawSavedGuide?:import('./savedRecordGuide').SavedRecordGuide; recognitionSubmittedFiles?:string[]; appliedVoiceJobIds?:string[]; recognitionJobId?:string; recognitionAssets?:Record<string,string>; recognitionSnapshot?:import('./recognitionJobs').RecognitionJob; pendingRecognitionCommand?:{id:string;type:'discard'}; savedGuides?: import('./savedRecordGuide').SavedRecordGuide[]; returnScrollTop?:number; returningFromRecord?:boolean; text: string; updatedAt?:number; frontContextId?:string; conversationInput?: string; conversationTurns?: CaptureTurn[]; voiceTranscript?:string; files: File[]; occurredAt: string; capturedAt?: string; timeUnknown: boolean; requestId: string; eventId?: string; supplement?: string; bodyLocations?: string[]; locations?: BodyLocationSelection[]; result?: ObservationResult; aiDraftId?: string; identity?: import('../case-continuity/types').MaterialIdentity; pendingVoice?: File; smartReview?: import('./smartRecordTypes').SmartRecordDraft }
 type StoredDraft=Omit<CaptureDraft,'files'|'pendingVoice'>&{files:(StoredDraftFile|File)[];pendingVoice?:StoredDraftFile|File}
+/** Restore V3-only editors into the existing unsent input, without submitting
+ * text, replaying a save, inventing audio or changing the original sources. */
+export function recoverPreviousInteractionDraft(value:CaptureDraft):CaptureDraft {
+  if(!value.voiceTextDraft&&!value.manualTextReview)return value
+  const {voiceTextDraft,manualTextReview,rawSaveTarget,...rest}=value
+  const texts=[value.conversationInput??'']
+  if(voiceTextDraft?.text.trim())texts.push(voiceTextDraft.text)
+  if((manualTextReview?.open||manualTextReview?.requested)&&manualTextReview.text.trim())texts.push(manualTextReview.text)
+  return {...rest,conversationInput:[...new Set(texts.filter(text=>text.trim()))].join('\n'),interactionRollbackRecovery:{voiceTextDraft,manualTextReview,rawSaveTarget}}
+}
 const checkpointKey=(key:string)=>`hoooho-capture-checkpoint:${key}`
 const finalizations=new Map<string,Promise<void>>()
 /** Back navigation does not wait; reopening waits only for the final byte save. */
@@ -32,13 +42,13 @@ export async function packCaptureDraft(value:CaptureDraft):Promise<StoredDraft>{
 }
 export function unpackCaptureDraft(value:StoredDraft):CaptureDraft{
   const files=value.files.map(restoreDraftFile),index=value.pendingVoice?value.files.indexOf(value.pendingVoice):-1
-  return {...value,files,pendingVoice:value.pendingVoice?(index>=0?files[index]:restoreDraftFile(value.pendingVoice)):undefined}
+  return recoverPreviousInteractionDraft({...value,files,pendingVoice:value.pendingVoice?(index>=0?files[index]:restoreDraftFile(value.pendingVoice)):undefined})
 }
 export function appendCaptureTurn(value:CaptureDraft,text:string,id:string=crypto.randomUUID()):CaptureDraft{
   const turns=value.conversationTurns??(value.text.trim()?[{id:'legacy',text:value.text}]:[])
   if(turns.some(turn=>turn.id===id))return {...value,pendingVoice:undefined}
   const conversationTurns=[...turns,{id,text:text.trim()}],combined=conversationTurns.map(turn=>turn.text).join('\n')
-  if(combined.length>5000)throw Object.assign(new Error('这段记录较长，请先保存，再继续记录。文字仍在本次对话中。'),{code:'CAPTURE_TEXT_TOO_LONG'})
+  if(combined.length>5000)throw Object.assign(new Error('这段记录较长，请先保存，再继续记录。录音仍然保留。'),{code:'CAPTURE_TEXT_TOO_LONG'})
   return {...value,text:combined,conversationTurns,conversationInput:'',pendingVoice:undefined}
 }
 const database = () => new Promise<IDBDatabase>((resolve, reject) => {
@@ -120,7 +130,8 @@ async function captureDraftOnce(key: string, value?: CaptureDraft | null, verifi
     }
     transaction.oncomplete = () => {
       try{if(value===null||(value&&sessionStorage.getItem(checkpointKey(key))===checkpointValue(value)))sessionStorage.removeItem(checkpointKey(key))}catch{/* Storage may be disabled. */}
-      resolve(value === undefined ? restoreCheckpoint(key,restored) : value)
+      const opening=value===undefined?restoreCheckpoint(key,restored):value
+      resolve(value===undefined&&opening?recoverPreviousInteractionDraft(opening):opening)
     }
     transaction.onerror = () => reject(transaction.error)
     transaction.onabort = () => reject(transaction.error)
