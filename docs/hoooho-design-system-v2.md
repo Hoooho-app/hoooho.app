@@ -61,6 +61,10 @@ Hoooho V2 is quiet, trustworthy and information-first. Its product-owner-approve
 
 ## Brand naming
 
+### 前台条件标签（2026-10-27）
+
+前台采用 opt-in `--hoho-color-record-*` 色彩角色：底部症状／就诊资料／用药／日常分别为浅绿／浅蓝／浅紫／相近浅粉紫；顶部已保存记录与已生成清单使用对应较深的 `symptom-pinned`／`material-pinned`，保留文字识别。初始不渲染顶部空栏，记录可访问后出现“症状记录单”，一键整理成功且内容可查看后出现“就诊清单”；首次整理操作留在对话内。仅前台使用这些角色，其他页面配色与全局主题保持原样。
+
 Visible product copy and generated share images use `Hoooho`. Persistence keys and protocol identifiers keep their existing spelling because changing them would be a data or API migration rather than a visual change.
 
 ### Nested original preview
