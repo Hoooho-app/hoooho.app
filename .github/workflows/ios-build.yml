@@ -17,6 +17,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+      - name: Verify build bootstrap
+        run: python3 -m unittest discover -s scripts/ios -p 'test_*.py'
       - name: Prepare Xcode project and existing brand icon
         run: bash scripts/ios/prepare.sh
       - name: Validate property lists
