@@ -1,4 +1,4 @@
-import { CircleCheck, CloudOff, HeartPulse, LoaderCircle, Plus, Sparkles } from 'lucide-react'
+import { CircleCheck, CloudOff, LoaderCircle } from 'lucide-react'
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import logoUrl from '../../assets/logo.svg'
 import { HohoButton } from '../design-system/HohoButton'
@@ -9,20 +9,31 @@ import { recoverBrowserSession } from './SessionBootstrap'
 import './session-recovery.css'
 
 export function SessionRecoveryScreen({ failed = false, onRetry, archive = false }: { failed?: boolean; onRetry?: () => void; archive?: boolean }) {
+  const stage = useBrowserRecoveryState(state => state.stage)
+  const [slow, setSlow] = useState(false)
+  useEffect(() => {
+    setSlow(false)
+    if (failed) return
+    const timer = window.setTimeout(() => setSlow(true), 6000)
+    return () => window.clearTimeout(timer)
+  }, [failed, stage])
   useEffect(() => {
     useBrowserRecoveryState.setState(state => ({ blockingScreens: state.blockingScreens + 1 }))
     return () => useBrowserRecoveryState.setState(state => ({ blockingScreens: Math.max(0, state.blockingScreens - 1) }))
   }, [])
-  return <main className="app-shell session-recovery-screen" data-session-recovery-screen>
-    <header className="hoho-page-header session-recovery-screen__header"><img alt="Hoooho" src={logoUrl} /></header>
+  const description = failed ? '请检查网络后重试，我们会回到你要打开的页面。' : archive ? '正在载入你的档案…' : stage === 'members' ? '正在载入孩子信息…' : '正在连接你的账号…'
+  return <main className="app-shell session-recovery-screen" data-session-recovery-screen aria-busy={!failed}>
     <div className="session-recovery-screen__body">
-      <div aria-hidden="true" className="session-recovery-art"><span className="session-recovery-art__orbit" /><span className="session-recovery-art__paper"><HeartPulse size={32} strokeWidth={1.5}/><span/><span/></span><span className="session-recovery-art__plus"><Plus size={23}/></span><Sparkles className="session-recovery-art__spark" size={24} strokeWidth={1.4}/></div>
-      <div aria-live="polite" role={failed ? 'alert' : 'status'}>
+      <div aria-hidden="true" className="session-recovery-art"><span className="session-recovery-art__orbit"/><img className="session-recovery-art__logo" alt="" src={logoUrl}/></div>
+      <div className="session-recovery-brand"><span>Hoooho</span><span>护护记录</span></div>
+      <div className="session-recovery-copy" aria-live="polite" role={failed ? 'alert' : 'status'}>
         <h1 className="hoho-text-section-title">{failed ? archive ? '部分资料暂时未加载' : '暂时没能连接上' : archive ? '正在打开资料' : '正在打开 Hoooho'}</h1>
-        <p className="hoho-text-caption mt-2">{failed ? '稍后再试一下，我们会回到你要打开的页面。' : '正在连接你的账号…'}</p>
+        <p className="hoho-text-caption">{description}</p>
       </div>
-      {failed ? <HohoButton className="mt-6" onClick={onRetry}>重新连接</HohoButton> : <LoaderCircle aria-hidden="true" className="session-recovery-spinner mt-6" size={22}/>}
+      {failed ? <HohoButton onClick={onRetry}>重新连接</HohoButton> : <div aria-hidden="true" className="session-recovery-progress"><span/></div>}
+      <p className="session-recovery-hint">{!failed && slow ? '连接比平时慢一些，请稍候' : '\u00a0'}</p>
     </div>
+    <footer className="session-recovery-screen__footer">记录<span>·</span>整理<span>·</span>交接</footer>
   </main>
 }
 
