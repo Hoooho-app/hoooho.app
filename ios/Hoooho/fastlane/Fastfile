@@ -22,7 +22,12 @@ platform :ios do
     profile = JSON.parse(File.read(File.join(signing_dir, "profile.json")))
     profile_uuid = profile.fetch("uuid")
     profile_name = profile.fetch("name")
-    build_number = ENV.fetch("GITHUB_RUN_NUMBER", "1")
+    # A retried run must never reuse a build already accepted by Apple.
+    # CFBundleVersion permits three integer components; major is at most four digits.
+    run_number = Integer(ENV.fetch("GITHUB_RUN_NUMBER", "1"))
+    attempt = Integer(ENV.fetch("GITHUB_RUN_ATTEMPT", "1"))
+    UI.user_error!("Build number range exhausted") unless run_number.between?(1, 999_899) && attempt.between?(1, 99)
+    build_number = "#{run_number / 100 + 1}.#{run_number % 100}.#{attempt}"
     build_app(project: "HooohoRecords.xcodeproj", scheme: "HooohoRecords", clean: true,
       output_directory: File.join(signing_dir, "output"), output_name: "HooohoRecords.ipa",
       export_method: "app-store", include_symbols: true,

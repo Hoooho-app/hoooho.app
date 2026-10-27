@@ -9,6 +9,8 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
     private var downloaded: [ObjectIdentifier: URL] = [:]
     private var pendingShares: [(URL, WKDownload)] = []
     private var currentShareDirectory: URL?
+    private var shareRetry: DispatchWorkItem?
+    private var printJob: ReportPrintJob?
     private var hasLoadedPage = false
 
     override func viewDidLoad() {
@@ -23,7 +25,7 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
         controller.add(self, name: "hooohoNative")
         if let url = Bundle.main.url(forResource: "NativeBridge", withExtension: "js"),
            let script = try? String(contentsOf: url, encoding: .utf8) {
-            controller.addUserScript(WKUserScript(source: script, injectionTime: .atDocumentStart, forMainFrameOnly: true))
+            controller.addUserScript(WKUserScript(source: script, injectionTime: .atDocumentStart, forMainFrameOnly: false))
         }
         config.userContentController = controller
         webView = WKWebView(frame: .zero, configuration: config)
@@ -117,8 +119,11 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
             decisionHandler(.cancel)
             if action.navigationType == .linkActivated, let url = action.request.url { openExternal(url) }
         case .blocked:
-            // about:blank is needed by empty subframes and print popups, never by a root navigation.
-            decisionHandler(action.targetFrame?.isMainFrame == false && action.request.url?.absoluteString == "about:blank" ? .allow : .cancel)
+            // Reports use same-origin srcdoc. Neither URL is permitted as a root page.
+            let localFrame = action.targetFrame?.isMainFrame == false &&
+                NavigationPolicy.trusted(webView.url) &&
+                ["about:blank", "about:srcdoc"].contains(action.request.url?.absoluteString ?? "")
+            decisionHandler(localFrame ? .allow : .cancel)
         }
     }
 
@@ -149,23 +154,34 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
 
     private func openExternal(_ url: URL) {
         if url.scheme == "https" {
-            guard presentedViewController == nil else { return }
+            guard presentedViewController == nil, printJob == nil else { return }
             present(SFSafariViewController(url: url), animated: true)
         } else { UIApplication.shared.open(url) }
     }
 
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
-        guard message.frameInfo.isMainFrame, NavigationPolicy.trusted(message.frameInfo.request.url),
+        let origin = message.frameInfo.securityOrigin
+        guard NavigationPolicy.trusted(webView.url),
+              origin.protocol == "https", origin.host == "hoooho.com", origin.port == 0 || origin.port == 443,
               let body = message.body as? [String: Any], let id = body["id"] as? String, id.count < 100,
               let type = body["type"] as? String else { return }
         if type == "print" {
-            guard presentedViewController == nil else { reply(id, ok: false); return }
-            let printer = UIPrintInteractionController.shared
-            printer.printFormatter = webView.viewPrintFormatter()
-            printer.present(animated: true) { [weak self] _, completed, _ in self?.reply(id, ok: completed) }
+            guard presentedViewController == nil, printJob == nil, let html = body["html"] as? String else {
+                reply(id, ok: false, frame: message.frameInfo); return
+            }
+            let frame = message.frameInfo
+            let job = ReportPrintJob(owner: self) { [weak self] completed, error in
+                guard let self else { return }
+                self.reply(id, ok: completed, frame: frame)
+                self.printJob = nil
+                if let error { self.showExportError(error) }
+                self.presentNextDownload()
+            }
+            printJob = job
+            job.start(html: html)
             return
         }
-        guard type == "share", presentedViewController == nil else { reply(id, ok: false); return }
+        guard message.frameInfo.isMainFrame, type == "share", presentedViewController == nil, printJob == nil else { reply(id, ok: false, frame: message.frameInfo); return }
         var items: [Any] = []
         if let text = body["text"] as? String, !text.isEmpty, text.count < 100000 { items.append(text) }
         if let raw = body["url"] as? String, !raw.isEmpty {
@@ -176,14 +192,17 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
         let sheet = UIActivityViewController(activityItems: items, applicationActivities: nil)
         sheet.popoverPresentationController?.sourceView = webView
         sheet.popoverPresentationController?.sourceRect = CGRect(x: view.bounds.midX, y: view.bounds.midY, width: 1, height: 1)
-        sheet.completionWithItemsHandler = { [weak self] _, completed, _, _ in self?.reply(id, ok: completed) }
+        sheet.completionWithItemsHandler = { [weak self] _, completed, _, _ in
+            self?.reply(id, ok: completed)
+            self?.presentNextDownload()
+        }
         present(sheet, animated: true)
     }
 
-    private func reply(_ id: String, ok: Bool) {
+    private func reply(_ id: String, ok: Bool, frame: WKFrameInfo? = nil) {
         guard let data = try? JSONSerialization.data(withJSONObject: [id, ["ok": ok, "error": ok ? "" : "操作未完成"]]),
               let json = String(data: data, encoding: .utf8) else { return }
-        webView.evaluateJavaScript("window.__hooohoNativeReply && window.__hooohoNativeReply(...\(json))", completionHandler: nil)
+        webView.evaluateJavaScript("window.__hooohoNativeReply && window.__hooohoNativeReply(...\(json))", in: frame, in: .page, completionHandler: nil)
     }
 
     func webView(_ webView: WKWebView, navigationAction: WKNavigationAction, didBecome download: WKDownload) { download.delegate = self }
@@ -204,7 +223,16 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
         presentNextDownload()
     }
     private func presentNextDownload() {
-        guard presentedViewController == nil, currentShareDirectory == nil, !pendingShares.isEmpty else { return }
+        shareRetry?.cancel()
+        guard !pendingShares.isEmpty else { return }
+        guard presentedViewController == nil, currentShareDirectory == nil, printJob == nil, view.window != nil else {
+            // All native sheets (including Safari and print) may dismiss without viewDidAppear.
+            // Retry only while there is an actual export waiting for its system share sheet.
+            let next = DispatchWorkItem { [weak self] in self?.presentNextDownload() }
+            shareRetry = next
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4, execute: next)
+            return
+        }
         let (file, _) = pendingShares.removeFirst()
         currentShareDirectory = file.deletingLastPathComponent()
         let sheet = UIActivityViewController(activityItems: [file], applicationActivities: nil)
@@ -222,9 +250,9 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
         if let file = downloaded.removeValue(forKey: ObjectIdentifier(download)) { try? FileManager.default.removeItem(at: file.deletingLastPathComponent()) }
         showExportError()
     }
-    private func showExportError() {
+    private func showExportError(_ message: String = "原记录仍在，请回到记录后重试。") {
         guard presentedViewController == nil else { return }
-        let alert = UIAlertController(title: "导出未完成", message: "原记录仍在，请回到记录后重试。", preferredStyle: .alert)
+        let alert = UIAlertController(title: "导出未完成", message: message, preferredStyle: .alert)
         alert.addAction(UIAlertAction(title: "知道了", style: .default))
         present(alert, animated: true)
     }

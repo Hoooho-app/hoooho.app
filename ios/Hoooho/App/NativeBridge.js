@@ -1,5 +1,6 @@
 (function () {
-  if (location.origin !== 'https://hoooho.com') return;
+  // srcdoc reports inherit the app origin even though location.origin is "null".
+  if (window.origin !== 'https://hoooho.com') return;
   const pending = new Map();
   window.__hooohoNativeReply = function (id, result) {
     const waiter = pending.get(id); if (!waiter) return;
@@ -19,5 +20,7 @@
       return send('share', {title: String(data.title || ''), text: String(data.text || ''), url: String(data.url || '')});
     };
   }
-  window.print = () => { void send('print', {}).catch(() => {}); };
+  window.print = () => {
+    void send('print', {html: document.documentElement.outerHTML}).catch(() => {});
+  };
 })();
