@@ -117,10 +117,15 @@ body .smart-record-home .nurse-turn--user>.nurse-turn-content{background:rgb(var
 .smart-record-home .front-desk-menu{width:176px;max-width:calc(100vw - 32px)}
 .front-desk-top-entries{display:flex;flex:none;gap:var(--hoho-space-2);padding:var(--hoho-space-2) var(--hoho-space-4);border-top:1px solid rgb(var(--hoho-color-border));z-index:3;background:rgb(var(--hoho-color-page-background))}
 .front-desk-top-entries>button{min-height:36px;padding:0 var(--hoho-space-3);border:1px solid rgb(var(--hoho-color-border));border-radius:var(--hoho-radius-control);font-size:var(--hoho-font-size-caption);background:rgb(var(--hoho-color-surface));color:rgb(var(--hoho-color-text-primary));white-space:nowrap}
-.front-desk-top-entries>button:first-child{background:rgb(var(--hoho-color-primary-soft))}
+.front-desk-top-entries>button[data-front-entry='record']{background:rgb(var(--hoho-color-record-symptom-pinned));color:rgb(var(--hoho-color-record-symptom-text));border-color:rgb(var(--hoho-color-record-symptom-text)/.14)}
+.front-desk-top-entries>button[data-front-entry='checklist']{background:rgb(var(--hoho-color-record-material-pinned));color:rgb(var(--hoho-color-record-material-text));border-color:rgb(var(--hoho-color-record-material-text)/.14)}
 .smart-record-home .record-entry-actions--conversation .record-entry-grid{grid-template-columns:1fr 1.35fr .6fr .6fr}
-.smart-record-home .record-entry-actions--conversation .record-entry-grid>button{font-size:var(--hoho-font-size-caption);box-shadow:none}
-.smart-record-home .record-entry-actions--conversation .record-entry-grid>button[data-record-entry='materials']{background:rgb(var(--hoho-color-primary-soft));border-color:rgb(var(--hoho-color-primary-border))}
+.smart-record-home .record-entry-actions--conversation .record-entry-grid>button{font-size:var(--hoho-font-size-caption);box-shadow:none;border-color:transparent}
+.smart-record-home .record-entry-actions--conversation .record-entry-grid>button[data-record-entry='symptom']{--record-entry-surface:rgb(var(--hoho-color-record-symptom-surface));color:rgb(var(--hoho-color-record-symptom-text))}
+.smart-record-home .record-entry-actions--conversation .record-entry-grid>button[data-record-entry='materials']{--record-entry-surface:rgb(var(--hoho-color-record-material-surface));color:rgb(var(--hoho-color-record-material-text))}
+.smart-record-home .record-entry-actions--conversation .record-entry-grid>button[data-record-entry='medication']{--record-entry-surface:rgb(var(--hoho-color-record-medication-surface));color:rgb(var(--hoho-color-record-medication-text))}
+.smart-record-home .record-entry-actions--conversation .record-entry-grid>button[data-record-entry='daily']{--record-entry-surface:rgb(var(--hoho-color-record-daily-surface));color:rgb(var(--hoho-color-record-daily-text))}
+.smart-record-home .record-entry-actions--conversation .record-entry-grid>button[aria-pressed='true']{border-color:currentColor}
 .smart-record-home .record-entry-actions--conversation .daily-record-options{grid-template-columns:repeat(3,minmax(0,1fr))}
 .smart-record-home .hoho-dialogue-composer--conversation:focus-within{outline:none;border-color:rgb(var(--hoho-color-primary)/.14);box-shadow:var(--hoho-shadow-card)}
 .smart-record-home .hoho-dialogue-composer--conversation>textarea:focus-visible{outline:1px solid rgb(var(--hoho-color-primary-border));outline-offset:-1px;border-radius:var(--hoho-radius-small)}
@@ -131,5 +136,7 @@ body .smart-record-home .nurse-turn--user>.nurse-turn-content{background:rgb(var
 .continuous-record-card p,.front-desk-checklist{white-space:pre-wrap;overflow-wrap:anywhere;margin:0;line-height:1.7}
 .continuous-record-card small{color:rgb(var(--hoho-color-text-secondary));font-size:var(--hoho-font-size-caption)}
 .front-desk-recorded{color:rgb(var(--hoho-color-link));font-size:var(--hoho-font-size-caption)}
+.front-desk-checklist-action{display:flex;align-items:center;justify-content:space-between;gap:var(--hoho-space-3);padding:var(--hoho-space-3) var(--hoho-space-4);border:1px solid rgb(var(--hoho-color-border));border-radius:var(--hoho-radius-card);background:rgb(var(--hoho-color-surface-white));font-size:var(--hoho-font-size-body-small)}
+.front-desk-checklist-action>.hoho-button{background:rgb(var(--hoho-color-record-material-surface));color:rgb(var(--hoho-color-record-material-text));border-color:transparent}
 .continuous-record-editor,.continuous-record-editor label{display:grid;gap:var(--hoho-space-2);min-width:0}
 .continuous-record-editor input,.continuous-record-editor textarea{box-sizing:border-box;max-width:100%;width:100%;font-size:16px;padding:var(--hoho-space-2);border:1px solid rgb(var(--hoho-color-border));border-radius:var(--hoho-radius-control);background:rgb(var(--hoho-color-surface));color:inherit}
