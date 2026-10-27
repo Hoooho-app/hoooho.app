@@ -10,7 +10,15 @@ test.beforeEach(async({page,request})=>{
  expect(response.ok()).toBe(true);memberId=(await response.json()).id
  await page.addInitScript(({token,memberId})=>{sessionStorage.setItem('hoooho-auth-token',token);localStorage.setItem('hoooho-app',JSON.stringify({state:{authUser:{id:'visit-test'},currentMemberId:memberId,members:[],profile:null},version:5}))},{token,memberId})
 })
-async function openDiet(page:Page){await page.getByRole('button',{name:'喂养/饮食',exact:true}).click();return page.getByRole('dialog',{name:'喂养/饮食',exact:true})}
+async function openDiet(page:Page){
+ const form=page.getByRole('dialog',{name:'喂养/饮食',exact:true})
+ if(await form.isVisible())return form
+ // The entry navigates to the existing calendar form. Reload remains on that
+ // page, whose own shortcut names are intentionally unchanged.
+ if(new URL(page.url()).pathname==='/health-events')await page.getByRole('button',{name:'喂养/饮食',exact:true}).click()
+ else{await page.getByRole('button',{name:'日常',exact:true}).click();await page.getByRole('button',{name:'喂养与饮食',exact:true}).click()}
+ return form
+}
 
 test('hidden features cannot load from bookmarks, navigation or help; core records remain',async({page},info)=>{
  const hiddenRequests:string[]=[]
