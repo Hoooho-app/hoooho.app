@@ -660,9 +660,23 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
     }).catch(()=>undefined)
     return()=>{active=false}
   },[home,key,local.frontContextId,local.frontContextVersion,local.recognitionSnapshot?.seq])
-  async function cardAction(action:string,input:Record<string,unknown>={}){
-    const card=continuousCard,epoch=workEpoch.current
+  async function ensureCurrentCard(){
+    const contextId=current.current.frontContextId,epoch=workEpoch.current
+    if(!ready)return null
+    if(!contextId){setHomeNotice('先说说需要记录的情况。');return null}
+    if(continuousCard?.contextId===contextId&&continuousCard.version>=(current.current.frontContextVersion??0))return continuousCard
+    const scope=++cardScope.current
+    const card=await request<ContinuousCard>(`${frontUrl}/contexts/${contextId}`,'POST',{action:'current_card'})
+    assertWork(epoch)
+    if(current.current.frontContextId!==contextId||card.version<(current.current.frontContextVersion??0))throw Error('记录单已有更新，请查看最新内容')
+    if(scope===cardScope.current)setContinuousCard(card)
+    return card
+  }
+  async function openCurrentCard(){const epoch=workEpoch.current;try{if(await ensureCurrentCard())setRecordOpen(true)}catch(e){if(epoch===workEpoch.current)setError(e instanceof Error?e.message:'记录单暂未打开，请重试')}}
+  async function cardAction(action:string,input:Record<string,unknown>={},targetCard=continuousCard){
+    const card=targetCard,epoch=workEpoch.current
     if(!card||cardBusy)throw Error('请稍后重试')
+    ++cardScope.current
     setCardBusy(true);setError('')
     try{
       const url=`${frontUrl}/contexts/${card.contextId}`
@@ -698,13 +712,16 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
     await viewSavedRecord({id:`continuous:${saved.recordId}`,memberId,eventId:saved.eventId,recordId:saved.recordId,category:saved.category,...saved.profileEntries?.[0],text:'已记录',at:Date.parse(saved.at)})
   }
   async function openChecklist(){
-    if(!continuousCard){setHomeNotice('先说说需要记录的情况。');return}
-    if(continuousCard.checklist?.version===continuousCard.evidenceVersion){setChecklistOpen(true);return}
-    try{await cardAction('visit_checklist');setChecklistOpen(true)}catch(e){setError(e instanceof Error?e.message:'清单未生成，请重试')}
+    const epoch=workEpoch.current
+    try{
+      const card=await ensureCurrentCard();if(!card)return
+      if(card.checklist?.version===card.evidenceVersion){setChecklistOpen(true);return}
+      await cardAction('visit_checklist',{},card);setChecklistOpen(true)
+    }catch(e){if(epoch===workEpoch.current)setError(e instanceof Error?e.message:'清单未生成，请重试')}
   }
   const currentCardDisabled=cardBusy||Boolean(continuousCard&&continuousCard.version<(local.frontContextVersion??0))
   const currentCardProps=continuousCard?{card:continuousCard,editDraft:local.frontCardEdit,onEditDraft:(frontCardEdit:import('./ContinuousRecordCard').ContinuousCardEdit|undefined)=>change({frontCardEdit}),disabled:currentCardDisabled,onEdit:editCurrentCard,onSave:()=>void saveCurrentCard(),onView:()=>void viewCurrentCard()}:null
-  const topEntries=home&&<nav className="front-desk-top-entries" aria-label="当前记录入口"><button type="button" onClick={()=>continuousCard?setRecordOpen(true):setHomeNotice('先说说需要记录的情况。')}>症状记录单</button><button type="button" disabled={cardBusy} onClick={()=>void openChecklist()}>{continuousCard?.checklist?'就诊清单':'一键整理'}</button></nav>
+  const topEntries=home&&<nav className="front-desk-top-entries" aria-label="当前记录入口"><button type="button" disabled={!ready||cardBusy} onClick={()=>void openCurrentCard()}>症状记录单</button><button type="button" disabled={!ready||cardBusy} onClick={()=>void openChecklist()}>{continuousCard?.checklist?'就诊清单':'一键整理'}</button></nav>
   const processingLabel=localStage==='uploading'?'接收中':localStage==='converting'||job?.stage==='converting'||job?.stage==='transcribing'?'转写中':job?.stage==='reading'?'读图中':['organizing','publishing'].includes(job?.stage??'')?'整理中':'理解中'
   const body=<>
     {resumeChoices ? <div className="smart-record-resume">

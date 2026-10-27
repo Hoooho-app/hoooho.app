@@ -38,6 +38,20 @@ test('manual front-card revisions queue organization without another dialogue an
  assert.equal(card.saved.recordId,first.saved.recordId);assert.equal(record.content,'现在手臂不痒了');assert.ok(record.aiProvenance.structuredItems.length);assert.match(record.sourceText,/手臂有点痒/)
  assert.equal((await f.business.records.repository.findByAccountId(accountId)).length,1)
 })
+test('another instance cannot publish a task with a live owner lease',async t=>{
+ const f=await setup(t),other=new RecognitionJobs({dataDirectory:f.directory,events:f.events,business:f.business,frontDesk:f.front,audio:f.audio,autoStart:false,logger:{warn(){}}})
+ let publications=0;other.publish=async()=>{publications++}
+ try{
+  f.jobs.put({id:'leased-publication',accountId:'synthetic',memberId:f.member.id,scopeKey:'front',mode:'front',state:'publishing',stage:'publishing',owner:f.jobs.owner,leaseUntil:Date.now()+30000,cancelEpoch:0,inputRevision:1,resultRevision:0,inputs:[],options:{},commandIds:[]})
+  other.kick();await delay(20)
+  assert.equal(publications,0);assert.equal(other.active.size,0)
+  const expired=f.jobs.raw('leased-publication');f.jobs.put({...expired,leaseUntil:Date.now()-1})
+  other.kick();await delay(20)
+  assert.equal(publications,1);assert.equal(other.raw('leased-publication').owner,other.owner);assert.equal(other.raw('leased-publication').cancelEpoch,1)
+  f.jobs.publicationFailed('leased-publication',{code:'STALE_PUBLISHER'})
+  assert.equal(other.raw('leased-publication').state,'publishing')
+ }finally{await other.close();await until(()=>!other.active.size);other.db.close()}
+})
 test('durable ACK, idempotent input, latest revision and formal save guard',async t=>{
  const f=await setup(t),ack=await f.submit('first','脸颊发红');assert.equal(ack.inputRevision,1);assert.equal(ack.resultRevision,0)
  const ready=await until(async()=>{const j=await f.snapshot();return j.state==='ready'&&j});assert.equal(ready.review.inputText,'脸颊发红')

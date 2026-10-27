@@ -211,7 +211,15 @@ export class RecognitionJobs {
     for(const j of this.db.prepare("SELECT document FROM jobs WHERE json_extract(document,'$.state') IN ('queued','running','publishing')").all().map(row=>JSON.parse(row.document))){
       const key=JSON.stringify([j.accountId,j.memberId])
       if(j.state==='running'&&j.leaseUntil<this.now()&&!this.active.has(key)){j.state='paused';j.stage='paused';j.owner=null;j.error={code:'RECOGNITION_INTERRUPTED',message:'处理曾中断，已完成的步骤保留；继续前请确认重试'};this.put(j)}
-      if(j.state==='publishing'&&!this.active.has(key)){this.active.set(key,{id:j.id,controller:new AbortController()});void withAITrace({traceId:j.id,operation:'recognition-job'},()=>this.publish(j.id)).catch(error=>this.publicationFailed(j.id,error)).finally(()=>this.active.delete(key));continue}
+      if(j.state==='publishing'&&!this.active.has(key)){
+        const claimed=this.transaction(()=>{
+          const current=this.raw(j.id)
+          if(current?.state!=='publishing'||current.owner&&current.owner!==this.owner&&current.leaseUntil>this.now())return null
+          return this.put({...current,owner:this.owner,leaseUntil:this.now()+15000,cancelEpoch:current.cancelEpoch+(current.owner&&current.owner!==this.owner?1:0)})
+        })
+        if(!claimed)continue
+        this.active.set(key,{id:j.id,controller:new AbortController()});void withAITrace({traceId:j.id,operation:'recognition-job'},()=>this.publish(j.id)).catch(error=>this.publicationFailed(j.id,error)).finally(()=>this.active.delete(key));continue
+      }
       if(j.state!=='queued'||this.active.has(key))continue
       const controller=new AbortController(),active={id:j.id,controller,stage:'queued'};this.active.set(key,active)
       void withAITrace({traceId:j.id,operation:'recognition-job'},()=>this.run(j.id,active)).catch(error=>this.logger.warn('[Hoooho recognition] worker failed',{code:error.code??'RECOGNITION_WORKER_FAILED'})).finally(()=>{this.active.delete(key);if(active.claimed)this.kick()})
@@ -224,7 +232,7 @@ export class RecognitionJobs {
     if(!j)return
     active.claimed=true
     const epoch=j.cancelEpoch,started=this.now(),budget=j.inputs.some(i=>i.kind==='image')?300000:120000,signal=AbortSignal.any([active.controller.signal,AbortSignal.timeout(Math.max(1,budget-j.activeMs))])
-    const heartbeat=setInterval(()=>{const current=this.raw(id);if(current?.owner===this.owner&&current.cancelEpoch===epoch&&current.state==='running'){current.leaseUntil=this.now()+15000;this.put(current,false)}},5000);heartbeat.unref()
+    const heartbeat=setInterval(()=>{const current=this.raw(id);if(current?.owner===this.owner&&current.cancelEpoch===epoch&&['running','publishing'].includes(current.state)){current.leaseUntil=this.now()+15000;this.put(current,false)}},5000);heartbeat.unref()
     const phase=async patch=>{active.stage=patch.stage;const current=await this.updateActive(id,epoch,signal,{stage:patch.stage,progress:patch.total===undefined?null:{completed:patch.completed,total:patch.total,reused:!!patch.reused}});return current}
     try{
       await this.scope(j.accountId,j.memberId)
@@ -408,26 +416,31 @@ export class RecognitionJobs {
   }
   async publish(id){
     const row=this.db.prepare('SELECT document FROM outbox WHERE job_id=?').get(id);if(!row)return
-    const outbox=JSON.parse(row.document),j=this.raw(id);if(j.state!=='publishing')return;if(j.inputRevision!==outbox.revision){await withStorageLock(()=>{const current=this.raw(id);if(current.state==='publishing'){this.db.prepare('DELETE FROM outbox WHERE job_id=?').run(id);this.put({...current,state:'queued',stage:'queued'})}});return}
+    const outbox=JSON.parse(row.document),j=this.raw(id);if(j.state!=='publishing'||j.owner!==this.owner)return
+    const assertOwner=()=>{const current=this.raw(id);if(current?.state!=='publishing'||current.owner!==this.owner||current.cancelEpoch!==j.cancelEpoch||current.inputRevision!==outbox.revision)throw fail('任务已变化',409,'RECOGNITION_REVISION_CONFLICT')}
+    const heartbeat=setInterval(()=>{const current=this.raw(id);if(current?.state==='publishing'&&current.owner===this.owner&&current.cancelEpoch===j.cancelEpoch)this.put({...current,leaseUntil:this.now()+15000},false)},5000);heartbeat.unref()
+    try{
+    if(j.inputRevision!==outbox.revision){await withStorageLock(()=>{const current=this.raw(id);if(current.state==='publishing'&&current.owner===this.owner){this.db.prepare('DELETE FROM outbox WHERE job_id=?').run(id);this.put({...current,state:'queued',stage:'queued',owner:null,leaseUntil:0})}});return}
     const review=await this.business.read(j.accountId,j.memberId,outbox.draftId)
     if(review.id!==outbox.review.id||review.version!==outbox.review.version||review.state!=='ready')throw fail('整理结果已有变化，请重新核对',409)
     let frontDesk=j.frontDesk
     if(j.mode==='front'&&outbox.contextId){
-      await this.front.checkpoint(j.accountId,j.memberId,outbox.contextId,{draftId:review.id},()=>{const current=this.raw(id);if(current.state!=='publishing'||current.cancelEpoch!==j.cancelEpoch||current.inputRevision!==outbox.revision)throw fail('任务已变化',409)})
+      await this.front.checkpoint(j.accountId,j.memberId,outbox.contextId,{draftId:review.id},assertOwner)
       // Include the published context so clients can consume the ready response
       // directly. Public serialization below strips private original bytes.
       const context=await this.front.snapshot(j.accountId,j.memberId,outbox.contextId)
-      if(context?.continuousRecord)await this.front.enrichContinuous(j.accountId,j.memberId,outbox.contextId)
+      if(context?.continuousRecord){assertOwner();await this.front.enrichContinuous(j.accountId,j.memberId,outbox.contextId)}
       const fresh=context?.continuousRecord?await this.front.snapshot(j.accountId,j.memberId,outbox.contextId):context
       if(fresh)frontDesk={...frontDesk,context:{...fresh,review,messages:fresh.messages.map(publicFrontMessage)}}
     }
-    await withStorageLock(()=>this.transaction(()=>{const latest=this.raw(id);if(latest.state!=='publishing'||latest.inputRevision!==outbox.revision||latest.cancelEpoch!==j.cancelEpoch)return
+    await withStorageLock(()=>this.transaction(()=>{const latest=this.raw(id);if(latest.state!=='publishing'||latest.owner!==this.owner||latest.inputRevision!==outbox.revision||latest.cancelEpoch!==j.cancelEpoch)return
       const needsReview=!!(unresolved(latest).length||review.documentWarnings?.length||review.unmappedRows?.length||review.sources?.some(s=>s.status==='uncertain'))
       this.put({...latest,state:needsReview?'needs_review':'ready',stage:'ready',resultKind:needsReview?'partial':review.items.length?'candidates':'no_change',review,frontDesk,resultRevision:outbox.revision,draftVersion:review.version,owner:null,leaseUntil:0,error:null})
       this.db.prepare('DELETE FROM outbox WHERE job_id=?').run(id)
     }))
+    }finally{clearInterval(heartbeat)}
   }
-  publicationFailed(id,error){const j=this.raw(id);if(j?.state==='publishing')this.put({...j,state:'failed',stage:'failed',owner:null,leaseUntil:0,error:{code:error.code??'RECOGNITION_PUBLISH_FAILED',message:'整理结果尚未完成核对，原件和结果已保留，请重试'}})}
+  publicationFailed(id,error){const j=this.raw(id);if(j?.state==='publishing'&&j.owner===this.owner)this.put({...j,state:'failed',stage:'failed',owner:null,leaseUntil:0,error:{code:error.code??'RECOGNITION_PUBLISH_FAILED',message:'整理结果尚未完成核对，原件和结果已保留，请重试'}})}
   async close(){this.closed=true;for(const listeners of this.waiters.values())for(const notify of [...listeners])notify();this.unregister();clearInterval(this.timer);for(const a of this.active.values()){const j=this.raw(a.id);if(j&&['running','publishing'].includes(j.state)){j.state='paused';j.stage='paused';j.cancelEpoch++;j.owner=null;j.leaseUntil=0;this.put(j)}a.controller.abort()}await Promise.allSettled([])}
 }
 
