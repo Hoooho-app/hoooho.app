@@ -14,8 +14,10 @@ Acceptance checklist:
 - [x] 两个顶部入口顺序稳定，绿色／蓝色略深；无标签时整个栏不渲染。
 - [x] 底部顺序和文案保持“记录症状／就诊资料回传／用药／日常”，分别浅绿、浅蓝、浅紫、相近浅粉紫。
 - [x] 320／375／390／430px 浏览器下可操作、无溢出，相关浏览器回归及完整构建通过。
-- [ ] 提交、推送、合并 main、Railway Production SUCCESS、正式站读取核验。仅 Production，不创建 Staging。
+- [x] 提交、推送、合并 main、Railway Production SUCCESS、正式站读取核验。仅 Production，不创建 Staging。
 
 Product-owner approval: 2026-10-27 用户确认三屏高保真并要求直接实现。本地移动浏览器仿真不代表实体 iPhone 验证。
 
 Local validation: production build PASS; `TZ=Asia/Shanghai npm run test:client` 789/789 PASS; front-desk mobile browser regression 60/60 PASS (375, 320, 390, 430px); blank PDF original retention browser regression 1/1 PASS. Screenshots reviewed for empty top area and completed entry colors. Supplier replies in local regressions are synthetic; persistence, routing and browser operations are real. Production rollout and live validation will be recorded in the implementation PR.
+
+Production validation: PR #555 merged as `3b1704b01a450feace538d1142fe4c0636a12bf2`; Railway deployment `677dfd77-7191-4c93-b4b0-89e9ff8410eb` reached `SUCCESS`. Live browser verification at https://hoooho.com/nurse-station passed initial/no tags, real save/record tag, one-click generation/readable checklist tag, deeper top colors, four pale bottom colors, refresh recovery/latest record access, 320px layout and exactly one persisted record. The synthetic member, record and event were removed and their absence checked. No physical iPhone or supplier-quality acceptance is claimed. The environment proxy required forwarding unchanged HTTPS responses through the system-CA-verifying API transport; certificate verification was not disabled.
