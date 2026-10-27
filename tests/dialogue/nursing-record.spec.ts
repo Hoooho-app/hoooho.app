@@ -12,7 +12,8 @@ test.beforeEach(async({page,request})=>{
   await request.get('http://127.0.0.1:4198/success')
   await request.post('http://127.0.0.1:4198/draft-data',{data:{items:null}})
   await page.addInitScript(({token,memberId})=>{sessionStorage.setItem('hoooho-auth-token',token);localStorage.setItem('hoooho-app',JSON.stringify({state:{authUser:{id:'visit-test'},currentMemberId:memberId,members:[],profile:null},version:5}))},{token,memberId})
-  await page.goto('/nurse-station')
+  // The independent legacy workspace keeps its reviewed questionnaire contract.
+  await page.goto('/smart-record?source=front-desk')
   await page.getByRole('button',{name:'改用文字',exact:true}).click()
 })
 
@@ -41,6 +42,7 @@ test('[legacy protocol2] specific questions, bound quick answers, refresh, unkno
   const context=await (await request.get(`/api/members/${memberId}/front-desk-record`,{headers})).json()
   expect(context.interview.turnCount).toBeLessThanOrEqual(3)
   await page.reload()
+  if(await page.getByRole('button',{name:'改用文字',exact:true}).isVisible())await page.getByRole('button',{name:'改用文字',exact:true}).click()
   await expect(page.getByLabel('回答当前问题')).toBeVisible()
   await expect(page.getByLabel('对话输入')).toHaveValue('还有一段待补充')
   for(const width of [320,375,390,430]){
@@ -55,7 +57,8 @@ test('[legacy protocol2] specific questions, bound quick answers, refresh, unkno
   await page.getByRole('button',{name:'立即保存',exact:true}).click()
   await expect(page.getByRole('button',{name:'查看记录',exact:true})).toBeVisible()
   await expect(page.getByLabel('回答当前问题')).toHaveCount(0)
-  await expect(page.getByLabel('对话输入')).toHaveValue('还有一段待补充')
+  const retainedInputs=await page.evaluate(()=>new Promise<string[]>((resolve,reject)=>{const opening=indexedDB.open('hoooho-smart-record-drafts',1);opening.onsuccess=()=>{const db=opening.result,read=db.transaction('drafts','readonly').objectStore('drafts').getAll();read.onsuccess=()=>{resolve(read.result.map(draft=>draft.conversationInput??''));db.close()};read.onerror=()=>reject(read.error)}}))
+  expect(retainedInputs).toContain('还有一段待补充')
 })
 
 test('professional summary is primary and saving does not require opening original fields',async({page,request},info)=>{
@@ -133,6 +136,7 @@ test('restored protocol2 question remains bound when the current client sends pr
   await page.getByLabel('对话输入').fill('刷新后仍保留的未提交内容')
   await legacy.release()
   await page.reload()
+  if(await page.getByRole('button',{name:'改用文字',exact:true}).isVisible())await page.getByRole('button',{name:'改用文字',exact:true}).click()
   await expect(page.getByLabel('对话输入')).toHaveValue('刷新后仍保留的未提交内容')
   await expect(page.getByLabel('回答当前问题')).toBeVisible()
   const sent=page.waitForRequest(r=>r.method()==='POST'&&new URL(r.url()).pathname.endsWith('/recognition-jobs'))

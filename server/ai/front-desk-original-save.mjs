@@ -43,7 +43,7 @@ function sameOriginal(original, prepared) {
   return /^image\/hei[cf]$/iu.test(original.mimeType ?? '') && prepared.originalMimeType === original.mimeType && Number.isInteger(original.inputIndex) && original.inputIndex === prepared.inputIndex && stem(original.name) !== null && stem(original.name) === stem(prepared.name)
 }
 
-function originals(messages, memberId) {
+export function originals(messages, memberId) {
   const files = []
   for (const message of messages) {
     for (const key of ['files', 'originalFiles', 'voices']) if (message[key] != null && !Array.isArray(message[key])) throw fail('原件列表无效', 422, 'FRONT_ORIGINAL_FILE_INVALID')

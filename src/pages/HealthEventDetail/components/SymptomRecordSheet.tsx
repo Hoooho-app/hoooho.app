@@ -253,6 +253,7 @@ export function SymptomRecordSheet({ origin, entry, memberId, memberName, record
           {entry.source.note && <section><h3>备注</h3><p className="symptom-record-original">{entry.source.note}</p></section>}
           {record?.journal?.aiNurse && <NurseNotes value={record.journal.aiNurse}/>}
           {record&&<RecordOriginals key={record.id} eventId={record.eventId} recordId={record.id} attachmentIds={record.aiProvenance?.attachmentIds}/> }
+          {record?.aiProvenance?.frontContextId&&record.sourceText&&<details><summary>查看原话</summary><p className="symptom-record-original">{record.sourceText}</p></details>}
           {record?.aiProvenance&&<section><h3>整理来源与核对记录</h3>{record.aiProvenance.notice&&<p>{record.aiProvenance.notice}</p>}{record.aiProvenance.time.precision==='unknown'&&<p>原文发生时间未明确；创建时间不代表发生时间。</p>}{record.aiProvenance.sources.map((s,i)=><details key={i}><summary>原始依据 · 第{s.page}页</summary><p>{s.quote}</p></details>)}{record.aiProvenance.originalVersions.map((v,i)=><details key={i}><summary>更正前原文 {i+1}</summary><p>{v}</p></details>)}</section>}
           {error && <p className="symptom-record-error" role="alert">{error}</p>}
         </div>

@@ -3,13 +3,13 @@ on:
   push:
     branches: [codex/smart-record-progress-20261016]
   pull_request:
-    paths: ['server/ai/**', 'src/features/ai-business/**', 'tests/dialogue/**', 'tests/helpers/**', 'tests/visit-sheet/**', 'tests/nurse-frontdesk-upgrade-mobile/**', 'tests/selective-rollback/**', 'tests/conversation-home/**', '.github/workflows/smart-record-verification.yml']
+    paths: ['server/ai/**', 'src/features/ai-business/**', 'tests/dialogue/**', 'tests/helpers/**', 'tests/visit-sheet/**', 'tests/nurse-frontdesk-upgrade-mobile/**', 'tests/front-desk-continuous/**', 'tests/selective-rollback/**', 'tests/conversation-home/**', '.github/workflows/smart-record-verification.yml']
 permissions:
   contents: read
 jobs:
   verify:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -51,14 +51,14 @@ jobs:
       - run: node --test tests/dialogue/synthetic-acceptance-account.test.mjs tests/dialogue/synthetic-acceptance-cleanup.test.mjs
       - run: node --test tests/visit-sheet/front-desk-v3-fixture.test.mjs
       - run: npm run test:help
-      - run: node --test tests/selective-rollback/baseline-contract.test.mjs
+      - run: node --test tests/selective-rollback/baseline-contract.test.mjs server/ai/front-desk-continuous.test.mjs server/ai/front-desk-understanding.test.mjs server/ai/front-desk-record-targets.test.mjs
       - run: npm run build
       - run: npx playwright test --config tests/dialogue/symptom-followup.config.ts
       - if: ${{ !cancelled() }}
         run: npx playwright test --config tests/dialogue/playwright.config.ts recognition-progress.spec.ts smart-record-actions.spec.ts smart-record-exit.spec.ts nursing-record.spec.ts nurse-dialogue-guidance.spec.ts --grep-invert 'saving while ASR is pending'
       - name: Verify current protocol3 front-desk mobile flows
         if: ${{ !cancelled() }}
-        run: npx playwright test --config tests/nurse-frontdesk-upgrade-mobile/playwright.config.ts
+        run: npx playwright test --config tests/front-desk-continuous/playwright.config.ts
       - name: Verify selective rollback draft and data compatibility
         run: npx playwright test --config tests/selective-rollback/playwright.config.ts
       - run: npx playwright test --config tests/conversation-home/playwright.config.ts

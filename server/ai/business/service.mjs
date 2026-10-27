@@ -45,7 +45,7 @@ const text = (v, limit = 10000) => typeof v === 'string' && v.length <= limit ? 
 const field = (item, name) => item.fields.find(f => f.name === name)?.value
 const keyFor = (item,draft) => fingerprint({...(draft.frontUnderstanding&&!draft.frontUnderstanding.recordChangesPending?{occurrenceDraftId:draft.id,occurrenceItemId:item.id}:{}),category:item.category,time:item.time?.resolvedStart ?? item.timeText ?? draft.referenceNow,...(item.answerObservations?.length?{answerObservations:item.answerObservations.map(a=>({questionId:a.questionId,text:a.text}))}:{}),fields:item.fields.map(({name,value})=>({name,value})).sort((a,b)=>a.name.localeCompare(b.name)||a.value.localeCompare(b.value))})
 const publicDraft = d => ({id:d.id,version:d.version,state:d.state,followUp:d.followUp??true,...(d.frontUnderstanding&&!d.frontUnderstanding.recordChangesPending?{frontSubject:d.frontSubject,subjectConfirmed:d.items.length>0&&d.items.every(item=>item.subjectConfirmed===true),frontEvidenceVersion:d.frontEvidenceVersion}:{}),profileBatchId:d.profileBatchId??null,targetEventId:d.targetEventId??null,sourceRecordId:d.sourceRecordId??null,preview:d.preview??null,generation:d.manualOriginal?{provider:'manual',model:null,requestId:null}:d.generation??null,inputText:d.raw,items:d.items,questions:d.questions,conflicts:d.conflicts??[],confirmConflicts:Boolean(d.confirmConflicts),unmappedRows:d.unmappedRows??[],documentWarnings:d.documentWarnings??[],confirmPageWarnings:Boolean(d.confirmPageWarnings),sources:d.sources.map(({hash,diagnostics,...s})=>s),pages:d.pages.map(({dataUrl,hash,...p})=>p),result:d.result ?? null,expiresAt:d.expiresAt})
-const contentFor=item=>validateProfessionalSummary(item.professionalSummary,{...item,id:item.id??item.itemId})?item.professionalSummary.text:item.fields.map(f=>`${f.nameResolution?.source==='duration_phrase'?'睡眠时长':item.category==='activity'&&f.name==='symptom'?'活动原话':fieldLabels[f.name]??f.name}：${f.value}`).join('\n')
+export const contentFor=item=>validateProfessionalSummary(item.professionalSummary,{...item,id:item.id??item.itemId})?item.professionalSummary.text:item.fields.map(f=>`${f.nameResolution?.source==='duration_phrase'?'睡眠时长':item.category==='activity'&&f.name==='symptom'?'活动原话':fieldLabels[f.name]??f.name}：${f.value}`).join('\n')
 const revisionKey=r=>fingerprint([r.type,r.content,r.occurredAt,r.journal,r.aiProvenance])
 const groupFor=item=>{
   if(!item.time?.resolvedStart)return null
@@ -216,7 +216,7 @@ export class AIBusinessService {
     // Raw-input checkpoints preserve already verified recognition artifacts.
     draft.sources=(previous?.sources??[]).filter(s=>draft.pages.some(p=>s.hash===p.hash&&s.recognitionKey===recognitionKey(p,pageModel)))
     draft.manualOriginal=false;draft.voices=voices
-    draft.smartRecord=smartRecord;draft.selectedOccurredAt=selectedOccurredAt;draft.confirmOccurrenceTime=confirmOccurrenceTime;draft.followUp=followUp
+    draft.continuousRecord=input.continuousRecord===true||previous?.continuousRecord===true;draft.smartRecord=smartRecord;draft.selectedOccurredAt=selectedOccurredAt;draft.confirmOccurrenceTime=confirmOccurrenceTime;draft.followUp=followUp
     draft.frontDeskRecord=frontDeskRecord
     draft.semanticVersion=semanticVersion;draft.unresolvedItems=answers.unresolvedItems??[]
     draft.frontContextId=frontContextId
@@ -426,7 +426,7 @@ export class AIBusinessService {
     // Only live parent narration opts into the user's current-time default.
     // Explicit vague/historical dates and uploaded report times stay unresolved.
     const parentNarration = !draft.documents.length || item.fields.every(f=>f.sources?.length&&f.sources.every(s=>s.sourceId==='input'))
-    if(draft.smartRecord&&parentNarration&&!item.timeText&&!item.timeEditedBy&&(!draft.frontUnderstanding||draft.frontUnderstanding.recordChangesPending))item.time={...item.time,resolvedStart:new Date(draft.selectedOccurredAt??draft.referenceNow).toISOString(),resolvedEnd:null,precision:'exact',source:'recorded_time',defaulted:true}
+    if(draft.smartRecord&&parentNarration&&!item.timeText&&!item.timeEditedBy&&(!draft.frontUnderstanding||draft.frontUnderstanding.recordChangesPending||draft.continuousRecord))item.time={...item.time,resolvedStart:new Date(draft.selectedOccurredAt??draft.referenceNow).toISOString(),resolvedEnd:null,precision:'exact',source:'recorded_time',defaulted:true}
     for(const f of item.fields.filter(f=>['sleepAt','wakeAt'].includes(f.name))){
       delete f.resolvedValue
       let timeText=f.value

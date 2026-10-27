@@ -1,0 +1,150 @@
+import assert from 'node:assert/strict'
+import test from 'node:test'
+import {mkdtemp,rm} from 'node:fs/promises'
+import os from 'node:os'
+import path from 'node:path'
+import {AIBusinessService} from './business/service.mjs'
+import {FrontDeskRecord} from './front-desk-record.mjs'
+import {CaseContinuityService} from '../events/case-continuity-service.mjs'
+import {FamilyMemberRepository} from '../members/repositories/family-member-repository.mjs'
+
+async function fixture(t){
+ const directory=await mkdtemp(path.join(os.tmpdir(),'front-continuous-'));t.after(()=>rm(directory,{recursive:true,force:true}))
+ const accountId='synthetic',member=await new FamilyMemberRepository(directory).create({accountId,name:'合成孩子',relationship:'child'})
+ const now=()=>new Date('2026-10-27T06:00:00Z'),business=new AIBusinessService({dataDirectory:directory,now,model:{structured(){assert.fail('no paid calls')}}}),front=new FrontDeskRecord({dataDirectory:directory,business,events:business.events,now})
+ const contextId='continuous-context',at='2026-10-27T05:00:00.000Z',subject={kind:'current',memberId:member.id,confirmed:true,confirmedBy:'selection'}
+ await front.store.update(()=>({contexts:[{id:contextId,accountId,memberId:member.id,continuousRecord:true,version:1,evidenceVersion:1,firstDescribedAt:at,createdAt:at,updatedAt:at,subject}],messages:[{id:'m1',accountId,memberId:member.id,contextId,kind:'text',status:'completed',acceptedInput:true,text:'头有点疼',inputAt:Date.parse(at),at,subject,files:[],voices:[]}]}))
+ return {directory,accountId,memberId:member.id,contextId,front,business,at,subject}
+}
+test('raw save works without a structured draft; retries and later saves retain one exact ID and first occurrence',async t=>{
+ const f=await fixture(t),args=[f.accountId,f.memberId,f.contextId]
+ const first=await f.front.continuous(...args,{action:'save_current',expectedVersion:1,confirmed:true})
+ const again=await f.front.continuous(...args,{action:'save_current',expectedVersion:1,confirmed:true})
+ assert.equal(first.saved.recordId,again.saved.recordId)
+ assert.equal((await f.business.records.getOwnedRecord(f.accountId,first.saved.recordId)).revisions?.length??0,0)
+ assert.equal(first.occurredAt,f.at);assert.equal((await f.business.records.getOwnedRecord(f.accountId,first.saved.recordId)).content,'头有点疼')
+ assert.equal((await f.business.records.repository.findByAccountId(f.accountId)).length,1)
+ assert.equal((await f.business.events.get(f.accountId,first.saved.eventId)).caseTracking,false)
+})
+test('manual revision is immediately readable, invalidates old evidence and stale writes; explicit occurrence stays fixed',async t=>{
+ const f=await fixture(t),args=[f.accountId,f.memberId,f.contextId]
+ const card=await f.front.continuous(...args,{action:'edit_current',expectedVersion:1,title:'头部不适',text:'昨晚八点头疼，今天减轻',occurredAt:'2026-10-26T12:00:00Z'})
+ assert.equal(card.version,2);assert.equal(card.text,'昨晚八点头疼，今天减轻');assert.equal(card.occurredAt,'2026-10-26T12:00:00.000Z')
+ await assert.rejects(()=>f.front.continuous(...args,{action:'save_current',expectedVersion:1,confirmed:true}),e=>e.code==='FRONT_CONTEXT_CHANGED')
+ const saved=await f.front.continuous(...args,{action:'save_current',expectedVersion:2,confirmed:true})
+ await f.front.enrichContinuous(...args)
+ assert.equal((await f.business.records.getOwnedRecord(f.accountId,saved.saved.recordId)).content,card.text)
+ assert.match((await f.business.records.getOwnedRecord(f.accountId,saved.saved.recordId)).sourceText,/头有点疼/)
+})
+test('ownership, explicit other subjects, empty and future input fail before writes',async t=>{
+ const f=await fixture(t),args=[f.accountId,f.memberId,f.contextId]
+ await assert.rejects(()=>f.front.continuous('other-account',f.memberId,f.contextId,{action:'save_current',expectedVersion:1,confirmed:true}))
+ await assert.rejects(()=>f.front.continuous(...args,{action:'edit_current',expectedVersion:1,text:'x',title:'x',occurredAt:'2027-01-01T00:00:00Z'}))
+ await f.front.store.update(d=>({...d,contexts:d.contexts.map(c=>({...c,subject:{kind:'other'}}))}))
+ await assert.rejects(()=>f.front.continuous(...args,{action:'save_current',expectedVersion:1,confirmed:true}),e=>e.code==='FRONT_SUBJECT_MISMATCH')
+ assert.equal((await f.business.records.repository.findByAccountId(f.accountId)).length,0)
+})
+test('external manual changes and deleted records cannot be silently overwritten or replaced',async t=>{
+ const f=await fixture(t),args=[f.accountId,f.memberId,f.contextId],saved=await f.front.continuous(...args,{action:'save_current',expectedVersion:1,confirmed:true})
+ await f.business.records.update(f.accountId,saved.saved.recordId,{content:'详情页修改'},new Date('2026-10-27T06:00:00Z'))
+ await assert.rejects(()=>f.front.continuous(...args,{action:'save_current',expectedVersion:1,confirmed:true}),e=>e.code==='FRONT_RECORD_TARGET_CHANGED')
+ await f.business.records.delete(f.accountId,saved.saved.recordId)
+ assert.equal((await f.front.continuous(...args)).saved.available,false)
+ await assert.rejects(()=>f.front.continuous(...args,{action:'save_current',expectedVersion:1,confirmed:true}))
+})
+
+test('a failure after record creation rolls back the event, record and receipt together',async t=>{
+ const f=await fixture(t),args=[f.accountId,f.memberId,f.contextId],update=f.business.records.repository.update.bind(f.business.records.repository)
+ f.business.records.repository.update=async(id,patch,now)=>{if(patch.aiProvenance)throw Object.assign(new Error('synthetic disk failure'),{code:'SYNTHETIC_WRITE_FAILURE'});return update(id,patch,now)}
+ await assert.rejects(()=>f.front.continuous(...args,{action:'save_current',expectedVersion:1,confirmed:true}),e=>e.code==='SYNTHETIC_WRITE_FAILURE')
+ assert.equal((await f.business.records.repository.findByAccountId(f.accountId)).length,0)
+ assert.equal((await f.business.events.repository.findByAccountId(f.accountId)).length,0)
+ assert.equal((await f.front.continuous(...args)).saved,null)
+ f.business.records.repository.update=update
+ assert.ok((await f.front.continuous(...args,{action:'save_current',expectedVersion:1,confirmed:true})).saved.recordId)
+})
+
+test('late dialogue understanding cannot replace a newer manual revision',async t=>{
+ const f=await fixture(t),args=[f.accountId,f.memberId,f.contextId]
+ let release,entered
+ const gate=new Promise(resolve=>{release=resolve}),ready=new Promise(resolve=>{entered=resolve})
+ f.front.model={async structured(){entered();await gate;return {value:{reply:'收到。',contextId:f.contextId,responseMode:'record',taskRelation:'continue',subject:{kind:'unknown',memberId:null,label:null,sources:[]},recordChanges:[{type:'add',targetId:null,text:'右手痒',scope:'record',polarity:'affirmed',subject:{kind:'unknown',memberId:null,label:null,sources:[]},sources:[{messageId:'late-input',attachmentId:null,quote:'右手痒'}]}],nextQuestion:null,requestedAction:{type:'none',targetIds:[],targetVersion:null,confirmation:'none',quote:''},uncertainties:[],emergency:{currentChild:false,quote:''}},diagnostics:{provider:'synthetic'}}}}
+ const running=f.front.submit(f.accountId,f.memberId,{id:'late-input',protocolVersion:3,contextId:f.contextId,kind:'text',text:'右手痒',inputAt:Date.parse('2026-10-27T06:00:00Z'),files:[],voiceFiles:[]},undefined,{continuousRecord:true})
+ await ready
+ await f.front.continuous(...args,{action:'edit_current',expectedVersion:1,text:'现在右手不痒了',title:'右手情况',occurredAt:f.at})
+ release()
+ await assert.rejects(()=>running,e=>e.code==='FRONT_CONTEXT_CHANGED')
+ assert.equal((await f.front.continuous(...args)).text,'现在右手不痒了')
+})
+
+test('structured saving reuses the existing archive adapter and exact entry receipt without duplicate rows',async t=>{
+ const f=await fixture(t),args=[f.accountId,f.memberId,f.contextId]
+ await f.front.store.update(d=>({...d,contexts:d.contexts.map(c=>({...c,draftId:'synthetic-ready'})),messages:d.messages.map(m=>({...m,text:'吃花生后有点痒'}))}))
+ f.business.read=async()=>({id:'synthetic-ready',state:'ready',frontEvidenceVersion:1,items:[{id:'allergy-observation',category:'symptom',archiveCategory:'allergy',title:'花生后发痒',subjectConfirmed:true,subject:'current',time:{resolvedStart:f.at,resolvedEnd:null,precision:'exact'},fields:[{name:'allergen',value:'花生',sources:[{sourceId:'m1',page:1,quote:'花生'}]},{name:'symptom',value:'有点痒',sources:[{sourceId:'m1',page:1,quote:'有点痒'}]}],journal:{categories:['symptom'],timePrecision:'exact'}}]})
+ const first=await f.front.continuous(...args,{action:'save_current',expectedVersion:1,confirmed:true}),again=await f.front.continuous(...args,{action:'save_current',expectedVersion:1,confirmed:true})
+ assert.equal(first.saved.recordId,again.saved.recordId)
+ assert.equal(first.saved.profileEntries.length,1)
+ assert.equal((await new CaseContinuityService({dataDirectory:f.directory,business:f.business}).list(f.accountId,f.memberId)).active.length,0)
+ assert.deepEqual(first.saved.profileEntries,again.saved.profileEntries)
+ const sections=(await f.business.profiles.read()).sections.filter(s=>s.accountId===f.accountId&&s.memberId===f.memberId)
+ assert.equal(sections[0].records.length,1)
+ assert.deepEqual(sections[0].records[0].sourceReferences.flatMap(reference=>reference.recordIds),[first.saved.recordId])
+})
+
+test('editing description preserves the first occurrence down to milliseconds',async t=>{
+ const f=await fixture(t),args=[f.accountId,f.memberId,f.contextId],exact='2026-10-27T05:00:36.321Z'
+ await f.front.store.update(d=>({...d,contexts:d.contexts.map(c=>({...c,firstDescribedAt:exact})),messages:d.messages.map(m=>({...m,at:exact,inputAt:Date.parse(exact)}))}))
+ const before=await f.front.continuous(...args)
+ const after=await f.front.continuous(...args,{action:'edit_current',expectedVersion:1,text:'头部不适减轻了',title:'头部情况',occurredAt:before.occurredAt})
+ assert.equal(after.occurredAt,exact);assert.equal(after.timePrecision,'exact')
+ const saved=await f.front.continuous(...args,{action:'save_current',expectedVersion:after.version,confirmed:true})
+ assert.equal((await f.business.records.getOwnedRecord(f.accountId,saved.saved.recordId)).occurredAt,exact)
+})
+test('explicit spoken time correction is available before structuring; ordinary supplements keep that occurrence',async t=>{
+ const f=await fixture(t),args=[f.accountId,f.memberId,f.contextId]
+ await f.front.store.update(d=>({...d,messages:d.messages.map(m=>({...m,text:'昨天上午头有点疼'}))}))
+ const correction={id:'time-correction',accountId:f.accountId,memberId:f.memberId,contextId:f.contextId,kind:'voice',status:'completed',acceptedInput:true,text:'发生时间不对，改成昨晚八点',inputAt:Date.parse('2026-10-27T05:30:00Z'),at:'2026-10-27T05:30:00Z',subject:f.subject,files:[],voices:[]}
+ await f.front.store.update(d=>({...d,contexts:d.contexts.map(c=>({...c,version:2,evidenceVersion:2})),messages:[...d.messages,correction]}))
+ const corrected=await f.front.continuous(...args);assert.equal(corrected.occurredAt,'2026-10-26T12:00:00.000Z')
+ await f.front.store.update(d=>({...d,messages:[...d.messages,{...correction,id:'supplement',kind:'text',text:'今天轻了一些',at:'2026-10-27T05:45:00Z',inputAt:Date.parse('2026-10-27T05:45:00Z')}]}))
+ assert.equal((await f.front.continuous(...args)).occurredAt,corrected.occurredAt)
+ const saved=await f.front.continuous(...args,{action:'save_current',expectedVersion:2,confirmed:true});assert.equal((await f.business.records.getOwnedRecord(f.accountId,saved.saved.recordId)).occurredAt,corrected.occurredAt)
+})
+
+test('an unavailable later reply retains the source on the selected task and saves to its original ID',async t=>{
+ const f=await fixture(t),args=[f.accountId,f.memberId,f.contextId],first=await f.front.continuous(...args,{action:'save_current',expectedVersion:1,confirmed:true})
+ f.front.model={async structured(){throw Object.assign(new Error('synthetic supplier unavailable'),{status:503,code:'SYNTHETIC_UNAVAILABLE'})}}
+ await assert.rejects(()=>f.front.submit(f.accountId,f.memberId,{id:'followup-raw',protocolVersion:3,kind:'text',text:'左边轻了一些',contextId:f.contextId,inputAt:Date.parse('2026-10-27T06:00:00Z'),files:[],voiceFiles:[]},undefined,{continuousRecord:true}))
+ const card=await f.front.continuous(...args);assert.match(card.raw,/左边轻了一些/)
+ const saved=await f.front.continuous(...args,{action:'save_current',expectedVersion:card.version,confirmed:true})
+ assert.equal(saved.saved.recordId,first.saved.recordId)
+ assert.equal((await f.business.records.repository.findByAccountId(f.accountId)).length,1)
+})
+
+test('visit checklist is separate from saving and stays synchronized with the latest manual record',async t=>{
+ const f=await fixture(t),args=[f.accountId,f.memberId,f.contextId]
+ const generated=await f.front.continuous(...args,{action:'visit_checklist',expectedVersion:1})
+ assert.match(generated.checklist.text,/头有点疼/);assert.equal((await f.business.records.repository.findByAccountId(f.accountId)).length,0)
+ await f.front.continuous(...args,{action:'edit_current',expectedVersion:1,text:'头部不适减轻了',title:'头部情况',occurredAt:f.at})
+ const latest=await f.front.continuous(...args)
+ assert.match(latest.checklist.text,/头部不适减轻了/);assert.equal(latest.checklist.version,latest.evidenceVersion)
+ assert.equal((await f.business.records.repository.findByAccountId(f.accountId)).length,0)
+})
+
+test('serialization key order does not constitute an external record revision',async t=>{
+ const f=await fixture(t),args=[f.accountId,f.memberId,f.contextId],saved=await f.front.continuous(...args,{action:'save_current',expectedVersion:1,confirmed:true})
+ const record=await f.business.records.getOwnedRecord(f.accountId,saved.saved.recordId)
+ const reorder=value=>Array.isArray(value)?value.map(reorder):value&&typeof value==='object'?Object.fromEntries(Object.entries(value).reverse().map(([key,item])=>[key,reorder(item)])):value
+ await f.business.records.repository.update(record.id,{journal:reorder(record.journal),aiProvenance:reorder(record.aiProvenance)},new Date('2026-10-27T06:00:00Z'))
+ assert.equal((await f.front.continuous(...args,{action:'save_current',expectedVersion:1,confirmed:true})).saved.recordId,record.id)
+})
+
+test('a single exact legacy save is adopted without recreating the record or losing its original text',async t=>{
+ const f=await fixture(t),args=[f.accountId,f.memberId,f.contextId],saved=await f.front.continuous(...args,{action:'save_current',expectedVersion:1,confirmed:true})
+ await f.front.store.update(d=>({...d,contexts:d.contexts.map(c=>({...c,continuousRecord:undefined,currentRecord:undefined,saved:true,recordResult:{records:[{recordId:saved.saved.recordId,eventId:saved.saved.eventId}]}})),messages:d.messages.map(m=>({...m,acceptedInput:undefined}))}))
+ const restored=await f.front.continuous(...args)
+ assert.equal(restored.saved.recordId,saved.saved.recordId);assert.match(restored.raw,/头有点疼/)
+ const edit=await f.front.continuous(...args,{action:'edit_current',expectedVersion:restored.version,title:'头部情况',text:'头部不适减轻了',occurredAt:restored.occurredAt})
+ const updated=await f.front.continuous(...args,{action:'save_current',expectedVersion:edit.version,confirmed:true})
+ assert.equal(updated.saved.recordId,saved.saved.recordId);assert.equal((await f.business.records.repository.findByAccountId(f.accountId)).length,1)
+})

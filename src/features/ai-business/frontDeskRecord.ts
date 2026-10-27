@@ -15,7 +15,7 @@ export interface FrontUnderstanding {
   recordChanges?:FrontValue[];nextQuestion?:string|FrontValue|null;requestedAction?:string|FrontValue|null
   uncertainties?:(string|FrontValue)[]
 }
-export interface FrontMessage {recordable?:boolean;protocolVersion?:number;originalFileCount?:number;understanding?:FrontUnderstanding;resultKind?:FrontResultKind;targetContextId?:string;answerTo?:{contextId:string;questionId:string};id:string;kind:'text'|'voice'|'image'|'assistant';text:string;at?:string;inputAt?:number;contextId:string;status:'pending'|'completed'|'failed'|'discarded';files?:FrontFile[];voices?:FrontFile[]}
+export interface FrontMessage {manualCardEdit?:boolean;recordable?:boolean;protocolVersion?:number;originalFileCount?:number;understanding?:FrontUnderstanding;resultKind?:FrontResultKind;targetContextId?:string;answerTo?:{contextId:string;questionId:string};id:string;kind:'text'|'voice'|'image'|'assistant';text:string;at?:string;inputAt?:number;contextId:string;status:'pending'|'completed'|'failed'|'discarded';files?:FrontFile[];voices?:FrontFile[]}
 export interface FrontFile {name:string;mimeType:string;dataUrl:string;lastModified?:number}
 export interface FrontContext {operationReceipts?:RecognitionOperationReceipt[];semanticVersion?:number;originalsSubjectConfirmed?:boolean;originalsVersion?:number;subject?:FrontSubject;frontSubject?:FrontSubject;subjectConfirmed?:boolean;version?:number;understanding?:FrontUnderstanding;resultKind?:FrontResultKind;previousMessages?:FrontMessage[];interview?:NursingInterview;id:string;updatedAt:string;saved?:boolean;recordResult?:SmartRecordDraft['result'];review?:SmartRecordDraft;messages:FrontMessage[]}
 export const voiceTurnId=(file:File)=>`voice:${file.name}:${file.lastModified}`
@@ -42,13 +42,13 @@ export function restoreFrontContext(context:FrontContext,local:CaptureDraft):Cap
   const files:File[]=[],turns:CaptureTurn[]=[],completedReplies=completedFrontSaveReplyIds(context)
   const savedOriginalIds=new Set((context.saved?context.operationReceipts??[]:[]).flatMap(receipt=>receipt.state==='saved'&&receipt.type==='save_original'&&receipt.savedDraft?.state==='saved'&&receipt.savedDraft.result?.records?.length&&Array.isArray(receipt.sourceMessageIds)?receipt.sourceMessageIds:[]))
   for(const message of context.messages){
-    if(message.status==='discarded')continue
+    if(message.status==='discarded'||message.manualCardEdit)continue
     const media=[...(message.files??[]),...(message.voices??[])].map(restoreFrontFile)
     files.push(...media)
     const previous=local.conversationTurns?.find(turn=>turn.id===message.id)
     turns.push({completedOperation:completedReplies.has(message.id)||previous?.completedOperation,continuationId:message.targetContextId,answerTo:message.answerTo,id:message.id,text:message.text,at:message.inputAt??Date.parse(message.at??context.updatedAt),role:message.kind==='assistant'?'assistant':'user',kind:message.kind==='assistant'?undefined:message.kind,fileKeys:media.map(fileIdentity),status:savedOriginalIds.has(message.id)&&message.kind!=='assistant'&&message.status==='failed'?'completed':message.status,contextId:context.id,reviewId:previous?.reviewId,recordCount:previous?.recordCount})
   }
-  const previousTurns:CaptureTurn[]=(context.previousMessages??[]).filter(message=>message.status!=='discarded').map(message=>{
+  const previousTurns:CaptureTurn[]=(context.previousMessages??[]).filter(message=>message.status!=='discarded'&&!message.manualCardEdit).map(message=>{
     const media=[...(message.files??[]),...(message.voices??[])].map(restoreFrontFile)
     return {completedOperation:local.conversationTurns?.find(turn=>turn.id===message.id)?.completedOperation,id:message.id,text:message.text,at:message.inputAt??Date.parse(message.at??context.updatedAt),role:message.kind==='assistant'?'assistant':'user',kind:message.kind==='assistant'?undefined:message.kind,fileKeys:media.map(fileIdentity),status:message.status==='discarded'?undefined:message.status,contextId:message.contextId}
   })

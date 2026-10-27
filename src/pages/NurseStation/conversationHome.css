@@ -110,3 +110,26 @@ body .smart-record-home .nurse-turn--user>.nurse-turn-content{background:rgb(var
 @keyframes front-desk-dots{to{clip-path:inset(0 -25% 0 0)}}
 @media(max-width:359px){.smart-record-home .front-desk-processing--separate{grid-template-columns:88px minmax(0,1fr) auto}.smart-record-home .front-desk-processing--separate>.idle-nurse-visual{width:88px;height:88px}}
 @media(prefers-reduced-motion:reduce){.smart-record-home .front-desk-processing__dots{animation:none;clip-path:none}}
+
+/* Continuous front desk: compact persistent tools, no secondary review page. */
+.smart-record-home .nurse-turn--conversation.nurse-turn--user{display:flex;flex-direction:row;justify-content:flex-end}
+.smart-record-home .nurse-turn--conversation.nurse-turn--user>.nurse-turn-content{width:fit-content;max-width:84%;overflow-wrap:anywhere}
+.smart-record-home .front-desk-menu{width:176px;max-width:calc(100vw - 32px)}
+.front-desk-top-entries{display:flex;flex:none;gap:var(--hoho-space-2);padding:var(--hoho-space-2) var(--hoho-space-4);border-top:1px solid rgb(var(--hoho-color-border));z-index:3;background:rgb(var(--hoho-color-page-background))}
+.front-desk-top-entries>button{min-height:36px;padding:0 var(--hoho-space-3);border:1px solid rgb(var(--hoho-color-border));border-radius:var(--hoho-radius-control);font-size:var(--hoho-font-size-caption);background:rgb(var(--hoho-color-surface));color:rgb(var(--hoho-color-text-primary));white-space:nowrap}
+.front-desk-top-entries>button:first-child{background:rgb(var(--hoho-color-primary-soft))}
+.smart-record-home .record-entry-actions--conversation .record-entry-grid{grid-template-columns:1fr 1.35fr .6fr .6fr}
+.smart-record-home .record-entry-actions--conversation .record-entry-grid>button{font-size:var(--hoho-font-size-caption);box-shadow:none}
+.smart-record-home .record-entry-actions--conversation .record-entry-grid>button[data-record-entry='materials']{background:rgb(var(--hoho-color-primary-soft));border-color:rgb(var(--hoho-color-primary-border))}
+.smart-record-home .record-entry-actions--conversation .daily-record-options{grid-template-columns:repeat(3,minmax(0,1fr))}
+.smart-record-home .hoho-dialogue-composer--conversation:focus-within{outline:none;border-color:rgb(var(--hoho-color-primary)/.14);box-shadow:var(--hoho-shadow-card)}
+.smart-record-home .hoho-dialogue-composer--conversation>textarea:focus-visible{outline:1px solid rgb(var(--hoho-color-primary-border));outline-offset:-1px;border-radius:var(--hoho-radius-small)}
+.continuous-record-card{display:grid;gap:var(--hoho-space-3);padding:var(--hoho-space-4);border:1px solid rgb(var(--hoho-color-border));border-radius:var(--hoho-radius-card);background:rgb(var(--hoho-color-surface-white));min-width:0;overflow-wrap:anywhere}
+.continuous-record-card>header{display:flex;align-items:center;gap:var(--hoho-space-2);font-size:var(--hoho-font-size-caption);color:rgb(var(--hoho-color-text-secondary))}
+.continuous-record-card>header>.hoho-button{margin-left:auto}
+.continuous-record-card h3{margin:0;font-size:var(--hoho-font-size-card-title)}
+.continuous-record-card p,.front-desk-checklist{white-space:pre-wrap;overflow-wrap:anywhere;margin:0;line-height:1.7}
+.continuous-record-card small{color:rgb(var(--hoho-color-text-secondary));font-size:var(--hoho-font-size-caption)}
+.front-desk-recorded{color:rgb(var(--hoho-color-link));font-size:var(--hoho-font-size-caption)}
+.continuous-record-editor,.continuous-record-editor label{display:grid;gap:var(--hoho-space-2);min-width:0}
+.continuous-record-editor input,.continuous-record-editor textarea{box-sizing:border-box;max-width:100%;width:100%;font-size:16px;padding:var(--hoho-space-2);border:1px solid rgb(var(--hoho-color-border));border-radius:var(--hoho-radius-control);background:rgb(var(--hoho-color-surface));color:inherit}
