@@ -25,6 +25,19 @@ async function setup(t){
  const snapshot=()=>jobs.get('synthetic',member.id,'task-1')
  return {directory,member,events,business,front,model,frontModel,audio,jobs,calls,submit,snapshot}
 }
+test('manual front-card revisions queue organization without another dialogue and enrich the same saved record',async t=>{
+ const f=await setup(t),accountId='synthetic',memberId=f.member.id,contextId='manual-context',at=new Date(Date.now()-60000).toISOString(),subject={kind:'current',memberId,confirmed:true,confirmedBy:'selection'}
+ await f.front.store.update(()=>({contexts:[{id:contextId,accountId,memberId,continuousRecord:true,version:1,evidenceVersion:1,firstDescribedAt:at,createdAt:at,updatedAt:at,subject}],messages:[{id:'original',accountId,memberId,contextId,kind:'text',text:'手臂有点痒',status:'completed',acceptedInput:true,at,inputAt:Date.parse(at),subject,files:[],voices:[]}]}))
+ const first=await f.front.continuous(accountId,memberId,contextId,{action:'save_current',expectedVersion:1,confirmed:true})
+ const edited=await f.front.continuous(accountId,memberId,contextId,{action:'edit_current',expectedVersion:1,text:'现在手臂不痒了',title:'手臂情况',occurredAt:at})
+ assert.ok(edited.recognitionJob.id);assert.equal(edited.feedback.text,'内容已修改')
+ const same=await f.jobs.organizeContext(accountId,memberId,contextId,2);assert.equal(same.id,edited.recognitionJob.id)
+ const completed=await until(async()=>{const job=await f.jobs.get(accountId,memberId,same.id);if(job.state==='failed')assert.fail(JSON.stringify(job.error));return ['ready','needs_review'].includes(job.state)&&job})
+ assert.ok(completed.review.items.length);assert.equal(f.calls.filter(task=>task==='front-desk-record').length,0)
+ const card=await f.front.continuous(accountId,memberId,contextId),record=await f.business.records.getOwnedRecord(accountId,first.saved.recordId)
+ assert.equal(card.saved.recordId,first.saved.recordId);assert.equal(record.content,'现在手臂不痒了');assert.ok(record.aiProvenance.structuredItems.length);assert.match(record.sourceText,/手臂有点痒/)
+ assert.equal((await f.business.records.repository.findByAccountId(accountId)).length,1)
+})
 test('durable ACK, idempotent input, latest revision and formal save guard',async t=>{
  const f=await setup(t),ack=await f.submit('first','脸颊发红');assert.equal(ack.inputRevision,1);assert.equal(ack.resultRevision,0)
  const ready=await until(async()=>{const j=await f.snapshot();return j.state==='ready'&&j});assert.equal(ready.review.inputText,'脸颊发红')

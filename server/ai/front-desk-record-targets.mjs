@@ -46,6 +46,7 @@ export async function accessibleFrontDeskTargets({ business, accountId, memberId
   for (const context of contexts) {
     if (!context || !validId(context.id) || context.accountId !== accountId || context.memberId !== memberId || unavailable(context)) continue
     const ids = [
+      ...(context.continuousRecord===true&&context.currentRecord?.memberId===memberId&&validId(context.currentRecord?.recordId)?[context.currentRecord.recordId]:[]),
       ...(context.saved === true ? resultIds(context.recordResult) : []),
       ...(Array.isArray(context.operationReceipts) ? context.operationReceipts.flatMap(receipt => receiptIds(receipt, context.id)) : [])
     ]

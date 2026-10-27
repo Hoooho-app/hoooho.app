@@ -2,6 +2,7 @@ import { expect, type Page } from '@playwright/test'
 
 /** A settled reply may be the next question; it is not necessarily save-ready. */
 export async function waitForNurseReply(page:Page){
+  if(await page.locator('.smart-record-home').count()){const id=await page.locator('.nurse-turn--user[data-message-id]').last().getAttribute('data-message-id');await expect(page.locator(`.nurse-turn--assistant[data-message-id="${id}:reply"]`)).toBeVisible();return}
   await expect(page.getByLabel('回答当前问题',{exact:true}).or(page.getByRole('button',{name:'核对记录',exact:true}))).toBeVisible()
 }
 
@@ -16,6 +17,7 @@ export async function confirmFrontSubject(page:Page){
 
 /** Save/edit tests explicitly answer unknown instead of bypassing a live question. */
 export async function finishNursingQuestions(page:Page){
+  if(await page.locator('.smart-record-home').count()){await waitForNurseReply(page);await expect(page.getByRole('region',{name:'当前记录单'})).toBeVisible();return}
   await waitForNurseReply(page)
   const question=page.getByLabel('回答当前问题',{exact:true})
   if(await question.count())await question.getByRole('button',{name:'没注意',exact:true}).click()

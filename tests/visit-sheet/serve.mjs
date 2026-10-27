@@ -110,6 +110,11 @@ if (process.env.VISIT_AI_TEST === '1') {
   }
   createServer(async(req, res) => {
     const controlUrl=new URL(req.url,'http://127.0.0.1:4198')
+    if(controlUrl.pathname==='/continuous-record-proof'){
+      const data=JSON.parse(await readFile(path.join(dataDirectory,'front-desk-records.json'),'utf8')),context=data.contexts.find(c=>c.id===controlUrl.searchParams.get('contextId')&&c.accountId==='visit-test')
+      const records=JSON.parse(await readFile(path.join(dataDirectory,'health-event-records.json'),'utf8')).records
+      res.setHeader('Content-Type','application/json');res.end(JSON.stringify({context,record:records.find(r=>r.id===context?.currentRecord?.recordId&&r.accountId==='visit-test')}));return
+    }
     if(controlUrl.pathname==='/delay')delayMs=Math.max(0,Math.min(10000,Number(controlUrl.searchParams.get('ms'))||0))
     if(controlUrl.pathname==='/voice')transcript=controlUrl.searchParams.get('text')??''
     if(controlUrl.pathname==='/draft-data'&&req.method==='POST'){const chunks=[];for await(const c of req)chunks.push(c);const data=JSON.parse(Buffer.concat(chunks).toString());draftItems=data.items??null;ocrText=data.ocrText??null;summaryOutput=data.summaryOutput??null;semanticDecision=data.semanticDecision??null;visualOutput=data.visualOutput??null}

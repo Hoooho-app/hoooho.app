@@ -180,6 +180,13 @@ function normalizeSubject(value, options, fact = null) {
   if (!subjectKinds.includes(value.kind) || value.memberId != null && !bounded(value.memberId, 180, false) || value.label != null && !bounded(value.label, 100, false)) throw invalid()
   const sources = normalizeSources(value.sources ?? [], options)
   let kind = value.kind
+  const selection=options.selectedMemberSubject
+  if(selection&&['unknown','current'].includes(value.kind)&&(!value.memberId||value.memberId===selection.memberId)){
+    const refs=fact?.sources?.length?fact.sources:sources.length?sources:options.latestMessage?.text?[{messageId:options.latestMessage.id,attachmentId:null,quote:options.latestMessage.text}]:[]
+    const contexts=refs.flatMap(ref=>referenceContexts(ref,options,fact?.text))
+    const others=(options.subjectMembers??[]).filter(m=>m.id!==selection.memberId).map(m=>m.name).filter(Boolean)
+    if(!contexts.some(c=>identityScope(c,{label:selection.label,aliases:selection.aliases??[],otherLabels:others}).denied))return {kind:'current',memberId:selection.memberId,label:selection.label,sources,confirmed:true,confirmedBy:'selection'}
+  }
   // Selecting a child in the UI is not evidence that a fact describes that child.
   if (kind === 'current' && (!sources.length || !value.memberId && !value.label)) kind = 'unknown'
   const grants = (options.confirmedSubjects ?? []).filter(subject => subject.memberId === value.memberId && subject.confirmed === true && Array.isArray(subject.sources) && subject.sources.length).map(subject => ({...subject,label:(options.subjectMembers??[]).find(member=>member.id===subject.memberId)?.name??subject.label,otherLabels:[...subject.otherLabels??[],...(options.subjectMembers??[]).filter(member=>member.id!==subject.memberId).map(member=>member.name).filter(Boolean)]}))
@@ -396,6 +403,7 @@ export function normalizeFrontDeskUnderstanding(value, options = {}) {
   if (typeof emergency.currentChild !== 'boolean' || !bounded(emergency.quote, 1600)) throw invalid()
   const requestedAction = normalizeAction(value.requestedAction, options, nextUncertainties)
   let reply=withoutPrematureRecordMarker(value.reply.trim(),recordChanges,options)
+  if(options.selectedMemberSubject&&recordChanges.some(change=>change.scope!=='context'))reply=reply.replace(/[^。！？!?\n]*已(?:经)?(?:补充|更新)(?:了)?记录[^。！？!?\n]*[。！？!]?/gu,clause=>{if(/保存|入档|档案|随记|查看|成功/u.test(clause))throw invalid('没有真实回执，不能声称操作已经成功');return '当前记录单已修改。'})
   const maskedReply=quotedMaterials(reply),shownRange=[...maskedReply.matchAll(/[^。！？.!?\n]*[?？]/gu)].at(-1)
   const shown=shownRange?reply.slice(shownRange.index,shownRange.index+shownRange[0].length).trim():null
   if(nextQuestion&&!shown&&reply.includes(nextQuestion.text)&&!maskedReply.includes(nextQuestion.text))nextQuestion=null

@@ -14,6 +14,26 @@ const options = (latest, extra = {}) => ({ latestMessage: latest, contextIds: ['
 const change = (text, extra = {}) => ({ type: 'add', targetId: null, text, polarity: 'affirmed', subject: subject(), sources: [source(text)], ...extra })
 const normalize = (value, latest, extra = {}) => normalizeFrontDeskUnderstanding(value, options(latest, extra))
 
+test('continuous front desk uses the explicitly selected subject for unqualified narration, preserving explicit other-person boundaries',()=>{
+ const selectedMemberSubject={memberId:'child',label:'小禾',aliases:['孩子','宝宝']},subjectMembers=[{id:'child',name:'小禾',relationship:'child'},{id:'self',name:'家长',isSelf:true}]
+ for(const text of ['头有点疼','孩子头有点疼','昨晚睡得挺好']){
+  const latest=message(text),result=normalize(understanding({recordChanges:[change(text)]}),latest,{selectedMemberSubject,subjectMembers})
+  assert.equal(result.recordChanges[0].subject.memberId,'child',text)
+  assert.equal(result.recordChanges[0].subject.confirmed,true,text)
+ }
+ for(const text of ['妈妈头有点疼','我自己头有点疼','家长头有点疼']){
+  const latest=message(text),result=normalize(understanding({recordChanges:[change(text)]}),latest,{selectedMemberSubject,subjectMembers})
+  assert.notEqual(result.recordChanges[0].subject.confirmed,true,text)
+ }
+})
+
+test('continuous draft feedback cannot imply a formal record was supplemented before a save receipt',()=>{
+ const latest=message('左边头疼'),extra={selectedMemberSubject:{memberId:'child',label:'小禾'},subjectMembers:[{id:'child',name:'小禾'}]}
+ const value=understanding({reply:'收到。这些信息已补充记录。还有其他变化吗？',responseMode:'record',recordChanges:[change(latest.text)]})
+ assert.equal(normalize(value,latest,extra).reply,'收到。当前记录单已修改。还有其他变化吗？')
+ assert.throws(()=>normalize({...value,reply:'已补充记录，可在健康随记查看。'},latest,extra),{code:'FRONT_RECORD_REPLY_INVALID'})
+})
+
 test('first-person ownership does not bind possessive descriptions of a child to the selected adult',()=>{
  const member={id:'self',name:'家长',isSelf:true},members=[member,{id:'child',name:'小禾',relationship:'child'}]
  for(const text of ['我家孩子今天咳嗽','我们家宝宝今天咳嗽','我的孩子今天咳嗽','我自己的宝宝今天咳嗽']){

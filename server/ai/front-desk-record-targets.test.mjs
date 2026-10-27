@@ -28,6 +28,14 @@ function fixture(records = [record()], events = [event()]) {
   }
 }
 
+test('continuous raw save receipts resolve the exact record with live ownership and revision checks',async()=>{
+ const f=fixture(),current=context({saved:false,recordResult:null,continuousRecord:true,currentRecord:{memberId,recordId:'record-1',eventId:'event-1'}})
+ const targets=await accessibleFrontDeskTargets({...f,accountId,memberId,contexts:[current]})
+ assert.equal(targets.length,1);assert.equal(targets[0].id,'record-1');assert.equal(targets[0].version,frontRecordVersion(record()))
+ assert.deepEqual(await accessibleFrontDeskTargets({...f,accountId,memberId:'another-member',contexts:[current]}),[])
+ assert.deepEqual(await accessibleFrontDeskTargets({...fixture([],[]),accountId,memberId,contexts:[current]}),[])
+})
+
 test('only saved context exact IDs are resolved and snapshots do not alias stored objects', async () => {
   const stored = record(), f = fixture([stored, record({ id: 'unmentioned-record' })])
   const targets = await accessibleFrontDeskTargets({ ...f, accountId, memberId, contexts: [context()] })
