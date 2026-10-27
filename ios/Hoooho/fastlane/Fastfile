@@ -35,8 +35,10 @@ platform :ios do
       export_options: {signingStyle: "manual", teamID: team_id, provisioningProfiles: {bundle_id => profile_name}})
     upload_to_testflight(api_key: api_key, app_identifier: bundle_id, apple_id: app_id,
       ipa: File.join(signing_dir, "output", "HooohoRecords.ipa"), distribute_external: false,
-      skip_waiting_for_build_processing: false,
-      changelog: "首轮 iPhone 内测：检查登录恢复、孩子隔离、文字/语音/照片输入、保存回读和导出分享。请先使用虚构资料。")
-    UI.success("Apple build processing finished. Add this build to the actual internal tester group in App Store Connect; installation is not yet verified.")
+      skip_waiting_for_build_processing: false, skip_submission: true, submit_beta_review: false)
+    # CI needs only a Developer-role key. Metadata, compliance and group assignment
+    # are completed in the owner's signed-in App Store Connect session.
+    # Never let pilot's default encryption declaration run via distribution.
+    UI.success("Apple build processing finished. Verify export compliance, What to Test and internal group assignment in App Store Connect; installation is not yet verified.")
   end
 end

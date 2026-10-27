@@ -22,8 +22,8 @@
 
 | 优先级 | 任务 | 完成证据 |
 | --- | --- | --- |
-| P0 | 原生工程、Mac 编译、单元与启动检查 | CI 真实运行及产物；尚未运行时不得勾完成 |
-| P0 | 真实苹果身份、App 记录、签名授权 | 实际后台/安全配置；不猜团队或会员状态 |
+| P0 | 原生工程、Mac 编译、单元与启动检查 | `a2687c6` 的 CI 40546825809 已在 iOS 18.5 与 26.2 通过，每组 4 项导航、1 项 WebKit 报告帧及 1 项合成启动检查；26.2 完成 arm64 未签名设备归档。后续仅上传参数与文档变化另行检查 |
+| P0 | 真实苹果身份、App 记录、签名授权 | 已验证会员有效、App ID 和 App 记录已建立；证书签发、API 开通及发布凭据授权仍未完成 |
 | P0 | 已确认首页和按钮文案进入实际内测版本 | 护士站视频居中放大，姓名/代词动态文案；按钮“按住记录症状”。这部分尚未改运行代码，签名分发前须落实或明确标注差异 |
 | P0 | 正常签名上传及 Apple processing | Apple 的实际构建状态 |
 | P0 | 本人内部组与 iPhone 安装 | TestFlight 可用构建及用户手机操作 |
@@ -52,16 +52,18 @@
 1. 完成 Apple 账户登录、双重认证、会员激活及必要协议。
 2. 核对/创建护护实际 Bundle ID 和 App Store Connect App 记录，取得 Team ID 与 App 数字 ID。
 3. 将真实标识保存为 GitHub Actions Variables：`IOS_BUNDLE_ID`、`IOS_TEAM_ID`、`ASC_APP_ID`。
-4. 上传需要 App Store Connect API key；签名需要该 App 的分发证书（含私钥）和 App Store 描述文件。先核对是否已有，不能每次构建都创建新证书耗尽限额。在安全后台配置上传 Secrets：`ASC_KEY_ID`、`ASC_ISSUER_ID`、`ASC_API_KEY_P8`；签名 Secrets：`IOS_DISTRIBUTION_P12_BASE64`、`IOS_DISTRIBUTION_P12_PASSWORD`、`IOS_PROVISION_PROFILE_BASE64`。不在聊天发密钥，不写入仓库。若没有签名材料，先在实际团队的安全授权下准备，再运行上传。
+4. 上传需要 App Store Connect API key；签名需要该 App 的分发证书（含私钥）和 App Store 描述文件。先核对是否已有，不能每次构建都创建新证书耗尽限额。在安全后台配置上传 Secrets：`ASC_KEY_ID`、`ASC_ISSUER_ID`、`ASC_API_KEY_P8`；签名 Secrets：`IOS_DISTRIBUTION_P12_BASE64`、`IOS_DISTRIBUTION_P12_PASSWORD`、`IOS_PROVISION_PROFILE_BASE64`。不在聊天发密钥，不写入仓库。当前账户没有分发证书，API 也未开通；CSR 已在本次受限临时目录准备并校验，Apple 页面停在签发前，API 申请页面停在同意条款/提交前，尚未新增发布权限。
 5. 手动运行 main 分支的 Upload iOS to TestFlight。该操作复用已核验的分发证书/描述文件签名上传，不创建或撤销证书；不得在未授权时运行，也不因缺少凭据自动退回未签名“成功”。
 6. 处理完成后在 ASC 创建“护护首轮内测”内部组，加入已有 ASC 用户和构建，再到 iPhone TestFlight 安装。
 
 上传工作流仅 main 手动触发，不在 PR 或 fork 中使用密钥；上传前要求该 main 提交的原生 CI 已通过，并串行处理上传。普通上传后分给内部组，不设置不可转外测的 TestFlight Internal Only 标记。临时签名材料在 runner 删除，不上传成公开产物。
 
+CI 仅需 Developer 角色的团队 API key：明确 `skip_submission: true`、不上传 changelog、不提交 Beta 审核，保留 Apple processing 等待。测试说明、加密合规与群组分发通过账户持有人的后台会话处理，避免依赖 App Manager/Admin 的元数据写入权限，也不让工具默认值代替实际加密声明。团队 API key 不能限制为单个 App；申请时须说明这一边界。
+
 ## 可直接填写的资料
 
 名称：护护记录。主要语言：简体中文。内部组建议名：护护首轮内测。
-反馈邮箱、Team ID、Bundle ID、App ID：以真实后台为准，尚未核实。
+实际 App 记录：`6827657377`；Bundle ID：`com.hoooho.records`；SKU：`hoooho-records-ios`。内部组“护护首轮内测”已建立，关闭自动分发，目前 0 测试员、0 构建。Beta 描述与当前账户的反馈邮箱已在后台保存；尚未对任何人发送邀请。账户电话、住址、邮箱与任何密钥均不写入本公共文档。
 
 Beta 描述：
 护护记录帮助家长记录孩子的症状、日常观察、用药和就诊资料，并整理成便于核对、查看与交接的记录。本次为首轮 iPhone 内测，重点验证输入、保存、重新打开和导出流程，以及麦克风、相机和文件权限。请先使用虚构测试资料，并通过 TestFlight 提交问题截图和操作步骤。
@@ -77,4 +79,6 @@ What to Test：
 
 后续 `e55b568` 的 CI 40544090835 在 iOS 18.5 模拟器启动时失败。日志确定缺少 `libswiftWebKit.dylib`，对应新增逐 frame JavaScript 回执的 Swift overlay。与 [WebKit 293831](https://bugs.webkit.org/show_bug.cgi?id=293831) 的模拟器布局缺陷一致，不能推断为所有真实旧设备同样失败。修正采用同一公共 ObjC API 的 Swift 导入入口，保留逐 frame 行为及 iOS 16 部署目标；CI 同时检查最旧可用和最新可用 iOS runtime，真实旧设备仍待验收。
 
-Apple 后台已核实：个人开发者会员有效至 2027-10-22；已注册 `com.hoooho.records`。会员有效和 App ID 注册不代表签名、构建上传或 TestFlight 安装完成。不将账户住址、电话或密钥写入本仓库。
+Apple 后台已核实：个人开发者会员有效至 2027-10-22；已注册 `com.hoooho.records` 并创建 App 记录及内部组。Apple 和 GitHub 后台均已成功登录。会员有效和 App ID 注册不代表签名、构建上传或 TestFlight 安装完成。不将账户住址、电话或密钥写入本仓库。
+
+`a2687c6` 的 CI [40546825809](https://github.com/Hoooho-app/hoooho.app/actions/runs/40546825809) 两组全部通过；每组还检查了 13 个应用内 Mach-O 文件，确认不再依赖上述缺失的 Swift WebKit overlay。实际打印、文件分享、登录持久化、语音/相机以及健康记录完整闭环仍待真实 iPhone 验收。
