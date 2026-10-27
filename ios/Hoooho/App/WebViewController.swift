@@ -9,6 +9,7 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
     private var downloaded: [ObjectIdentifier: URL] = [:]
     private var pendingShares: [(URL, WKDownload)] = []
     private var currentShareDirectory: URL?
+    private var pendingExportError: String?
     private var shareRetry: DispatchWorkItem?
     private var printJob: ReportPrintJob?
     private var hasLoadedPage = false
@@ -224,13 +225,20 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
     }
     private func presentNextDownload() {
         shareRetry?.cancel()
-        guard !pendingShares.isEmpty else { return }
+        guard !pendingShares.isEmpty || pendingExportError != nil else { return }
         guard presentedViewController == nil, currentShareDirectory == nil, printJob == nil, view.window != nil else {
             // All native sheets (including Safari and print) may dismiss without viewDidAppear.
             // Retry only while there is an actual export waiting for its system share sheet.
             let next = DispatchWorkItem { [weak self] in self?.presentNextDownload() }
             shareRetry = next
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.4, execute: next)
+            return
+        }
+        if let message = pendingExportError {
+            pendingExportError = nil
+            let alert = UIAlertController(title: "导出未完成", message: message, preferredStyle: .alert)
+            alert.addAction(UIAlertAction(title: "知道了", style: .default) { [weak self] _ in self?.presentNextDownload() })
+            present(alert, animated: true)
             return
         }
         let (file, _) = pendingShares.removeFirst()
@@ -251,9 +259,7 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
         showExportError()
     }
     private func showExportError(_ message: String = "原记录仍在，请回到记录后重试。") {
-        guard presentedViewController == nil else { return }
-        let alert = UIAlertController(title: "导出未完成", message: message, preferredStyle: .alert)
-        alert.addAction(UIAlertAction(title: "知道了", style: .default))
-        present(alert, animated: true)
+        pendingExportError = message
+        presentNextDownload()
     }
 }

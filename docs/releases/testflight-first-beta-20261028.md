@@ -56,7 +56,7 @@
 5. 手动运行 main 分支的 Upload iOS to TestFlight。该操作复用已核验的分发证书/描述文件签名上传，不创建或撤销证书；不得在未授权时运行，也不因缺少凭据自动退回未签名“成功”。
 6. 处理完成后在 ASC 创建“护护首轮内测”内部组，加入已有 ASC 用户和构建，再到 iPhone TestFlight 安装。
 
-上传工作流仅 main 手动触发，不在 PR 或 fork 中使用密钥。普通上传后分给内部组，不设置不可转外测的 TestFlight Internal Only 标记。临时签名材料在 runner 删除，不上传成公开产物。
+上传工作流仅 main 手动触发，不在 PR 或 fork 中使用密钥；上传前要求该 main 提交的原生 CI 已通过，并串行处理上传。普通上传后分给内部组，不设置不可转外测的 TestFlight Internal Only 标记。临时签名材料在 runner 删除，不上传成公开产物。
 
 ## 可直接填写的资料
 

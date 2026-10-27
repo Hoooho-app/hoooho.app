@@ -3,6 +3,10 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  actions: read
+concurrency:
+  group: ios-testflight-main
+  cancel-in-progress: false
 jobs:
   upload:
     if: github.ref == 'refs/heads/main'
@@ -23,6 +27,19 @@ jobs:
       FASTLANE_SKIP_DOCS: '1'
     steps:
       - uses: actions/checkout@v4
+      - name: Require passing native CI for this exact main commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ios-build.yml/runs?head_sha=$GITHUB_SHA&status=completed&per_page=20" > "$RUNNER_TEMP/hoooho-native-checks.json"
+          python3 - <<'PY'
+          import json,os
+          from pathlib import Path
+          runs=json.loads((Path(os.environ['RUNNER_TEMP'])/'hoooho-native-checks.json').read_text()).get('workflow_runs',[])
+          if not any(r.get('head_sha')==os.environ['GITHUB_SHA'] and r.get('conclusion')=='success' for r in runs):
+              raise SystemExit('This main commit has no successful iOS beta build yet. Wait for its native CI and rerun this upload.')
+          print('This exact main commit passed native CI.')
+          PY
       - name: Verify actual Apple account configuration
         run: |
           for name in IOS_BUNDLE_ID IOS_TEAM_ID ASC_APP_ID ASC_KEY_ID ASC_ISSUER_ID ASC_API_KEY_P8 IOS_DISTRIBUTION_P12_BASE64 IOS_DISTRIBUTION_P12_PASSWORD IOS_PROVISION_PROFILE_BASE64; do
