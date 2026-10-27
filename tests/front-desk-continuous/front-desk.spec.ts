@@ -41,7 +41,14 @@ test('raw save before organization finishes, exact view, same record enrichment 
  const context=await(await request.get(`/api/members/${memberId}/front-desk-record`,{headers})).json(),recordId=context.currentRecord.recordId,eventId=context.currentRecord.eventId
  const records=await(await request.get(`/api/events/${eventId}/records`,{headers})).json();expect(records.length).toBe(1);expect(records[0].id).toBe(recordId);expect(records[0].sourceText).toContain(text);expect(records[0].aiProvenance.structuredItems.length).toBeGreaterThan(0)
  await page.getByRole('textbox',{name:'对话输入'}).fill('还没发出的补充')
- await card.getByRole('button',{name:'查看记录',exact:true}).click();await expect(page).toHaveURL(new RegExp(`recordId=${recordId}`));await page.goBack();await expect(page.getByRole('textbox',{name:'对话输入'})).toHaveValue('还没发出的补充')
+ let slowCardReads=false
+ await page.route('**/front-desk-record/contexts/*',async route=>{
+  if(slowCardReads&&route.request().postDataJSON()?.action==='current_card'){const response=await route.fetch();await new Promise(resolve=>setTimeout(resolve,3000));return route.fulfill({response})}
+  return route.continue()
+ })
+ await card.getByRole('button',{name:'查看记录',exact:true}).click();await expect(page).toHaveURL(new RegExp(`recordId=${recordId}`));slowCardReads=true;await page.goBack();await expect(page.getByRole('textbox',{name:'对话输入'})).toHaveValue('还没发出的补充')
+ await page.locator('.front-desk-top-entries').getByRole('button',{name:'症状记录单',exact:true}).click();await expect(page.getByRole('dialog',{name:'症状记录单'})).toContainText(text);await page.getByRole('dialog',{name:'症状记录单'}).getByRole('button',{name:'关闭症状记录单',exact:true}).click()
+ await page.reload();await page.locator('.front-desk-top-entries').getByRole('button',{name:'一键整理',exact:true}).click();await expect(page.getByRole('dialog',{name:'就诊清单'})).toContainText(text);await expect(page.locator('.front-desk-notice')).toHaveCount(0);await page.getByRole('dialog',{name:'就诊清单'}).getByRole('button',{name:'关闭就诊清单',exact:true}).click();await expect(page.getByRole('textbox',{name:'对话输入'})).toHaveValue('还没发出的补充')
  await page.screenshot({path:info.outputPath('saved-continuous-record.png')})
 })
 test('inline edits and sticky latest card, checklist changes in place only after success',async({page,request},info)=>{
