@@ -65,14 +65,22 @@ function sourceMetadata(fact, cites, messages) {
   return { ...(sourceAt?{sourceAt}:{}),factId: fact.id, subject: clone(fact.subject), polarity: fact.polarity, changeType: changeType(fact), ...(question ? { questionContext: question } : {}) }
 }
 
+export function frontDeskLiteralReplacements(value){
+ const result=[]
+ const patterns=[{pattern:/(?:^|[，,。；;！!？?\n])\s*(?:不对[，,：:]?\s*)?不是\s*([^，,。；;！!？?\n]+?)\s*[，,；;]\s*(?:而)?是\s*([^，,。；;！!？?\n]+?)(?=$|[，,。；;！!？?\n])/gu,old:1,next:2},{pattern:/(?:^|[，,。；;！!？?\n])\s*是\s*([^，,。；;！!？?\n]+?)\s*[，,；;]\s*不是\s*([^，,。；;！!？?\n]+?)(?=$|[，,。；;！!？?\n])/gu,old:2,next:1}]
+ for(const {pattern,old,next} of patterns)for(const match of text(value).matchAll(pattern)){
+  const before=match[old].trim(),after=match[next].trim()
+  const afterStart=match.index+(next===2?match[0].lastIndexOf(after):match[0].indexOf(after))
+  if(before&&after&&before!==after)result.push({before,after,quote:match[0].replace(/^[，,。；;！!？?\n]\s*/u,'').trim(),afterStart,afterEnd:afterStart+after.length})
+ }
+ return result
+}
+
 function literalReplacement(fact, cites) {
   const replacements = []
   for (const cite of cites) {
-    const pattern = /(?:^|[，,。；;！!？?\n])\s*(?:不对[，,：:]?\s*)?不是\s*([^，,。；;！!？?\n]+?)\s*[，,；;]\s*(?:而)?是\s*([^，,。；;！!？?\n]+?)(?=$|[，,。；;！!？?\n])/gu
-    for (const match of cite.message.text.matchAll(pattern)) {
-      const before = match[1].trim(), after = match[2].trim()
-      const newStart = match.index + match[0].lastIndexOf(after), newEnd = newStart + after.length
-      if (before && after && before !== after && fact.text.includes(after) && cite.factStart <= newStart && cite.factEnd >= newEnd) replacements.push({ before, after,quote:match[0].replace(/^[，,。；;！!？?\n]\s*/u,'').trim(),messageId:cite.message.id })
+    for (const {before,after,quote,afterStart,afterEnd} of frontDeskLiteralReplacements(cite.message.text)) {
+      if (fact.text.includes(after) && cite.factStart <= afterStart && cite.factEnd >= afterEnd) replacements.push({ before, after,quote,messageId:cite.message.id })
     }
   }
   const unique = new Map(replacements.map(replacement => [JSON.stringify(replacement), replacement]))

@@ -53,6 +53,14 @@ test('captured C05 literal label correction marks the withdrawn label separately
  }
 })
 
+test('new-value then withdrawn-value correction keeps the original onset and only quotes actual messages',()=>{
+ const input=corrected('昨晚跑的时候碰到右脚小趾','刚才说错了，是左脚小趾，不是右脚。')
+ const sources=buildFrontDeskFactSources(input),source=sources.find(s=>s.id==='new')
+ assert.equal(source.literalCorrection.oldValue,'右脚');assert.equal(source.literalCorrection.newValue,'左脚小趾')
+ assert.ok(retained(sources).some(s=>s.text==='昨晚跑的时候碰到'))
+ assertTrueReferences(sources,input.messages)
+})
+
 test('a literal onset correction retains cough as a separate exact fragment and drops the standalone identity prefix', () => {
   const input = corrected('孩子今天开始咳嗽', '不是今天，是昨晚'), result = buildFrontDeskFactSources(input)
   assert.equal(result[0].id, 'new')
