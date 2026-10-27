@@ -7,3 +7,6 @@
 .hoho-reception__copy h2{margin:0;font-family:var(--hoho-font-family);font-size:var(--hoho-font-size-card-title);font-weight:500;line-height:1.5;letter-spacing:0;color:rgb(var(--hoho-color-text-primary))}
 .hoho-reception__description{margin:var(--hoho-space-1) 0 0;font-size:var(--hoho-font-size-caption);line-height:1.5;color:rgb(var(--hoho-color-text-secondary))}
 @media(max-width:359px){.hoho-reception.hoho-health-card{grid-template-columns:96px minmax(0,1fr);gap:var(--hoho-space-2);min-height:120px}.hoho-reception__media{width:96px;height:96px}.hoho-reception__copy h2{font-size:var(--hoho-font-size-body)}}
+.hoho-reception.hoho-reception--stacked{grid-template-columns:minmax(0,1fr);justify-items:center;padding:var(--hoho-space-4);gap:var(--hoho-space-3)}
+.hoho-reception--stacked .hoho-reception__media{width:min(100%,240px);height:160px}
+.hoho-reception--stacked .hoho-reception__copy{text-align:center;max-width:100%;overflow-wrap:anywhere}

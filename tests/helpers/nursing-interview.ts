@@ -17,7 +17,21 @@ export async function confirmFrontSubject(page:Page){
 
 /** Save/edit tests explicitly answer unknown instead of bypassing a live question. */
 export async function finishNursingQuestions(page:Page){
-  if(await page.locator('.smart-record-home').count()){await waitForNurseReply(page);await expect(page.getByRole('region',{name:'当前记录单'})).toBeVisible();return}
+  if(await page.locator('.smart-record-home').count()){
+    await waitForNurseReply(page)
+    const card=page.getByRole('region',{name:'当前记录单'})
+    if(await card.isVisible())return
+    const lastReply=page.locator('.nurse-turn--assistant[data-message-id]').last()
+    if(/[?？]/u.test(await lastReply.innerText())){
+      const keyboard=page.getByRole('button',{name:'改用文字',exact:true})
+      if(await keyboard.isVisible())await keyboard.click()
+      await page.getByRole('textbox',{name:'对话输入'}).fill('不清楚，先按已经说过的情况记录，不再追问。')
+      await page.getByRole('button',{name:'发送',exact:true}).click()
+      await waitForNurseReply(page)
+    }
+    const generate=page.getByRole('button',{name:'生成记录单',exact:true})
+    await expect(generate).toBeEnabled();await generate.click();await expect(card).toBeVisible();return
+  }
   await waitForNurseReply(page)
   const question=page.getByLabel('回答当前问题',{exact:true})
   if(await question.count())await question.getByRole('button',{name:'没注意',exact:true}).click()
