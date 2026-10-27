@@ -1,19 +1,17 @@
 name: Bowel form verification
 on:
   workflow_dispatch:
-  push:
-    branches: ['codex/bowel-design-standard-20261017']
-    paths:
-      - 'src/pages/HealthEvents/Bowel*'
-      - 'tests/bowel-form/**'
-      - '.github/workflows/bowel-form-verification.yml'
   pull_request:
+    branches: [main]
     paths:
       - 'src/pages/HealthEvents/Bowel*'
       - 'tests/bowel-form/**'
       - '.github/workflows/bowel-form-verification.yml'
 permissions:
   contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 jobs:
   verify:
     runs-on: ubuntu-24.04
@@ -63,6 +61,7 @@ jobs:
         if: always()
         with:
           name: bowel-form-evidence
+          retention-days: 7
           path: |
             outputs/bowel-form
             test-results/bowel-form
