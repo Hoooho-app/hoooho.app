@@ -1,5 +1,10 @@
 import unittest
-from select_xcode import choose, version_from_output
+import importlib.util
+from pathlib import Path
+spec = importlib.util.spec_from_file_location("select_xcode", Path(__file__).with_name("select-xcode.py"))
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+choose, version_from_output = module.choose, module.version_from_output
 
 class SelectXcodeTests(unittest.TestCase):
     def test_real_version_output(self):
