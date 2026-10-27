@@ -73,6 +73,13 @@ test('cold startup has a branded shell, hides unverified data, and retries in pl
   await expect(page.getByRole('heading', { name: '正在打开 Hoooho' })).toBeVisible()
   await expect(page.getByText('未验证的旧资料')).toHaveCount(0)
   await expect(page.locator('.session-recovery-art')).toBeVisible()
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  expect(await page.locator('.session-recovery-progress > span').evaluate(node => getComputedStyle(node).animationName)).toBe('none')
+  for (const width of [320, 390]) {
+    await page.setViewportSize({ width, height: 844 })
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    await page.screenshot({ path: info.outputPath(`startup-loading-${width}.png`) })
+  }
   release()
   await expect(page.getByRole('heading', { name: '暂时没能连接上' })).toBeVisible()
   for (const width of [320, 390]) {
@@ -84,6 +91,73 @@ test('cold startup has a branded shell, hides unverified data, and retries in pl
   await page.getByRole('button', { name: '重新连接', exact: true }).click()
   await expect(page.getByRole('textbox', { name: /^昵称/ })).toHaveValue('验收家长')
   await expect(page).toHaveURL(/account\/nickname/)
+})
+
+for (const blocked of ['fetch', 'lock'] as const) test(`cold ${blocked} ignoring cancellation still times out, recovers and rejects late identity`, async ({ page }) => {
+  const state = await setup(page)
+  await page.addInitScript(blocked => {
+    const testWindow = window as unknown as { unblockStartup: boolean; completeOldStartup?: () => void }
+    testWindow.unblockStartup = false
+    if (blocked === 'fetch') {
+      const original = window.fetch.bind(window)
+      const pending: ((response: Response) => void)[] = []
+      window.fetch = (input, init) => {
+        const path = new URL(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url, location.href).pathname
+        if (path === '/api/auth/session' && !testWindow.unblockStartup) return new Promise<Response>(resolve => pending.push(resolve))
+        return original(input, init)
+      }
+      testWindow.completeOldStartup = () => pending.forEach(resolve => resolve(new Response(JSON.stringify({ token: 'late-old-token', user: { id: 'late-other-account', nickname: '迟到的其他账号' } }), { headers: { 'Content-Type': 'application/json' } })))
+    } else {
+      const original = navigator.locks.request.bind(navigator.locks)
+      Object.defineProperty(navigator.locks, 'request', { configurable: true, value: (name: string, options: LockOptions, callback: LockGrantedCallback) => name === 'hoooho-browser-session' && !testWindow.unblockStartup ? new Promise(() => {}) : original(name, options, callback) })
+    }
+  }, blocked)
+  await page.clock.install()
+  await page.goto('/account/nickname')
+  await expect(page.getByRole('heading', { name: '正在打开 Hoooho' })).toBeVisible()
+  await page.clock.runFor(6001)
+  await expect(page.getByText('连接比平时慢一些，请稍候')).toBeVisible()
+  await page.clock.runFor(4010)
+  await page.clock.runFor(1010)
+  await page.clock.runFor(10010)
+  await expect(page.getByRole('heading', { name: '暂时没能连接上' })).toBeVisible()
+  expect(state.sessionCalls).toBe(0)
+  await page.evaluate(() => { (window as unknown as { unblockStartup: boolean }).unblockStartup = true })
+  if (blocked === 'fetch') await page.evaluate(() => window.dispatchEvent(new Event('online')))
+  else await page.getByRole('button', { name: '重新连接', exact: true }).click()
+  const input = page.getByRole('textbox', { name: /^昵称/ })
+  await expect(input).toHaveValue('验收家长')
+  await input.fill('还没提交的内容')
+  await page.evaluate(() => (window as unknown as { completeOldStartup?: () => void }).completeOldStartup?.())
+  await expect(input).toHaveValue('还没提交的内容')
+  await expect(page.getByText('迟到的其他账号')).toHaveCount(0)
+  expect(state.sessionCalls).toBe(1)
+  expect(state.writes).toEqual([])
+})
+
+for (const stage of ['members', 'profile'] as const) test(`non-cooperative ${stage} loading fails visibly and retries at the original route`, async ({ page }) => {
+  const state = await setup(page)
+  await page.addInitScript(stage => {
+    const testWindow = window as unknown as { unblockStartup: boolean }
+    testWindow.unblockStartup = false
+    const original = window.fetch.bind(window)
+    window.fetch = (input, init) => {
+      const path = new URL(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url, location.href).pathname
+      if (path === (stage === 'members' ? '/api/members' : '/api/auth/profile-sections') && !testWindow.unblockStartup) return new Promise<Response>(() => {})
+      return original(input, init)
+    }
+  }, stage)
+  await page.clock.install()
+  const route = stage === 'members' ? '/account/nickname' : '/health-profile/identity'
+  await page.goto(route)
+  await expect(page.getByText(stage === 'members' ? '正在载入孩子信息…' : '正在载入你的档案…')).toBeVisible()
+  await page.clock.runFor(10010)
+  await expect(page.getByRole('heading', { name: stage === 'members' ? '暂时没能连接上' : '部分资料暂时未加载' })).toBeVisible()
+  await page.evaluate(() => { (window as unknown as { unblockStartup: boolean }).unblockStartup = true })
+  await page.getByRole('button', { name: '重新连接', exact: true }).click()
+  await expect(page.locator('[data-session-recovery-screen]')).toHaveCount(0)
+  await expect(page).toHaveURL(new RegExp(route))
+  expect(state.writes).toEqual([])
 })
 
 test('slow recovery keeps the form node and scroll, then removes its delayed status', async ({ page }, info) => {
