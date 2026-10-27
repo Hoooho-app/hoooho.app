@@ -70,6 +70,7 @@ async function refreshBrowserSessionToken(generation: number) {
     try {
       // This is an idempotent session GET. A suspended tab must not hold up
       // another tab's read; actual authentication stays authoritative on server.
+      // Bound the lock and response wait too: transport cancellation alone may not settle them.
       session = await abortable(navigator.locks
         ? navigator.locks.request('hoooho-browser-session', { ifAvailable: true }, read)
         : read(), controller.signal)
