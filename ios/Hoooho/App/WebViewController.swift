@@ -203,7 +203,10 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
     private func reply(_ id: String, ok: Bool, frame: WKFrameInfo? = nil) {
         guard let data = try? JSONSerialization.data(withJSONObject: [id, ["ok": ok, "error": ok ? "" : "操作未完成"]]),
               let json = String(data: data, encoding: .utf8) else { return }
-        webView.evaluateJavaScript("window.__hooohoNativeReply && window.__hooohoNativeReply(...\(json))", in: frame, in: .page, completionHandler: nil)
+        // Use the public ObjC entry point (NS_REFINED_FOR_SWIFT). The Swift wrapper
+        // adds a libswiftWebKit dependency missing from the iOS 18.5 simulator layout.
+        // No completion conversion is needed; keep delivery to the originating frame.
+        webView.__evaluateJavaScript("window.__hooohoNativeReply && window.__hooohoNativeReply(...\(json))", inFrame: frame, in: .page, completionHandler: nil)
     }
 
     func webView(_ webView: WKWebView, navigationAction: WKNavigationAction, didBecome download: WKDownload) { download.delegate = self }

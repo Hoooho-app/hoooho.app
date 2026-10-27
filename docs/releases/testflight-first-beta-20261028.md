@@ -74,3 +74,7 @@ What to Test：
 2026-10-27：提交 `e249878` 的 Mac CI [40542147619](https://github.com/Hoooho-app/hoooho.app/actions/runs/40542147619) 已通过编译、导航单元测试、合成夹具模拟器启动及未签名设备归档，产物保存 7 天。后续打印与恢复修正另行重跑，不能沿用该旧提交通过状态。
 
 签名身份未配置、上传未执行、TestFlight 邀请与手机安装未完成；这些状态不能由上述 CI 结果替代。实际状态以后续 CI 与发布记录为准。
+
+后续 `e55b568` 的 CI 40544090835 在 iOS 18.5 模拟器启动时失败。日志确定缺少 `libswiftWebKit.dylib`，对应新增逐 frame JavaScript 回执的 Swift overlay。与 [WebKit 293831](https://bugs.webkit.org/show_bug.cgi?id=293831) 的模拟器布局缺陷一致，不能推断为所有真实旧设备同样失败。修正采用同一公共 ObjC API 的 Swift 导入入口，保留逐 frame 行为及 iOS 16 部署目标；CI 同时检查最旧可用和最新可用 iOS runtime，真实旧设备仍待验收。
+
+Apple 后台已核实：个人开发者会员有效至 2027-10-22；已注册 `com.hoooho.records`。会员有效和 App ID 注册不代表签名、构建上传或 TestFlight 安装完成。不将账户住址、电话或密钥写入本仓库。
