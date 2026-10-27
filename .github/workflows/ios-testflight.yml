@@ -1,0 +1,64 @@
+name: Upload iOS to TestFlight
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: ios-testflight-main
+  cancel-in-progress: false
+jobs:
+  upload:
+    if: github.ref == 'refs/heads/main'
+    runs-on: macos-15
+    timeout-minutes: 45
+    env:
+      IOS_BUNDLE_ID: ${{ vars.IOS_BUNDLE_ID }}
+      IOS_TEAM_ID: ${{ vars.IOS_TEAM_ID }}
+      ASC_APP_ID: ${{ vars.ASC_APP_ID }}
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_API_KEY_P8: ${{ secrets.ASC_API_KEY_P8 }}
+      IOS_DISTRIBUTION_P12_BASE64: ${{ secrets.IOS_DISTRIBUTION_P12_BASE64 }}
+      IOS_DISTRIBUTION_P12_PASSWORD: ${{ secrets.IOS_DISTRIBUTION_P12_PASSWORD }}
+      IOS_PROVISION_PROFILE_BASE64: ${{ secrets.IOS_PROVISION_PROFILE_BASE64 }}
+      FASTLANE_SKIP_UPDATE_CHECK: '1'
+      FASTLANE_HIDE_CHANGELOG: '1'
+      FASTLANE_SKIP_DOCS: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Require passing native CI for this exact main commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ios-build.yml/runs?head_sha=$GITHUB_SHA&status=completed&per_page=20" > "$RUNNER_TEMP/hoooho-native-checks.json"
+          python3 - <<'PY'
+          import json,os
+          from pathlib import Path
+          runs=json.loads((Path(os.environ['RUNNER_TEMP'])/'hoooho-native-checks.json').read_text()).get('workflow_runs',[])
+          if not any(r.get('head_sha')==os.environ['GITHUB_SHA'] and r.get('conclusion')=='success' for r in runs):
+              raise SystemExit('This main commit has no successful iOS beta build yet. Wait for its native CI and rerun this upload.')
+          print('This exact main commit passed native CI.')
+          PY
+      - name: Verify actual Apple account configuration
+        run: |
+          for name in IOS_BUNDLE_ID IOS_TEAM_ID ASC_APP_ID ASC_KEY_ID ASC_ISSUER_ID ASC_API_KEY_P8 IOS_DISTRIBUTION_P12_BASE64 IOS_DISTRIBUTION_P12_PASSWORD IOS_PROVISION_PROFILE_BASE64; do
+            test -n "${!name}" || { echo "::error::Missing $name. Configure the actual Apple identity before uploading."; exit 1; }
+          done
+          test "$IOS_BUNDLE_ID" != 'com.hoooho.records.preview' || { echo "::error::The preview bundle ID is not a registered release identity."; exit 1; }
+      - run: bash scripts/ios/prepare.sh
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+      - name: Validate and prepare existing signing material
+        run: bash scripts/ios/prepare-signing.sh
+      - name: Install official signing and upload tooling
+        run: gem install fastlane --no-document
+      - name: Sign, upload and wait for Apple processing
+        working-directory: ios/Hoooho
+        run: fastlane beta
+      - name: Remove temporary signing material
+        if: always()
+        run: |
+          rm -rf "$RUNNER_TEMP/hoooho-signing"
+          security delete-keychain hoooho-ci.keychain-db 2>/dev/null || true

@@ -1,0 +1,96 @@
+name: iOS beta build
+on:
+  pull_request:
+    paths: ['ios/**', 'scripts/ios/**', '.github/workflows/ios-*.yml']
+  push:
+    branches: [main]
+    paths: ['ios/**', 'scripts/ios/**', '.github/workflows/ios-*.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ios-build-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  simulator:
+    runs-on: macos-15
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        runtime: [oldest, current]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify build bootstrap
+        run: |
+          python3 -m unittest discover -s scripts/ios -p 'test_*.py'
+          ruby -c ios/Hoooho/fastlane/Fastfile
+      - name: Prepare Xcode project and existing brand icon
+        run: bash scripts/ios/prepare.sh
+      - name: Validate property lists
+        run: |
+          plutil -lint ios/Hoooho/App/Info.plist ios/Hoooho/App/PrivacyInfo.xcprivacy
+      - name: Select an available iPhone simulator
+        id: simulator
+        run: |
+          python3 - <<'PY'
+          import json,os,re,subprocess
+          devices=json.loads(subprocess.check_output(["xcrun","simctl","list","devices","available","--json"]))["devices"]
+          phones=[]
+          for runtime,items in devices.items():
+              version=re.search(r'iOS-([0-9-]+)$',runtime)
+              if version:
+                  for device in items:
+                      if device.get('isAvailable') and device['name'].startswith('iPhone'):
+                          phones.append((tuple(map(int,version[1].split('-'))),runtime,device))
+          if not phones: raise SystemExit("No iPhone simulator available")
+          phones.sort(key=lambda item:item[0])
+          version,runtime,device=phones[-1 if '${{ matrix.runtime }}'=='current' else 0]
+          if '${{ matrix.runtime }}'=='current' and version[0]<26: raise SystemExit('No current iOS 26+ runtime installed')
+          print('Selected '+runtime+' / '+device['name'])
+          with open(os.environ["GITHUB_OUTPUT"],"a") as f: f.write("id="+device["udid"]+"\n")
+          PY
+      - name: Build and run native tests without signing or production writes
+        run: |
+          xcodebuild test -project ios/Hoooho/HooohoRecords.xcodeproj -scheme HooohoRecords -destination 'platform=iOS Simulator,id=${{ steps.simulator.outputs.id }}' -derivedDataPath ios/Hoooho/build/DerivedData -resultBundlePath ios/Hoooho/build/NativeTests.xcresult CODE_SIGNING_ALLOWED=NO
+      - name: Build device archive without signing
+        if: matrix.runtime == 'current'
+        run: |
+          xcodebuild archive -project ios/Hoooho/HooohoRecords.xcodeproj -scheme HooohoRecords -destination 'generic/platform=iOS' -archivePath ios/Hoooho/build/HooohoRecords-UNSIGNED.xcarchive CODE_SIGNING_ALLOWED=NO
+      - name: Check the built app has no missing WebKit overlay dependency
+        if: always()
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import subprocess
+          app=Path('ios/Hoooho/build/DerivedData/Build/Products/Debug-iphonesimulator/HooohoRecords.app')
+          if not app.exists(): raise SystemExit('No simulator application was built')
+          checked=0
+          for item in app.rglob('*'):
+              if not item.is_file(): continue
+              with item.open('rb') as stream: magic=stream.read(4)
+              if magic not in [b'\xcf\xfa\xed\xfe',b'\xfe\xed\xfa\xcf',b'\xca\xfe\xba\xbe']: continue
+              dependencies=subprocess.check_output(['xcrun','otool','-L',str(item)],text=True)
+              if '/usr/lib/swift/libswiftWebKit.dylib' in dependencies:
+                  raise SystemExit('Unexpected WebKit Swift overlay dependency in '+item.name)
+              checked+=1
+          if not checked: raise SystemExit('No application Mach-O binaries checked')
+          print('Verified '+str(checked)+' application binaries without the affected WebKit overlay dependency')
+          PY
+      - name: Export native failure diagnostics
+        if: failure()
+        continue-on-error: true
+        run: |
+          xcrun xcresulttool export diagnostics --path ios/Hoooho/build/NativeTests.xcresult --output-path ios/Hoooho/build/NativeDiagnostics
+      - name: Publish unsigned artifacts and test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hoooho-ios-unsigned-and-test-evidence-${{ matrix.runtime }}
+          path: |
+            ios/Hoooho/build/NativeTests.xcresult
+            ios/Hoooho/build/NativeDiagnostics
+            ios/Hoooho/build/DerivedData/Build/Products/Debug-iphonesimulator/HooohoRecords.app
+            ios/Hoooho/build/HooohoRecords-UNSIGNED.xcarchive
+            ios/Hoooho/HooohoRecords.xcodeproj
+          retention-days: 7
