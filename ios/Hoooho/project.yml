@@ -1,0 +1,57 @@
+name: HooohoRecords
+options:
+  deploymentTarget:
+    iOS: "16.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    TARGETED_DEVICE_FAMILY: "1,2"
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+targets:
+  HooohoRecords:
+    type: application
+    platform: iOS
+    sources:
+      - path: App
+        excludes: ["Info.plist"]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.hoooho.records.preview
+        INFOPLIST_FILE: App/Info.plist
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        CODE_SIGN_STYLE: Automatic
+        GENERATE_INFOPLIST_FILE: NO
+  HooohoRecordsTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources: [Tests]
+    dependencies:
+      - target: HooohoRecords
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.hoooho.records.preview.tests
+        GENERATE_INFOPLIST_FILE: YES
+  HooohoRecordsUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [UITests]
+    dependencies:
+      - target: HooohoRecords
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.hoooho.records.preview.uitests
+        GENERATE_INFOPLIST_FILE: YES
+schemes:
+  HooohoRecords:
+    build:
+      targets:
+        HooohoRecords: all
+    test:
+      targets:
+        - HooohoRecordsTests
+        - HooohoRecordsUITests
+    archive:
+      config: Release
