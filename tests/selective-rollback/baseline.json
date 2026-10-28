@@ -10,7 +10,6 @@
     "src/features/ai-business/caseCapture.css": "2db6515073eb476a5e640ad966f25d617422d596e5926cc75a9495cfcbb0368c",
     "src/features/ai-business/liveAudioPreview.ts": "49041cad3c58d215b99d17f8a76290d3db913cdd69a756b670e47a84a71edac8",
     "src/features/ai-business/useSmartRecordVoice.ts": "72536a278bf98dea54989bacee130036f9ef033a21b73d4a91cc6b37bb8786b6",
-    "src/pages/HealthEvents/JournalRecordDetail.tsx": "ad55d381da72ca11ac8a0bc6315c8d33ab7ca1ed27d6ecf125481f6d5a61b528",
     "src/pages/HealthEvents/index.tsx": "fe60db1b057078b7f9ec9e8b13321d1514de87599f9d89d8050fc93943ff8a4a",
     "src/pages/NurseStation/FrontDeskProcessing.tsx": "e3d9030e296900827990b6948305f6f02a10d9c9be1dc5d8ca2044c9b89160f4",
     "server/ai/business/nursing-interview.mjs": "7683ec6865d83d0c66c396ed6303fb07ee158f7dd723d278e3a9de15e4642132"
@@ -22,6 +21,16 @@
     "src/pages/NurseStation/FrontDeskWelcome.tsx": "54391f6256cdc75e5fb74050f6b6b7e92b1547d35b9e0b2d648ffeb6541ed23b",
     "src/pages/NurseStation/conversationHome.css": "051ef9ef27b8abd84369ba267f411234f6980ed7936daf5dd4058ec2c57d22ca",
     "server/ai/front-desk-record.mjs": "d0da1b44117ab540f1e875cb8e5cf0d4ddcfddf103cb706e57b61cba0f3eedee",
-    "server/ai/front-desk-understanding.mjs": "2b0c394c006680263d329878faae8dfd139c9eaafe39eb98a48229d1721931f0"
-  }
+    "server/ai/front-desk-understanding.mjs": "2b0c394c006680263d329878faae8dfd139c9eaafe39eb98a48229d1721931f0",
+    "src/pages/HealthEvents/JournalRecordDetail.tsx": "ad55d381da72ca11ac8a0bc6315c8d33ab7ca1ed27d6ecf125481f6d5a61b528"
+  },
+  "additionalAuthorizations": [
+    {
+      "contract": "docs/delivery/frontdesk-reliability-20261029.md",
+      "files": [
+        "src/pages/HealthEvents/JournalRecordDetail.tsx"
+      ],
+      "reason": "Owner requested one saved-record detail format in conversation and calendar; optional front-desk edit callback preserves the existing versioned edit/reopen flow. Other frozen source files remain unchanged."
+    }
+  ]
 }
