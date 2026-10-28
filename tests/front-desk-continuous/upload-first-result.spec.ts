@@ -40,10 +40,12 @@ test('rejected image cannot borrow an older task ACK; legacy pending image recov
  const {bytes,attachmentId}=await photo();await fixture(request,text,attachmentId)
  let uploads=0;page.on('request',r=>{if(r.method()==='POST'&&r.url().includes('/recognition-assets'))uploads++})
  const rejected=await upload(page,bytes);expect(rejected.status()).toBe(409)
- await page.unroute('**/recognition-jobs',cancelBeforeSubmission)
  const rejectedInput=rejected.request().postDataJSON().input
  await expect(page.getByRole('button',{name:'重试这条消息',exact:true})).toBeVisible()
  await expect(page.getByRole('status',{name:'正在处理这条消息'})).toHaveCount(0)
+ // Wait for the client recovery GET before changing interception. Disabling
+ // Chromium interception while that GET starts can strand it in the harness.
+ await page.unroute('**/recognition-jobs',cancelBeforeSubmission)
  // Reproduce the persisted pending state left by the previous client release.
  await page.evaluate(async({memberId,inputId})=>{
   const {captureDraft,checkpointCaptureDraft}=await import('/src/features/ai-business/captureDraft.ts')
