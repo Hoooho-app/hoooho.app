@@ -41,6 +41,44 @@ test('failed confirmation save rolls back both generation marker and persistent 
  f.business.records.repository.update=update
  assert.equal((await f.front.continuous(...args,input)).saved.available,true)
 })
+async function unconfirmed(f){
+ const subject={kind:'unknown',memberId:null,confirmed:false,sources:[]}
+ await f.front.store.update(d=>({...d,contexts:d.contexts.map(c=>({...c,subject,facts:[{id:'f1',status:'active',scope:'record',polarity:'affirmed',subject,text:'头有点疼',sources:[{messageId:'m1',quote:'头有点疼',attachmentId:null}]}]})),messages:d.messages.map(m=>({...m,subject}))}))
+}
+test('organizing unconfirmed ownership shows a pending receipt; explicit ownership completes the same save intent once',async t=>{
+ const f=await fixture(t),args=[f.accountId,f.memberId,f.contextId];await unconfirmed(f)
+ const generated=await f.front.continuous(...args,{action:'generate_current',expectedVersion:1,confirmed:true,save:true})
+ assert.equal(generated.presentation.generated,true);assert.equal(generated.pendingSave,'subject');assert.equal(generated.saved,null)
+ assert.equal((await f.business.records.repository.findByAccountId(f.accountId)).length,0)
+ await f.front.confirmSubject(...args,{expectedVersion:1})
+ const saved=await f.front.continuous(...args)
+ assert.equal(saved.pendingSave,undefined);assert.equal(saved.saved.available,true)
+ await f.front.continuous(...args,{action:'generate_current',expectedVersion:saved.version,confirmed:true,save:true})
+ assert.equal((await f.business.records.repository.findByAccountId(f.accountId)).length,1)
+})
+test('new evidence invalidates a pending save intent until the user confirms organizing the new version',async t=>{
+ const f=await fixture(t),args=[f.accountId,f.memberId,f.contextId];await unconfirmed(f)
+ await f.front.continuous(...args,{action:'generate_current',expectedVersion:1,confirmed:true,save:true})
+ await f.front.store.update(d=>({...d,contexts:d.contexts.map(c=>({...c,version:2,evidenceVersion:2})),messages:[...d.messages,{...d.messages[0],id:'m2',text:'今天已经减轻',inputAt:Date.parse(f.at)+1}]}))
+ await f.front.confirmSubject(...args,{expectedVersion:2})
+ assert.equal((await f.business.records.repository.findByAccountId(f.accountId)).length,0)
+ const latest=await f.front.continuous(...args)
+ assert.equal(latest.presentation.generated,false);assert.equal(latest.pendingSave,undefined)
+ assert.equal((await f.front.continuous(...args,{action:'generate_current',expectedVersion:latest.version,confirmed:true,save:true})).saved.available,true)
+})
+test('a failed pending ownership save rolls back confirmation and can be retried without duplicates',async t=>{
+ const f=await fixture(t),args=[f.accountId,f.memberId,f.contextId];await unconfirmed(f)
+ await f.front.continuous(...args,{action:'generate_current',expectedVersion:1,confirmed:true,save:true})
+ const update=f.business.records.repository.update.bind(f.business.records.repository)
+ f.business.records.repository.update=async(id,patch,now)=>{if(patch.aiProvenance)throw Error('synthetic ownership save failure');return update(id,patch,now)}
+ await assert.rejects(()=>f.front.confirmSubject(...args,{expectedVersion:1}),/synthetic ownership save failure/)
+ assert.equal((await f.front.snapshot(...args)).subject.kind,'unknown')
+ assert.equal((await f.business.records.repository.findByAccountId(f.accountId)).length,0)
+ f.business.records.repository.update=update
+ await f.front.confirmSubject(...args,{expectedVersion:1})
+ assert.equal((await f.front.continuous(...args)).saved.available,true)
+ assert.equal((await f.business.records.repository.findByAccountId(f.accountId)).length,1)
+})
 test('a corrected headed record refreshes derived keywords in the saved text and active fact source',async t=>{
  const f=await fixture(t),args=[f.accountId,f.memberId,f.contextId]
  const text='【情况概述】\n没有发热，有点咳嗽。\n\n【关键词】\n发热\n\n【具体表现与测量】\n没有发热，有点咳嗽。'

@@ -177,13 +177,7 @@ body .smart-record-home .front-desk-welcome{display:flex;flex-direction:column;g
 .front-desk-welcome__media{width:75%;max-width:300px;height:clamp(150px,28dvh,250px);position:relative;align-self:center}
 .front-desk-welcome__media>.idle-nurse-visual{position:relative;inset:auto;width:100%;height:100%;overflow:hidden;mix-blend-mode:multiply}
 .front-desk-welcome__media .idle-nurse-visual__idle-video{width:100%;height:100%;object-fit:contain;opacity:1;transform:none}
-body .smart-record-home .hoho-dialogue-composer--frontdesk:not(.is-typing)>.hoho-dialogue-hold{color:rgb(var(--hoho-color-action-text));background:rgb(var(--hoho-color-action))}
-body .smart-record-home .hoho-dialogue-composer--frontdesk>.hoho-dialogue-mode,body .smart-record-home .hoho-dialogue-composer--frontdesk>.hoho-dialogue-photo{background:rgb(var(--hoho-color-surface-white));border:1px solid rgb(var(--hoho-color-border)/.65)}
 .smart-record-home .record-entry-actions--conversation .record-entry-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--hoho-space-2)}
-.smart-record-home .record-entry-actions--conversation .record-entry-grid>button{display:flex;flex-direction:column;justify-content:center;align-items:center;gap:var(--hoho-space-1);min-height:84px;padding:var(--hoho-space-2) var(--hoho-space-1);border-radius:var(--hoho-radius-card);background:var(--record-entry-surface);font-size:var(--hoho-font-size-caption);font-weight:500;white-space:nowrap}
-.record-entry-category-icon{display:grid;place-items:center;min-height:28px}
-.smart-record-home .record-entry-grid>button small{font-size:var(--hoho-font-size-caption);font-weight:400;opacity:.85}
-.smart-record-home .record-entry-actions--conversation .record-entry-grid>button[data-record-entry='symptom']{border:1px solid rgb(var(--hoho-color-record-symptom-text)/.55)}
 @media(max-height:650px){.front-desk-welcome__media{height:180px}.front-desk-welcome__copy h2{font-size:var(--hoho-font-size-page-title)}body .smart-record-home .front-desk-welcome{margin-top:var(--hoho-space-2);gap:var(--hoho-space-2)}}
 
 /* Owner-approved key-information flow. Scope stays on the front desk. */

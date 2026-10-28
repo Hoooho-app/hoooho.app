@@ -10,7 +10,7 @@ import { applyFrontDeskRecordChanges } from './front-desk-understanding.mjs'
 import { originals } from './front-desk-original-save.mjs'
 import { continuousPresentation } from './front-desk-presentation.mjs'
 import {frontDeskRecordSections,recordSectionsText,frontDeskInformationProgress} from './front-desk-record-sections.mjs'
-import { frontDeskRecognitionPreview } from './front-desk-recognition-preview.mjs'
+import { frontDeskRecognitionPreview,frontDeskUploadReading } from './front-desk-recognition-preview.mjs'
 
 const revision = record => frontRecordVersion({type:record.type,content:record.content,occurredAt:record.occurredAt,journal:record.journal,aiProvenance:record.aiProvenance,sourceText:record.sourceText})
 const sourcesFor = (data, context) => data.messages.filter(m => m.contextId === context.id && m.accountId === context.accountId && m.memberId === context.memberId && ['text','voice','image'].includes(m.kind) && m.status !== 'discarded' && (m.acceptedInput === true || m.acceptedInput == null && m.status === 'completed') && !m.retracted).sort((a,b) => a.inputAt-b.inputAt || a.id.localeCompare(b.id))
@@ -78,19 +78,25 @@ export async function continuousCard(front, accountId, memberId, contextId) {
   const relevant=data.messages.filter(message=>message.accountId===accountId&&message.memberId===memberId&&(message.contextId===contextId||message.targetContextId===contextId&&['pending','transcribing'].includes(message.status))).sort((a,b)=>(a.inputAt??Date.parse(a.at))-(b.inputAt??Date.parse(b.at)))
   card.recognitionPreview=recognitionPreview
   card.informationProgress=frontDeskInformationProgress(context,messages)
+  card.uploadReading=frontDeskUploadReading(context,messages)
   card.presentation=continuousPresentation(context,relevant,card)
+  const generation=context.recordGeneration
+  if(generation?.saveRequested&&generation.pendingSave==='subject'&&generation.evidenceVersion===card.evidenceVersion&&generation.editRevision===card.editRevision&&!(saved?.available&&saved.evidenceVersion===card.evidenceVersion&&saved.editRevision===card.editRevision&&saved.sourceSignature===card.sourceSignature))card.pendingSave='subject'
   return card
 }
 
 export async function generateContinuousRecord(front,accountId,memberId,contextId,input) {
   if(input.confirmed!==true)throw fail('请确认生成记录单',422,'FRONT_GENERATION_CONFIRMATION_REQUIRED')
   return accountTransaction(front.directory,async()=>{
-    const {context}=await owned(front,accountId,memberId,contextId);assertVersion(context,input)
+    const {context,data}=await owned(front,accountId,memberId,contextId);assertVersion(context,input)
     const card=await continuousCard(front,accountId,memberId,contextId)
     if(!card.presentation.canGenerate)throw fail(card.presentation.asking?'请先回答当前问题，再生成记录单':'这段内容还在处理，请稍后生成记录单',409,'FRONT_RECORD_NOT_READY')
     checkSubject(context.subject,memberId)
-    if(input.save===true)await writeRecord(front,accountId,memberId,contextId,{expectedVersion:context.version})
-    if(!card.presentation.generated)await front.store.update(d=>({...d,contexts:d.contexts.map(c=>c.id===contextId&&c.accountId===accountId&&c.memberId===memberId?{...c,recordGeneration:{evidenceVersion:c.evidenceVersion??0,editRevision:c.editRevision??0,at:front.now().toISOString()}}:c)}))
+    const subjects=[context.subject,...sourcesFor(data,context).map(message=>message.subject),...(context.facts??[]).filter(fact=>fact.status==='active'&&fact.scope!=='context').map(fact=>fact.subject)]
+    subjects.forEach(subject=>checkSubject(subject,memberId))
+    const pendingSubject=[context.subject,...(context.facts??[]).filter(fact=>fact.status==='active'&&fact.scope!=='context').map(fact=>fact.subject)].some(subject=>subject&&(subject.kind!=='current'||subject.confirmed!==true))
+    if(input.save===true&&!pendingSubject)await writeRecord(front,accountId,memberId,contextId,{expectedVersion:context.version})
+    if(!card.presentation.generated||input.save===true)await front.store.update(d=>({...d,contexts:d.contexts.map(c=>c.id===contextId&&c.accountId===accountId&&c.memberId===memberId?{...c,recordGeneration:{evidenceVersion:c.evidenceVersion??0,editRevision:c.editRevision??0,at:front.now().toISOString(),...(input.save===true?{saveRequested:true,...(pendingSubject?{pendingSave:'subject'}:{})}:{})}}:c)}))
     return continuousCard(front,accountId,memberId,contextId)
   })
 }
