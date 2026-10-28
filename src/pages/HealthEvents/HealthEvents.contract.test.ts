@@ -33,7 +33,7 @@ const homeFlows = read('../NurseStation/HomeFlows.tsx')
 test('统一健康日历移除身份块，共享入口与首页均保留情况单', () => {
   assert.match(page, /<MainAppHeader title="健康日历"/)
   assert.doesNotMatch(page, /HealthRecordSubjectHeader/)
-  assert.match(page, /showInstallApp=\{false\} action=/)
+  assert.match(page, /<MainAppHeader title="健康日历" action=/)
   assert.match(subjectHeader, /<MedicalPrepButton aria-label="就诊情况单，孩子情况快速整理" className="journal-subject-summary" label="就诊情况单"/)
   assert.doesNotMatch(page, />摘要生成<\/HohoButton>/)
   assert.match(homeFlows, /<OrganizeSheet/)

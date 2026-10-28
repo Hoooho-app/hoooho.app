@@ -21,7 +21,5 @@ export const optimizedPublicImages: Record<string, string> = {
   "/nurse-triage/saved.png": "/nurse-triage/saved.e10c9b3405.webp",
   "/nurse-triage/saving.png": "/nurse-triage/saving.ca64982bfe.webp",
   "/nurse-triage/shifted.png": "/nurse-triage/shifted.d6d40cee88.webp",
-  "/nurse-triage/speech-paused.png": "/nurse-triage/speech-paused.2d25ea8b7c.webp",
-  "/tutorials/add-to-home-screen/safari-add.jpg": "/tutorials/add-to-home-screen/safari-add.ca890af926.webp",
-  "/tutorials/add-to-home-screen/safari-share.jpg": "/tutorials/add-to-home-screen/safari-share.a037440cc4.webp"
+  "/nurse-triage/speech-paused.png": "/nurse-triage/speech-paused.2d25ea8b7c.webp"
 }
