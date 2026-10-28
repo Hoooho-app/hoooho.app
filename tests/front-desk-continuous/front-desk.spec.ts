@@ -148,7 +148,7 @@ test('private home, keyboard classifications, four direct attachment actions, da
  await expect(page.locator('.front-desk-top-entries')).toHaveCount(0)
  await page.screenshot({path:info.outputPath('front-desk-voice-home.png')})
  const before=await page.locator('.hoho-dialogue-composer').boundingBox();await page.getByRole('button',{name:'改用文字',exact:true}).click();const after=await page.locator('.hoho-dialogue-composer').boundingBox();expect(after!.height).toBe(before!.height);expect(after!.width).toBe(before!.width)
- expect(await page.locator('[aria-label="记录入口"] button').allTextContents()).toEqual(['记录症状','用药','日常','治疗复诊资料回传'])
+ expect(await page.locator('[aria-label="记录入口"] button').allTextContents()).toEqual(['记录症状','用药','日常','治疗复诊'])
  expect(await page.locator('[aria-label="记录入口"] button').evaluateAll(buttons=>buttons.map(button=>getComputedStyle(button).backgroundColor))).toEqual(['rgb(228, 243, 234)','rgb(239, 233, 248)','rgb(252, 242, 227)','rgb(228, 239, 252)'])
  await page.getByRole('button',{name:'日常',exact:true}).click();expect(await page.locator('.daily-record-options button').allTextContents()).toEqual(['喂养与饮食','睡眠','排便'])
  const dailyImages=page.locator('.daily-record-options button img')
