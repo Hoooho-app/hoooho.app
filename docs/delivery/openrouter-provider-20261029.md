@@ -48,4 +48,7 @@
 - 情况单服务 25 项通过，包含 OpenRouter 摘要预览→确认→重开，确认不产生第二次模型调用。情况单客户端 20 项通过。
 - iPhone SE 尺寸 Chromium：OpenRouter 合成 transport 下 4 项真实浏览器流程通过（42.8 秒）：回复→显式整理→保存→重开；402 失败后原话记录可用且不假装结构化成功；切换成员隔离迟到结果；图片读取→确认→保存→重开。断言消息诊断实际为 `openrouter` / `mistralai/synthetic`。
 - 浏览器证据为本地合成账号/模型，生产源码、业务持久化和页面运行均为真实链路；不等于实体 iPhone/Safari 或真实海外模型验收。任务所有测试服务已停止。
-- 发布：待本次提交、main 集成和 Production 终态核验；真实 OpenRouter：仍缺 Key、余额与已确认可用的目标模型，未调用、未收费、未启用。不得将“代码接入可配置”称为“海外模型已启用”或“效果已提升”。
+- 集成：保留期间新增的图片中断恢复提交 `639cb0f3662b04162bcc27ca7e795651809e93c1`，重新构建通过；OpenRouter/recognition-jobs 54 项、OpenRouter 移动浏览器 4 项（40.8 秒）再次通过。默认千问移动端回复→保存→重开流程另行通过（1 项，27 秒）。
+- 发布：代码提交 `c5e8a70b606797a6227a2949e534d4cf2b3ca86e` 已合入 `main`。Railway Production 部署 `7950bea8-47ab-40ad-b5b9-2403b8b32b79` 已观察到 `SUCCESS`，`/api/health` 与 `/nurse-station` 均为 HTTP 200，正式页面引用的 `/assets/index-CEiEEed4.js` 包含该提交完整 SHA。
+- 配置核对只读取变量名称：线上没有 `OPENROUTER_API_KEY` 或 `OPENROUTER_MODEL`，本轮没有切换原供应商。无真实新模型调用、自动充值或生产健康数据测试写入。
+- 真实 OpenRouter 验证/启用：`BLOCKED`，仍缺 Key、余额与已确认可用的目标模型。代码已发布不代表海外模型已启用或效果已提升；产品主人尚未验收真实模型表现。后续按账号配置说明继续，不重写接入代码。
