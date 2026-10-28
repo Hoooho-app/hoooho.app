@@ -13,10 +13,11 @@ test.beforeEach(async({page,request})=>{
 async function openDiet(page:Page){
  const form=page.getByRole('dialog',{name:'喂养/饮食',exact:true})
  if(await form.isVisible())return form
- // The entry navigates to the existing calendar form. Reload remains on that
- // page, whose own shortcut names are intentionally unchanged.
- if(new URL(page.url()).pathname==='/health-events')await page.getByRole('button',{name:'喂养/饮食',exact:true}).click()
- else{const keyboard=page.getByRole('button',{name:'改用文字',exact:true});if(await keyboard.isVisible())await keyboard.click();await page.getByRole('button',{name:'日常',exact:true}).click();await page.getByRole('button',{name:'喂养与饮食',exact:true}).click()}
+ // All new records start at the symptom page, including after a form reload.
+ if(new URL(page.url()).pathname==='/health-events')await page.getByRole('navigation',{name:'主要导航'}).getByRole('button',{name:'症状记录',exact:true}).click()
+ await expect(page).toHaveURL(/\/nurse-station$/)
+ await expect(page.locator('.hoho-dialogue-composer')).toBeVisible()
+ const keyboard=page.getByRole('button',{name:'改用文字',exact:true});if(await keyboard.isVisible())await keyboard.click();await page.getByRole('button',{name:'日常',exact:true}).click();await page.getByRole('button',{name:'喂养与饮食',exact:true}).click()
  return form
 }
 
@@ -39,7 +40,8 @@ test('hidden features cannot load from bookmarks, navigation or help; core recor
  }
  await page.goto('/health-profile/growth');await expect(page.locator('.growth-reference-entry')).toHaveCount(0)
  await page.goto('/recent-review?voucher=hidden&snapshot=hidden');await expect(page.locator('.review-snapshot-tools')).toHaveCount(0)
- await page.goto('/health-events');await expect(page.getByRole('button',{name:'用药',exact:true})).toBeEnabled()
+ await page.goto('/health-events');await expect(page.locator('.journal-record-actions')).toHaveCount(0)
+ await page.getByRole('navigation',{name:'主要导航'}).getByRole('button',{name:'症状记录',exact:true}).click();await page.getByRole('button',{name:'改用文字',exact:true}).click();await expect(page.getByRole('button',{name:'用药',exact:true})).toBeEnabled()
  await page.getByRole('button',{name:'用药',exact:true}).click()
  await expect(page.getByText('设置用药提醒',{exact:true})).toHaveCount(0)
  await page.keyboard.press('Escape')

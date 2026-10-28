@@ -67,6 +67,9 @@ jobs:
         run: npx playwright test --config tests/visit-sheet/presentation.config.ts
       - name: Verify private identities, four-tab navigation and draft continuity
         run: npx playwright test --config tests/frontdesk-navigation/playwright.config.ts
+      - name: Verify review-only calendar and expanded month grid
+        run: npx playwright test --config tests/calendar-review-only/playwright.config.ts
+      - run: npx playwright test --config tests/conversation-home/pure-record.config.ts
       - name: Verify archive upload ownership, review, save and retry with synthetic documents
         run: npx playwright test --config tests/ai-business/playwright.config.ts profile-batch.spec.ts
       - run: npx playwright test --config tests/dialogue/symptom-followup.config.ts
@@ -83,7 +86,6 @@ jobs:
         run: npx playwright test --config tests/selective-rollback/playwright.config.ts
       - run: npx playwright test --config tests/conversation-home/playwright.config.ts
       - run: npx playwright test --config tests/conversation-home/first-child.config.ts
-      - run: npx playwright test --config tests/conversation-home/pure-record.config.ts
       - run: npx playwright test --config tests/conversation-home/forest.config.ts
       - uses: actions/upload-artifact@v4
         if: always()
@@ -92,6 +94,7 @@ jobs:
           retention-days: 7
           path: |
             outputs/symptom-followup/
+            outputs/calendar-review-only/
             outputs/visit-paper/
             test-results/
             playwright-report/
