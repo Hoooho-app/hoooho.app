@@ -45,6 +45,12 @@ test('compact home tools, dynamic name, four direct attachment actions, daily fe
  await page.screenshot({path:info.outputPath('front-desk-mobile.png')})
 })
 test('processing and questions precede explicit generation, save and reopening the same record',async({page,request},info)=>{
+ const observeCalendarHistory=()=>{
+  const key='front-desk-calendar-replacements';if(sessionStorage.getItem(key)===null)sessionStorage.setItem(key,'0')
+  const replace=history.replaceState.bind(history)
+  history.replaceState=(data:unknown,unused:string,url?:string|URL|null)=>{if(url){const target=new URL(String(url),location.href);if(target.pathname==='/health-events'&&target.searchParams.has('recordId')&&target.searchParams.has('sort'))sessionStorage.setItem(key,String(Number(sessionStorage.getItem(key))+1))}return replace(data,unused,url)}
+ }
+ await page.addInitScript(observeCalendarHistory);await page.evaluate(observeCalendarHistory)
  const text='今天头有点疼';await reply(request,text,'哪里最不舒服？');await request.get(`${control}/delay?ms=800`)
  const job=await send(page,text)
  await expect(page.getByRole('status',{name:'正在处理这条消息'})).toBeVisible()
@@ -76,6 +82,7 @@ test('processing and questions precede explicit generation, save and reopening t
   return route.continue()
  })
  await card.getByRole('button',{name:'查看记录',exact:true}).click();await expect(page).toHaveURL(new RegExp(`recordId=${recordId}`));slowCardReads=true;await page.goBack();await expect(page.getByRole('textbox',{name:'对话输入'})).toHaveValue('还没发出的补充')
+ expect(await page.evaluate(()=>Number(sessionStorage.getItem('front-desk-calendar-replacements')))).toBe(0)
  await page.locator('.front-desk-top-entries').getByRole('button',{name:'症状记录单',exact:true}).click();await expect(page.getByRole('dialog',{name:'症状记录单'})).toContainText(/额头[疼痛]/u);await page.getByRole('dialog',{name:'症状记录单'}).getByRole('button',{name:'关闭症状记录单',exact:true}).click()
  await page.reload();await expect(page.locator('.front-desk-top-entries button')).toHaveText(['症状记录单']);await expect(page.getByRole('region',{name:'就诊情况单'})).toHaveCount(0)
  await discussVisit(page,request);await page.getByRole('region',{name:'就诊情况单'}).getByRole('button',{name:'一键整理',exact:true}).click();await expect(page.getByRole('dialog',{name:'就诊清单'})).toContainText(/额头[疼痛]/u);await page.getByRole('dialog',{name:'就诊清单'}).getByRole('button',{name:'关闭就诊清单',exact:true}).click()

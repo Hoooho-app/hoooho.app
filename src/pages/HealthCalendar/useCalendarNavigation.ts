@@ -40,6 +40,10 @@ export function useCalendarNavigation(identity: string, today: string) {
     // A queued normalization from this page must not pull that navigation back.
     if (`${window.location.pathname}${window.location.search}${window.location.hash}` !== `${location.pathname}${location.search}${location.hash}`) return
     try { sessionStorage.setItem(key, JSON.stringify(state)); sessionStorage.setItem('hoooho:journal-sort', state.sort); localStorage.setItem(viewKey, state.view) } catch { /* Navigation works without storage. */ }
+    // A front-desk detail/form entry belongs to its originating workflow. Its
+    // calendar defaults are already normalized above; starting a second router
+    // navigation here can finish after a fast browser Back and steal that entry.
+    if ((location.state as { frontDeskReturn?: boolean } | null)?.frontDeskReturn && owner === identity) return
     if (location.search.slice(1) !== canonical || owner !== identity || (isReturn && state.view === 'month')) navigate(`${location.pathname}?${canonical}${location.hash}`, { replace: true, state: { ...location.state, ...(state.view === 'month' ? { journalReturn: undefined } : {}), calendarIdentity: identity } })
   }, [canonical, key, location.pathname, location.search, location.hash, location.state, navigate])
   const change = (next: CalendarNavigation, flushSync = true) => {
