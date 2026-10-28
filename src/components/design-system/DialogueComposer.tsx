@@ -35,7 +35,8 @@ export function DialogueComposer({ text, onTextChange, onSend, onStart, onStop, 
   useEffect(() => {
     if ((variant !== 'conversation' && variant !== 'frontdesk') || !input.current) return
     input.current.style.height = '24px'
-    input.current.style.height = `${Math.min(96, Math.max(24, input.current.scrollHeight))}px`
+    // Only entered content grows the row; a wrapped empty placeholder must not move the composer.
+    if (hasText) input.current.style.height = `${Math.min(96, Math.max(24, input.current.scrollHeight))}px`
   }, [text, typing, variant])
   if (variant === 'conversation' || variant === 'frontdesk') return <div ref={root} className={`hoho-dialogue-composer hoho-dialogue-composer--conversation${variant==='frontdesk'?' hoho-dialogue-composer--frontdesk':''}${typing?' is-typing':''}${!onPhoto?' without-attachments':''}${(typing&&(hasText||variant==='frontdesk'))||(working&&onPauseWork)?' has-action':''}`}>
     {typing?<textarea ref={input} aria-label="对话输入" rows={1} maxLength={maxLength} value={text} placeholder={placeholder} disabled={textBlocked} onChange={e=>onTextChange(e.target.value)} onCompositionStart={()=>{composing.current=true}} onCompositionEnd={()=>{composing.current=false}} onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.nativeEvent.isComposing&&!composing.current&&e.keyCode!==229&&hasText){e.preventDefault();onSend()}}}/>:<HoldToTalkButton className="hoho-dialogue-hold" presentation="conversation" disabled={disabled||voiceDisabled} listening={listening} requesting={requesting} processing={processing} audioLevel={audioLevel} releaseLabel={releaseLabel} idleLabel={holdLabel} discardOnBlur={discardOnBlur} expandedFeedback={expandedFeedback} feedbackHint={feedbackHint} liveTranscript={liveTranscript} liveStatus={liveStatus} onStart={()=>{setPhotoOpen(false);onStart()}} onStop={onStop} onDiscard={onDiscard}/>}
