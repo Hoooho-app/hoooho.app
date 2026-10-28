@@ -15,6 +15,8 @@ async function openDiet(page:Page){
  if(await form.isVisible())return form
  // All new records start at the symptom page, including after a form reload.
  if(new URL(page.url()).pathname==='/health-events')await page.getByRole('navigation',{name:'主要导航'}).getByRole('button',{name:'症状记录',exact:true}).click()
+ await expect(page).toHaveURL(/\/nurse-station$/)
+ await expect(page.locator('.hoho-dialogue-composer')).toBeVisible()
  const keyboard=page.getByRole('button',{name:'改用文字',exact:true});if(await keyboard.isVisible())await keyboard.click();await page.getByRole('button',{name:'日常',exact:true}).click();await page.getByRole('button',{name:'喂养与饮食',exact:true}).click()
  return form
 }
