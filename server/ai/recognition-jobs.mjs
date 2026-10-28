@@ -21,7 +21,7 @@ const waiting=j=>['queued','running','publishing'].includes(j.state)
 const cleanName=value=>String(value||'原件').replace(/[\\/\x00-\x1f]/g,'').slice(0,120)
 const snapshotText=snapshot=>snapshot.items.map(item=>[item.title,`发生时间：${item.timeText??'未明确'}`,...item.fields.map(field=>`${fieldLabels[field.name]??'记录'}：${field.value}\n${(field.sources??[]).map(ref=>`来源${snapshot.sources?.find(source=>source.id===ref.sourceId)?.name?`（${snapshot.sources.find(source=>source.id===ref.sourceId).name} 第${ref.page}页）`:''}：「${ref.quote}」`).join('\n')}`)].join('\n')).join('\n\n')
 const publicFrontMessage=({originalFiles,mediaPreparation,...message})=>({...message,originalFileCount:originalFiles?.length??message.originalFileCount??0,files:(message.files??[]).map(({dataUrl,...file})=>file),voices:(message.voices??[]).map(({dataUrl,...file})=>file)})
-const publicJob=j=>{if(!j)return null;const result=Object.fromEntries(Object.entries(j).filter(([key])=>!['accountId','memberId','inputs','options','owner','leaseUntil','transcripts','cursor','digest','commandIds','draftVersion','outbox','activeMs','baseText'].includes(key)));if(j.frontDesk)result.frontDesk={...j.frontDesk,context:{...j.frontDesk.context,review:j.review??j.frontDesk.context.review,messages:j.frontDesk.context.messages.map(publicFrontMessage)}};result.inputStates=(j.inputs??[]).map((item,index)=>({id:item.id,status:j.inputErrors?.[item.id]?'failed':index<(j.cursor??0)?'completed':'pending',text:j.transcripts?.[item.id]??item.text}));result.unresolvedInputs=unresolved(j).map(id=>({id,...j.inputErrors[id]}));return result}
+const publicJob=j=>{if(!j)return null;const result=Object.fromEntries(Object.entries(j).filter(([key])=>!['accountId','memberId','inputs','options','owner','leaseUntil','transcripts','cursor','digest','commandIds','draftVersion','outbox','activeMs','baseText','organizationDeferred'].includes(key)));if(j.frontDesk)result.frontDesk={...j.frontDesk,context:{...j.frontDesk.context,review:j.review??j.frontDesk.context.review,messages:j.frontDesk.context.messages.map(publicFrontMessage)}};result.inputStates=(j.inputs??[]).map((item,index)=>({id:item.id,status:j.inputErrors?.[item.id]?'failed':index<(j.cursor??0)?'completed':'pending',text:j.transcripts?.[item.id]??item.text}));result.unresolvedInputs=unresolved(j).map(id=>({id,...j.inputErrors[id]}));return result}
 const mediaTypes=/^(?:application\/pdf|image\/(?:jpeg|png|webp|heic|heif)|audio\/(?:wav|webm|mp4|ogg)(?:;\s*codecs=(?:"[a-z0-9., _-]+"|[a-z0-9.,_-]+))?)$/i
 
 // One SQLite WAL database on the existing persistent volume. It stores task
@@ -163,6 +163,16 @@ export class RecognitionJobs {
       await this.scope(accountId,memberId)
       const context=await this.front.snapshot(accountId,memberId,contextId)
       if(!context?.continuousRecord||context.closedAt||context.version!==version)throw fail('记录单已有更新',409,'FRONT_CONTEXT_CHANGED')
+      if(generationRequested){
+        const existing=this.raw(`generate:${contextId}:${version}`)
+        if(existing)return this.owned(accountId,memberId,existing.id)
+        const ownedJobs=this.all().filter(job=>job.accountId===accountId&&job.memberId===memberId)
+        const deferred=ownedJobs.some(job=>job.organizationDeferred?.contextId===contextId&&job.organizationDeferred.version===version&&job.organizationDeferred.revision===job.inputRevision&&job.state==='ready'&&job.contextId===contextId&&job.frontDesk?.context?.version===version)
+        // Only resume work deliberately deferred during questions. Reuse ready
+        // analysis; a failed analysis requires an explicit retry, not consent
+        // to view a draft. New input/other work keeps its place in the queue.
+        if(!deferred||ownedJobs.some(waiting)||context.messages.some(message=>message.kind!=='assistant'&&['pending','transcribing'].includes(message.status)))return null
+      }
       const source=generationRequested?[...context.messages].reverse().find(message=>message.kind!=='assistant'&&message.status==='completed'&&!message.retracted):context.messages.find(message=>message.id===context.cardEdit?.messageId&&message.manualCardEdit)
       if(!source)throw fail('未找到修改来源',409,'FRONT_CONTEXT_CHANGED')
       return this.transaction(()=>{
@@ -175,6 +185,7 @@ export class RecognitionJobs {
         return this.put({id,accountId,memberId,mode:'front',scopeKey:'front',state:'queued',stage:'queued',seq:0,inputRevision:1,resultRevision:0,cursor:1,inputs:[{id:source.id,kind:'text',text:source.text,inputAt:source.inputAt,assetIds:[],contextId}],contextId,frontDesk:{messageId:source.id,replyId:generationRequested?`${source.id}:reply`:`${source.id}:feedback`,context:{...context,messages:context.messages.map(publicFrontMessage)}},transcripts:{},options:{continuousRecord:true,generationRequested,semanticVersion:3,followUp:false},createdAt:at,processingStartedAt:at,cancelEpoch:0,commandIds:[],activeMs:0})
       })
     })
+    if(!job)return null
     const active=this.active.get(JSON.stringify([accountId,memberId]));if(active&&active.id!==job.id)active.controller.abort()
     this.kick();return publicJob(job)
   }
@@ -286,7 +297,7 @@ export class RecognitionJobs {
           // A follow-up answer needs one dialogue call, not full extraction and
           // professional-summary generation on every turn. Explicit generation
           // queues that existing pipeline separately, with the same version fence.
-          await this.updateActive(id,epoch,signal,{state:unresolved(j).length?'needs_review':'ready',stage:'ready',resultKind:context.resultKind,resultRevision:revision,review:null,draftId:null,frontDesk:{...j.frontDesk,context},owner:null,leaseUntil:0});return
+          await this.updateActive(id,epoch,signal,{state:unresolved(j).length?'needs_review':'ready',stage:'ready',resultKind:context.resultKind,resultRevision:revision,review:null,draftId:null,organizationDeferred:{contextId:context.id,version:context.version,revision},frontDesk:{...j.frontDesk,context},owner:null,leaseUntil:0});return
         }
         if(['save','save_original','readback','cancel','stop','query','export','delete','update'].includes(context.actionPlan?.type)){
           await this.executeFrontAction(j,context,epoch,signal,revision);return

@@ -181,7 +181,7 @@ export class FrontDeskRecord {
   async continuous(accountId,memberId,contextId,input={}){
     if(input.action==='generate_current'){
       const card=await generateContinuousRecord(this,accountId,memberId,contextId,input)
-      if(this.onGenerate)try{card.recognitionJob=await this.onGenerate(accountId,memberId,contextId,card.version)}catch{this.logger?.warn?.('[Hoooho front desk] generation organization deferred')}
+      if(this.onGenerate)try{const job=await this.onGenerate(accountId,memberId,contextId,card.version);if(job)card.recognitionJob=job}catch{this.logger?.warn?.('[Hoooho front desk] generation organization deferred')}
       return card
     }
     if(input.action==='edit_current'){

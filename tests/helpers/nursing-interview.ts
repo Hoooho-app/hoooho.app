@@ -29,7 +29,7 @@ export async function finishNursingQuestions(page:Page){
       await page.getByRole('button',{name:'发送',exact:true}).click()
       await waitForNurseReply(page)
     }
-    const generate=page.getByRole('button',{name:'生成记录单',exact:true})
+    const generate=page.getByRole('button',{name:'确认整理',exact:true})
     await expect(generate).toBeEnabled();await generate.click();await expect(card).toBeVisible();return
   }
   await waitForNurseReply(page)

@@ -82,7 +82,10 @@ test('second follow-up offers text consent, unknown location opens picker, and r
  await request.post(`${control}/front-reply-data`,{data:{reply:'明白。洗澡后会更明显吗？',contextId:'@context',responseMode:'record',taskRelation:'continue',subject,recordChanges:[{type:'add',targetId:null,text:noComparison,scope:'record',polarity:'unknown',subject,sources:[{messageId:'@latest',attachmentId:null,quote:noComparison}]}],nextQuestion:{id:null,text:'洗澡后会更明显吗？',target:'after_bathing',sourceMessageId:'@latest'},requestedAction:noAction,uncertainties:[],emergency:{currentChild:false,quote:''}}})
  job=await send(page,noComparison);await settle(request,job.id,job.inputRevision)
  await expect(page.getByText('明白。洗澡后会更明显吗？',{exact:true})).toHaveCount(0)
- await expect(confirm).toBeVisible();await confirm.click()
+ await expect(confirm).toBeVisible();const readyCalls=(await(await request.get(`${control}/status`)).json()).calls
+ const reused=page.waitForResponse(response=>response.request().method()==='POST'&&response.url().includes('/front-desk-record/contexts/')&&response.request().postDataJSON()?.action==='generate_current')
+ await confirm.click();expect((await(await reused).json()).recognitionJob).toBeUndefined()
+ expect((await(await request.get(`${control}/status`)).json()).calls).toBe(readyCalls)
  const draft=page.getByRole('region',{name:'当前记录单',exact:true});await expect(draft).toBeVisible()
  await expect(page.getByRole('dialog',{name:'症状记录单',exact:true})).toHaveCount(0)
  await expect(draft.getByRole('heading',{name:'情况描述',exact:true})).toBeVisible()
@@ -118,6 +121,15 @@ test('selected body location and choice answers become one owned input each; fre
  expect(context.messages.filter((message:any)=>message.kind!=='assistant'&&message.text==='我看到孩子反复抓挠那里。')).toHaveLength(1)
  expect(context.currentRecord).toBeUndefined()
  await page.screenshot({path:info.outputPath('location-choices-visible-reply.png')})
+ const callsBefore=(await(await request.get(`${control}/status`)).json()).calls
+ const generated=page.waitForResponse(response=>response.request().method()==='POST'&&response.url().includes('/front-desk-record/contexts/')&&response.request().postDataJSON()?.action==='generate_current')
+ await page.getByRole('button',{name:'确认整理',exact:true}).click();const generatedCard=await(await generated).json()
+ expect(generatedCard.recognitionJob?.id).toBeTruthy();await settle(request,generatedCard.recognitionJob.id,generatedCard.recognitionJob.inputRevision)
+ const callsAfter=(await(await request.get(`${control}/status`)).json()).calls;expect(callsAfter).toBeGreaterThan(callsBefore)
+ const latestContext=await(await request.get(`/api/members/${memberId}/front-desk-record`,{headers})).json()
+ const same=await request.post(`/api/members/${memberId}/front-desk-record/contexts/${latestContext.id}`,{headers,data:{action:'generate_current',expectedVersion:latestContext.version,confirmed:true}});expect(same.ok()).toBe(true)
+ expect((await(await request.get(`${control}/status`)).json()).calls).toBe(callsAfter)
+ expect(latestContext.currentRecord).toBeUndefined()
 })
 test.beforeEach(async({page,request})=>{
  memberName=`合成孩子${crypto.randomUUID().slice(0,4)}`;const r=await request.post('/api/members',{headers,data:{name:memberName,relationship:'child',birthday:'2024-01-01'}});expect(r.ok()).toBe(true);memberId=(await r.json()).id
@@ -282,7 +294,8 @@ test('manual card edits survive background organization and a reload',async({pag
 test('a failed model still leaves a viewable raw record without false structured success',async({page,request})=>{
  await request.get(`${control}/failure`);const text='昨晚饭后胃有点不舒服';const job=await send(page,text)
  await expect.poll(async()=>{const state=await(await request.get(`/api/members/${memberId}/recognition-jobs/${job.id}`,{headers})).json();return state.state}).toBe('failed')
- await generate(page)
+ const failedCalls=(await(await request.get(`${control}/status`)).json()).calls;await generate(page)
+ expect((await(await request.get(`${control}/status`)).json()).calls).toBe(failedCalls)
  const card=page.getByRole('region',{name:'当前记录单'});await expect(card).toContainText(text);await card.getByRole('button',{name:'保存记录',exact:true}).click();await expect(card.getByRole('status',{name:'记录已保存'})).toBeVisible();await card.getByRole('button',{name:'查看记录',exact:true}).click();await expect(page.locator('.symptom-record-sheet')).toContainText(text)
 })
 
