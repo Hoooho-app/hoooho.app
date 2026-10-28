@@ -19,7 +19,7 @@ test('daily knowledge respects product visibility and preserves saved reading on
     for (const width of [320, 375, 393]) {
       await page.setViewportSize({ width, height: 852 })
       await page.goto('/nurse-station')
-      await expect(page.getByRole('button', { name: '按住说话', exact: true })).toBeEnabled()
+      await expect(page.getByRole('button', { name: '按住记录症状', exact: true })).toBeEnabled()
       await expect(page.getByRole('button', { name: /今日过敏小知/ })).toHaveCount(0)
       for (const path of ['/allergy-knowledge', '/allergy-knowledge/missing-article']) {
         await page.goto(path); await expect(page).toHaveURL(/\/nurse-station$/)

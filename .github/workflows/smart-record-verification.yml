@@ -63,6 +63,8 @@ jobs:
           node --test server/ai/front-desk-recognition-preview.test.mjs server/ai/front-desk-upload-reading.test.mjs
           node --import ./scripts/register-node-ts-loader.mjs --test src/features/health-attachments/photoAnalysis.test.ts src/services/imageAnalysisPresentation.test.ts src/services/healthEventDetailAdapter.test.ts
       - run: npm run build
+      - name: Verify report diagnostics and continuous page paper
+        run: npx playwright test --config tests/visit-sheet/presentation.config.ts
       - name: Verify private identities, four-tab navigation and draft continuity
         run: npx playwright test --config tests/frontdesk-navigation/playwright.config.ts
       - name: Verify archive upload ownership, review, save and retry with synthetic documents
@@ -90,5 +92,6 @@ jobs:
           retention-days: 7
           path: |
             outputs/symptom-followup/
+            outputs/visit-paper/
             test-results/
             playwright-report/

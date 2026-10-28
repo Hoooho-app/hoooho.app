@@ -168,8 +168,8 @@ body .smart-record-home .nurse-turn--user>.nurse-turn-content{background:rgb(var
 .continuous-record-editor input,.continuous-record-editor textarea{box-sizing:border-box;max-width:100%;width:100%;font-size:16px;padding:var(--hoho-space-2);border:1px solid rgb(var(--hoho-color-border));border-radius:var(--hoho-radius-control);background:rgb(var(--hoho-color-surface));color:inherit}
 
 /* Product-owner-approved homepage, 2026-10-29. Other record and archive pages remain unchanged. */
-body .smart-record-home.smart-record-page{background:rgb(var(--hoho-color-surface-white))}
-body .smart-record-home .smart-record-page__footer{background:rgb(var(--hoho-color-surface-white));background-image:none;padding:var(--hoho-space-3) var(--hoho-space-4)}
+body .smart-record-home.smart-record-page{background:rgb(var(--hoho-color-page-background))}
+body .smart-record-home .smart-record-page__footer{background:rgb(var(--hoho-color-page-background));background-image:none;padding:var(--hoho-space-3) var(--hoho-space-4)}
 .smart-record-home .hoho-bottom-navigation{margin-top:0}
 body .smart-record-home .front-desk-welcome{display:flex;flex-direction:column;gap:var(--hoho-space-4);margin:var(--hoho-space-4) 0 var(--hoho-space-5)}
 .front-desk-welcome__copy h2{margin:0 0 var(--hoho-space-3);font-family:var(--hoho-font-family-heading);font-size:var(--hoho-font-size-display);line-height:1.35;font-weight:500;letter-spacing:-.01em}
