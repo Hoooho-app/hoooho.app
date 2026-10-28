@@ -11,6 +11,17 @@ import type {
 import { adaptHealthEventDetail } from './healthEventDetailAdapter'
 import { groupTimelineByYearAndDate } from './healthTimelineGrouping'
 
+test('待核对图片的已有摘要继续显示，但不产生已确认体温事实',()=>{
+ const sourceRecord=record('pending-image-record','图片记录')
+ const pending:EventAttachmentApiDto={id:'pending-image',accountId:'account-1',eventId:'event-1',recordId:sourceRecord.id,name:'合成体温图.png',mimeType:'image/png',dataUrl:'data:image/png;base64,AA==',createdAt:sourceRecord.createdAt,analysis:{status:'needs_confirmation',category:'temperature',summary:'可读部分为 38，末位不清楚',temperatureValue:null,extractedFacts:[],confidence:0.4,provider:'synthetic',analyzedAt:sourceRecord.createdAt}}
+ const view=adaptHealthEventDetail(eventDto,[sourceRecord],[],[pending])
+ assert.equal(view.event.timeline.length,1)
+ assert.equal(view.event.timeline[0].segments?.[0].content,'待核对：可读部分为 38，末位不清楚')
+ assert.equal(view.event.timeline[0].segments?.[0].label,'记录')
+ assert.equal(view.event.temperatureRecords.length,0)
+ assert.equal(view.event.timeline[0].attachments?.[0].id,pending.id)
+})
+
 const emptyOrganizedData: OrganizedHealthData = {
   symptoms: [], temperature: null, medications: [], visits: [], examinations: [], concerns: [], attachments: [], timeline: []
 }

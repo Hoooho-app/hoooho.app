@@ -8,6 +8,7 @@ import { contentFor } from './business/service.mjs'
 import { applyFrontDeskRecordChanges } from './front-desk-understanding.mjs'
 import { originals } from './front-desk-original-save.mjs'
 import { continuousPresentation } from './front-desk-presentation.mjs'
+import { frontDeskRecognitionPreview } from './front-desk-recognition-preview.mjs'
 
 const revision = record => frontRecordVersion({type:record.type,content:record.content,occurredAt:record.occurredAt,journal:record.journal,aiProvenance:record.aiProvenance,sourceText:record.sourceText})
 const sourcesFor = (data, context) => data.messages.filter(m => m.contextId === context.id && m.accountId === context.accountId && m.memberId === context.memberId && ['text','voice','image'].includes(m.kind) && m.status !== 'discarded' && (m.acceptedInput === true || m.acceptedInput == null && m.status === 'completed') && !m.retracted).sort((a,b) => a.inputAt-b.inputAt || a.id.localeCompare(b.id))
@@ -49,6 +50,8 @@ export async function continuousCard(front, accountId, memberId, contextId) {
   const review=context.draftId?await front.business.read(accountId,memberId,context.draftId).catch(()=>null):null
   const usable=review?.state==='ready'&&review.frontEvidenceVersion===context.evidenceVersion&&review.items.length&&review.items.every(i=>i.subjectConfirmed&&!i.needsReview&&!i.unassigned&&!i.occurrenceUncertain)&&!review.documentWarnings?.length&&!review.unmappedRows?.length&&!review.conflicts?.length&&!review.sources?.some(source=>source.status==='uncertain')
   const items=usable?review.items:[]
+  const hasOriginals=messages.some(m=>[...m.files??[],...m.originalFiles??[],...m.voices??[]].length)
+  const recognitionPreview=frontDeskRecognitionPreview(review,{evidenceVersion:context.evidenceVersion,usable,hasOriginals})
   const edit=context.cardEdit
   const restored=context.restoredRecord?.evidenceVersion===context.evidenceVersion?context.restoredRecord:null
   const text=edit&&edit.evidenceVersion===context.evidenceVersion?edit.text:items.length?items.map(contentFor).join('\n\n'):restored?.text??raw
@@ -68,6 +71,7 @@ export async function continuousCard(front, accountId, memberId, contextId) {
   const card={contextId,sourceSignature:fingerprint(messages.map(message=>[message.id,message.text,message.sourceSignature??null])),recordable:Boolean(items.length||edit||context.currentRecord||context.provisional||(context.facts??[]).some(f=>f.status==='active'&&f.scope!=='context')||messages.some(m=>m.status==='failed')),version:context.version,evidenceVersion:context.evidenceVersion,editRevision:context.editRevision??0,timePrecision,title:edit?.evidenceVersion===context.evidenceVersion?edit.title:items.map(i=>i.title).join('、')||restored?.title||'记录单',text,raw,occurredAt,items,saved,hasOriginals:messages.some(m=>[...m.files??[],...m.originalFiles??[],...m.voices??[]].length),checklist:context.visitChecklist??null}
   if(context.visitChecklist)card.checklist=checklistFor(card,context,member.name)
   const relevant=data.messages.filter(message=>message.accountId===accountId&&message.memberId===memberId&&(message.contextId===contextId||message.targetContextId===contextId&&['pending','transcribing'].includes(message.status))).sort((a,b)=>(a.inputAt??Date.parse(a.at))-(b.inputAt??Date.parse(b.at)))
+  card.recognitionPreview=recognitionPreview
   card.presentation=continuousPresentation(context,relevant,card)
   return card
 }
@@ -142,6 +146,7 @@ export async function editContinuousRecord(front,accountId,memberId,contextId,in
   return accountTransaction(front.directory,async()=>{
     const {context}=await owned(front,accountId,memberId,contextId);assertVersion(context,input)
     const before=await continuousCard(front,accountId,memberId,contextId)
+    if(input.recognitionDraft&&(!before.recognitionPreview?.canAdopt||input.recognitionDraft.id!==before.recognitionPreview.draftId||input.recognitionDraft.version!==before.recognitionPreview.draftVersion))throw fail('识别内容已有更新，请重新核对最新内容；已编辑的文字仍保留',409,'FRONT_RECOGNITION_CHANGED')
     const occurredAt=validateOccurredAt(input.occurredAt,front.now()),occurrencePrecision=Date.parse(occurredAt)===Date.parse(before.occurredAt)?before.timePrecision:'exact',id=`edit-${randomUUID()}`,at=front.now().toISOString(),subject={kind:'current',memberId,confirmed:true,confirmedBy:'selection',label:(await front.scope(accountId,memberId)).name,sources:[]}
     const sourceText=`${input.text.trim()}\n发生时间：${occurredAt}`
     const facts=applyFrontDeskRecordChanges((context.facts??[]).map(f=>f.status==='active'?{...f,status:'superseded'}:f),[{id,type:'add',text:sourceText,scope:'record',polarity:'affirmed',subject,sources:[{messageId:id,attachmentId:null,quote:sourceText}]}],{messageId:id,contextId})

@@ -292,7 +292,7 @@ function buildFactTimeline(
     !recordsWithFacts.has(record.id) && (attachmentsByRecord.get(record.id)?.length ?? 0) > 0
   )).map((record): TimelineEntry => {
     const recordAttachments = attachmentsByRecord.get(record.id) ?? []
-    const analyzed = recordAttachments.find((attachment) => attachment.analysis?.status === 'completed')
+    const analyzed = recordAttachments.find((attachment) => attachment.analysis?.status === 'completed')??recordAttachments.find(attachment=>attachment.analysis?.status==='needs_confirmation')
     const presentation = attachmentPresentation(analyzed)
     return ({
     id: `${record.id}-attachments`,
@@ -492,6 +492,7 @@ function adaptAttachment(attachment: EventAttachmentApiDto): EventAttachment {
 
 function attachmentPresentation(attachment?: EventAttachment) {
   const analysis = attachment?.analysis
+  if(analysis?.status==='needs_confirmation'&&analysis.summary?.trim())return {label:'记录' as const,content:`待核对：${analysis.summary.trim()}`}
   if (!analysis || analysis.status !== 'completed') return { label: '记录' as const, content: '图片记录' }
   if (analysis.category === 'temperature') return { label: '体温' as const, content: analysis.summary }
   if (analysis.category === 'report') return { label: '检查' as const, content: analysis.summary }

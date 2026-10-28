@@ -12,12 +12,15 @@ const titleByCategory: Record<ImageAnalysisCategory, string> = {
 
 export function getImageRecordTitle(attachments: readonly EventAttachmentApiDto[]) {
   const completed = attachments.find((attachment) => attachment.analysis?.status === 'completed')
-  return completed ? titleByCategory[completed.analysis!.category] : '图片记录'
+  if(completed)return titleByCategory[completed.analysis!.category]
+  const pending=attachments.find(attachment=>attachment.analysis?.status==='needs_confirmation')
+  return pending?`${titleByCategory[pending.analysis!.category]}（待核对）`:'图片记录'
 }
 
 export function getImageRecordSummary(attachments: readonly EventAttachmentApiDto[]) {
   const summaries = attachments
-    .map((attachment) => attachment.analysis?.summary?.trim())
+    .filter(attachment=>['completed','needs_confirmation'].includes(attachment.analysis?.status??''))
+    .map((attachment) => attachment.analysis?.status==='needs_confirmation'&&attachment.analysis.summary?.trim()?`待核对：${attachment.analysis.summary.trim()}`:attachment.analysis?.summary?.trim())
     .filter((summary): summary is string => Boolean(summary && summary !== '图片记录'))
   return [...new Set(summaries)].slice(0, 2).join('；') || null
 }

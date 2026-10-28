@@ -36,8 +36,9 @@ export async function analyzePhotos(memberId: string, token: string, files: File
     job = await waitForRecognitionJob(memberId, token, id, job, signal)
   }
   if (!['ready', 'needs_review'].includes(job.state) || !job.review) throw new Error(job.error?.message ?? '识别未完成，请重试或按原图手动填写')
-  outcome=job.state==='needs_review'?'needs_review':'ready'
-  return { items: job.review.items, partial: job.state === 'needs_review' }
+  const partial=job.state==='needs_review'||Boolean(job.review.documentWarnings?.length||job.review.unmappedRows?.length||job.review.sources?.some(source=>source.status==='uncertain')||job.review.items.some(item=>item.needsReview||item.unassigned||item.occurrenceUncertain))
+  outcome=partial?'needs_review':'ready'
+  return { items: job.review.items, partial }
   }finally{timing.finish(signal.aborted?'cancelled':outcome)}
 }
 
