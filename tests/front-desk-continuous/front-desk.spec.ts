@@ -47,6 +47,7 @@ test('private home, keyboard classifications, four direct attachment actions, da
  await expect.poll(()=>dailyImages.evaluateAll(images=>images.every(image=>image instanceof HTMLImageElement&&image.complete&&image.naturalWidth>0&&getComputedStyle(image).visibility==='visible'))).toBe(true)
  await page.getByRole('button',{name:'日常',exact:true}).click()
  const input=page.getByRole('textbox',{name:'对话输入',exact:true})
+ await input.fill('第一行\n第二行\n第三行');expect((await page.locator('.hoho-dialogue-composer').boundingBox())!.height).toBeGreaterThan(before!.height)
  await input.fill('尚未发送的观察')
  expect(await input.evaluate(element=>{const style=getComputedStyle(element);return [style.borderTopWidth,style.borderRightWidth,style.borderBottomWidth,style.borderLeftWidth,style.outlineStyle,style.boxShadow]})).toEqual(['0px','0px','0px','0px','none','none'])
  await page.getByRole('button',{name:'日常',exact:true}).click();await page.getByRole('button',{name:'喂养与饮食',exact:true}).click()
