@@ -6,7 +6,10 @@ const aliases={'情况描述':'情况概述','主要症状':'情况概述','症�
 /** Display-only projection. Literal facts stay intact in the saved text. */
 export function recordKeywords(text){
   const findings=[...clinicalAssertions(text),...[...text.matchAll(/红点|红斑|肚子胀|胃胀|手脚凉/gu)].map(match=>({text:match[0],...clinicalContext(text,match.index,match.index+match[0].length)}))].filter(value=>value.polarity==='affirmed'&&value.subject==='current'&&value.temporality==='current').map(value=>value.text)
-  const measured=[...text.matchAll(/(?:体温[：:\s]*)?\d{2}(?:\.\d+)?\s*(?:℃|°C|摄氏度|度)/gu)].map(match=>match[0])
+  const measured=[...text.matchAll(/(?:体温[：:\s]*)?\d{2}(?:\.\d+)?\s*(?:℃|°C|摄氏度|度)/gu)].filter(match=>{
+    const context=clinicalContext(text,match.index,match.index+match[0].length)
+    return context.polarity==='affirmed'&&context.subject==='current'&&context.temporality==='current'&&!/估计|估算|猜测|猜的|可能|不确定|没(?:有)?(?:量|测)|未(?:量|测)/u.test(context.clause.text)
+  }).map(match=>match[0])
   return [...new Set([...findings,...measured])].slice(0,8)
 }
 
@@ -20,7 +23,7 @@ export function recordReading(text,keywords=[]){
   const body=sections.filter(section=>!['关键词','原始资料','待补充与核对'].includes(section.title)).map(section=>section.text).join('\n')
   const derived=recordKeywords(body)
   const requested=explicit?explicit.text.split(/[、，,\n]/u).map(value=>value.trim()).filter(Boolean):keywords
-  const tags=[...new Set([...requested.filter(value=>value&&body.includes(value)&&(derived.includes(value)||!clinicalAssertions(value).length)),...derived])].slice(0,8)
+  const tags=[...new Set([...requested.filter(value=>value&&body.includes(value)&&(derived.includes(value)||!clinicalAssertions(value).length&&!/\d{2}(?:\.\d+)?\s*(?:℃|°C|摄氏度|度)/u.test(value))),...derived])].slice(0,8)
   const overview=sections.find(section=>section.title==='情况概述')?.text??sections.filter(section=>!['关键词','原始资料','待补充与核对'].includes(section.title)).map(section=>section.text).slice(0,2).join('；')
   return {overview:overview||'附件记录',keywords:tags,details:sections.filter(section=>!['情况概述','关键词'].includes(section.title))}
 }

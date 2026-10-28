@@ -24,3 +24,9 @@ test('editing a structured record cannot leave a retracted symptom in the derive
  assert.deepEqual(recordReading(refreshed).keywords,['咳嗽'])
  assert.match(refreshed,/没有发热/);assert.doesNotMatch(refreshed,/【关键词】\n发热/)
 })
+test('estimated or another person\'s temperature is not presented as a measured keyword, including stale headings',()=>{
+ assert.deepEqual(recordKeywords('估计体温38.6℃。妈妈体温39.1℃。如果体温40.2℃。'),[])
+ const reading=recordReading('【情况概述】\n估计体温38.6℃，还未测量。\n\n【关键词】\n体温38.6℃')
+ assert.deepEqual(reading.keywords,[])
+ assert.deepEqual(recordKeywords('测得体温38.6℃。'),['体温38.6℃'])
+})
