@@ -65,6 +65,8 @@ jobs:
       - run: npm run build
       - name: Verify private identities, four-tab navigation and draft continuity
         run: npx playwright test --config tests/frontdesk-navigation/playwright.config.ts
+      - name: Verify review-only calendar and expanded month grid
+        run: npx playwright test --config tests/calendar-review-only/playwright.config.ts
       - run: npx playwright test --config tests/dialogue/symptom-followup.config.ts
       - if: ${{ !cancelled() }}
         run: npx playwright test --config tests/dialogue/playwright.config.ts recognition-progress.spec.ts smart-record-actions.spec.ts smart-record-exit.spec.ts nursing-record.spec.ts nurse-dialogue-guidance.spec.ts --grep-invert 'saving while ASR is pending'
