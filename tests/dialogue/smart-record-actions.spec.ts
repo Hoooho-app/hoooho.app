@@ -18,7 +18,7 @@ test.beforeEach(async({page,request})=>{
  await page.getByRole('button',{name:'发送',exact:true}).click()
  await finishNursingQuestions(page)
 })
-test('automatic review, direct save ends input, exact record opens over its month',async({page})=>{
+test('automatic review, direct save ends input, exact record opens over its month',async({page,request})=>{
  await page.getByRole('button',{name:/^(?:先记下来|立即保存)$/}).click()
  await expect(page.getByRole('button',{name:'查看记录',exact:true})).toBeVisible()
  await expect(page.getByLabel('对话输入')).toHaveCount(0)
@@ -28,6 +28,12 @@ test('automatic review, direct save ends input, exact record opens over its mont
  await expect(page).toHaveURL(/recordId=/)
  await expect(page).toHaveURL(/day=\d{4}-\d{2}-\d{2}/)
  await expect(page.getByRole('dialog')).toBeVisible()
+ // This fixture intentionally omits timeText. The browsing day cannot supply
+ // occurrence evidence or change the exact record that the receipt opened.
+ const target=new URL(page.url()),recordId=target.searchParams.get('recordId'),eventId=target.searchParams.get('eventId')
+ const response=await request.get(`/api/events/${eventId}/records`,{headers});expect(response.ok()).toBe(true)
+ const record=(await response.json()).find((item:{id:string})=>item.id===recordId)
+ expect(record).toBeTruthy();expect(record.journal.timePrecision).toBe('unknown')
 })
 test('full review edits one field, adds and deletes cards, saves together',async({page},info)=>{
  await page.getByRole('button',{name:'核对记录',exact:true}).click()

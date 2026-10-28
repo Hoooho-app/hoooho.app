@@ -2,6 +2,10 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { nursingMemberContext, nursingKnowledgeFor, nursingInterview, stopsNursingInterview, interpretNursingAnswer, nursingAnswerObservations } from './nursing-interview.mjs'
 
+test('body words in food or packaging do not answer a separate pain location question',()=>{
+ for(const text of ['今天吃了猪脚。孩子说疼。','今天吃了鸡腿。孩子说疼。','药盒上画着一只脚。孩子说疼。'])assert.ok(nursingKnowledgeFor(text).nodes.some(n=>n.id==='pain-location'),text)
+})
+
 test('broad body cold observations ask about the actual observation then its course, even after a null provider choice',()=>{
   for(const text of ['身体有点冷','记一个事情，就是他现在呢，嗯。身体有点冷。','孩子说冷','孩子摸起来凉']){
     const knowledge=nursingKnowledgeFor(text)

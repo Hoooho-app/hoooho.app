@@ -522,7 +522,10 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
       }else if(guide.sectionId&&guide.entryId)destination=savedRecordUrl(guide)
       else{
         const day=record.journal?.timePrecision==='unknown'?null:getLocalDateKey(journalOccurrenceAt(record.journal,record.occurredAt))
-        const params=new URLSearchParams({memberId,eventId:guide.eventId,recordId:guide.recordId,view:'month',...(day?{day,month:day.slice(0,7)}:{})})
+        // Calendar browsing needs a day even when the saved occurrence is unknown.
+        // Choose it before navigating; never write this fallback into the record.
+        const browseDay=day??getLocalDateKey(new Date())!
+        const params=new URLSearchParams({memberId,eventId:guide.eventId,recordId:guide.recordId,view:'month',day:browseDay,month:browseDay.slice(0,7)})
         destination=`/health-events?${params}`
       }
       recordDestination.current={url:destination,identity:`${accountId}:${memberId}`}

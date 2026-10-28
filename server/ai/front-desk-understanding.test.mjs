@@ -31,7 +31,34 @@ test('continuous draft feedback cannot imply a formal record was supplemented be
  const latest=message('左边头疼'),extra={selectedMemberSubject:{memberId:'child',label:'小禾'},subjectMembers:[{id:'child',name:'小禾'}]}
  const value=understanding({reply:'收到。这些信息已补充记录。还有其他变化吗？',responseMode:'record',recordChanges:[change(latest.text)]})
  assert.equal(normalize(value,latest,extra).reply,'收到。当前记录单已修改。还有其他变化吗？')
+ assert.equal(normalize({...value,reply:'好的，已记录为“左边头疼”，还有其他变化吗？'},latest,extra).reply,'好的，当前记录单已修改为“左边头疼”，还有其他变化吗？')
+ assert.equal(normalize({...value,reply:'好的，已记录“左边头疼”，还有其他变化吗？'},latest,extra).reply,'好的，当前记录单已修改：“左边头疼”，还有其他变化吗？')
+ assert.equal(normalize({...value,reply:'已记录为“左边头疼”。'},latest,extra).reply,'当前记录单已修改为“左边头疼”。')
+ assert.equal(normalize({...value,reply:'收到，已记录左边头疼。'},latest,extra).reply,'收到，左边头疼。')
+ assert.equal(normalize({...value,reply:'收到。已记录左边头疼。',recordChanges:[change(latest.text,{scope:'context'})]},latest,extra).reply,'收到。左边头疼。')
  assert.throws(()=>normalize({...value,reply:'已补充记录，可在健康随记查看。'},latest,extra),{code:'FRONT_RECORD_REPLY_INVALID'})
+ assert.throws(()=>normalize({...value,reply:'已记录为“左边头疼”，可在健康随记查看。'},latest,extra),{code:'FRONT_RECORD_REPLY_INVALID'})
+})
+
+test('a caregiver observation gap does not change the selected patient, while first-person health and other people still do',()=>{
+ const selectedMemberSubject={memberId:'child',label:'小禾',aliases:['孩子','宝宝']},subjectMembers=[{id:'child',name:'小禾'},{id:'mother',name:'妈妈'}]
+ for(const text of ['肿没肿我确实没注意，别把它写成没有肿。','我不知道有没有肿','妈妈没看清有没有肿']){
+  const result=normalize(understanding({recordChanges:[change(text,{polarity:'unknown'})]}),message(text),{selectedMemberSubject,subjectMembers})
+  assert.equal(result.recordChanges[0].subject.memberId,'child',text)
+ }
+ for(const text of ['我自己头疼','我不知道我有没有发烧','妈妈头疼，我没注意','妈妈不舒服，我不知道多久了']){
+  const result=normalize(understanding({recordChanges:[change(text,{polarity:/不知道|没注意/u.test(text)?'unknown':'affirmed'})]}),message(text),{selectedMemberSubject,subjectMembers})
+  assert.notEqual(result.recordChanges[0].subject.confirmed,true,text)
+ }
+})
+
+test('literal additions separate an actually performed event from unknown attributes without filling them',()=>{
+ const text='昨天晚上按医生处方吃过一次药，药名我暂时不知道，也不记得剂量。'
+ const extra={selectedMemberSubject:{memberId:'child',label:'小禾'},subjectMembers:[{id:'child',name:'小禾'}]}
+ const result=normalize(understanding({reply:'收到。',recordChanges:[change(text)]}),message(text),extra)
+ assert.deepEqual(result.recordChanges.map(c=>[c.text,c.polarity]),[['昨天晚上按医生处方吃过一次药，','affirmed'],['药名我暂时不知道，','unknown'],['也不记得剂量。','unknown']])
+ assert.ok(result.recordChanges.every(c=>c.subject.memberId==='child'&&text.includes(c.text)))
+ for(const text of ['不记得有没有吃过药','计划明天服药，剂量不知道。','假设今天服药了，剂量不知道。'])assert.throws(()=>normalize(understanding({recordChanges:[change(text)]}),message(text),extra),{code:'FRONT_RECORD_REPLY_INVALID'})
 })
 
 test('first-person ownership does not bind possessive descriptions of a child to the selected adult',()=>{
@@ -497,6 +524,21 @@ test('an incomplete nonclinical replacement cannot manufacture a new clinical ob
 test('an explicit old-value correction cannot withdraw an unrelated fact target',()=>{
  const latest=message('不是杭州，是上海','newer'),old={id:'unrelated-symptom',text:'孩子今天咳嗽',scope:'record',status:'active',saved:false}
  assert.throws(()=>normalize(understanding({recordChanges:[change('',{type:'retract',targetId:old.id,scope:'record',sources:[source(latest.text,latest.id)]})]}),latest,{facts:[old]}),{code:'FRONT_RECORD_REPLY_INVALID'})
+})
+
+test('a model-merged literal correction is reduced to the real current quote, never an invented merged source',()=>{
+ const before=message('昨晚跑的时候碰到右脚小趾','before'),latest=message('刚才说错了，是左脚小趾，不是右脚。')
+ const old={id:'old',contextId:'context-1',text:before.text,status:'active',polarity:'affirmed',scope:'record',subject:subject(),sources:[source(before.text,before.id)]}
+ const proposal=change('昨晚跑的时候碰到左脚小趾',{type:'correct',targetId:old.id,scope:'record',sources:[source(latest.text)]})
+ const result=normalize(understanding({responseMode:'record',recordChanges:[proposal]}),latest,{facts:[old],messages:[before]})
+ assert.equal(result.recordChanges[0].text,latest.text);assert.deepEqual(result.recordChanges[0].sources,[source(latest.text)])
+ const facts=applyFrontDeskRecordChanges([old],result.recordChanges,{contextId:'context-1',messageId:latest.id})
+ assert.equal(facts[0].status,'superseded');assert.equal(facts[1].replaces,old.id)
+ for(const text of ['昨晚跑的时候碰到左脚小趾，已经骨折','今天跑的时候碰到左脚小趾','昨晚跑的时候碰到左脚小趾，没有肿胀'])assert.throws(()=>normalize(understanding({recordChanges:[{...proposal,text}]}),latest,{facts:[old],messages:[before]}),{code:'FRONT_RECORD_REPLY_INVALID'})
+ const hypothetical=message('举个例子，是左脚小趾，不是右脚。')
+ assert.throws(()=>normalize(understanding({recordChanges:[{...proposal,sources:[source(hypothetical.text)]}]}),hypothetical,{facts:[old],messages:[before]}),{code:'FRONT_RECORD_REPLY_INVALID'})
+ const numberBefore=message('昨晚喝1200ml奶','before'),numberLatest=message('不是120，是150')
+ assert.throws(()=>normalize(understanding({recordChanges:[change('昨晚喝1500ml奶',{type:'correct',targetId:'old',sources:[source(numberLatest.text)]})]}),numberLatest,{facts:[{...old,text:numberBefore.text,sources:[source(numberBefore.text,'before')]}],messages:[numberBefore]}),{code:'FRONT_RECORD_REPLY_INVALID'})
 })
 
 test('audio attachment facts require actual transcription; ordinary caption text cannot stand in for the audio',()=>{

@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import { clinicalAssertions, evidenceClause } from '../../shared/clinical-evidence.mjs'
+import {frontDeskLiteralReplacements} from './business/front-desk-source-context.mjs'
 
 export const FRONT_DESK_UNDERSTANDING_VERSION = 'front-desk-understanding-v2'
 const modes = ['conversation', 'clarification', 'consultation', 'record', 'operation', 'history']
@@ -36,7 +37,7 @@ export function frontDeskUnderstandingSchema({ contextIds = [], questionIds = []
         type: 'array', maxItems: 20, description: '这是临时事实账本，不是正式保存操作。首次健康叙述、健康属性回答、图片可靠资料均提add；不因用户说暂不保存就省略，也不等再次确认才提取。肯定、否定和未知分别引用单一分句，不整段标同一polarity。已有事实更正用correct，撤回用retract；不能丢掉新替代事实。无新事实才[]。text只用来源连续原话，归纳在后续草稿完成。回答先按实际上一问判断谈的是患者发生还是物品/材料/环境属性；后者的新条件也保留，但scope=context，不生成健康候选。',
         items: { type: 'object', additionalProperties: false, required: ['type', 'targetId', 'text', 'scope', 'polarity', 'subject', 'sources'], properties: {
           type: { enum: ['add', 'correct', 'retract'] }, targetId: { type: ['string', 'null'], maxLength: 180 },
-          text: { type: 'string', maxLength: 1600,description:'只摘录sources.quote中连续原话，不拼接旧主语、旧时间或问题中的症状。短答保留短答原文；更正保留更正句，不能把新旧拼成一句再作为本轮引文。同一事实变化不能混合肯定、否定和未知；分别引用对应分句。' },scope:{enum:['record','context'],description:'record仅个人实际健康情况及其否定、未知、修订，或资料中确有来源的个体健康信息。context是物品包装/说明书属性、外部环境、服务信息、城市、交流偏好等非发生事实。数字与单位本身不能证明饮用、服药、体温或任何健康发生；按上一问的实际对象区分，非事件新条件仍存context。'},polarity: { enum: polarities }, subject: subjectSchema,
+          text: { type: 'string', maxLength: 1600,description:'只摘录sources.quote中连续原话，不拼接旧主语、旧时间或问题中的症状。短答保留短答原文；更正保留更正句，不能把新旧拼成一句再作为本轮引文。同一事实变化不能混合肯定、否定和未知；分别引用对应分句。' },scope:{enum:['record','context'],description:'record包括个人实际发生的症状、服药、饮食摄入、睡眠、排便、就医及其否定、未知、修订，或资料中确有来源的个体健康信息；日常生活事件不需要伴随病症才能进入record。context是物品包装/说明书属性、外部环境、服务信息、城市、交流偏好等非发生事实。数字与单位本身不能证明饮用、服药、体温或任何健康发生；按上一问的实际对象区分，非事件新条件仍存context。'},polarity: { enum: polarities }, subject: subjectSchema,
           sources: { type: 'array', minItems: 1, maxItems: 8, items: sourceSchema }
         } }
       },
@@ -123,10 +124,14 @@ function referenceContexts(reference, options, factText) {
   return result
 }
 
-function identityScope(context, grant) {
+function identityScope(context, grant, { caregiverObservation = false } = {}) {
   const labels = [...new Set([grant.label, ...grant.aliases ?? []].filter(Boolean))]
   if (!labels.length) return { denied: true, named: false }
-  const text = quotedMaterials(context.original), prefix = text.slice(context.clause.start, context.end)
+  let text = quotedMaterials(context.original)
+  // A narrator's observation/knowledge gap is not a second patient's health fact.
+  // Apply only for the selected-member workflow; retain explicit clinical subjects.
+  if(caregiverObservation)text=text.replace(/(?:我(?!自己)|妈妈|爸爸|母亲|父亲|家长)(?=(?:确实|暂时|也|还|真的|实在|一直|都|完全){0,3}(?:没注意|没留意|没看清|没观察|不知道|不清楚|不记得|不确定))/gu,match=>' '.repeat(match.length))
+  const prefix = text.slice(context.clause.start, context.end)
   const mentions = [
     ...prefix.matchAll(otherPerson),
     ...prefix.matchAll(new RegExp([...labels, ...grant.otherLabels ?? []].sort((a,b)=>b.length-a.length).map(identityPattern).join('|'), 'gu'))
@@ -185,7 +190,7 @@ function normalizeSubject(value, options, fact = null) {
     const refs=fact?.sources?.length?fact.sources:sources.length?sources:options.latestMessage?.text?[{messageId:options.latestMessage.id,attachmentId:null,quote:options.latestMessage.text}]:[]
     const contexts=refs.flatMap(ref=>referenceContexts(ref,options,fact?.text))
     const others=(options.subjectMembers??[]).filter(m=>m.id!==selection.memberId).map(m=>m.name).filter(Boolean)
-    if(!contexts.some(c=>identityScope(c,{label:selection.label,aliases:selection.aliases??[],otherLabels:others}).denied))return {kind:'current',memberId:selection.memberId,label:selection.label,sources,confirmed:true,confirmedBy:'selection'}
+    if(!contexts.some(c=>identityScope(c,{label:selection.label,aliases:selection.aliases??[],otherLabels:others},{caregiverObservation:true}).denied))return {kind:'current',memberId:selection.memberId,label:selection.label,sources,confirmed:true,confirmedBy:'selection'}
   }
   // Selecting a child in the UI is not evidence that a fact describes that child.
   if (kind === 'current' && (!sources.length || !value.memberId && !value.label)) kind = 'unknown'
@@ -220,7 +225,7 @@ function normalizeSubject(value, options, fact = null) {
 function sourceModality(original, start, end, factText) {
   const clause = evidenceClause(original, start, end)
   const text = clause.text
-  const quoted = /(?:假设|假如|如果|万一|若是|若出现|若发生|举例|示例|虚构|假装)/u.test(text)
+  const quoted = /(?:假设|假如|如果|万一|若是|若出现|若发生|举(?:个)?例(?:子)?|示例|虚构|假装)/u.test(text)
     || /(?:原文|报告|病历|资料|截图|文章|网页|材料|说明书|药盒|处方)[^，。；;\n]{0,18}(?:写|说|载|显示|注明|提到|标注|内容|记载)/u.test(text)
     || /(?:他人|别人|朋友|同事|网上|网文|案例|病例)[^，。；;\n]{0,12}(?:说|写|患|发生|提到|描述|内容|告诉)/u.test(text)
   if (quoted) return 'quoted'
@@ -255,8 +260,37 @@ function validateSourceModality(change, sources, options) {
   }
 }
 
+function sourceOnlyCorrection(change,target,sources,options){
+ if(change.type!=='correct'||change.polarity!=='affirmed'||target?.polarity!=='affirmed'||target.status!=='active'||target.saved||target.recordId||target.recordIds?.length||!bounded(target.text,1600,false)||!bounded(change.text,1600,false)||sources.some(ref=>ref.quote.includes(change.text)))return change
+ const messages=allMessages(options)
+ if(!target.sources?.some(ref=>!ref.attachmentId&&messages.get(ref.messageId)?.text?.includes(ref.quote)&&ref.quote.includes(target.text)))return change
+ let start=0,end=0
+ while(start<target.text.length&&start<change.text.length&&target.text[start]===change.text[start])start++
+ while(end<target.text.length-start&&end<change.text.length-start&&target.text.at(-end-1)===change.text.at(-end-1))end++
+ if(start===target.text.length-end||start===change.text.length-end)return change
+ const supported=sources.filter(ref=>ref.messageId===options.latestMessage?.id&&!ref.attachmentId).filter(ref=>frontDeskLiteralReplacements(ref.quote).some(({before,after})=>{
+  const oldAt=target.text.indexOf(before),newAt=change.text.indexOf(after)
+  if(oldAt<0||newAt<0||target.text.indexOf(before,oldAt+1)>=0||change.text.indexOf(after,newAt+1)>=0)return false
+  if(/^[+-]?\d+(?:\.\d+)?$/u.test(before)&&(/[\d.]/u.test(target.text[oldAt-1]??'')||/[\d.]/u.test(target.text[oldAt+before.length]??'')))return false
+  return oldAt<=start&&oldAt+before.length>=target.text.length-end&&newAt<=start&&newAt+after.length>=change.text.length-end
+ }))
+ // Keep only the user's current literal wording. The verified old source stays
+ // attached to the superseded fact and supplies unchanged fragments separately.
+ return supported.length===1?{...change,text:supported[0].quote,sources:[supported[0]]}:change
+}
+
 function normalizeChanges(changes, options) {
   if (!Array.isArray(changes) || changes.length > 20) throw invalid()
+  // A literal multi-clause addition may contain both an actual event and unknown
+  // attributes. Keep each original clause, instead of promoting the unknown
+  // attribute to affirmative or discarding the independently stated event.
+  if(options.selectedMemberSubject)changes=changes.flatMap(change=>{
+    if(change?.type!=='add'||change.targetId||change.polarity!=='affirmed'||typeof change.text!=='string'||!change.sources?.some(ref=>ref.messageId===options.latestMessage?.id&&!ref.attachmentId&&ref.quote?.includes(change.text))||sourceModality(change.text,0,change.text.length,change.text)!=='unknown')return [change]
+    const parts=change.text.split(/(?<=[，,。；;])\s*/u).filter(part=>part.trim()).map(text=>({text,modality:sourceModality(text,0,text.length,text)}))
+    if(!parts.some(part=>part.modality==='unknown')||!parts.some(part=>part.modality===null)||parts.some(part=>part.modality&&!['unknown'].includes(part.modality)))return [change]
+    return parts.map(part=>({...change,text:part.text,polarity:part.modality??'affirmed'}))
+  })
+  if(changes.length>20)throw invalid()
   const facts = new Map((options.facts ?? []).map(fact => [fact.id, fact]))
   // Providers may split one literal correction into retract + add. Keep that
   // explicit relationship so unaffected attributes retain their old sources.
@@ -278,8 +312,10 @@ function normalizeChanges(changes, options) {
       if(change.type==='retract'&&typeof target?.text==='string'&&replacement&&target.text.includes(replacement[1].trim())&&replacement[2].trim()&&(change.scope==='context'||clinicalAssertions(replacement[2]).some(assertion=>assertion.polarity==='affirmed')))change={...change,type:'correct',text:ref.quote,polarity:'affirmed'}
     }
     if (!change || !['add', 'correct', 'retract'].includes(change.type) || !bounded(change.text, 1600) || !polarities.includes(change.polarity)) throw invalid()
-    const sources = normalizeSources(change.sources, options)
+    let sources = normalizeSources(change.sources, options)
     if (!sources.length) throw invalid('事实变化必须有原消息或原件来源')
+    const sourceOnly=sourceOnlyCorrection(change,facts.get(change.targetId),sources,options)
+    if(sourceOnly!==change){change=sourceOnly;sources=normalizeSources(change.sources,options)}
     if(change.type==='add'&&sources.every(source=>{const message=allMessages(options).get(source.messageId);return (options.contexts??[]).some(context=>context.id===message?.contextId&&context.saved)}))throw invalid('已保存的历史只能作为背景，本轮没有新增记录依据')
     if (change.type !== 'retract' && (!clean(change.text) || !sources.some(source => source.quote.includes(change.text)))) throw invalid('事实内容必须保留来源原话')
     validateSourceModality(change, sources, options)
@@ -363,14 +399,14 @@ function falseSuccessClaim(reply) {
 }
 
 function withoutPrematureRecordMarker(reply, changes, options) {
-  if(!changes.some(change=>change.scope!=='context')||(options.operationReceipts??[]).some(receipt=>receipt.success===true&&['save','save_original'].includes(receipt.type)))return reply
+  if(!(changes.some(change=>change.scope!=='context')||options.selectedMemberSubject&&changes.length)||(options.operationReceipts??[]).some(receipt=>receipt.success===true&&['save','save_original'].includes(receipt.type)))return reply
   // Status belongs to the persistence receipt. Remove only a leading generic
   // status marker, preserving the model's actual response and question. Formal
   // save claims, quoted material, bare success bubbles and other operations
   // still fail the receipt check below; this is not a replacement reply.
   const plain=quotedMaterials(reply)
   if(/保存|入档|记好|档案|随记|删除|导出|已(?:经)?(?:为[你您]|帮[你您]|替[你您])?记录(?:好|完成|成功|到|进|在)/u.test(plain))return reply
-  const marker=/(^|[。！？!?\n]\s*)(?:我(?:这边)?\s*)?已(?:经)?(?:(?:为|帮|替)[你您])?记录(?:了)?[：:、，,\s]*/gu
+  const marker=/(^|[。！？!?\n，,]\s*)(?:我(?:这边)?\s*)?已(?:经)?(?:(?:为|帮|替)[你您])?记录(?!为)(?:了)?[：:、，,\s]*/gu
   const ranges=[...plain.matchAll(marker)].filter(match=>/[\p{L}\p{N}]/u.test(plain.slice(match.index+match[0].length).split(/[。！？!?；;\n]/u)[0])).map(match=>({start:match.index+match[1].length,end:match.index+match[0].length}))
   let result=reply
   for(const range of ranges.reverse())result=result.slice(0,range.start)+result.slice(range.end)
@@ -402,7 +438,13 @@ export function normalizeFrontDeskUnderstanding(value, options = {}) {
   const emergency = value.emergency ?? { currentChild: false, quote: '' }
   if (typeof emergency.currentChild !== 'boolean' || !bounded(emergency.quote, 1600)) throw invalid()
   const requestedAction = normalizeAction(value.requestedAction, options, nextUncertainties)
-  let reply=withoutPrematureRecordMarker(value.reply.trim(),recordChanges,options)
+  let reply=value.reply.trim()
+  const draftMarkers=[...reply.matchAll(/已(?:经)?记录(?:为|(?=[“「『"]))/gu)].filter(match=>quotedMaterials(reply).slice(match.index,match.index+match[0].length)===match[0])
+  if(options.selectedMemberSubject&&recordChanges.some(change=>change.scope!=='context')&&draftMarkers.length){
+    if(/保存|入档|档案|随记|查看|成功/u.test(reply))throw invalid('没有真实回执，不能声称操作已经成功')
+    for(const match of draftMarkers.reverse())reply=reply.slice(0,match.index)+(match[0].endsWith('为')?'当前记录单已修改为':'当前记录单已修改：')+reply.slice(match.index+match[0].length)
+  }
+  reply=withoutPrematureRecordMarker(reply,recordChanges,options)
   if(options.selectedMemberSubject&&recordChanges.some(change=>change.scope!=='context'))reply=reply.replace(/[^。！？!?\n]*已(?:经)?(?:补充|更新)(?:了)?记录[^。！？!?\n]*[。！？!]?/gu,clause=>{if(/保存|入档|档案|随记|查看|成功/u.test(clause))throw invalid('没有真实回执，不能声称操作已经成功');return '当前记录单已修改。'})
   const maskedReply=quotedMaterials(reply),shownRange=[...maskedReply.matchAll(/[^。！？.!?\n]*[?？]/gu)].at(-1)
   const shown=shownRange?reply.slice(shownRange.index,shownRange.index+shownRange[0].length).trim():null
