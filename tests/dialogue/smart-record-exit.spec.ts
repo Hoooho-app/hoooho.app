@@ -22,7 +22,7 @@ test.beforeEach(async({page,request})=>{
  await request.post('http://127.0.0.1:4198/draft-data',{data:{items:null}})
  await page.addInitScript(({token,memberId})=>{sessionStorage.setItem('hoooho-auth-token',token);localStorage.setItem('hoooho-app',JSON.stringify({state:{authUser:{id:'visit-test'},currentMemberId:memberId,members:[],profile:null},version:5}))},{token,memberId})
  await page.goto('/nurse-station')
- await expect(page.getByRole('button',{name:'按住说话',exact:true})).toBeEnabled()
+ await expect(page.getByRole('button',{name:'按住记录症状',exact:true})).toBeEnabled()
  await enterRecord(page)
  await page.getByRole('button',{name:'改用文字'}).click()
  await expect(page.getByLabel('对话输入')).toBeEnabled()

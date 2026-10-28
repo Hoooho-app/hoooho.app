@@ -48,6 +48,8 @@ Hoooho V2 is quiet, trustworthy and information-first. Its product-owner-approve
 
 ## Accessibility
 
+`SessionRecoveryScreen`（2026-10-28）在启动与首次档案加载中复用居中品牌标识、平台字体、轻量无百分比等待条及底部“记录 · 整理 · 交接”。等待提示对应账号／孩子／档案的实际阶段，慢连接给出轻提示，失败保留原位重新连接；不把旧账号资料当启动占位。减少动态效果时关闭等待条动画。此视觉仅用于恢复页，已打开表单继续使用现有非阻断提示。
+
 - All interactive controls target at least 44px unless a compact secondary action remains embedded in a larger target.
 - Global `:focus-visible` remains visible independently of color.
 - Current navigation uses `aria-current` plus a background and position marker.
