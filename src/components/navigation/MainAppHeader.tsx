@@ -1,5 +1,5 @@
 import {UpdateDot,useRecordUpdates} from '../../features/record-updates/RecordUpdates'
-import { ChevronDown, Menu } from 'lucide-react'
+import { ChevronDown, Menu } from '../icons'
 import type { ReactNode } from 'react'
 import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'

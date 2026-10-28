@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { AlertCircle, ChevronDown, ChevronRight, FileHeart, HeartPulse, Pill, Users } from 'lucide-react'
+import { AlertCircle, ChevronDown, ChevronRight, FileHeart, HeartPulse, Pill, Users } from '../../../components/icons'
 import type { HealthEvent } from '../../../types'
 import { Card } from '../../../components/common'
 

@@ -15,7 +15,7 @@ test('HP首页实机尺寸、顺序与全部真实入口，失败数量不伪装
   await expect(smart.locator('strong')).toHaveText('上传资料')
   await expect(smart.locator('small')).toHaveText('报告、病历、接种回执，自动整理到各项档案')
   await expect(smart.locator('svg')).toHaveCount(1)
-  await expect(smart.locator('svg')).toHaveClass(/lucide-upload/)
+  await expect(smart.locator('svg')).toHaveAttribute('data-icon', 'upload')
   const smartStyle=await smart.evaluate(el=>{const title=el.querySelector('strong')!,caption=el.querySelector('small')!;return {height:el.getBoundingClientRect().height,title:parseFloat(getComputedStyle(title).fontSize),caption:parseFloat(getComputedStyle(caption).fontSize)}})
   expect(smartStyle.height).toBeGreaterThanOrEqual(44);expect(smartStyle.height).toBeLessThan(92)
   expect(smartStyle.title).toBe(16);expect(smartStyle.caption).toBe(12)

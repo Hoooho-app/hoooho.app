@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { Check, Minus, Pencil, Plus } from 'lucide-react'
+import { Check, Minus, Pencil, Plus } from '../../components/icons'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { WebPageHeader } from '../../components/common'
 import { HohoButton } from '../../components/design-system'

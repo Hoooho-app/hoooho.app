@@ -1,5 +1,5 @@
 import { useVisibleViewport } from '../../hooks/useVisibleViewport'
-import { X } from 'lucide-react'
+import { X } from '../icons'
 import { useEffect, useRef, type ReactNode } from 'react'
 import { usePageScrollLock } from '../../hooks/usePageScrollLock'
 import { useDialogFocus } from '../../hooks/useDialogFocus'

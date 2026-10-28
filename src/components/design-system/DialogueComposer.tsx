@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { ArrowUp, Camera, FileUp, Image, Keyboard, Mic, Send, Square, Video } from 'lucide-react'
+import { ArrowUp, Camera, FileUp, Image, Keyboard, Mic, Send, Square, Video } from '../icons'
 import { HohoButton } from './HohoButton'
 import { HoldToTalkButton } from './HoldToTalkButton'
 import { BottomSheetSurface } from './BottomSheetSurface'

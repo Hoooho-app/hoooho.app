@@ -1,4 +1,4 @@
-import { ChevronRight } from 'lucide-react'
+import { ChevronRight } from '../icons'
 import type { HTMLAttributes, ReactNode } from 'react'
 
 export interface HohoSurfaceRowProps extends Omit<HTMLAttributes<HTMLDivElement>, 'title'> {

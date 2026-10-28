@@ -1,7 +1,7 @@
 import { ChangeEvent, FormEvent, useEffect, useRef, useState } from 'react'
 import { PhotoPreview } from '../../features/health-attachments/PhotoPreview'
 import { prepareHealthImage } from '../../features/health-attachments/prepareHealthImage'
-import { Camera, Check, ChevronDown, Plus } from 'lucide-react'
+import { Camera, Check, ChevronDown, Plus } from '../../components/icons'
 import { WebPageHeader } from '../../components/common'
 import { HealthProfileActionBar, MemberIdentityCard } from '../../components/health'
 import { HohoButton, Typography } from '../../components/design-system'

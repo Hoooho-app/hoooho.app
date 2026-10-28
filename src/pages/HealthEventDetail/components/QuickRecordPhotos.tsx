@@ -1,3 +1,4 @@
+import { MaterialIcon as FunctionalIcon } from '../../../components/icons'
 import { CompleteImage } from '../../../components/common/CompleteImage'
 import { createPortal } from 'react-dom'
 import {useAppStore} from '../../../store/useAppStore'
@@ -5,7 +6,7 @@ import './QuickRecordPhotos.css'
 import {localMediaDraft} from '../../../features/health-attachments/localMediaDraft'
 import type { MediaReview } from '../../../services/quickRecords'
 import { useEffect, useRef, useState } from 'react'
-import { ChevronLeft, ChevronRight, ImagePlus, LoaderCircle, RotateCcw, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ImagePlus, LoaderCircle, RotateCcw, X } from '../../../components/icons'
 import { prepareHealthImage } from '../../../features/health-attachments/prepareHealthImage'
 import { useDialogFocus } from '../../../hooks/useDialogFocus'
 import { usePageScrollLock } from '../../../hooks/usePageScrollLock'
@@ -270,7 +271,7 @@ export function QuickRecordPhotos({ model, limit = QUICK_RECORD_PHOTO_LIMIT, sho
       <div className="quick-record-photos__heading"><strong>{model.allowVideos ? '已添加资料' : '上传照片'}</strong><span>{photos.length}/{limit}</span></div>
       <div className="quick-record-photos__rail">
         {photos.map((photo, index) => <div className="quick-record-photo" data-status={photo.status} key={photo.localId}>
-          <button aria-label={`查看${photo.mimeType?.startsWith('video/') ? '视频' : '照片'} ${index + 1}`} className="quick-record-photo__preview" onClick={() => model.setPreviewIndex(index)} type="button">{photo.mimeType?.startsWith('video/') ? photo.posterUrl ? <span className="media-video-thumb"><MediaImage url={photo.posterUrl} name="视频封面"/><span>▶ {photo.duration?`${Math.round(photo.duration)}秒`:"视频"}</span></span> : <span className="media-fallback">▶ 视频<br/>{photo.duration?`${Math.round(photo.duration)}秒`:photo.name}<br/>{photo.size?`${(photo.size/1024/1024).toFixed(1)}MB`:''}</span> : <MediaImage url={photo.previewUrl} name={photo.name} />}</button>
+          <button aria-label={`查看${photo.mimeType?.startsWith('video/') ? '视频' : '照片'} ${index + 1}`} className="quick-record-photo__preview" onClick={() => model.setPreviewIndex(index)} type="button">{photo.mimeType?.startsWith('video/') ? photo.posterUrl ? <span className="media-video-thumb"><MediaImage url={photo.posterUrl} name="视频封面"/><span><FunctionalIcon name="play_arrow" size={16}/> {photo.duration?`${Math.round(photo.duration)}秒`:"视频"}</span></span> : <span className="media-fallback"><FunctionalIcon name="play_arrow" size={16}/> 视频<br/>{photo.duration?`${Math.round(photo.duration)}秒`:photo.name}<br/>{photo.size?`${(photo.size/1024/1024).toFixed(1)}MB`:''}</span> : <MediaImage url={photo.previewUrl} name={photo.name} />}</button>
           {photo.status === 'uploading' && <span aria-label="上传中" className="quick-record-photo__status"><LoaderCircle className="is-spinning" size={17} /></span>}
           {!model.allowVideos && photo.status === 'failed' && <div className="quick-record-photo__failed"><span>上传失败</span><button aria-label={`重试上传 ${photo.name}`} onClick={() => model.retry(photo.localId)} type="button"><RotateCcw size={14} />重试</button><button aria-label={`移除上传失败的照片 ${photo.name}`} onClick={() => model.remove(photo.localId)} type="button"><X size={14} />移除</button></div>}
           {photo.status !== 'failed' && <button aria-label={`删除${photo.mimeType?.startsWith('video/') ? '视频' : '照片'} ${index + 1}`} className="quick-record-photo__delete" onClick={() => model.remove(photo.localId)} type="button"><X size={13} /></button>}

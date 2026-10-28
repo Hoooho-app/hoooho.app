@@ -1,4 +1,4 @@
-import { Plus, X } from 'lucide-react'
+import { Plus, X } from '../icons'
 import { useRef, useState } from 'react'
 import { addSmartTag, shouldCommitSmartTag, toggleSmartTag } from '../../features/health-profile/utils/smartTags'
 

@@ -1,4 +1,4 @@
-import { ArrowLeft, ChevronRight, Utensils } from 'lucide-react'
+import { ArrowLeft, ChevronRight, Utensils } from '../../components/icons'
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { useBlocker, useLocation, useNavigate } from 'react-router-dom'
 import { HohoButton } from '../../components/design-system'

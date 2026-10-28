@@ -1,4 +1,4 @@
-import { ChevronLeft } from 'lucide-react'
+import { ChevronLeft } from '../icons'
 import { useNavigate } from 'react-router-dom'
 
 interface HeaderProps {

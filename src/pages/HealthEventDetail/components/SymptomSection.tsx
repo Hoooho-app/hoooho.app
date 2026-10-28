@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Activity, CalendarDays, CircleDashed, Plus } from 'lucide-react'
+import { Activity, CalendarDays, CircleDashed, Plus } from '../../../components/icons'
 import type { CreateHealthEventRecordInput, HealthEvent } from '../../../types'
 import { Button, Card } from '../../../components/common'
 import { HealthRecordEditorModal } from './HealthRecordEditorModal'

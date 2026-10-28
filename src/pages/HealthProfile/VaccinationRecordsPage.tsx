@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Camera, Syringe } from 'lucide-react'
+import { Camera, Syringe } from '../../components/icons'
 import { WebPageHeader } from '../../components/common'
 import { HealthRecordSubjectHeader } from '../../components/health'
 import { BottomSheetSurface, HealthTag, HohoButton, HohoInput, HohoSection, HohoSegmentedControl, SproutEntry, StatusNotice } from '../../components/design-system'

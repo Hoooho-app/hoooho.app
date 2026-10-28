@@ -1,4 +1,4 @@
-import { ArrowLeft, ChevronRight, ClipboardList, Copy, FileText, HelpCircle, Link, ListChecks, Send, Share2, UserRound, UsersRound, type LucideIcon } from 'lucide-react'
+import { ArrowLeft, ChevronRight, ClipboardList, Copy, FileText, HelpCircle, Link, ListChecks, Send, Share2, UserRound, UsersRound, type LucideIcon } from '../../../components/icons'
 import { useEffect, useState } from 'react'
 import { BottomSheetSurface, HealthCard, HohoButton, Typography } from '../../../components/design-system'
 import type { HealthEventPromptContext } from '../../../features/ask-ai'

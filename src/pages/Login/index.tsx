@@ -1,5 +1,5 @@
 import { CompleteImage } from '../../components/common/CompleteImage'
-import { Eye, EyeOff, LockKeyhole, Mail, ShieldCheck, Smartphone, UserRound } from 'lucide-react'
+import { Eye, EyeOff, LockKeyhole, Mail, ShieldCheck, Smartphone, UserRound } from '../../components/icons'
 import { FormEvent, useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import logoUrl from '../../assets/logo.svg'

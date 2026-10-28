@@ -1,4 +1,4 @@
-import { Activity, ArrowLeft, Bone, Brain, Check, Footprints, Hand, HeartPulse, PersonStanding, ScanLine, Search, ShieldPlus, X } from 'lucide-react'
+import { Activity, ArrowLeft, Bone, Brain, Check, Footprints, Hand, HeartPulse, PersonStanding, ScanLine, Search, ShieldPlus, X } from '../icons'
 import { useMemo, useState } from 'react'
 import { BottomSheetSurface, HohoButton } from '../design-system'
 import {
@@ -26,23 +26,7 @@ export interface BodyLocationPickerProps {
   onChange: (value: BodyLocationSelection[]) => void
 }
 
-const iconForRegion = (region: BodyLocationRegion) => {
-  const icons: Record<string, typeof PersonStanding> = {
-    head: Brain,
-    neck: Activity,
-    chest: ShieldPlus,
-    abdomen: ScanLine,
-    back: Bone,
-    waist_pelvis: Bone,
-    upper_limb: Activity,
-    hand: Hand,
-    lower_limb: PersonStanding,
-    foot: Footprints,
-    pelvis_perineum: PersonStanding,
-    internal_organs: HeartPulse
-  }
-  return icons[region.id] ?? PersonStanding
-}
+const iconForRegion = (_region: BodyLocationRegion) => PersonStanding
 
 function SelectionChips({ values, onRemove, compact = false, showEmptyState = true }: { values: BodyLocationSelection[]; onRemove: (id: string) => void; compact?: boolean; showEmptyState?: boolean }) {
   if (!values.length) return showEmptyState ? <span className="text-xs text-text-weak">尚未选择</span> : null

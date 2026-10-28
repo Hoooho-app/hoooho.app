@@ -509,7 +509,7 @@
 .symptom-card-heading legend, .symptom-card-heading .body-location-picker-row > span { display: none; }
 .symptom-card-heading .body-location-picker-row { min-height: var(--hoho-touch-target); gap: 0; border: 0; padding: 0; background: transparent; }
 .symptom-card-heading .body-location-picker-action { min-height: var(--hoho-touch-target); padding: 0; color: rgb(var(--hoho-color-link)); }
-.symptom-card-heading .body-location-picker-action::after { margin-left: 5px; content: '›'; font-size: 22px; font-weight: 400; line-height: 1; }
+.symptom-card-heading .body-location-picker-action::after { margin-left: 5px; content: ""; display:inline-block; width:16px; height:16px; vertical-align:middle; background:currentColor; -webkit-mask:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20height%3D%2224%22%20viewBox%3D%220%20-960%20960%20960%22%20width%3D%2224%22%3E%3Cpath%20d%3D%22M517.85-480%20354.92-642.92q-8.3-8.31-8.5-20.89-.19-12.57%208.5-21.27%208.7-8.69%2021.08-8.69%2012.38%200%2021.08%208.69l179.77%20179.77q5.61%205.62%207.92%2011.85%202.31%206.23%202.31%2013.46t-2.31%2013.46q-2.31%206.23-7.92%2011.85L397.08-274.92q-8.31%208.3-20.89%208.5-12.57.19-21.27-8.5-8.69-8.7-8.69-21.08%200-12.38%208.69-21.08L517.85-480Z%22%2F%3E%3C%2Fsvg%3E") center / contain no-repeat; mask:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20height%3D%2224%22%20viewBox%3D%220%20-960%20960%20960%22%20width%3D%2224%22%3E%3Cpath%20d%3D%22M517.85-480%20354.92-642.92q-8.3-8.31-8.5-20.89-.19-12.57%208.5-21.27%208.7-8.69%2021.08-8.69%2012.38%200%2021.08%208.69l179.77%20179.77q5.61%205.62%207.92%2011.85%202.31%206.23%202.31%2013.46t-2.31%2013.46q-2.31%206.23-7.92%2011.85L397.08-274.92q-8.31%208.3-20.89%208.5-12.57.19-21.27-8.5-8.69-8.7-8.69-21.08%200-12.38%208.69-21.08L517.85-480Z%22%2F%3E%3C%2Fsvg%3E") center / contain no-repeat; font-size: 22px; font-weight: 400; line-height: 1; }
 .symptom-card-empty { margin: 1px 0 4px; color: rgb(var(--hoho-color-text-secondary)); font-size: var(--hoho-font-size-caption); }
 .symptom-location-tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 1px 0 8px; }
 .symptom-location-tags > span { display: inline-flex; min-height: 36px; max-width: 100%; align-items: center; gap: 5px; border-radius: var(--hoho-radius-pill); background: rgb(var(--hoho-color-primary-soft)); padding: 6px 11px; color: rgb(var(--hoho-color-link)); font-size: var(--hoho-font-size-caption); font-weight: 650; overflow-wrap: anywhere; }
@@ -778,3 +778,6 @@
   .journal-now-cell::before { transition: none; }
   .journal-timeline-row--now .journal-timeline-marker > span { animation: none; }
 }
+
+.journal-entry-hub__image.hoho-icon { flex:0 0 auto; width:32px; height:32px; margin:auto; }
+.diet-type-direct-entry > .hoho-icon { flex:none; width:32px; height:32px; }

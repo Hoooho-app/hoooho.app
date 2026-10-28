@@ -1,4 +1,4 @@
-import { CirclePlus } from 'lucide-react'
+import { CirclePlus } from '../../../components/icons'
 import type { PersonalizedHealthModule } from '../../../services/healthEventPersonalization'
 import { Card } from '../../../components/common'
 

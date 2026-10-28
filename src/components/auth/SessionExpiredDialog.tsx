@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { LoaderCircle } from 'lucide-react'
+import { LoaderCircle } from '../icons'
 import { HohoButton } from '../design-system/HohoButton'
 import { ModalSurface } from '../design-system/ModalSurface'
 import { useDialogFocus } from '../../hooks/useDialogFocus'

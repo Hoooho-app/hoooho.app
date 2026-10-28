@@ -1,5 +1,5 @@
 import { CompleteImage } from '../../components/common/CompleteImage'
-import { Copy, Download, FileText, List } from 'lucide-react'
+import { Copy, Download, FileText, List } from '../../components/icons'
 import { VisitReading, visibleReadingCards, type ReadingEditor } from './VisitReading'
 import { VisitSubpage } from './VisitSubpage'
 import { VisitUpdatePreview } from './VisitUpdatePreview'

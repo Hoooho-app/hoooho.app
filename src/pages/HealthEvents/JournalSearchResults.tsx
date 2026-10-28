@@ -1,5 +1,5 @@
 import { Fragment, useMemo } from 'react'
-import { ChevronRight } from 'lucide-react'
+import { ChevronRight } from '../../components/icons'
 import { HealthTag } from '../../components/design-system'
 import { formatPlainMonthDay, getLocalDateKey } from '../../utils/localCalendarDate'
 import { JournalCategoryIcon } from './JournalCategoryIcon'

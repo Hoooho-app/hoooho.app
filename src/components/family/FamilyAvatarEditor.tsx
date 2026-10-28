@@ -1,6 +1,6 @@
 import { CompleteImage } from '../common/CompleteImage'
 import { ChangeEvent, PointerEvent, useEffect, useMemo, useRef, useState } from 'react'
-import { Camera, RefreshCw, ZoomIn } from 'lucide-react'
+import { Camera, RefreshCw, ZoomIn } from '../icons'
 import { AvatarPhotoError, createAvatarPhotoPreview, prepareAvatarPhoto, type AvatarPhotoCropSelection } from '../../utils/prepareAvatarPhoto'
 import { decodeImageAsset } from '../../utils/decodeImageAsset'
 import { cycleClayAvatar, type ClayAvatarConfig } from '../../utils/clayAvatar'

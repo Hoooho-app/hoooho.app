@@ -70,7 +70,7 @@ test('前台侧边栏使用首页图标，旧指数地址说明已停止', async
   await registerMember(page)
   await page.getByRole('button', { name: '打开菜单' }).click()
   const frontDesk = page.getByRole('button', { name: '服务前台', exact: true })
-  await expect(frontDesk.locator('svg.lucide-house')).toHaveCount(1)
+  await expect(frontDesk.locator('svg[data-icon="home"]')).toHaveCount(1)
   await expect(frontDesk).toHaveAttribute('aria-current', 'page')
   await page.screenshot({ path: 'test-results/nurse-station-home-icon-375x667.png' })
   await page.getByRole('button', { name: '关闭菜单' }).click()

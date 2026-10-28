@@ -1,6 +1,6 @@
 import {RecordNarrative} from './RecordNarrative'
 import {useState} from 'react'
-import { Check } from 'lucide-react'
+import { Check } from '../../components/icons'
 import {HohoButton} from '../../components/design-system'
 import {localDateTimeValue,localDateTimeToIso} from '../../utils/healthOccurredAt'
 import type {SmartRecordItem} from './smartRecordTypes'

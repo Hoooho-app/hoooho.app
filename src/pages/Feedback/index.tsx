@@ -11,7 +11,7 @@ import { addFeedbackMessage, feedbackCategoryOptions, feedbackStatusLabels, getM
 import { useAppStore } from '../../store/useAppStore'
 import { FeedbackComposer } from './FeedbackComposer'
 import { MyFeedbackCard } from './MyFeedbackCard'
-import { Check, LoaderCircle } from 'lucide-react'
+import { Check, LoaderCircle } from '../../components/icons'
 
 const sourceStorageKey = 'hoooho-feedback-source'
 const categoryFromQuery = (value: string | null): FeedbackProblemType | null => feedbackCategoryOptions.find((item) => item.value === value || item.label === value)?.value ?? null

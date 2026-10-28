@@ -1,4 +1,4 @@
-import { UserRoundPlus } from 'lucide-react'
+import { UserRoundPlus } from '../../components/icons'
 import { HohoButton } from '../../components/design-system'
 import { MainAppHeader } from '../../components/navigation'
 import { NurseTriageDesk } from './NurseTriageDesk'

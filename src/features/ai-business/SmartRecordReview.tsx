@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus } from 'lucide-react'
+import { Plus } from '../../components/icons'
 import { BottomSheetSurface, HealthCard, HohoButton } from '../../components/design-system'
 import { manualRecordField } from '../../../shared/manual-smart-record.mjs'
 import fieldLabels from '../../../shared/ai-business-field-labels.json'

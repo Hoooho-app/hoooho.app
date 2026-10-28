@@ -1,6 +1,6 @@
 import { CompleteImage } from '../../../components/common/CompleteImage'
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
-import { Paperclip, X } from 'lucide-react'
+import { Paperclip, X } from '../../../components/icons'
 import { BodyLocationPicker, QuickRecordTrigger } from '../../../components/health'
 import { bodyLocationSelectionLabels, type BodyLocationSelection } from '../../../features/body-location'
 import { prepareHealthImage } from '../../../features/health-attachments/prepareHealthImage'

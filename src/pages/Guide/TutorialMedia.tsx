@@ -1,5 +1,5 @@
 import { CompleteImage } from '../../components/common/CompleteImage'
-import { Pause, Play, RotateCcw } from 'lucide-react'
+import { Pause, Play, RotateCcw } from '../../components/icons'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { GuideMedia } from '../../features/guide/tutorials'
 

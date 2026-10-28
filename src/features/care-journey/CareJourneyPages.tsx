@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode, type ComponentType } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Award, Check, CheckCircle2, ChevronRight, ClipboardList, Gift, LockKeyhole, Palette, Sprout } from 'lucide-react';
+import { Award, Check, CheckCircle2, ChevronRight, ClipboardList, Gift, LockKeyhole, Palette, Sprout } from '../../components/icons';
 import { WebPageHeader } from '../../components/common/WebPageHeader';
 import { BottomSheetSurface, EmptyState, HohoButton, HohoProgress, HohoSection, HohoSurfaceRow, StatusNotice } from '../../components/design-system';
 import { useAppStore } from '../../store/useAppStore';

@@ -1,4 +1,4 @@
-import { Droplets, X } from 'lucide-react'
+import { Droplets, X } from '../../components/icons'
 import { useEffect, useRef, useState } from 'react'
 import { HohoButton } from '../../components/design-system'
 import { ProfileChoiceGroup } from '../HealthProfile/profile-sections/ProfileSectionPatterns'

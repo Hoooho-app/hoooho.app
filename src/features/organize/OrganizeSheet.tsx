@@ -1,5 +1,5 @@
 import { isProductPathVisible } from '../../../shared/product-visibility.mjs'
-import { ChartNoAxesCombined, ChevronRight, ClipboardPlus, HandHeart } from 'lucide-react'
+import { ChartNoAxesCombined, ChevronRight, ClipboardPlus, HandHeart } from '../../components/icons'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { BottomSheetSurface } from '../../components/design-system'
 import './organize.css'

@@ -1,7 +1,7 @@
 import { CompleteImage } from '../../components/common/CompleteImage'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { AlertTriangle, Camera, Check, Clock3, ExternalLink, Eye, History, ImageOff, LogIn, Plus, RefreshCw, Settings2, ShieldCheck, Upload, WalletCards, X } from 'lucide-react'
+import { AlertTriangle, Camera, Check, Clock3, ExternalLink, Eye, History, ImageOff, LogIn, Plus, RefreshCw, Settings2, ShieldCheck, Upload, WalletCards, X } from '../../components/icons'
 import { HohoButton } from '../../components/design-system/HohoButton'
 import { OpsAccount } from '../../components/auth/OpsAccount'
 import { useAppStore } from '../../store/useAppStore'

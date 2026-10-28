@@ -1,4 +1,4 @@
-import { ArrowLeft, Check, ChevronDown, Download, Pencil, Plus, Trash2 } from 'lucide-react'
+import { ArrowLeft, Check, ChevronDown, Download, Pencil, Plus, Trash2 } from '../../components/icons'
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { BottomSheetSurface, HohoButton, HohoInput, StatusNotice, SproutEntry } from '../../components/design-system'

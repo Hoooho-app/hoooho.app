@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ChevronRight, ClipboardList, Stethoscope } from 'lucide-react'
+import { ChevronRight, ClipboardList, Stethoscope } from '../../components/icons'
 import { useNavigate } from 'react-router-dom'
 import { Avatar } from '../../components/common'
 import { HealthCard, HohoButton } from '../../components/design-system'

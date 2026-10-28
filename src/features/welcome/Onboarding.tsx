@@ -1,3 +1,4 @@
+import { MaterialIcon } from '../../components/icons'
 import React, { useRef, useState } from 'react';
 import { HohoButton } from '../../components/design-system/HohoButton';
 import './onboarding.css';
@@ -155,15 +156,13 @@ export function Onboarding({
                 aria-label={`第 ${index + 1} 页：${slide.label}`}
                 aria-current={active === index ? 'step' : undefined}
                 onClick={() => goTo(index)}
-              ><span /></button>
+              ><MaterialIcon name="circle" size={16} selected={active === index}/></button>
             ))}
           </div>
 
           <HohoButton className="hoooho-onboarding__start" fullWidth size="large" onClick={onComplete}>
             <span>开始</span>
-            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M4 12h15M13 5l7 7-7 7" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
+            <MaterialIcon name="arrow_forward" size={24}/>
           </HohoButton>
           <p className="hoooho-onboarding__promise">为孩子，留一份清楚的记录</p>
         </footer>

@@ -103,3 +103,13 @@ Original photo previews opened from an existing record, reminder or upload works
 `DialogueComposer.holdLabel` / `HoldToTalkButton.idleLabel` 是场景可选文案，前台为“按住记录症状”，其他场景仍为“按住说话”。用户消息处理时在自己的气泡内保留一个 loading，无伪造的护士“收到”气泡。记录单在追问结束并确认生成后展示；保存状态以底部小图标和真实查看动作体现，不再将“已记录”拼在标题后，也不提供“查看原话”展开入口；持久原件不删除。
 
 前台症状／资料／用药／日常色彩分别调整为浅绿、浅蓝、浅紫、相近浅粉紫。就诊整理动作独立采用前台专用暖杏色 `record-organize-*`，不复用警告语义；已生成清单的顶部入口仍采用较深的资料蓝色。颜色仅改变前台 opt-in 角色，不改变全局主题或其他页面。
+
+### 2026-10-29 全局功能图标 V3
+
+产品主人确认全局采用 Google Material Symbols Rounded，固定 wght 300、opsz 24、GRAD 0。同一原图的 FILL 0 用于未选中，FILL 1 用于实际选中／收藏；动作、加载、错误和保存回执各自保留原业务语义。统一使用 `components/icons/MaterialIcon` 与固定版本的原始路径，普通尺寸为16／20／24／32，不按页面改变线宽，也不加载远程字体。
+
+旧 Lucide、自绘功能 SVG、字符按钮、CSS 下拉箭头及图片分类入口均归入本套。已确认的文字分类入口继续使用文字。原 `CareHandsIcon` 小型功能入口改用同库 `volunteer_activism`，护士形象、头像、精确人体图、数据图表及护护品牌保留内容身份。
+
+睡眠统一 `bedtime`，醒来 `sunny`，就诊 `stethoscope`，检查 `lab_research`，关注 `favorite`。身体部位的入口统一人形 `person` 与准确部位标签，精确位置仍由原人体图表达。Apple 登录与绑定共用真实品牌轮廓，微信和 QQ 为单独品牌资产，不制造品牌的空心／实心变体。
+
+食物小图与导出采用同库准确母版：苹果 `nutrition`、牛奶 `local_drink`、鸡蛋 `egg`。缺少准确图形的13种食物只展示完整名称，不借其他食物代替。此段替代早期图片食物图标及自绘功能图标的约定，其他页面结构、数据和业务保持既有边界。任务与验证见 [全局图标替换契约](design/global-material-icons-v3-20261029.md)。

@@ -1,7 +1,7 @@
 import { PRODUCT_FEATURES } from '../../../shared/product-visibility.mjs'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Download, SlidersHorizontal, Sprout, Bookmark } from 'lucide-react'
+import { Download, SlidersHorizontal, Sprout, Bookmark } from '../../components/icons'
 import { OrganizeHeader } from '../../features/organize/OrganizeHeader'
 import { ProcessingState } from '../../components/design-system/ProcessingState'
 import { BottomSheetSurface, HealthCard, HohoButton, StatusNotice, Typography } from '../../components/design-system'
