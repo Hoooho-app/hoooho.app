@@ -43,7 +43,7 @@ export class RecognitionJobs {
       CREATE TABLE IF NOT EXISTS outbox(job_id TEXT PRIMARY KEY,document TEXT NOT NULL);`)
     const limit=Number(process.env.AI_MAX_CONCURRENT_CALLS??2);this.maxConcurrentJobs=Number.isInteger(limit)&&limit>=1&&limit<=10?limit:2
     this.owner=randomUUID();this.active=new Map();this.waiters=new Map();this.closed=false;this.unregister=registerRecognitionInstance(dataDirectory,this)
-    if(this.front)this.front.onManualEdit=(...args)=>this.organizeContext(...args)
+    if(this.front){this.front.onManualEdit=(...args)=>this.organizeContext(...args);this.front.onGenerate=(...args)=>this.organizeContext(...args,true)}
     if(autoStart){this.timer=setInterval(()=>this.kick(),1000);this.timer.unref();queueMicrotask(()=>this.kick())}
   }
   raw(id){const row=this.db.prepare('SELECT document FROM jobs WHERE id=?').get(id);return row?JSON.parse(row.document):null}
@@ -158,21 +158,21 @@ export class RecognitionJobs {
     const active=this.active.get(JSON.stringify([accountId,memberId]));if(active?.id===j.id&&(active.stage==='organizing'||j.options.continuousRecord&&['preparing','reading','publishing'].includes(active.stage)))active.controller.abort(new DOMException('New input','AbortError'))
     this.kick();return publicJob(j)
   }
-  async organizeContext(accountId,memberId,contextId,version){
+  async organizeContext(accountId,memberId,contextId,version,generationRequested=false){
     const job=await withStorageLock(async()=>{
       await this.scope(accountId,memberId)
       const context=await this.front.snapshot(accountId,memberId,contextId)
       if(!context?.continuousRecord||context.closedAt||context.version!==version)throw fail('记录单已有更新',409,'FRONT_CONTEXT_CHANGED')
-      const source=context.messages.find(message=>message.id===context.cardEdit?.messageId&&message.manualCardEdit)
+      const source=generationRequested?[...context.messages].reverse().find(message=>message.kind!=='assistant'&&message.status==='completed'&&!message.retracted):context.messages.find(message=>message.id===context.cardEdit?.messageId&&message.manualCardEdit)
       if(!source)throw fail('未找到修改来源',409,'FRONT_CONTEXT_CHANGED')
       return this.transaction(()=>{
-        const id=`organize:${contextId}:${version}`,existing=this.raw(id)
+        const id=`${generationRequested?'generate':'organize'}:${contextId}:${version}`,existing=this.raw(id)
         if(existing)return this.owned(accountId,memberId,id)
         for(const old of this.all().filter(j=>j.accountId===accountId&&j.memberId===memberId&&j.scopeKey==='front'&&waiting(j))){this.put({...old,state:'paused',stage:'paused',cancelEpoch:old.cancelEpoch+1,owner:null,leaseUntil:0});this.db.prepare('DELETE FROM outbox WHERE job_id=?').run(old.id)}
         const at=new Date(this.now()).toISOString()
         // The edit's source is already accepted. Skip dialogue and ASR, then
         // reuse the existing version-fenced organization/publishing worker.
-        return this.put({id,accountId,memberId,mode:'front',scopeKey:'front',state:'queued',stage:'queued',seq:0,inputRevision:1,resultRevision:0,cursor:1,inputs:[{id:source.id,kind:'text',text:source.text,inputAt:source.inputAt,assetIds:[],contextId}],contextId,frontDesk:{messageId:source.id,replyId:`${source.id}:feedback`,context:{...context,messages:context.messages.map(publicFrontMessage)}},transcripts:{},options:{continuousRecord:true,semanticVersion:3,followUp:false},createdAt:at,processingStartedAt:at,cancelEpoch:0,commandIds:[],activeMs:0})
+        return this.put({id,accountId,memberId,mode:'front',scopeKey:'front',state:'queued',stage:'queued',seq:0,inputRevision:1,resultRevision:0,cursor:1,inputs:[{id:source.id,kind:'text',text:source.text,inputAt:source.inputAt,assetIds:[],contextId}],contextId,frontDesk:{messageId:source.id,replyId:generationRequested?`${source.id}:reply`:`${source.id}:feedback`,context:{...context,messages:context.messages.map(publicFrontMessage)}},transcripts:{},options:{continuousRecord:true,generationRequested,semanticVersion:3,followUp:false},createdAt:at,processingStartedAt:at,cancelEpoch:0,commandIds:[],activeMs:0})
       })
     })
     const active=this.active.get(JSON.stringify([accountId,memberId]));if(active&&active.id!==job.id)active.controller.abort()
@@ -282,6 +282,12 @@ export class RecognitionJobs {
       let input
       if(j.mode==='front'){
         const context=(await this.front.snapshot(j.accountId,j.memberId,j.contextId));this.guard(id,epoch,signal)
+        if(context.continuousRecord&&context.interview?.status==='asking'&&!context.understanding?.recordChangesPending&&!j.options.generationRequested&&!context.cardEdit&&context.actionPlan?.type==='none'){
+          // A follow-up answer needs one dialogue call, not full extraction and
+          // professional-summary generation on every turn. Explicit generation
+          // queues that existing pipeline separately, with the same version fence.
+          await this.updateActive(id,epoch,signal,{state:unresolved(j).length?'needs_review':'ready',stage:'ready',resultKind:context.resultKind,resultRevision:revision,review:null,draftId:null,frontDesk:{...j.frontDesk,context},owner:null,leaseUntil:0});return
+        }
         if(['save','save_original','readback','cancel','stop','query','export','delete','update'].includes(context.actionPlan?.type)){
           await this.executeFrontAction(j,context,epoch,signal,revision);return
         }

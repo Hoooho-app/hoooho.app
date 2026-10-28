@@ -8,6 +8,7 @@ import { contentFor } from './business/service.mjs'
 import { applyFrontDeskRecordChanges } from './front-desk-understanding.mjs'
 import { originals } from './front-desk-original-save.mjs'
 import { continuousPresentation } from './front-desk-presentation.mjs'
+import {frontDeskRecordSections,recordSectionsText} from './front-desk-record-sections.mjs'
 
 const revision = record => frontRecordVersion({type:record.type,content:record.content,occurredAt:record.occurredAt,journal:record.journal,aiProvenance:record.aiProvenance,sourceText:record.sourceText})
 const sourcesFor = (data, context) => data.messages.filter(m => m.contextId === context.id && m.accountId === context.accountId && m.memberId === context.memberId && ['text','voice','image'].includes(m.kind) && m.status !== 'discarded' && (m.acceptedInput === true || m.acceptedInput == null && m.status === 'completed') && !m.retracted).sort((a,b) => a.inputAt-b.inputAt || a.id.localeCompare(b.id))
@@ -51,7 +52,9 @@ export async function continuousCard(front, accountId, memberId, contextId) {
   const items=usable?review.items:[]
   const edit=context.cardEdit
   const restored=context.restoredRecord?.evidenceVersion===context.evidenceVersion?context.restoredRecord:null
-  const text=edit&&edit.evidenceVersion===context.evidenceVersion?edit.text:items.length?items.map(contentFor).join('\n\n'):restored?.text??raw
+  const sections=frontDeskRecordSections(context,messages)
+  const grouped=sections.length&&!messages.some(message=>message.files?.length)?recordSectionsText(sections):null
+  const text=edit&&edit.evidenceVersion===context.evidenceVersion?edit.text:restored?.text??grouped??(items.length?items.map(contentFor).join('\n\n'):raw)
   const explicitItem=items.find(i=>i.time?.resolvedStart&&!i.time.defaulted),explicit=explicitItem?.time.resolvedStart
   // Explicit record-time edits take precedence even while extraction is still
   // running. Resolve only the user's time-edit clause, never a symptom update

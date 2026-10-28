@@ -16,12 +16,13 @@ import { TopicalRecordFlow } from './TopicalRecordFlow'
 import { getLocalDateKey } from '../../utils/localCalendarDate'
 import { DailyRecordOrigin } from './DailyRecordSheets'
 
-export function JournalRecordDetail({ eventId, recordId, startSleepCorrection = false, onChanged, onClose }: {
+export function JournalRecordDetail({ eventId, recordId, startSleepCorrection = false, onChanged, onClose, onEditRecord }: {
   eventId: string
   recordId: string
   startSleepCorrection?: boolean
   onChanged: (day?: string) => void
   onClose: () => void
+  onEditRecord?: () => void
 }) {
   const { state, retry, updateRecord, deleteRecord } = useHealthEventDetail(eventId, true)
   const memberId = useAppStore((value) => value.currentMemberId)
@@ -136,6 +137,7 @@ export function JournalRecordDetail({ eventId, recordId, startSleepCorrection = 
   if (editingDiet && record?.journal?.diet) return <DietRecordFlow key={record.id} kind={record.journal.diet.kind} initialDiet={record.journal.diet} initialOccurredAt={record.occurredAt} recordId={record.id} memberId={state.data.member.id} token={token} selectedDay={getLocalDateKey(new Date(record.occurredAt))!} today={getLocalDateKey(new Date())!} onBack={()=>setEditingDiet(false)} onClose={onClose} onSaved={()=>onChanged()} onConfirm={async(content,occurredAt,_channel,_photos,journal)=>{await updateRecord(record.id,{content,occurredAt,journal:{...record.journal,...journal}});return '记录已更新'}}/>
   if (editingTopical && record?.journal?.topical) return <TopicalRecordFlow key={record.id} initialJournal={record.journal.topical} initialOccurredAt={record.occurredAt} memberId={state.data.member.id} token={token} selectedDay={getLocalDateKey(new Date(record.occurredAt))!} today={getLocalDateKey(new Date())!} onBack={()=>setEditingTopical(false)} onClose={onClose} onSaved={()=>onChanged()} onConfirm={async(content,occurredAt,_channel,_photos,journal)=>{await updateRecord(record.id,{content,occurredAt,journal:{...record.journal,...journal}});return '记录已更新'}}/>
   return <SymptomRecordSheet
+    onEditRecord={onEditRecord}
     origin={origin}
     onEditTopical={record?.journal?.topical ? ()=>setEditingTopical(true) : undefined}
     memberId={state.data.member.id}

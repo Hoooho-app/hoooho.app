@@ -26,6 +26,12 @@ test('raw save works without a structured draft; retries and later saves retain 
  assert.equal((await f.business.records.repository.findByAccountId(f.accountId)).length,1)
  assert.equal((await f.business.events.get(f.accountId,first.saved.eventId)).caseTracking,false)
 })
+test('a historical self-parent introduced by a voice retry cannot hide its conversation on reopening',async t=>{
+ const f=await fixture(t)
+ await f.front.store.update(data=>({...data,contexts:data.contexts.map(context=>({...context,continuedFromId:context.id,conversationId:context.id}))}))
+ const reopened=await f.front.latest(f.accountId,f.memberId)
+ assert.equal(reopened.id,f.contextId);assert.equal(reopened.messages[0].text,'头有点疼')
+})
 test('manual revision is immediately readable, invalidates old evidence and stale writes; explicit occurrence stays fixed',async t=>{
  const f=await fixture(t),args=[f.accountId,f.memberId,f.contextId]
  const card=await f.front.continuous(...args,{action:'edit_current',expectedVersion:1,title:'头部不适',text:'昨晚八点头疼，今天减轻',occurredAt:'2026-10-26T12:00:00Z'})
@@ -174,6 +180,15 @@ test('generation is blocked during questioning, pending input and for another me
  await assert.rejects(()=>f.front.continuous(...args,{action:'generate_current',expectedVersion:1,confirmed:true}),e=>e.code==='FRONT_RECORD_NOT_READY')
  await assert.rejects(()=>f.front.continuous('other',f.memberId,f.contextId,{action:'generate_current',expectedVersion:1,confirmed:true}))
  assert.equal((await f.business.records.repository.findByAccountId(f.accountId)).length,0)
+})
+test('second question permits explicit partial generation; pending bytes still fence it and consent never saves',async t=>{
+ const f=await fixture(t),args=[f.accountId,f.memberId,f.contextId]
+ await f.front.store.update(d=>({...d,contexts:d.contexts.map(c=>({...c,facts:[{id:'f1',status:'active',scope:'record',polarity:'affirmed',subject:f.subject,text:'头有点疼',sources:[{messageId:'m1',quote:'头有点疼',attachmentId:null}]}],interview:{status:'asking',turnCount:2,question:{id:'q2',text:'是否影响睡眠？'}}}))}))
+ const generated=await f.front.continuous(...args,{action:'generate_current',expectedVersion:1,confirmed:true})
+ assert.equal(generated.presentation.generated,true);assert.equal(generated.presentation.asking,true)
+ assert.equal((await f.business.records.repository.findByAccountId(f.accountId)).length,0)
+ await f.front.store.update(d=>({...d,messages:[...d.messages,{...d.messages[0],id:'voice-pending',status:'pending'}]}))
+ await assert.rejects(()=>f.front.continuous(...args,{action:'generate_current',expectedVersion:1,confirmed:true}),{code:'FRONT_RECORD_NOT_READY'})
 })
 test('a new correction is not automatically written over the saved record before explicit save',async t=>{
  const f=await fixture(t),args=[f.accountId,f.memberId,f.contextId]
