@@ -10,7 +10,7 @@
     "src/features/ai-business/caseCapture.css": "2db6515073eb476a5e640ad966f25d617422d596e5926cc75a9495cfcbb0368c",
     "src/features/ai-business/liveAudioPreview.ts": "49041cad3c58d215b99d17f8a76290d3db913cdd69a756b670e47a84a71edac8",
     "src/features/ai-business/useSmartRecordVoice.ts": "72536a278bf98dea54989bacee130036f9ef033a21b73d4a91cc6b37bb8786b6",
-    "src/pages/HealthEvents/index.tsx": "fe60db1b057078b7f9ec9e8b13321d1514de87599f9d89d8050fc93943ff8a4a",
+    "src/pages/HealthEvents/index.tsx": "b3bd5f6d6088c6da359e8c3011d7000f0c5b107ed4883ddc5dcd0d2667f47b24",
     "src/pages/NurseStation/FrontDeskProcessing.tsx": "e3d9030e296900827990b6948305f6f02a10d9c9be1dc5d8ca2044c9b89160f4",
     "server/ai/business/nursing-interview.mjs": "7683ec6865d83d0c66c396ed6303fb07ee158f7dd723d278e3a9de15e4642132"
   },
@@ -25,6 +25,13 @@
     "src/pages/HealthEvents/JournalRecordDetail.tsx": "ad55d381da72ca11ac8a0bc6315c8d33ab7ca1ed27d6ecf125481f6d5a61b528"
   },
   "additionalAuthorizations": [
+    {
+      "contract": "docs/delivery/child-archive-layout-20261029.md",
+      "files": [
+        "src/pages/HealthEvents/index.tsx"
+      ],
+      "reason": "Main commit 3d2b8b9 already removed installation prompts as authorized by the owner. Its inspected one-line removal of showInstallApp from the calendar header supersedes the old exact-file fingerprint; the full-file hash assertion is retained against that accepted revision."
+    },
     {
       "contract": "docs/delivery/frontdesk-reliability-20261029.md",
       "files": [
