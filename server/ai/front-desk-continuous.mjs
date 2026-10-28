@@ -94,7 +94,8 @@ export async function generateContinuousRecord(front,accountId,memberId,contextI
     checkSubject(context.subject,memberId)
     const subjects=[context.subject,...sourcesFor(data,context).map(message=>message.subject),...(context.facts??[]).filter(fact=>fact.status==='active'&&fact.scope!=='context').map(fact=>fact.subject)]
     subjects.forEach(subject=>checkSubject(subject,memberId))
-    const pendingSubject=[context.subject,...(context.facts??[]).filter(fact=>fact.status==='active'&&fact.scope!=='context').map(fact=>fact.subject)].some(subject=>subject&&(subject.kind!=='current'||subject.confirmed!==true))
+    const originalSubjectConfirmed=context.subject?.confirmedBy==='user'&&context.subject.confirmation?.originalsVersion===(context.originalsVersion??0)
+    const pendingSubject=Boolean(card.uploadReading&&!originalSubjectConfirmed)||[context.subject,...(context.facts??[]).filter(fact=>fact.status==='active'&&fact.scope!=='context').map(fact=>fact.subject)].some(subject=>subject&&(subject.kind!=='current'||subject.confirmed!==true))
     if(input.save===true&&!pendingSubject)await writeRecord(front,accountId,memberId,contextId,{expectedVersion:context.version})
     if(!card.presentation.generated||input.save===true)await front.store.update(d=>({...d,contexts:d.contexts.map(c=>c.id===contextId&&c.accountId===accountId&&c.memberId===memberId?{...c,recordGeneration:{evidenceVersion:c.evidenceVersion??0,editRevision:c.editRevision??0,at:front.now().toISOString(),...(input.save===true?{saveRequested:true,...(pendingSubject?{pendingSave:'subject'}:{})}:{})}}:c)}))
     return continuousCard(front,accountId,memberId,contextId)

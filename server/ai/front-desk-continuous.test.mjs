@@ -66,6 +66,16 @@ test('new evidence invalidates a pending save intent until the user confirms org
  assert.equal(latest.presentation.generated,false);assert.equal(latest.pendingSave,undefined)
  assert.equal((await f.front.continuous(...args,{action:'generate_current',expectedVersion:latest.version,confirmed:true,save:true})).saved.available,true)
 })
+test('selecting a child does not confirm the ownership of a newly uploaded first reading',async t=>{
+ const f=await fixture(t),args=[f.accountId,f.memberId,f.contextId]
+ const file={id:'photo1',name:'合成图片.png',mimeType:'image/png',dataUrl:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII='}
+ await f.front.store.update(d=>({...d,contexts:d.contexts.map(c=>({...c,originalsVersion:1,facts:[{id:'f1',status:'active',scope:'record',polarity:'affirmed',subject:f.subject,text:'合成检查项目',sources:[{messageId:'m1',attachmentId:file.id,quote:'合成检查项目'}]}]})),messages:d.messages.map(m=>({...m,kind:'image',files:[file]}))}))
+ const generated=await f.front.continuous(...args,{action:'generate_current',expectedVersion:1,confirmed:true,save:true})
+ assert.equal(generated.uploadReading.kind,'first_read');assert.equal(generated.pendingSave,'subject');assert.equal(generated.saved,null)
+ await f.front.confirmSubject(...args,{expectedVersion:1})
+ assert.equal((await f.front.continuous(...args)).saved.available,true)
+ assert.equal((await f.business.records.repository.findByAccountId(f.accountId)).length,1)
+})
 test('a failed pending ownership save rolls back confirmation and can be retried without duplicates',async t=>{
  const f=await fixture(t),args=[f.accountId,f.memberId,f.contextId];await unconfirmed(f)
  await f.front.continuous(...args,{action:'generate_current',expectedVersion:1,confirmed:true,save:true})
