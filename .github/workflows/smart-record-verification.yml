@@ -58,7 +58,7 @@ jobs:
       - run: node --test tests/selective-rollback/baseline-contract.test.mjs server/ai/front-desk-continuous.test.mjs server/ai/front-desk-question-progress.test.mjs server/ai/front-desk-understanding.test.mjs server/ai/front-desk-record-targets.test.mjs
       - name: Preserve partial upload recognition and pending attachment summaries
         run: |
-          node --test server/ai/front-desk-recognition-preview.test.mjs
+          node --test server/ai/front-desk-recognition-preview.test.mjs server/ai/front-desk-upload-reading.test.mjs
           node --import ./scripts/register-node-ts-loader.mjs --test src/features/health-attachments/photoAnalysis.test.ts src/services/imageAnalysisPresentation.test.ts src/services/healthEventDetailAdapter.test.ts
       - run: npm run build
       - name: Verify private identities, four-tab navigation and draft continuity

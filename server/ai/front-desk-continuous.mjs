@@ -9,7 +9,7 @@ import { applyFrontDeskRecordChanges } from './front-desk-understanding.mjs'
 import { originals } from './front-desk-original-save.mjs'
 import { continuousPresentation } from './front-desk-presentation.mjs'
 import {frontDeskRecordSections,recordSectionsText} from './front-desk-record-sections.mjs'
-import { frontDeskRecognitionPreview } from './front-desk-recognition-preview.mjs'
+import { frontDeskRecognitionPreview,frontDeskUploadReading } from './front-desk-recognition-preview.mjs'
 
 const revision = record => frontRecordVersion({type:record.type,content:record.content,occurredAt:record.occurredAt,journal:record.journal,aiProvenance:record.aiProvenance,sourceText:record.sourceText})
 const sourcesFor = (data, context) => data.messages.filter(m => m.contextId === context.id && m.accountId === context.accountId && m.memberId === context.memberId && ['text','voice','image'].includes(m.kind) && m.status !== 'discarded' && (m.acceptedInput === true || m.acceptedInput == null && m.status === 'completed') && !m.retracted).sort((a,b) => a.inputAt-b.inputAt || a.id.localeCompare(b.id))
@@ -75,6 +75,7 @@ export async function continuousCard(front, accountId, memberId, contextId) {
   if(context.visitChecklist)card.checklist=checklistFor(card,context,member.name)
   const relevant=data.messages.filter(message=>message.accountId===accountId&&message.memberId===memberId&&(message.contextId===contextId||message.targetContextId===contextId&&['pending','transcribing'].includes(message.status))).sort((a,b)=>(a.inputAt??Date.parse(a.at))-(b.inputAt??Date.parse(b.at)))
   card.recognitionPreview=recognitionPreview
+  card.uploadReading=frontDeskUploadReading(context,messages)
   card.presentation=continuousPresentation(context,relevant,card)
   return card
 }

@@ -293,7 +293,8 @@ export class RecognitionJobs {
       let input
       if(j.mode==='front'){
         const context=(await this.front.snapshot(j.accountId,j.memberId,j.contextId));this.guard(id,epoch,signal)
-        if(context.continuousRecord&&context.interview?.status==='asking'&&!context.understanding?.recordChangesPending&&!j.options.generationRequested&&!context.cardEdit&&context.actionPlan?.type==='none'){
+        const uploadReading=j.inputs.at(-1)?.protocolVersion===3&&j.inputs.at(-1)?.kind==='image'&&j.inputs.at(-1)?.assetIds?.length
+        if(context.continuousRecord&&(context.interview?.status==='asking'||uploadReading)&&!context.understanding?.recordChangesPending&&!j.options.generationRequested&&!context.cardEdit&&context.actionPlan?.type==='none'){
           // A follow-up answer needs one dialogue call, not full extraction and
           // professional-summary generation on every turn. Explicit generation
           // queues that existing pipeline separately, with the same version fence.

@@ -5,10 +5,11 @@ import {HohoButton} from '../../components/design-system'
 import {localDateTimeValue,localDateTimeToIso} from '../../utils/healthOccurredAt'
 import type {SmartRecordItem} from './smartRecordTypes'
 import type {RecognitionJob} from './recognitionJobs'
-import {UploadRecognitionPreview,type UploadRecognitionDraft} from './UploadRecognitionPreview'
+import {UploadRecognitionPreview,type UploadRecognitionDraft,type UploadFirstReading} from './UploadRecognitionPreview'
 
 export interface ContinuousCard {
   recognitionPreview?:UploadRecognitionDraft|null
+  uploadReading?:UploadFirstReading|null
   presentation?:{generated:boolean;canGenerate:boolean;processing:boolean;asking:boolean;partial:boolean;visitEligible:boolean}
   recognitionJob?:RecognitionJob;feedback?:{id:string;text:string}
   contextId:string;recordable?:boolean;sourceSignature:string;version:number;evidenceVersion:number;editRevision:number;title:string;text:string;raw:string;occurredAt:string;timePrecision?:string;items:SmartRecordItem[];hasOriginals:boolean

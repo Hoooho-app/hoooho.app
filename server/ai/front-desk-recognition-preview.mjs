@@ -1,5 +1,17 @@
 import fieldLabels from '../../shared/ai-business-field-labels.json' with {type:'json'}
 
+// First-reading observations are temporary source-backed text, not an
+// adoptable business draft or permission to assign this document to a child.
+export function frontDeskUploadReading(context,messages=[]) {
+  if(context.understanding?.recordChangesPending)return null
+  const message=[...messages].reverse().find(message=>message.kind==='image'&&message.status==='completed'&&!message.retracted&&(message.files?.length||message.originalFiles?.length))
+  if(!message)return null
+  const ids=new Set([...message.files??[],...message.originalFiles??[]].map(file=>file.id))
+  const facts=(context.facts??[]).filter(fact=>fact.status==='active'&&fact.sources?.some(source=>source.messageId===message.id&&ids.has(source.attachmentId)))
+  const text=[...new Set(facts.map(fact=>fact.text?.trim()).filter(Boolean))].join('\n')
+  return text?{kind:'first_read',messageId:message.id,version:context.version,text,warnings:['先核对资料内容和归属；目前还未保存记录。'],canAdopt:false,canConfirmSubject:false}:null
+}
+
 // Visibility does not authorize structured persistence. The caller retains
 // its existing subject, time, version and save checks.
 export function frontDeskRecognitionPreview(review, {evidenceVersion, usable, hasOriginals} = {}) {

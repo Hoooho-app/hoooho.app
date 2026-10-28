@@ -25,6 +25,30 @@ async function setup(t){
  const snapshot=()=>jobs.get('synthetic',member.id,'task-1')
  return {directory,member,events,business,front,model,frontModel,audio,jobs,calls,submit,snapshot}
 }
+test('an accepted upload returns its first reading without extraction until explicit same-version draft consent',async t=>{
+ const f=await setup(t),memberId=f.member.id,accountId='synthetic'
+ const png=await sharp({create:{width:8,height:8,channels:3,background:'#eee'}}).png().toBuffer()
+ const asset=await f.jobs.upload(accountId,memberId,{buffer:png,mimeType:'image/png',name:'合成收费单.png'})
+ f.frontModel.structured=async input=>{
+  f.calls.push(input.task)
+  const latest=JSON.parse(input.input[0].content[0].text).latest,subject={kind:'unknown',memberId:null,label:null,sources:[]},text='收费项目为合成检查甲，尚未提供检查结果。'
+  return {value:{reply:text,contextId:'new',responseMode:'record',taskRelation:'new',subject,recordChanges:[{type:'add',targetId:null,text,scope:'record',polarity:'affirmed',subject,sources:[{messageId:latest.id,attachmentId:latest.attachments[0].id,quote:text}]}],nextQuestion:null,requestedAction:{type:'none',targetIds:[],targetVersion:null,confirmation:'none',quote:''},uncertainties:[],emergency:{currentChild:false,quote:''}},diagnostics:{}}
+ }
+ let organizationCalls=0
+ const original=f.business.prepare.bind(f.business)
+ f.business.prepare=async(...args)=>{organizationCalls++;return original(...args)}
+ await f.jobs.submit(accountId,memberId,{id:'first-reading',mode:'front',scopeKey:'front',input:{id:'fee-photo',kind:'image',text:'',assetIds:[asset.id]},options:{continuousRecord:true,semanticVersion:3,smartRecord:true,selectedOccurredAt:new Date().toISOString()}})
+ const ready=await until(async()=>{const job=await f.jobs.get(accountId,memberId,'first-reading');if(job.state==='failed')assert.fail(JSON.stringify(job.error));return job.state==='ready'&&job})
+ assert.equal(f.calls.filter(task=>task==='front-desk-dialogue').length,1)
+ assert.equal(organizationCalls,0);assert.equal(ready.review,null)
+ const card=await f.front.continuous(accountId,memberId,ready.frontDesk.context.id)
+ assert.match(card.uploadReading.text,/合成检查甲/);assert.equal(card.uploadReading.canAdopt,false);assert.equal(card.presentation.canGenerate,true)
+ assert.equal((await f.business.records.repository.findByAccountId(accountId)).length,0)
+ const draft=await f.front.continuous(accountId,memberId,card.contextId,{action:'generate_current',expectedVersion:card.version,confirmed:true})
+ assert.ok(draft.recognitionJob?.id)
+ await until(()=>organizationCalls>0)
+ assert.equal(f.calls.filter(task=>task==='front-desk-dialogue').length,1,'consent must reuse the completed first reading')
+})
 test('manual front-card revisions queue organization and require explicit save for the same saved record',async t=>{
  const f=await setup(t),accountId='synthetic',memberId=f.member.id,contextId='manual-context',at=new Date(Date.now()-60000).toISOString(),subject={kind:'current',memberId,confirmed:true,confirmedBy:'selection'}
  await f.front.store.update(()=>({contexts:[{id:contextId,accountId,memberId,continuousRecord:true,version:1,evidenceVersion:1,firstDescribedAt:at,createdAt:at,updatedAt:at,subject}],messages:[{id:'original',accountId,memberId,contextId,kind:'text',text:'手臂有点痒',status:'completed',acceptedInput:true,at,inputAt:Date.parse(at),subject,files:[],voices:[]}]}))

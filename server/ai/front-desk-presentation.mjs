@@ -25,7 +25,7 @@ export function visitPreparationEligible(messages) {
   return eligible
 }
 
-export function continuousPresentation(context, messages, { recordable, hasOriginals, saved }) {
+export function continuousPresentation(context, messages, { recordable, hasOriginals, saved,uploadReading }) {
   const inputs = messages.filter(message => message.kind !== 'assistant' && message.status !== 'discarded')
   const processing = inputs.some(message => ['pending', 'transcribing'].includes(message.status))
   const asking = context.interview?.status === 'asking' && Boolean(context.interview.question)
@@ -38,7 +38,7 @@ export function continuousPresentation(context, messages, { recordable, hasOrigi
   const partial = inputs.some(message => message.status === 'failed')
   return {
     generated,
-    canGenerate: Boolean((recordable || hasOriginals) && !processing && (!asking || (context.interview?.turnCount ?? 0) >= 2) && (!context.provisional || partial)),
+    canGenerate: Boolean((recordable || hasOriginals) && !processing && (!asking || (context.interview?.turnCount ?? 0) >= 2 || uploadReading) && (!context.provisional || partial)),
     processing,
     asking,
     partial,
