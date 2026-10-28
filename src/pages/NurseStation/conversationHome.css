@@ -168,15 +168,15 @@ body .smart-record-home .nurse-turn--user>.nurse-turn-content{background:rgb(var
 .continuous-record-editor input,.continuous-record-editor textarea{box-sizing:border-box;max-width:100%;width:100%;font-size:16px;padding:var(--hoho-space-2);border:1px solid rgb(var(--hoho-color-border));border-radius:var(--hoho-radius-control);background:rgb(var(--hoho-color-surface));color:inherit}
 
 /* Product-owner-approved homepage, 2026-10-29. Other record and archive pages remain unchanged. */
-body .smart-record-home.smart-record-page{background:rgb(var(--hoho-color-surface-white))}
-body .smart-record-home .smart-record-page__footer{background:rgb(var(--hoho-color-surface-white));background-image:none;padding:var(--hoho-space-3) var(--hoho-space-4)}
+body .smart-record-home.smart-record-page{background-color:rgb(var(--hoho-color-page-background));background-image:var(--hoho-page-grain)}
+body .smart-record-home .smart-record-page__footer{background-color:rgb(var(--hoho-color-page-background));background-image:var(--hoho-page-grain);padding:var(--hoho-space-3) var(--hoho-space-4)}
 .smart-record-home .hoho-bottom-navigation{margin-top:0}
 body .smart-record-home .front-desk-welcome{display:flex;flex-direction:column;gap:var(--hoho-space-4);margin:var(--hoho-space-4) 0 var(--hoho-space-5)}
 .front-desk-welcome__copy h2{margin:0 0 var(--hoho-space-3);font-family:var(--hoho-font-family-heading);font-size:var(--hoho-font-size-display);line-height:1.35;font-weight:500;letter-spacing:-.01em}
 .front-desk-welcome__copy p{margin:0;font-size:var(--hoho-font-size-body);line-height:1.65;color:rgb(var(--hoho-color-text-secondary))}
-.front-desk-welcome__media{width:100%;height:clamp(200px,38dvh,340px);position:relative}
+.front-desk-welcome__media{width:75%;max-width:300px;height:clamp(150px,28dvh,250px);position:relative;align-self:center}
 .front-desk-welcome__media>.idle-nurse-visual{position:relative;inset:auto;width:100%;height:100%;overflow:hidden;mix-blend-mode:multiply}
-.front-desk-welcome__media .idle-nurse-visual__idle-video{width:100%;height:100%;object-fit:contain;opacity:1;transform:scale(1.3);transform-origin:center}
+.front-desk-welcome__media .idle-nurse-visual__idle-video{width:100%;height:100%;object-fit:contain;opacity:1;transform:none}
 body .smart-record-home .hoho-dialogue-composer--frontdesk:not(.is-typing)>.hoho-dialogue-hold{color:rgb(var(--hoho-color-action-text));background:rgb(var(--hoho-color-action))}
 body .smart-record-home .hoho-dialogue-composer--frontdesk>.hoho-dialogue-mode,body .smart-record-home .hoho-dialogue-composer--frontdesk>.hoho-dialogue-photo{background:rgb(var(--hoho-color-surface-white));border:1px solid rgb(var(--hoho-color-border)/.65)}
 .smart-record-home .record-entry-actions--conversation .record-entry-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--hoho-space-2)}
@@ -185,3 +185,22 @@ body .smart-record-home .hoho-dialogue-composer--frontdesk>.hoho-dialogue-mode,b
 .smart-record-home .record-entry-grid>button small{font-size:var(--hoho-font-size-caption);font-weight:400;opacity:.85}
 .smart-record-home .record-entry-actions--conversation .record-entry-grid>button[data-record-entry='symptom']{border:1px solid rgb(var(--hoho-color-record-symptom-text)/.55)}
 @media(max-height:650px){.front-desk-welcome__media{height:180px}.front-desk-welcome__copy h2{font-size:var(--hoho-font-size-page-title)}body .smart-record-home .front-desk-welcome{margin-top:var(--hoho-space-2);gap:var(--hoho-space-2)}}
+
+/* Owner-approved key-information flow. Scope stays on the front desk. */
+body .smart-record-home .hoho-bottom-navigation{margin-top:0;background-color:rgb(var(--hoho-color-page-background));background-image:var(--hoho-page-grain);padding-bottom:calc(var(--hoho-space-2) + env(safe-area-inset-bottom))}
+.smart-record-home .hoho-main-header__child{background:rgb(var(--hoho-color-primary-soft));border-radius:var(--hoho-radius-control);padding-inline:var(--hoho-space-3);color:rgb(var(--hoho-color-text-primary))}
+.smart-record-home .nurse-turn--conversation .nurse-turn-content>p{display:block}
+.smart-record-home .front-desk-message-loading>svg{animation-duration:1.8s}
+.smart-record-home .front-desk-record-status{display:flex;align-items:center;justify-content:space-between;gap:var(--hoho-space-2);flex-wrap:wrap}
+.smart-record-home .front-desk-recorded{display:inline-flex;align-items:center;justify-content:flex-start;gap:var(--hoho-space-1)}
+.front-desk-checks li[data-state='missing']>span:last-child,.front-desk-checks li[data-state='uncertain']>span:last-child{color:rgb(var(--hoho-color-text-secondary))}
+.front-desk-temperature{display:grid;gap:var(--hoho-space-2);padding:0;margin:0;border:0;min-width:0}
+.front-desk-temperature legend{font-size:var(--hoho-font-size-body-small);margin-bottom:var(--hoho-space-2)}
+.front-desk-temperature__value{display:flex;align-items:flex-end;gap:var(--hoho-space-2)}
+.front-desk-temperature__value>.hoho-field{flex:1;min-width:0}
+.front-desk-temperature__value>.hoho-button{flex:none}
+.front-desk-temperature input[type='number']{min-width:0;width:100%}
+.front-desk-temperature input[type='range']{width:100%;min-height:44px;accent-color:rgb(var(--hoho-color-primary))}
+.front-desk-temperature__scale{display:flex;justify-content:space-between;font-size:var(--hoho-font-size-caption);color:rgb(var(--hoho-color-text-secondary))}
+.front-desk-temperature small{color:rgb(var(--hoho-color-text-secondary));font-size:var(--hoho-font-size-caption)}
+@media(prefers-reduced-motion:reduce){.smart-record-home .front-desk-message-loading>svg{animation:none}}

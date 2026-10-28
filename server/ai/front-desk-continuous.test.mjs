@@ -16,6 +16,49 @@ async function fixture(t){
  await front.store.update(()=>({contexts:[{id:contextId,accountId,memberId:member.id,continuousRecord:true,version:1,evidenceVersion:1,firstDescribedAt:at,createdAt:at,updatedAt:at,subject}],messages:[{id:'m1',accountId,memberId:member.id,contextId,kind:'text',status:'completed',acceptedInput:true,text:'头有点疼',inputAt:Date.parse(at),at,subject,files:[],voices:[]}]}))
  return {directory,accountId,memberId:member.id,contextId,front,business,at,subject}
 }
+test('confirmation generates and saves atomically when requested; retry and edit retain the same exact ID',async t=>{
+ const f=await fixture(t),args=[f.accountId,f.memberId,f.contextId]
+ await f.front.store.update(d=>({...d,contexts:d.contexts.map(c=>({...c,facts:[{id:'f1',status:'active',scope:'record',polarity:'affirmed',subject:f.subject,text:'头有点疼',sources:[{messageId:'m1',quote:'头有点疼',attachmentId:null}]}]}))}))
+ const input={action:'generate_current',expectedVersion:1,confirmed:true,save:true}
+ const first=await f.front.continuous(...args,input),again=await f.front.continuous(...args,input)
+ assert.equal(first.presentation.generated,true);assert.equal(first.saved.available,true)
+ assert.equal(first.saved.recordId,again.saved.recordId)
+ const edited=await f.front.continuous(...args,{action:'edit_current',expectedVersion:first.version,title:'更正',text:'头已经不疼了',occurredAt:f.at,save:true})
+ assert.equal(edited.saved.recordId,first.saved.recordId);assert.equal(edited.saved.evidenceVersion,edited.evidenceVersion)
+ assert.equal((await f.business.records.getOwnedRecord(f.accountId,edited.saved.recordId)).content,'头已经不疼了')
+ assert.equal((await f.business.records.repository.findByAccountId(f.accountId)).length,1)
+})
+test('failed confirmation save rolls back both generation marker and persistent record; retry remains usable',async t=>{
+ const f=await fixture(t),args=[f.accountId,f.memberId,f.contextId]
+ await f.front.store.update(d=>({...d,contexts:d.contexts.map(c=>({...c,facts:[{id:'f1',status:'active',scope:'record',polarity:'affirmed',subject:f.subject,text:'头有点疼',sources:[{messageId:'m1',quote:'头有点疼',attachmentId:null}]}]}))}))
+ const update=f.business.records.repository.update.bind(f.business.records.repository)
+ f.business.records.repository.update=async(id,patch,now)=>{if(patch.aiProvenance)throw Error('synthetic storage failure');return update(id,patch,now)}
+ const input={action:'generate_current',expectedVersion:1,confirmed:true,save:true}
+ await assert.rejects(()=>f.front.continuous(...args,input),/synthetic storage/)
+ const card=await f.front.continuous(...args)
+ assert.equal(card.presentation.generated,false);assert.equal(card.saved,null)
+ assert.equal((await f.business.records.repository.findByAccountId(f.accountId)).length,0)
+ f.business.records.repository.update=update
+ assert.equal((await f.front.continuous(...args,input)).saved.available,true)
+})
+test('a corrected headed record refreshes derived keywords in the saved text and active fact source',async t=>{
+ const f=await fixture(t),args=[f.accountId,f.memberId,f.contextId]
+ const text='【情况概述】\n没有发热，有点咳嗽。\n\n【关键词】\n发热\n\n【具体表现与测量】\n没有发热，有点咳嗽。'
+ const result=await f.front.continuous(...args,{action:'edit_current',expectedVersion:1,title:'更正',text,occurredAt:f.at,save:true})
+ const record=await f.business.records.getOwnedRecord(f.accountId,result.saved.recordId)
+ assert.match(record.content,/【关键词】\n咳嗽/);assert.doesNotMatch(record.content,/【关键词】\n发热/)
+ const stored=await f.front.store.read(),message=stored.messages.find(message=>message.manualCardEdit)
+ assert.doesNotMatch(message.text,/【关键词】\n发热/);assert.equal(message.manualInputText,text)
+ assert.doesNotMatch(stored.contexts[0].facts.find(fact=>fact.status==='active').text,/【关键词】\n发热/)
+})
+test('the first description timestamp remains distinguished from onset through body-only edits and save',async t=>{
+ const f=await fixture(t),args=[f.accountId,f.memberId,f.contextId]
+ const before=await f.front.continuous(...args)
+ assert.equal(before.timeDefaulted,true)
+ const edited=await f.front.continuous(...args,{action:'edit_current',expectedVersion:1,title:'更正',text:'头部不适减轻',occurredAt:before.occurredAt,save:true})
+ assert.equal(edited.timeDefaulted,true)
+ assert.equal((await f.business.records.getOwnedRecord(f.accountId,edited.saved.recordId)).aiProvenance.time.defaulted,true)
+})
 test('raw save works without a structured draft; retries and later saves retain one exact ID and first occurrence',async t=>{
  const f=await fixture(t),args=[f.accountId,f.memberId,f.contextId]
  const first=await f.front.continuous(...args,{action:'save_current',expectedVersion:1,confirmed:true})

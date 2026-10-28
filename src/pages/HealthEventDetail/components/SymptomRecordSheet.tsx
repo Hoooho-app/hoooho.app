@@ -134,6 +134,7 @@ export function SymptomRecordSheet({ origin, entry, memberId, memberName, record
   const isSymptomRecord = recordLabel === '症状记录'
   const title = symptomRecordTitle(entry)
   const originalNarrative = record?.aiProvenance ? record.content : (record?.journal?.diet?.name ? record.content : record?.journal?.symptom?.narrative ?? entry.source.originalText ?? record?.content ?? title)
+  const isFrontRecord=Boolean(record?.aiProvenance?.frontContextId)
   const detailKeywords = isSymptomRecord ? visibleSymptomKeywords(originalNarrative, record?.journal?.symptom?.keywords ?? []) : []
   const detailLocation = symptomLocationDisplay(record?.journal?.symptom)
   const hasStructuredTemperature = typeof record?.journal?.symptom?.symptomSpecificData?.currentTemperature === 'number'
@@ -245,18 +246,22 @@ export function SymptomRecordSheet({ origin, entry, memberId, memberName, record
       ) : (
         <div className="symptom-record-detail">
           {origin}
-          <RecordNarrative text={originalNarrative} title={isSymptomRecord ? '主要症状' : '记录内容'}/>{detailKeywords.length > 0 && <div className="symptom-detail-tags">{detailKeywords.map((keyword) => <span key={keyword}>{keyword}</span>)}</div>}
+          <RecordNarrative text={originalNarrative} compact={isFrontRecord} keywords={detailKeywords} title={isSymptomRecord ? '主要症状' : '记录内容'}/>{!isFrontRecord&&detailKeywords.length > 0 && <div className="symptom-detail-tags">{detailKeywords.map((keyword) => <span key={keyword}>{keyword}</span>)}</div>}
+          <RecordExtras collapsed={isFrontRecord} title="记录信息">
           {detailLocation && <section><h3>症状部位</h3><p className="symptom-record-original">{detailLocation}</p></section>}
           {record?.journal?.symptom && <SymptomOptionalDetails symptom={record.journal.symptom} />}
           {record?.journal?.symptom?.linkedRecordIds && <LinkedRecordDetails entries={relatedEntries} linked={record.journal.symptom.linkedRecordIds} />}
-          <section><h3>记录信息</h3><dl><div><dt>发生时间</dt><dd>{occurrenceUnknown?record?.journal?.timeLabel||'发生时间待确认':formatRecordDateTime(record?.occurredAt ?? entry.time)}</dd></div>{record?.createdAt && <div><dt>创建时间</dt><dd>{formatRecordDateTime(record.createdAt)}</dd></div>}<div><dt>记录对象</dt><dd>{memberName}</dd></div></dl></section>
+          <section><h3>记录信息</h3><dl><div><dt>{isFrontRecord&&record?.aiProvenance?.time.defaulted?'首次描述时间':'发生时间'}</dt><dd>{occurrenceUnknown?record?.journal?.timeLabel||'发生时间待确认':formatRecordDateTime(record?.occurredAt ?? entry.time)}</dd></div>{record?.createdAt && <div><dt>创建时间</dt><dd>{formatRecordDateTime(record.createdAt)}</dd></div>}<div><dt>记录对象</dt><dd>{memberName}</dd></div></dl></section>
           {record && <button className="symptom-allergy-link" disabled={allergyLinked} onClick={() => setAllergyLinkOpen(true)} type="button"><Link2 size={18}/><span><strong>{allergyLinked ? '已关联到过敏史' : '标记为过敏相关'}</strong><small>{allergyLinked ? '已保存为可追溯的待排查线索' : '由你确认后加入待排查，不会自动确诊'}</small></span></button>}
           <section><h3>来源信息</h3><dl><div><dt>来源类型</dt><dd>{entry.source.label}</dd></div>{isMeasurement && <div><dt>测量设备</dt><dd>{entry.source.measurementDevice || '未说明'}</dd></div>}{isMeasurement && <div><dt>测量方式</dt><dd>{measurementMethodLabel(entry.source.measurementMethod)}</dd></div>}{entry.source.fileName && <div><dt>来源文件</dt><dd>{entry.source.fileName}</dd></div>}</dl></section>
           {entry.source.note && <section><h3>备注</h3><p className="symptom-record-original">{entry.source.note}</p></section>}
           {record?.journal?.aiNurse && <NurseNotes value={record.journal.aiNurse}/>}
+          </RecordExtras>
+          <RecordExtras collapsed={isFrontRecord} title="原始资料">
           {record&&<RecordOriginals key={record.id} eventId={record.eventId} recordId={record.id} attachmentIds={record.aiProvenance?.attachmentIds}/> }
           {record?.aiProvenance?.frontContextId&&record.sourceText&&<details><summary>查看原话</summary><p className="symptom-record-original">{record.sourceText}</p></details>}
           {record?.aiProvenance&&<section><h3>整理来源与核对记录</h3>{record.aiProvenance.notice&&<p>{record.aiProvenance.notice}</p>}{record.aiProvenance.time.precision==='unknown'&&<p>原文发生时间未明确；创建时间不代表发生时间。</p>}{record.aiProvenance.sources.map((s,i)=><details key={i}><summary>原始依据 · 第{s.page}页</summary><p>{s.quote}</p></details>)}{record.aiProvenance.originalVersions.map((v,i)=><details key={i}><summary>更正前原文 {i+1}</summary><p>{v}</p></details>)}</section>}
+          </RecordExtras>
           {error && <p className="symptom-record-error" role="alert">{error}</p>}
         </div>
       )}
@@ -287,4 +292,8 @@ function formatRecordDateTime(value: string) {
   return new Intl.DateTimeFormat('zh-CN', {
     year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false
   }).format(new Date(value))
+}
+
+function RecordExtras({collapsed,title,children}:{collapsed:boolean;title:string;children:ReactNode}){
+  return collapsed?<details className="record-reading__detail"><summary>{title}</summary>{children}</details>:<>{children}</>
 }

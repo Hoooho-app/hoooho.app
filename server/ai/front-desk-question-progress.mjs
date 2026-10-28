@@ -1,6 +1,9 @@
-// Progress describes questions asked, never a diagnosis or a medical exclusion.
+// Progress describes information obtained, never a medical exclusion.
 export function questionTopic(question) {
   const text = `${question?.target ?? ''} ${question?.text ?? ''}`
+  if (/体温|温度|temperature|fever.measurement/iu.test(text)) return {key:'temperature',label:'体温数值'}
+  if (/开始|持续|多久|onset|duration/iu.test(text)) return {key:'onset',label:'发生与变化'}
+  if (/处理|用药|服药|效果|反应.{0,5}(?:如何|怎样)|handling|treatment/iu.test(text)) return {key:'handling',label:'已做处理及反应'}
   if (/洗(?:完|过)?澡|洗浴|沐浴/u.test(text) && /之前|之后|前后|更|比较|变化/u.test(text)) return {key:'bath-comparison',label:'洗浴前后变化'}
   if (/部位|位置|哪里|location|body[_ -]?part/iu.test(text)) return {key:'location',label:'症状部位'}
   if (/新.{0,6}(?:食物|衣物|洗护|接触)|接触.{0,6}新|exposure/iu.test(text)) {
@@ -9,7 +12,7 @@ export function questionTopic(question) {
   }
   if (/精神|进食|食欲|吃饭|活动|睡眠|impact|general[_ -]?condition/iu.test(text)) {
     const parts=[[/精神/u,'spirit'],[/进食|食欲|吃饭/u,'intake'],[/活动/u,'activity'],[/睡眠/u,'sleep']].filter(([pattern])=>pattern.test(text)).map(([,key])=>key)
-    return {key:`impact:${parts.join('+')||'general'}`,label:'日常表现'}
+    return {key:`impact:${parts.join('+')||'general'}`,label:'精神与生活表现'}
   }
   if (/痒|疼|痛|抓挠|sensation/iu.test(text)) {
     const parts=[[/痒|抓挠/u,'itch'],[/疼|痛/u,'pain']].filter(([pattern])=>pattern.test(text)).map(([,key])=>key)
@@ -19,11 +22,16 @@ export function questionTopic(question) {
   const target=String(question?.target??'')
   return {key:String(target&&!/^(?:observation|record|context|question)$/iu.test(target)?target:question?.text??question?.id??'').toLowerCase().replace(/[\s，,。？?：:_-]/gu,''),label:'补充观察'}
 }
-const uncertain = text => /不确定|不清楚|说不清|讲不清|不知道|没(?:有)?(?:(?:看|观察)(?!到)|留意)|没注意|无法(?:确认|比较|判断)/u.test(text)
+const uncertain = text => /不确定|不清楚|说不清|讲不清|不知道|没(?:有)?(?:(?:看|观察)(?!到)|留意)|没注意|还没量|没有量|没量|未测|未量|无法(?:确认|比较|判断)/u.test(text)
 const locationSupplement = text => /^(?:补充症状部位[：:]|暂时无法确认具体症状部位。?$)/u.test(text??'')
 const pickerQuestion={id:'body-location-selection',text:'具体症状部位',target:'location'}
 export function frontDeskAnswerQuestion(question,message) {
-  return locationSupplement(message?.text)&&questionTopic(question).key!=='location'?null:question
+  const key=questionTopic(question).key,text=String(message?.text??'')
+  if(locationSupplement(text)&&key!=='location')return null
+  // A new observation is allowed while a numeric question is on screen. It is
+  // not an answer to that question and must not mark its value as obtained.
+  if(key==='temperature'&&!/(?:\d{2}(?:\.\d+)?|体温|温度|量|测|不知道|不清楚|没注意)/u.test(text))return null
+  return question
 }
 const withoutQuestion = (reply, question) => {
   let text = reply.replace(question.text,'').trim()
@@ -59,8 +67,18 @@ export function guideFrontDeskReply(value,{previous,messages=[],latest,effective
   if(question){
     const topic=questionTopic(question)
     const node=knowledge.find(node=>node.id===question.id)??knowledge.find(node=>questionTopic(node).key===topic.key)
-    const options=node?.options?.length?node.options:topic.key.startsWith('exposure:')?[{label:'没发现新接触',value:'刚才询问的接触因素，目前没有发现新的接触。'},{label:'有新接触',value:'最近有新接触的物品，我再补充具体情况。'},{label:'暂不确定',value:'暂时不确定刚才询问的接触因素。'}]:topic.key.startsWith('impact:')?[{label:'没有发现变化',value:'刚才询问的这些日常表现没有发现变化。'},{label:'有变化',value:'刚才询问的日常表现有变化，我再补充具体情况。'},{label:'暂不确定',value:'暂时不确定这些日常表现有没有变化。'}]:[]
-    question={...question,options,sourceIds:node?.sourceIds??[]}
+    // Controls must capture a missing value, not ask whether one exists.
+    // Concrete subjective descriptions can remain choices; generic yes/no or
+    // unknown gateways are handled through ordinary conversation instead.
+    const inputKind=topic.key==='temperature'?'temperature':topic.key==='location'?'location':topic.key.startsWith('sensation:')||topic.key.startsWith('impact:')?'choices':'text'
+    const options=inputKind==='choices'?(node?.options??[]).filter(option=>!/^(?:没注意|暂不确定|还没量|已经量过|有变化|没有发现变化|有|没有)$/u.test(option.label)):[]
+    if(inputKind==='temperature'){
+      const text='有体温数值的话，可以在这里填写，也可以直接说。'
+      reply=reply.replace(question.text,text)
+      question={...question,text,target:'temperature'}
+    }
+    question={...question,inputKind,options,sourceIds:node?.sourceIds??[]}
+
   }
   const lastLocation=[...checks].reverse().find(check=>check.key==='location')
   const locationUnclear=lastLocation?.state==='uncertain'||uncertain(latest?.text??'')&&/部位|位置|哪里|哪儿|哪一块/u.test(latest?.text??'')||previous?.bodyLocationSuggested&&!lastLocation
