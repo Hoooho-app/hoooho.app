@@ -2,6 +2,7 @@ import { CompleteImage } from '../../components/common/CompleteImage'
 import { useEffect, useRef, useState } from 'react'
 import type { JournalCategory, DietRecordKind } from '../../types/journal'
 import { HohoButton } from '../../components/design-system'
+import feeding from '../../assets/health-events/daily-record/feeding.webp'
 import sleep from '../../assets/health-events/daily-record/sleep.webp'
 import bowel from '../../assets/health-events/daily-record/bowel.webp'
 import './RecordEntryActions.css'
@@ -26,7 +27,7 @@ export function RecordEntryActions({ disabled, identity, onRecord, onSmartRecord
     return () => { document.removeEventListener('pointerdown',outside); document.removeEventListener('keydown',escape) }
   },[open])
   const entries=conversation?[direct[0],{...direct[4],label:'就诊资料回传'},direct[3],direct[2]]:direct
-  const daily=conversation?[{category:'diet' as const,label:'喂养与饮食',kind:'feeding' as const},...routines]:routines
+  const daily=conversation?[{category:'diet' as const,label:'喂养与饮食',kind:'feeding' as const,image:feeding},...routines]:routines
   const choose = (category: JournalCategory, kind?: DietRecordKind) => { setOpen(false); onRecord(category,kind) }
   return <div className={`record-entry-actions${open?' is-daily-open':''}${conversation?' record-entry-actions--conversation':''}`} ref={root}>
     {open && <div aria-label="记录日常选项" className="daily-record-options" id="daily-record-options" role="group">{daily.map(item => <button disabled={disabled} key={item.category} onClick={() => choose(item.category,'kind' in item?item.kind:undefined)} type="button">{'image' in item&&<CompleteImage alt="" src={item.image}/>}<span>{item.label}</span></button>)}</div>}

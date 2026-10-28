@@ -129,7 +129,7 @@ body .smart-record-home .nurse-turn--user>.nurse-turn-content{background:rgb(var
 .smart-record-home .record-entry-actions--conversation .record-entry-grid>button[aria-pressed='true']{border-color:currentColor}
 .smart-record-home .record-entry-actions--conversation .daily-record-options{grid-template-columns:repeat(3,minmax(0,1fr))}
 .smart-record-home .hoho-dialogue-composer--conversation:focus-within{outline:none;border-color:rgb(var(--hoho-color-primary)/.14);box-shadow:var(--hoho-shadow-card)}
-.smart-record-home .hoho-dialogue-composer--conversation>textarea:focus-visible{outline:1px solid rgb(var(--hoho-color-primary-border));outline-offset:-1px;border-radius:var(--hoho-radius-small)}
+.smart-record-home .hoho-dialogue-composer--conversation>textarea:focus-visible{outline:none}
 .continuous-record-card{display:grid;gap:var(--hoho-space-3);padding:var(--hoho-space-4);border:1px solid rgb(var(--hoho-color-border));border-radius:var(--hoho-radius-card);background:rgb(var(--hoho-color-surface-white));min-width:0;overflow-wrap:anywhere}
 .continuous-record-card>header{display:flex;align-items:center;gap:var(--hoho-space-2);font-size:var(--hoho-font-size-caption);color:rgb(var(--hoho-color-text-secondary))}
 .continuous-record-card>header>.hoho-button{margin-left:auto}
