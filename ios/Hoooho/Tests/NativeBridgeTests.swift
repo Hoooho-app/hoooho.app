@@ -1,4 +1,5 @@
 import XCTest
+import UIKit
 import WebKit
 @testable import HooohoRecords
 
@@ -15,9 +16,24 @@ final class NativeBridgeTests: XCTestCase, WKScriptMessageHandler {
         content.add(self, name: "hooohoNative")
         let scriptURL = try XCTUnwrap(Bundle.main.url(forResource: "NativeBridge", withExtension: "js"))
         content.addUserScript(WKUserScript(source: try String(contentsOf: scriptURL, encoding: .utf8), injectionTime: .atDocumentStart, forMainFrameOnly: false))
-        page = WKWebView(frame: CGRect(x: 0, y: 0, width: 390, height: 844), configuration: configuration)
+        // Match the real container's visible WebKit lifecycle instead of relying
+        // on background activity for a detached test view.
+        let host = try XCTUnwrap((UIApplication.shared.delegate as? AppDelegate)?.window?.rootViewController)
+        let page = WKWebView(frame: host.view.bounds, configuration: configuration)
+        self.page = page
+        page.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        host.view.addSubview(page)
+        defer {
+            content.removeScriptMessageHandler(forName: "hooohoNative")
+            page.stopLoading()
+            page.removeFromSuperview()
+            self.page = nil
+            received = nil
+            captured = nil
+        }
+        XCTAssertNotNil(page.window)
         // Synthetic local HTML with the production origin; no network requests or health writes.
-        page?.loadHTMLString("""
+        page.loadHTMLString("""
         <!doctype html><html><body><h1>APP CHROME MUST NOT PRINT</h1><script>
         const frame = document.createElement('iframe');
         frame.srcdoc = '<!doctype html><html><body><h1>REPORT SNAPSHOT 42</h1></body></html>';
@@ -35,8 +51,6 @@ final class NativeBridgeTests: XCTestCase, WKScriptMessageHandler {
         let html = try XCTUnwrap(body["html"] as? String)
         XCTAssertTrue(html.contains("REPORT SNAPSHOT 42"))
         XCTAssertFalse(html.contains("APP CHROME MUST NOT PRINT"))
-        content.removeScriptMessageHandler(forName: "hooohoNative")
-        page = nil
     }
 
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
