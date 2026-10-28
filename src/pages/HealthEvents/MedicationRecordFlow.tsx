@@ -3,7 +3,7 @@ import { PhotoAnalysis } from '../../features/health-attachments/PhotoAnalysisPa
 import { sourcedPhotoFields } from '../../features/health-attachments/photoAnalysis'
 import { RecordSaveAction } from './RecordSaveAction'
 import { CompleteImage } from '../../components/common/CompleteImage'
-import { ArrowLeft, Bell, Camera, Check, ChevronDown, ChevronRight, Circle, ImagePlus, Minus, Pill, Plus, X } from 'lucide-react'
+import { ArrowLeft, Bell, Camera, Check, ChevronDown, ChevronRight, Circle, ImagePlus, Minus, Pill, Plus, X } from '../../components/icons'
 import { useEffect, useRef, useState } from 'react'
 import { BottomSheetSurface, HohoButton } from '../../components/design-system'
 import type { JournalMedicationDetails, JournalMedicationItem, JournalMetadata, MedicationReminder } from '../../types/journal'

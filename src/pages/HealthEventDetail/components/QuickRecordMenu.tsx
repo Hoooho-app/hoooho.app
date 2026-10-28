@@ -1,4 +1,4 @@
-import { Mic, PencilLine } from 'lucide-react'
+import { Mic, PencilLine } from '../../../components/icons'
 import { BottomSheetSurface, HohoSurfaceRow, Typography } from '../../../components/design-system'
 
 interface QuickRecordMenuProps {

@@ -1,4 +1,4 @@
-import { Check, ChevronDown, ChevronUp, Copy, FileImage, RefreshCw, Settings2 } from 'lucide-react'
+import { Check, ChevronDown, ChevronUp, Copy, FileImage, RefreshCw, Settings2 } from '../../../components/icons'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { HealthCard, HohoButton, Typography } from '../../../components/design-system'
 import {

@@ -1,4 +1,4 @@
-import { HeartHandshake, ImagePlus, ShieldCheck } from 'lucide-react'
+import { HeartHandshake, ImagePlus, ShieldCheck } from '../../../components/icons'
 import { useNavigate } from 'react-router-dom'
 import type { HealthEventStatus } from '../../../types'
 import { Button, Card } from '../../../components/common'

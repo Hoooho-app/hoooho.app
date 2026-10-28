@@ -3,7 +3,7 @@ import { CompleteImage } from '../../components/common/CompleteImage'
 import nursePortrait from '../../assets/nurse-triage/nurses-idle-loop-1-poster.webp'
 import { userInitial } from './userInitial'
 import './NurseConversation.css'
-import {Volume2,Square} from 'lucide-react'
+import {Volume2,Square} from '../../components/icons'
 import {HohoButton} from '../../components/design-system/HohoButton'
 
 export function NurseMessage({ role, recorderName, children, assistantName = '值班护士', assistantAvatar, onRead, messageId, reading=false,readDisabled=false, conversation=false }: {

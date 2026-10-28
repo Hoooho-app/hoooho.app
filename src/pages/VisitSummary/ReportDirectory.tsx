@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { X } from 'lucide-react'
+import { X } from '../../components/icons'
 import { useDialogFocus } from '../../hooks/useDialogFocus'
 import { usePageScrollLock } from '../../hooks/usePageScrollLock'
 import type { VisitChapter, VisitChapterId } from '../../types/visitSheet'

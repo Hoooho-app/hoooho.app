@@ -1,5 +1,5 @@
 import {UpdateDot,useRecordUpdates} from '../../features/record-updates/RecordUpdates'
-import { Baby, ChevronRight, HeartPulse, Ruler, ScanLine, Scissors, ShieldPlus, Syringe, Upload, UsersRound } from 'lucide-react'
+import { Baby, ChevronRight, HeartPulse, Ruler, ScanLine, Scissors, ShieldPlus, Syringe, Upload, UsersRound } from '../../components/icons'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { HohoButton, HohoSection } from '../../components/design-system'

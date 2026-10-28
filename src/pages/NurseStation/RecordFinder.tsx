@@ -1,5 +1,6 @@
+import { MaterialIcon } from '../../components/icons'
 import { useEffect, useMemo, useRef, useState, useTransition, type CSSProperties } from 'react'
-import { Search, X } from 'lucide-react'
+import { Search, X } from '../../components/icons'
 import { BottomSheetSurface, HohoButton, HoldToTalkButton, StatusNotice } from '../../components/design-system'
 import { useJournal } from '../HealthEvents/useJournal'
 import { JournalRecordDetail } from '../HealthEvents/JournalRecordDetail'
@@ -100,7 +101,7 @@ export function RecordFinder({ memberId, token, onClose }: { memberId: string; t
     <div className="journal-search-body" ref={content} aria-busy={working}>
       {showProgress && <div className="quick-search-progress" role="status" aria-live="polite" aria-atomic="true">
         <div className="quick-search-progress__art" aria-hidden="true">
-          <svg viewBox="0 0 96 80" fill="none"><g className="quick-search-progress__lines" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M22 24h42M22 36h32M22 48h42M22 60h25" /></g><g className="quick-search-progress__lens" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><circle cx="46" cy="35" r="15"/><path d="m57 46 13 13"/></g></svg>
+          <MaterialIcon name="progress_activity" size={32}/>
         </div>
         <span key={progress} className="quick-search-progress__label">{progress}</span>
         {slow && <span className="quick-search-progress__hint">{voice.busy || finalizing ? '识别比平时久，正在等待返回' : '记录较多，正在继续查找'}</span>}

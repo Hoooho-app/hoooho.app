@@ -1,3 +1,4 @@
+import { MaterialIcon as FunctionalIcon } from '../../components/icons'
 import { PRODUCT_FEATURES } from '../../../shared/product-visibility.mjs'
 import { CompleteImage } from '../../components/common/CompleteImage'
 import { FormEvent, KeyboardEvent, useEffect, useMemo, useState } from 'react'
@@ -131,7 +132,7 @@ export function OpsFeedbackPage() {
 
   return <main className="ops-page ops-feedback-page">
     <header className="ops-topbar ops-feedback-topbar">
-      <div><Link to="/ops">← Operations &amp; Billing</Link><h1>Feedback（反馈管理）</h1><p>在一个工作台里查看反馈、回复用户并记录处理结论</p></div>
+      <div><Link to="/ops"><FunctionalIcon name="arrow_back" size={16}/> Operations &amp; Billing</Link><h1>Feedback（反馈管理）</h1><p>在一个工作台里查看反馈、回复用户并记录处理结论</p></div>
       <div className="ops-feedback-header-actions"><button className="ops-feedback-reload" type="button" onClick={() => setReloadKey((value) => value + 1)}>重新加载</button><OpsAccount /></div>
     </header>
 

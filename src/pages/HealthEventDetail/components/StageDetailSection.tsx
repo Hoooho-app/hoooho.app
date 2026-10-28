@@ -1,4 +1,4 @@
-import { ClipboardCheck, FileSearch, Pill, RefreshCw, Stethoscope } from 'lucide-react'
+import { ClipboardCheck, FileSearch, Pill, RefreshCw, Stethoscope } from '../../../components/icons'
 import type { HealthEvent, HealthEventStage } from '../../../types'
 import { Card } from '../../../components/common'
 

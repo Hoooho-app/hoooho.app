@@ -1,7 +1,7 @@
 import {useRecordUpdates,useReadDestinationUpdates} from '../../features/record-updates/RecordUpdates'
 import {useUpdateStore} from '../../features/record-updates/store'
 import {calendarUpdateDays} from '../../features/record-updates/calendarUpdates'
-import { Search, X } from 'lucide-react'
+import { Search, X } from '../../components/icons'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { HohoButton } from '../../components/design-system'

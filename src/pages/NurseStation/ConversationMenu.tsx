@@ -1,4 +1,4 @@
-import { History, Info, MoreHorizontal, Share2, SquarePen } from 'lucide-react'
+import { History, Info, MoreHorizontal, Share2, SquarePen } from '../../components/icons'
 import { useEffect, useRef, useState } from 'react'
 import { HohoButton } from '../../components/design-system'
 import { useDialogFocus } from '../../hooks/useDialogFocus'

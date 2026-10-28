@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown } from '../../../components/icons'
 import type { HealthEventSubject } from '../../../services/healthEventPersonalization'
 import { RecordSubjectCard } from '../../../components/health'
 

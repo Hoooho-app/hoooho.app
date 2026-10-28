@@ -1,5 +1,6 @@
+import { MaterialIcon as FunctionalIcon } from '../../components/icons'
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react'
-import { Clock3 } from 'lucide-react'
+import { Clock3 } from '../../components/icons'
 import { FUTURE_OCCURRED_AT_MESSAGE, localDateTimeValue } from '../../utils/healthOccurredAt'
 import { captureOccurrenceTime, formatOccurrenceTimeLabel, occurrenceInitialState, type OccurrenceTimeMode } from './occurrenceTimeModel'
 
@@ -50,7 +51,7 @@ export function OccurrenceTimeField({ model, label = '发生时间', labelIcon, 
   const value = model.mode === 'now' ? localDateTimeValue(model.now) : model.specifiedValue
   return <section className="occurrence-time-field" aria-label={leadingControl ? '记录名称与时间' : undefined} aria-labelledby={leadingControl ? undefined : labelId}>
     {leadingControl ?? <strong id={labelId}>{labelIcon ?? <Clock3 aria-hidden="true" size={20} strokeWidth={1.8} />}{label}</strong>}
-    <label className="occurrence-time-control"><span aria-hidden="true">{displayLabel??formatOccurrenceTimeLabel(value, model.today, showDateContext)} ›</span><input disabled={disabled} aria-describedby={model.error ? errorId : undefined} aria-invalid={Boolean(model.error)} aria-label={label} max={localDateTimeValue()} onChange={(event) => { onValueChange?.(event.target.value); event.target.value ? model.setSpecifiedValue(event.target.value) : model.setMode('now') }} type="datetime-local" value={value} /></label>
+    <label className="occurrence-time-control"><span aria-hidden="true">{displayLabel??formatOccurrenceTimeLabel(value, model.today, showDateContext)} <FunctionalIcon name="chevron_right" size={16}/></span><input disabled={disabled} aria-describedby={model.error ? errorId : undefined} aria-invalid={Boolean(model.error)} aria-label={label} max={localDateTimeValue()} onChange={(event) => { onValueChange?.(event.target.value); event.target.value ? model.setSpecifiedValue(event.target.value) : model.setMode('now') }} type="datetime-local" value={value} /></label>
     {model.error && <p className="occurrence-time-error" id={errorId} role="alert">{model.error}</p>}
   </section>
 }

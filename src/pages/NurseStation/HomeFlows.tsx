@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { OrganizeSheet } from '../../features/organize/OrganizeSheet'
 import { useNavigate } from 'react-router-dom'
-import { ArrowUpRight, NotebookText, Stethoscope } from 'lucide-react'
+import { ArrowUpRight, NotebookText, Stethoscope } from '../../components/icons'
 import { HealthCard, HohoButton, Typography } from '../../components/design-system'
 import { useCases } from '../../features/case-continuity/useCases'
 import { useAppStore } from '../../store/useAppStore'

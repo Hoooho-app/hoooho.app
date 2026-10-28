@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Link2 } from 'lucide-react'
+import { Link2 } from '../../components/icons'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { WebPageHeader } from '../../components/common'
 import { HealthProfileActionBar } from '../../components/health'

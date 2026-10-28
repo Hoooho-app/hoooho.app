@@ -1,4 +1,4 @@
-import { Check, LoaderCircle } from 'lucide-react'
+import { Check, LoaderCircle } from '../icons'
 import './ProcessingState.css'
 
 /** A real workflow stage; progress counts completed work units, never elapsed time. */

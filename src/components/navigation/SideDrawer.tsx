@@ -1,4 +1,4 @@
-import { ChevronRight, CircleHelp, FileText, Info, MessageCircle, Pencil, Plus, UserRound } from 'lucide-react'
+import { ChevronRight, CircleHelp, FileText, Info, MessageCircle, Pencil, Plus, UserRound } from '../icons'
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Avatar } from '../common'

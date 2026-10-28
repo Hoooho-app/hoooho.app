@@ -1,43 +1,12 @@
-import { Activity, Brain, BicepsFlexed, ChevronRight, Cross, FileText, Footprints, Hand, HeartPulse, Pill, Stethoscope, TestTube, Waypoints, PersonStanding } from 'lucide-react'
+import { MaterialIcon, ChevronRight, type MaterialIconName } from '../icons'
 import type { HealthEventCardIconKind, HealthEventCardIconPresentation } from '../../types'
 
-interface HealthEventCardIconProps {
-  presentation: HealthEventCardIconPresentation
+const icons: Partial<Record<HealthEventCardIconKind, MaterialIconName>> = {
+  medication: 'pill', examination: 'lab_research', visit: 'stethoscope', surgery: 'medical_services', report: 'description', general: 'pulse_alert'
 }
-
-const iconComponents: Partial<Record<HealthEventCardIconKind, typeof Activity>> = {
-  head: Brain,
-  chest: HeartPulse,
-  arm: BicepsFlexed,
-  hand: Hand,
-  foot: Footprints,
-  combined: Waypoints,
-  medication: Pill,
-  examination: TestTube,
-  visit: Stethoscope,
-  surgery: Cross,
-  report: FileText,
-  general: Activity
+export function HealthEventCardIcon({ presentation }: { presentation: HealthEventCardIconPresentation }) {
+  return <span aria-hidden="true" className="health-event-card-icon" title={presentation.label}>
+    <MaterialIcon name={icons[presentation.kind] ?? 'person'} size={24}/>
+  </span>
 }
-
-const markedBodyLocations = new Set<HealthEventCardIconKind>(['neck', 'abdomen', 'waist', 'leg'])
-
-export function HealthEventCardIcon({ presentation }: HealthEventCardIconProps) {
-  if (markedBodyLocations.has(presentation.kind)) {
-    return (
-      <span aria-hidden="true" className="health-event-card-icon health-event-card-icon--body" data-location={presentation.kind} title={presentation.label}>
-        <PersonStanding size={26} strokeWidth={1.65} />
-        <span className="health-event-card-icon__marker" />
-      </span>
-    )
-  }
-
-  const Icon = iconComponents[presentation.kind] ?? Activity
-  return (
-    <span aria-hidden="true" className="health-event-card-icon" title={presentation.label}>
-      <Icon size={25} strokeWidth={1.7} />
-    </span>
-  )
-}
-
 export const HealthEventCardChevron = ChevronRight

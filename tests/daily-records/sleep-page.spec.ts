@@ -33,7 +33,7 @@ for (const width of [375, 390, 430]) {
     await expect(save).toBeEnabled()
     await expect(save).toBeInViewport()
     const quality = form.getByRole('button', { name: '睡得怎么样（选填）' })
-    await expect(quality.locator('svg')).toHaveClass(/lucide-chevron-right/)
+    await expect(quality.locator('svg')).toHaveAttribute('data-icon', 'chevron_right')
     expect(await quality.evaluate(el => getComputedStyle(el).fontWeight)).toBe('400')
     expect(await quality.evaluate(el => el.getBoundingClientRect().height)).toBeGreaterThanOrEqual(44)
     expect(await form.locator('.sleep-editor-supplement').evaluate(el => getComputedStyle(el).backgroundColor)).toBe('rgb(255, 255, 255)')

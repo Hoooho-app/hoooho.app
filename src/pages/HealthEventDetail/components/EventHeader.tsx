@@ -1,4 +1,4 @@
-import { ChevronLeft, LoaderCircle } from 'lucide-react'
+import { ChevronLeft, LoaderCircle } from '../../../components/icons'
 import { useNavigate } from 'react-router-dom'
 
 interface EventHeaderProps {

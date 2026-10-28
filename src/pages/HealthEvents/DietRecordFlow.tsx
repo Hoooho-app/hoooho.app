@@ -1,5 +1,6 @@
+import { MaterialIcon as FunctionalIcon } from '../../components/icons'
 import { RecordSaveTarget, RecordEditorSave } from './RecordSaveAction'
-import { ArrowLeft, Pencil, Plus, Milk, Soup, Pill } from 'lucide-react'
+import { ArrowLeft, Pencil, Plus, Milk, Soup, Pill } from '../../components/icons'
 import { useEffect, useRef, useState } from 'react'
 import { HohoButton, HohoInput, HohoSegmentedControl } from '../../components/design-system'
 import { useAppStore } from '../../store/useAppStore'
@@ -92,9 +93,9 @@ function FoodEditor({ foods, onFoodsChange, common, onCommonChange, draftKey, in
   return <section className={`diet-form-section${inlineActions ? ' diet-food-editor--inline-actions' : ''}`} aria-labelledby="diet-foods-heading">
     <h2 id="diet-foods-heading">{heading}</h2>
     <div className={`diet-food-input${inlineActions ? ' diet-food-input--inline' : ''}`}><input aria-label={inputLabel} maxLength={80} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); add(draft) } }} placeholder={placeholder} value={draft} />{(!inlineActions || draft.trim()) && <HohoButton aria-label={addLabel} disabled={!draft.trim()} size="icon" variant="secondary" onClick={() => add(draft)}><Plus size={19} /></HohoButton>}</div>
-    {foods.length > 0 && <div className="diet-food-chips" aria-label={itemsLabel}>{foods.map((food) => <button aria-label={`删除${food}`} key={food} onClick={() => onFoodsChange(foods.filter((item) => item !== food))} type="button">{food}<span aria-hidden="true">×</span></button>)}</div>}
+    {foods.length > 0 && <div className="diet-food-chips" aria-label={itemsLabel}>{foods.map((food) => <button aria-label={`删除${food}`} key={food} onClick={() => onFoodsChange(foods.filter((item) => item !== food))} type="button">{food}<span aria-hidden="true"><FunctionalIcon name="close" size={16}/></span></button>)}</div>}
     <div className="diet-common-header"><span>{commonLabel}</span>{!inlineActions && editCommonButton}</div>
-    <div className="diet-common-foods">{(editingCommon ? editableCommon : common).map((food) => <button aria-label={editingCommon ? `删除常吃食物${food}` : undefined} disabled={!editingCommon && foods.includes(food)} key={food} onClick={() => editingCommon ? setEditableCommon((current) => current.filter((item) => item !== food)) : add(food)} type="button">{food}{editingCommon && <span aria-hidden="true">×</span>}</button>)}{inlineActions && editCommonButton}</div>
+    <div className="diet-common-foods">{(editingCommon ? editableCommon : common).map((food) => <button aria-label={editingCommon ? `删除常吃食物${food}` : undefined} disabled={!editingCommon && foods.includes(food)} key={food} onClick={() => editingCommon ? setEditableCommon((current) => current.filter((item) => item !== food)) : add(food)} type="button">{food}{editingCommon && <span aria-hidden="true"><FunctionalIcon name="close" size={16}/></span>}</button>)}{inlineActions && editCommonButton}</div>
     {editingCommon && <div className="diet-common-editor"><input aria-label="添加常吃食物" maxLength={30} onChange={(event) => setCommonDraft(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); addCommon() } }} placeholder="添加常吃食物" value={commonDraft} /><button aria-label="确认添加常吃食物" disabled={!commonDraft.trim() || editableCommon.length >= 12} onClick={addCommon} type="button"><Plus size={17} /></button></div>}
     {commonError && <p aria-live="polite" className="diet-inline-message">{commonError}</p>}
   </section>

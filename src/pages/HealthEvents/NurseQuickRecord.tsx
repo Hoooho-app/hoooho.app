@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Check } from 'lucide-react'
+import { Check } from '../../components/icons'
 import { QuickRecordTrigger } from '../../components/health'
 import { HealthTrace } from '../../components/design-system'
 import { QuickVoiceRecordFlow, type QuickRecordInputChannel } from '../HealthEventDetail/components'

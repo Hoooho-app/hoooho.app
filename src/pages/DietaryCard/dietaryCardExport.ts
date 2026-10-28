@@ -69,30 +69,20 @@ function drawCenteredLines(context: CanvasRenderingContext2D, text: string, cent
 
 function drawFoodItem(context: CanvasRenderingContext2D, label: string, x: number, y: number, itemWidth: number, itemHeight: number, group: 'avoid' | 'temporary', image: HTMLImageElement | null) {
   const background = group === 'avoid' ? '#FFF8F6' : '#FFFBEE'
-  const accent = group === 'avoid' ? '#FF7164' : '#F3A70C'
   roundRect(context, x, y, itemWidth, itemHeight, 18)
   context.fillStyle = background
   context.fill()
   if (image) context.drawImage(image, x + 8, y + (itemHeight - 80) / 2, 80, 80)
-  else {
-    context.fillStyle = accent
-    context.beginPath()
-    context.arc(x + 48, y + itemHeight / 2, 27, 0, Math.PI * 2)
-    context.fill()
-    context.fillStyle = '#FFFFFF'
-    context.font = '600 25px -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif'
-    context.textAlign = 'center'
-    context.textBaseline = 'middle'
-    context.fillText(label.trim().slice(0, 1), x + 48, y + itemHeight / 2)
-  }
   context.textAlign = 'center'
   context.textBaseline = 'middle'
   context.fillStyle = '#18312F'
   context.font = '600 26px -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif'
-  const lines = wrapText(context, label, itemWidth - 124)
+  const labelLeft = image ? 92 : 12
+  const labelWidth = itemWidth - labelLeft - 16
+  const lines = wrapText(context, label, labelWidth)
   const lineHeight = 32
   const startY = y + itemHeight / 2 - ((lines.length - 1) * lineHeight) / 2
-  lines.forEach((line, index) => context.fillText(line, x + 92 + (itemWidth - 108) / 2, startY + index * lineHeight))
+  lines.forEach((line, index) => context.fillText(line, x + labelLeft + labelWidth / 2, startY + index * lineHeight))
 }
 
 export async function createDietaryCardPng(snapshot: DietaryCardSnapshot, language: DietaryCardLanguage) {

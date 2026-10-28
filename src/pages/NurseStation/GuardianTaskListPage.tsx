@@ -1,5 +1,5 @@
 import { careToolsApi, type MedicationTemplate } from '../../features/care-tools/api'
-import { Plus } from 'lucide-react'
+import { Plus } from '../../components/icons'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { EmptyState, HohoButton, StatusNotice, SproutEntry } from '../../components/design-system'

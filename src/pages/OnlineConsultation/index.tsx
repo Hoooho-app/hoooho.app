@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Check, ClipboardCheck, Copy, FileImage, Mic, RefreshCw, Send, SquarePen } from 'lucide-react'
+import { Check, ClipboardCheck, Copy, FileImage, Mic, RefreshCw, Send, SquarePen } from '../../components/icons'
 import { useNavigate, useParams } from 'react-router-dom'
 import { WebPageHeader } from '../../components/common'
 import { HealthCard, HealthTag, HohoButton, Typography } from '../../components/design-system'

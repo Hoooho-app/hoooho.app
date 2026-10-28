@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { ClipboardList, Clock3, Eye, Share2, Pencil } from 'lucide-react'
+import { ClipboardList, Clock3, Eye, Share2, Pencil } from '../../components/icons'
 import { newShareToken, presentShareLink } from './shareLink'
 import { OrganizeHeader } from '../../features/organize/OrganizeHeader'
 import { MemberIdentity } from '../../features/organize/MemberIdentity'

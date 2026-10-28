@@ -1,4 +1,4 @@
-import { ArrowUpDown, CalendarDays, CalendarRange, ChevronLeft, ChevronRight } from 'lucide-react'
+import { ArrowUpDown, CalendarDays, CalendarRange, ChevronLeft, ChevronRight } from '../../components/icons'
 import { useState } from 'react'
 import { BottomSheetSurface, HohoButton } from '../../components/design-system'
 import { formatPlainMonthDay } from '../../utils/localCalendarDate'

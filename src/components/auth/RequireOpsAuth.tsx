@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Navigate, Outlet } from 'react-router-dom'
-import { AlertTriangle, LoaderCircle, LogOut } from 'lucide-react'
+import { AlertTriangle, LoaderCircle, LogOut } from '../icons'
 import { HohoButton } from '../design-system/HohoButton'
 import { getOpsSession, toOpsAuthSession } from '../../services/opsAuth'
 import { useAppStore } from '../../store/useAppStore'

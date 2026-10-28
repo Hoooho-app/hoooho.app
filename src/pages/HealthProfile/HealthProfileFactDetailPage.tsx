@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ExternalLink, Link2, Pencil } from 'lucide-react'
+import { ExternalLink, Link2, Pencil } from '../../components/icons'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { WebPageHeader } from '../../components/common'
 import { HealthProfileActionBar } from '../../components/health'

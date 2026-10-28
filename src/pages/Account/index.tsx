@@ -1,5 +1,6 @@
+import { ProviderBrandIcon } from '../../components/icons/ProviderBrandIcon'
 import { CompleteImage } from '../../components/common/CompleteImage'
-import { Apple, Camera, ImageUp, KeyRound, Mail, Phone, ShieldAlert, UserRound } from 'lucide-react'
+import { Camera, ImageUp, KeyRound, Mail, Phone, ShieldAlert, UserRound } from '../../components/icons'
 import { useEffect, useRef, useState, type ChangeEvent, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Avatar, WebPageHeader } from '../../components/common'
@@ -217,9 +218,7 @@ export function AccountPasswordPage() {
 }
 
 function ProviderMark({ provider }: { provider: AccountProvider }) {
-  if (provider === 'apple') return <span className="provider-mark apple"><Apple size={21} fill="currentColor" /></span>
-  if (provider === 'wechat') return <span className="provider-mark wechat"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M9.2 5c-4 0-7.2 2.5-7.2 5.7 0 1.8 1 3.5 2.7 4.5l-.7 2.3 2.7-1.3c.8.2 1.6.3 2.5.3 4 0 7.2-2.6 7.2-5.8S13.2 5 9.2 5Zm-2.5 4.2a1 1 0 1 1 0-2 1 1 0 0 1 0 2Zm5 0a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"/><path d="M22 15.1c0-2.6-2.6-4.8-5.8-4.8-.5 0-1 .1-1.5.2 0 .1.1.3.1.5 0 3.7-3.5 6.6-7.8 6.6h-.5c1 1.4 2.9 2.3 5.1 2.3.7 0 1.4-.1 2-.3l2.2 1.1-.6-1.9c1.7-.8 2.8-2.1 2.8-3.7Zm-7.8-.8a.8.8 0 1 1 0-1.6.8.8 0 0 1 0 1.6Zm4 0a.8.8 0 1 1 0-1.6.8.8 0 0 1 0 1.6Z"/></svg></span>
-  return <span className="provider-mark qq"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 2c-3 0-5 2.7-5 6.4 0 .6.1 1.2.2 1.8C5.9 11.6 5 14 5.6 15.3c.3.6.9.5 1.6.1.4 2.9 2.2 5 4.8 5s4.4-2.1 4.8-5c.7.4 1.3.5 1.6-.1.6-1.3-.3-3.7-1.6-5.1.1-.6.2-1.2.2-1.8C17 4.7 15 2 12 2Zm-2 7.2c-.5 0-.9-.6-.9-1.3s.4-1.3.9-1.3.9.6.9 1.3-.4 1.3-.9 1.3Zm4 0c-.5 0-.9-.6-.9-1.3s.4-1.3.9-1.3.9.6.9 1.3-.4 1.3-.9 1.3Z"/></svg></span>
+  return <span className={`provider-mark ${provider}`}><ProviderBrandIcon provider={provider}/></span>
 }
 
 export function AccountProvidersPage() {

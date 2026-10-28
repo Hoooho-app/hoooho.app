@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Pencil } from 'lucide-react'
+import { Pencil } from '../../components/icons'
 import { WebPageHeader } from '../../components/common'
 import { HealthRecordSubjectHeader } from '../../components/health'
 import { BottomSheetSurface, HealthCard, HohoButton, HohoInput, HohoSection, HohoSurfaceRow, StatusNotice } from '../../components/design-system'

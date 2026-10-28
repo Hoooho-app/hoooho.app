@@ -1,6 +1,6 @@
 import { CompleteImage } from '../../components/common/CompleteImage'
 import { FormEvent, useEffect, useRef, useState } from 'react'
-import { Mail, ShieldCheck } from 'lucide-react'
+import { Mail, ShieldCheck } from '../../components/icons'
 import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import logoUrl from '../../assets/logo.svg'
 import { HohoButton } from '../../components/design-system/HohoButton'

@@ -1,4 +1,4 @@
-import { Heart } from 'lucide-react'
+import { Heart } from '../../../components/icons'
 import type { HealthEvent } from '../../../types'
 import { Card } from '../../../components/common'
 

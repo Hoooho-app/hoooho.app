@@ -5,7 +5,7 @@ import type { VisitPhoto, VisitPhotoDetail, VisitSheet, VisitSource } from '../.
 import type { VisitSheetUpdate } from '../../services/visitSheets'
 import { useReportPhotoDraft } from './useReportPhotoDraft'
 import { reportTime } from './ReportChapter'
-import { ChevronRight, Image as ImageIcon, Play, Plus } from 'lucide-react'
+import { ChevronRight, Image as ImageIcon, Play, Plus } from '../../components/icons'
 
 // Short-lived memory cache only: no personal images are written to a browser disk cache.
 const photoCache = new Map<string, { blob: Blob; expires: number }>()

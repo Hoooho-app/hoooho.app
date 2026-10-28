@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode, type ComponentType } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Download, ImagePlus, Pill, Sprout, Trash2 } from 'lucide-react';
+import { Download, ImagePlus, Pill, Sprout, Trash2 } from '../../components/icons';
 import { WebPageHeader } from '../../components/common/WebPageHeader';
 import { BottomSheetSurface, EmptyState, HohoButton, HohoInput, HohoSection, HohoSurfaceRow, StatusNotice } from '../../components/design-system';
 import { useAppStore } from '../../store/useAppStore';

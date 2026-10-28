@@ -1,7 +1,7 @@
 import {
   Camera, FileImage, HeartHandshake, Info, KeyRound, Languages, LockKeyhole,
   LogOut, Mail, Mic, ShieldCheck, UserRound
-} from 'lucide-react'
+} from '../../components/icons'
 import { useEffect, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {

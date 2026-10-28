@@ -1,4 +1,4 @@
-import { ArrowRight } from 'lucide-react'
+import { ArrowRight } from '../../../components/icons'
 import { HohoButton } from '../../../components/design-system'
 import { RecordSubjectCard } from '../../../components/health'
 import type { HealthEventSubject } from '../../../services/healthEventPersonalization'

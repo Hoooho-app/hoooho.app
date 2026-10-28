@@ -6,11 +6,11 @@
     "server/ai/live-audio-preview.mjs": "b5920ba8a06beb5f96159084ac0569e55b24a5463a836c68f83df77675a84f56",
     "src/features/ai-business/RecognitionProgress.tsx": "52c7a549e5736522a78eea42365c7ed9e80f9119c47ee522a0688d8bfa2d6fd8",
     "src/features/ai-business/RecordOriginals.tsx": "4457b72531739c4e8b56bd3081424ad992ba0f066f73df36c75d62e2260e2097",
-    "src/features/ai-business/SmartRecordReview.tsx": "1e62370f4e5b0efb6d0b3f223871a291c57acc025549dfa98bb1710108da201b",
+    "src/features/ai-business/SmartRecordReview.tsx": "425f8a5d20697221a561d75d089402d408a4d396c1606faee3b6f8118f2ce904",
     "src/features/ai-business/caseCapture.css": "2db6515073eb476a5e640ad966f25d617422d596e5926cc75a9495cfcbb0368c",
     "src/features/ai-business/liveAudioPreview.ts": "49041cad3c58d215b99d17f8a76290d3db913cdd69a756b670e47a84a71edac8",
     "src/features/ai-business/useSmartRecordVoice.ts": "72536a278bf98dea54989bacee130036f9ef033a21b73d4a91cc6b37bb8786b6",
-    "src/pages/HealthEvents/index.tsx": "cfbc9c4bf3b2b772c4602eaccb28aee6c3df460b068daedce852bfe1a058a9d3",
+    "src/pages/HealthEvents/index.tsx": "b485be60be97a9fccb75ffabfcbe79f155d2142fc89ffd4117ae855dd7c43316",
     "src/pages/NurseStation/FrontDeskProcessing.tsx": "e3d9030e296900827990b6948305f6f02a10d9c9be1dc5d8ca2044c9b89160f4",
     "server/ai/business/nursing-interview.mjs": "7683ec6865d83d0c66c396ed6303fb07ee158f7dd723d278e3a9de15e4642132"
   },
@@ -26,6 +26,14 @@
     "src/pages/HealthEvents/index.tsx": "fe60db1b057078b7f9ec9e8b13321d1514de87599f9d89d8050fc93943ff8a4a"
   },
   "additionalAuthorizations": [
+    {
+      "contract": "docs/design/global-material-icons-v3-20261029.md",
+      "files": [
+        "src/features/ai-business/SmartRecordReview.tsx",
+        "src/pages/HealthEvents/index.tsx"
+      ],
+      "reason": "Owner approved global Material Symbols Rounded 300 replacement. Relative to main 6bc52a8, these two frozen files change only their icon import from lucide-react to the shared components/icons source; complete-file hash guards remain in force against this authorized revision."
+    },
     {
       "contract": "docs/delivery/child-archive-layout-20261029.md",
       "files": [

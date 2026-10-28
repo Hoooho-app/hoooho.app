@@ -1,4 +1,4 @@
-import { Check, Circle, Plus, SquarePen, X } from 'lucide-react'
+import { Check, Circle, Plus, SquarePen, X } from '../icons'
 import { createPortal } from 'react-dom'
 import { useEffect, useRef, useState, type PointerEvent } from 'react'
 import { postAuthRequest } from '../../services/auth'

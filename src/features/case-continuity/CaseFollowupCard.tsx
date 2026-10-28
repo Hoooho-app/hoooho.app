@@ -1,7 +1,7 @@
 import {useReadRecordUpdates} from '../record-updates/RecordUpdates'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate,useSearchParams } from 'react-router-dom'
-import { Cross, ChevronDown } from 'lucide-react'
+import { Cross, ChevronDown } from '../../components/icons'
 import { BottomSheetSurface, HohoButton, HohoInput } from '../../components/design-system'
 import { useAppStore } from '../../store/useAppStore'
 import type { HealthEventRecordApiDto } from '../../types'

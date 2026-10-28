@@ -1,4 +1,4 @@
-import { ClipboardList } from 'lucide-react'
+import { ClipboardList } from '../icons'
 import { HohoButton } from './HohoButton'
 import type { HohoButtonProps } from './HohoButton'
 

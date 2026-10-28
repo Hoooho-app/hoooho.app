@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { BookmarkCheck, ChevronRight, FileClock } from 'lucide-react'
+import { BookmarkCheck, ChevronRight, FileClock } from '../../components/icons'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { WebPageHeader } from '../../components/common'
 import { BottomSheetSurface, EmptyState, HealthCard, HealthTag, HohoButton, StatusNotice } from '../../components/design-system'

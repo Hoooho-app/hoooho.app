@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react'
-import { Paperclip, Pencil, Plus, Trash2 } from 'lucide-react'
+import { Paperclip, Pencil, Plus, Trash2 } from '../../components/icons'
 import { Navigate, useLocation, useParams } from 'react-router-dom'
 import { WebPageHeader } from '../../components/common'
 import { HealthProfileActionBar, MemberIdentityCard } from '../../components/health'

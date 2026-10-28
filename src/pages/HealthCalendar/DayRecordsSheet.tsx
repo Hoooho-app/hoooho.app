@@ -1,4 +1,4 @@
-import { ChevronRight } from 'lucide-react'
+import { ChevronRight } from '../../components/icons'
 import { useEffect, useId, useLayoutEffect, useRef } from 'react'
 import { BottomSheetSurface, HohoButton, StatusNotice } from '../../components/design-system'
 import { JournalCategoryIcon } from '../HealthEvents/JournalCategoryIcon'

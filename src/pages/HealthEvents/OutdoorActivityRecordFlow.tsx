@@ -1,6 +1,6 @@
 import { RecordSaveAction } from './RecordSaveAction'
 import { CompleteImage } from '../../components/common/CompleteImage'
-import { ArrowLeft, Bike, Camera, CircleEllipsis, ImagePlus, PersonStanding, Smile, Trees, X } from 'lucide-react'
+import { ArrowLeft, Bike, Camera, CircleEllipsis, ImagePlus, PersonStanding, Smile, Trees, X } from '../../components/icons'
 import { useEffect, useRef, useState } from 'react'
 import { HohoButton, HohoInput } from '../../components/design-system'
 import { useDialogFocus } from '../../hooks/useDialogFocus'

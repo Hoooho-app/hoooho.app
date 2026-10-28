@@ -247,7 +247,7 @@
   .hoho-select { min-height: 48px; padding: 0 var(--hoho-space-3); }
   .hoho-select {
     appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23526966' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg%20fill%3D%22%23526966%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20height%3D%2224%22%20viewBox%3D%220%20-960%20960%20960%22%20width%3D%2224%22%3E%3Cpath%20d%3D%22M480-372.92q-7.23%200-13.46-2.31t-11.85-7.92L274.92-562.92q-8.3-8.31-8.5-20.89-.19-12.57%208.5-21.27%208.7-8.69%2021.08-8.69%2012.38%200%2021.08%208.69L480-442.15l162.92-162.93q8.31-8.3%2020.89-8.5%2012.57-.19%2021.27%208.5%208.69%208.7%208.69%2021.08%200%2012.38-8.69%2021.08L505.31-383.15q-5.62%205.61-11.85%207.92-6.23%202.31-13.46%202.31Z%22%2F%3E%3C%2Fsvg%3E");
     background-position: right 12px center;
     background-repeat: no-repeat;
     padding-right: 38px;

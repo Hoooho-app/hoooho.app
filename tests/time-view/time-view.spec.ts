@@ -1171,7 +1171,7 @@ test('symptom record button is centered, compact, and fills the footer', async (
   await page.screenshot({ path: 'test-results/manual-record-image-cards-iphone-se.png' })
 })
 
-test('record entry image cards stay in a two-column grid without viewport overflow', async ({ page }) => {
+test('record entry icon cards stay in a two-column grid without viewport overflow', async ({ page }) => {
   for (const viewport of [{ width: 375, height: 667 }, { width: 390, height: 667 }, { width: 430, height: 667 }, { width: 1024, height: 768 }]) {
     await page.setViewportSize(viewport)
     await prepare(page)
@@ -1182,7 +1182,7 @@ test('record entry image cards stay in a two-column grid without viewport overfl
     await hub.evaluate((sheet) => Promise.all(sheet.getAnimations().map((animation) => animation.finished)))
     const layout = await hub.evaluate((sheet) => {
       const cards = [...sheet.querySelectorAll<HTMLElement>('.journal-entry-hub__item')].map((card) => card.getBoundingClientRect())
-      const imagesLoaded = [...sheet.querySelectorAll<HTMLImageElement>('.journal-entry-hub__image')].every((image) => image.complete && image.naturalWidth === 512 && image.naturalHeight === 512)
+      const imagesLoaded = [...sheet.querySelectorAll<SVGSVGElement>('.journal-entry-hub__image')].every((icon) => icon.tagName.toLowerCase() === 'svg' && icon.hasAttribute('data-icon') && icon.querySelectorAll('path').length === 2)
       const sheetBox = sheet.getBoundingClientRect()
       return {
         imagesLoaded,
@@ -1220,7 +1220,7 @@ test('health journal medical prep uses a centered title and report icon', async 
   await prepare(page)
   const button = page.getByRole('button', { name: '就诊情况单，孩子情况快速整理', exact: true })
   await expect(button).toBeEnabled()
-  await expect(button.locator('.lucide-clipboard-list')).toBeVisible()
+  await expect(button.locator('[data-icon="assignment"]')).toBeVisible()
   await expect(button.locator('.medical-prep-button__dot')).toHaveCount(0)
   const layout = await button.evaluate((element) => {
     const icon = element.querySelector('.medical-prep-button__icon')!.getBoundingClientRect()
@@ -1267,7 +1267,7 @@ test('nurse station uses the same centered report icon', async ({ page }) => {
   await page.goto('/nurse-station')
   const button = page.getByRole('button', { name: '就诊情况单', exact: true })
   await expect(button).toBeVisible()
-  await expect(button.locator('.lucide-clipboard-list')).toBeVisible()
+  await expect(button.locator('[data-icon="assignment"]')).toBeVisible()
   await expect(button.locator('.medical-prep-button__icon')).toHaveCSS('width', '40px')
   expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)).toBe(false)
   await page.screenshot({ path: 'outputs/medical-prep-nurse-station-iphone-se.png' })
@@ -1322,7 +1322,7 @@ test('single-day timeline keeps the frozen top controls, unified hour cells and 
   await expect(morning.locator(':scope > time')).toHaveText(['09:45', '09:30', '09:10', '09:00'])
   await expect(page.getByRole('button', { name: /还有 \d+ 条/ })).toHaveCount(0)
   await page.getByRole('button', { name: /^记录顺序：/ }).click()
-  await expect(page.getByRole('button', { name: /^记录顺序：/ }).locator('.lucide-arrow-up-down')).toBeVisible()
+  await expect(page.getByRole('button', { name: /^记录顺序：/ }).locator('[data-icon="swap_vert"]')).toBeVisible()
   await expect(page.locator('.journal-timeline-row[data-hour="9"] > time')).toHaveText(['09:00', '09:10', '09:30', '09:45'])
   await expect(page.getByText('隔离对象专属记录')).toHaveCount(0)
   await page.screenshot({ path: 'test-results/time-view-iphone-se.png' })
@@ -1426,9 +1426,8 @@ test('manual category cards navigate directly without a start action', async ({ 
   const daily = page.getByRole('dialog', { name: '记录日常' })
   await expect(daily.locator('.journal-entry-hub__item')).toHaveCount(4)
   await expect(daily.locator('.journal-entry-hub__image')).toHaveCount(4)
-  expect(await daily.locator('.journal-entry-hub__image').evaluateAll((images) => images.every((image) => {
-    const asset = image as HTMLImageElement
-    return asset.complete && asset.naturalWidth === 640 && asset.naturalHeight === 640 && asset.getAttribute('aria-hidden') === 'true'
+  expect(await daily.locator('.journal-entry-hub__image').evaluateAll((icons) => icons.every((icon) => {
+    return icon.tagName.toLowerCase() === 'svg' && icon.hasAttribute('data-icon') && icon.getAttribute('aria-hidden') === 'true'
   }))).toBe(true)
   await expect(page.getByRole('button', { name: '意外受伤', exact: true })).toHaveCount(0)
   await expect(page.getByRole('button', { name: '护理干预', exact: true })).toHaveCount(0)
@@ -1552,16 +1551,16 @@ async function openDietTypes(page: Page) {
   await expect(page.getByRole('heading', { name: '记录喂养/饮食', exact: true })).toBeVisible()
 }
 
-test('feeding and diet type sheet uses responsive image cards and returns with selection preserved', async ({ page }) => {
+test('feeding and diet type sheet uses responsive icon cards and returns with selection preserved', async ({ page }) => {
   await prepare(page)
   await openDietTypes(page)
   const dialog = page.getByRole('dialog', { name: '记录喂养/饮食' })
   await expect(dialog.getByText('先记下来，之后还可以继续补充', { exact: true })).toHaveCount(0)
   for (const name of [/^喂养/, /^辅食/, /^正餐/, /^零食/, /^补剂/]) {
-    const image = dialog.getByRole('button', { name }).locator('img')
-    await expect(image).toBeVisible()
-    await expect(image).toHaveJSProperty('complete', true)
-    expect(await image.evaluate((element: HTMLImageElement) => element.naturalWidth)).toBeGreaterThan(0)
+    const icon = dialog.getByRole('button', { name }).locator('svg[data-icon]')
+    await expect(icon).toBeVisible()
+    await expect(icon).toHaveAttribute('aria-hidden', 'true')
+    await expect(icon.locator('path')).toHaveCount(2)
   }
   await expect(dialog.getByRole('button', { name: /^辅食/ })).toContainText('泥糊 / 颗粒')
   await expect(dialog.getByRole('button', { name: /^辅食/ })).not.toContainText('手指食物')

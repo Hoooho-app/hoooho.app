@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
-import { Check, Mic, Pencil } from 'lucide-react'
+import { Check, Mic, Pencil } from '../../../components/icons'
 import { HohoButton } from '../../../components/design-system'
 import { getBrowserVoiceCapability, type BrowserVoiceCapability, type QuickRecordCandidate } from '../../../features/quick-record'
 import { classifyMicrophoneFailure, formatRecordingDuration, isValidVoiceRecording, quickRecordSaveErrorMessage, type MicrophoneFailure } from './quickRecordPresentation'

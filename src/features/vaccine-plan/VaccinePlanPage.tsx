@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { CalendarPlus, ClipboardCheck, Download, ExternalLink, MapPin } from 'lucide-react'
+import { CalendarPlus, ClipboardCheck, Download, ExternalLink, MapPin } from '../../components/icons'
 import { WebPageHeader } from '../../components/common'
 import { HohoButton, HohoInput, HohoSection, StatusNotice } from '../../components/design-system'
 import { useAppStore } from '../../store/useAppStore'

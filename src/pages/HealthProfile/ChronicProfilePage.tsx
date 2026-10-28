@@ -1,4 +1,4 @@
-import { Check, Pencil, Plus, Trash2 } from 'lucide-react'
+import { Check, Pencil, Plus, Trash2 } from '../../components/icons'
 import { FormEvent, useState } from 'react'
 import { WebPageHeader } from '../../components/common'
 import {

@@ -1,6 +1,6 @@
 import { CompleteImage } from '../../components/common/CompleteImage'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { Check, ImagePlus, Mic, Plus, RotateCcw, X } from 'lucide-react'
+import { Check, ImagePlus, Mic, Plus, RotateCcw, X } from '../../components/icons'
 import { getBrowserVoiceCapability } from '../../features/quick-record/browserVoiceCapability'
 import { processFeedbackImage, type PendingFeedbackImage } from '../../features/feedback/imageProcessing'
 import { getSpeechRecognitionConstructor, speechErrorMessage, type SpeechRecognitionLike } from '../../features/feedback/speechInput'

@@ -23,3 +23,6 @@
 @keyframes quick-search-scan { 0%, 100% { transform: translate(-8px, -3px) rotate(-8deg); } 35% { transform: translate(10px, 1px) rotate(5deg); } 65% { transform: translate(3px, 12px) rotate(-3deg); } }
 @keyframes quick-search-appear { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: translateY(0); } }
 @media (prefers-reduced-motion: reduce) { .quick-search-progress__lens, .quick-search-progress__label, .quick-search-settled { animation: none; } }
+
+.quick-search-progress__art { display:grid; place-items:center; }
+.quick-search-progress__art > .hoho-icon { width:32px; height:32px; }
