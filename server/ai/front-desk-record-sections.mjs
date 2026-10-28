@@ -1,5 +1,5 @@
 import {buildFrontDeskFactSources} from './business/front-desk-source-context.mjs'
-import {questionTopic} from './front-desk-question-progress.mjs'
+import {questionTopic,questionAnswerState} from './front-desk-question-progress.mjs'
 import {recordKeywords} from '../../shared/front-desk-record-format.mjs'
 
 // Arrange accepted observations only. No inferred normality or diagnosis.
@@ -29,13 +29,14 @@ export function frontDeskInformationProgress(context,messages){
   const remember=(key,label,state)=>{if(result.get(key)?.state==='answered'&&state!=='answered')return;result.set(key,{key,label,state})}
   for(const source of sources){
     const topic=source.questionContext?questionTopic(source.questionContext):null
-    const state=source.polarity==='unknown'?'uncertain':'answered'
+    const temperature=topic?.key==='temperature'||/体温|\d{2}(?:\.\d+)?\s*(?:度|℃|°C)/u.test(source.text)
+    const state=source.polarity==='unknown'?'uncertain':temperature?questionAnswerState({target:'temperature'},source.text):'answered'
     if(topic)remember(topic.key,topic.label,state)
-    else if(/体温|\d{2}(?:\.\d+)?\s*(?:度|℃|°C)/u.test(source.text))remember('temperature','体温数值',state)
+    else if(temperature)remember('temperature','体温数值',state)
     else if(/精神|进食|食欲|睡眠|活动/u.test(source.text))remember('impact:general','精神与生活表现',state)
     else remember('observation','情况描述',state)
   }
-  for(const check of context.interview?.checks??[])if(messages.some(message=>message.id===check.answerMessageId&&message.text===check.answerText&&!message.retracted))remember(check.key,check.label,check.state)
+  for(const check of context.interview?.checks??[])if(messages.some(message=>message.id===check.answerMessageId&&message.text===check.answerText&&!message.retracted))remember(check.key,check.label,check.key==='temperature'?questionAnswerState({target:'temperature'},check.answerText):check.state)
   if(sources.some(source=>source.polarity==='affirmed'&&recordKeywords(source.text).some(keyword=>['发热','发烧'].includes(keyword)))&&!result.has('temperature'))remember('temperature','体温数值','missing')
   if(context.interview?.question){const topic=questionTopic(context.interview.question);if(!result.has(topic.key))remember(topic.key,topic.label,'missing')}
   return [...result.values()]

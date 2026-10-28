@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {guideFrontDeskReply,questionTopic} from './front-desk-question-progress.mjs'
-import {frontDeskRecordSections,recordSectionsText} from './front-desk-record-sections.mjs'
+import {frontDeskRecordSections,recordSectionsText,frontDeskInformationProgress} from './front-desk-record-sections.mjs'
 const q=(id,text,target='observation')=>({id,text,target})
 const value=question=>({reply:question?`了解目前的观察。${question.text}`:'可以继续补充。',nextQuestion:question,taskRelation:'continue'})
 test('unknown comparison is not asked again in different wording; unknown location exposes the existing picker',()=>{
@@ -56,8 +56,20 @@ test('numeric values are requested directly; unrelated observations do not compl
  assert.doesNotMatch(result.reply,/有没有量过/);assert.match(result.reply,/填写/)
  const unrelated=guideFrontDeskReply(value(null),{latest:{id:'m',text:'精神和平时一样。'},effectiveQuestion:measurement})
  assert.deepEqual(unrelated.interview.checks,[])
- const unknown=guideFrontDeskReply(value(measurement),{latest:{id:'m',text:'还没量。'},effectiveQuestion:measurement})
- assert.equal(unknown.question,null);assert.equal(unknown.interview.checks[0].state,'uncertain')
- const measured=guideFrontDeskReply(value(null),{latest:{id:'m',text:'测得体温 38.6℃。'},effectiveQuestion:measurement})
- assert.equal(measured.interview.checks[0].state,'answered')
+ for(const text of ['还没量。','没测。','尚未测量。','已经量过。','量了20次。','量了20 次。','体温等到20点再量。','没量，估计38度。']){
+  const unknown=guideFrontDeskReply(value(measurement),{latest:{id:'m',text},effectiveQuestion:measurement})
+  assert.equal(unknown.question,null,text);assert.equal(unknown.interview.checks[0].state,'uncertain',text)
+ }
+ for(const text of ['38.6','测得体温 38.6℃。','体温38.6','三十八点六度','三十四点二度']){
+  const measured=guideFrontDeskReply(value(null),{latest:{id:'m',text},effectiveQuestion:measurement})
+  assert.equal(measured.interview.checks[0].state,'answered',text)
+ }
+})
+
+test('a measurement gateway in source facts or legacy checks never becomes an obtained temperature',()=>{
+ const subject={kind:'current',memberId:'child',confirmed:true}
+ const message={id:'m',kind:'text',status:'completed',text:'已经测量体温。'}
+ const context={facts:[{id:'f',text:message.text,status:'active',scope:'record',polarity:'affirmed',subject,sources:[{messageId:'m',quote:message.text}]}],interview:{checks:[{key:'temperature',label:'体温数值',state:'answered',answerMessageId:'m',answerText:message.text}]}}
+ const progress=frontDeskInformationProgress(context,[message])
+ assert.equal(progress.find(value=>value.key==='temperature').state,'uncertain')
 })

@@ -85,6 +85,17 @@ test('key information: speaking other observations bypasses an empty numeric too
  await expect(page.getByRole('button',{name:'继续补充',exact:true})).toHaveCount(0)
  await generate(page);await expect(page.getByRole('status',{name:'记录已保存'})).toBeVisible()
 })
+
+test('key information: saying a measurement was taken still needs an actual numeric value',async({page,request},info)=>{
+ await reply(request,'有点发热','有没有量过具体体温？');let job=await send(page,'有点发热');await settle(request,job.id,job.inputRevision)
+ await reply(request,'已经测量体温。');job=await send(page,'已经测量体温。');await settle(request,job.id,job.inputRevision)
+ const progress=page.getByRole('list',{name:'本轮询问进度'})
+ await expect(progress).toContainText('体温数值待补充')
+ await expect(progress).not.toContainText('体温数值已获得')
+ await page.screenshot({path:info.outputPath('temperature-not-obtained-without-number.png')})
+ await reply(request,'测得体温38.6℃。');job=await send(page,'测得体温38.6℃。');await settle(request,job.id,job.inputRevision)
+ await expect(progress).toContainText('体温数值已获得')
+})
 async function discussVisit(page:Page,request:APIRequestContext){
  await request.post(`${control}/front-reply-data`,{data:{reply:'可以把已有情况整理成就诊资料，供就诊时核对。',contextId:'@context',responseMode:'consultation',taskRelation:'continue',subject,recordChanges:[],nextQuestion:null,requestedAction:noAction,uncertainties:[],emergency:{currentChild:false,quote:''}}})
  const job=await send(page,'我准备去医院，挂什么科？');await settle(request,job.id,job.inputRevision)

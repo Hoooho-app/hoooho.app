@@ -22,7 +22,17 @@ export function questionTopic(question) {
   const target=String(question?.target??'')
   return {key:String(target&&!/^(?:observation|record|context|question)$/iu.test(target)?target:question?.text??question?.id??'').toLowerCase().replace(/[\s，,。？?：:_-]/gu,''),label:'补充观察'}
 }
-const uncertain = text => /不确定|不清楚|说不清|讲不清|不知道|没(?:有)?(?:(?:看|观察)(?!到)|留意)|没注意|还没量|没有量|没量|未测|未量|无法(?:确认|比较|判断)/u.test(text)
+const uncertain = text => /不确定|不清楚|说不清|讲不清|不知道|没(?:有)?(?:(?:看|观察)(?!到)|留意)|没注意|(?:还|尚)?(?:没(?:有)?|未)(?:量|测)|无法(?:确认|比较|判断)/u.test(text)
+export function questionAnswerState(question,text){
+  if(uncertain(text))return 'uncertain'
+  if(questionTopic(question).key==='temperature'){
+    // Knowing whether someone measured is not knowing the temperature. A
+    // clock time or measurement count must not complete this numeric slot.
+    const numeric=/^\s*\d{2}(?:\.\d+)?\s*[。！!]?\s*$/u.test(text)||/(?:体温|温度|测得|量了|测了|量到|测到)[^\d。；;\n]{0,6}\d{2}(?:\.\d+)?(?![\d.])(?!\s*[点分时次岁])/u.test(text)||/(?:\d{2}(?:\.\d+)?|[三四]十[零一二两三四五六七八九]?(?:点[零一二两三四五六七八九]+)?)\s*(?:℃|°C|摄氏度|度)/u.test(text)
+    return numeric?'answered':'uncertain'
+  }
+  return 'answered'
+}
 const locationSupplement = text => /^(?:补充症状部位[：:]|暂时无法确认具体症状部位。?$)/u.test(text??'')
 const pickerQuestion={id:'body-location-selection',text:'具体症状部位',target:'location'}
 export function frontDeskAnswerQuestion(question,message) {
@@ -30,7 +40,7 @@ export function frontDeskAnswerQuestion(question,message) {
   if(locationSupplement(text)&&key!=='location')return null
   // A new observation is allowed while a numeric question is on screen. It is
   // not an answer to that question and must not mark its value as obtained.
-  if(key==='temperature'&&!/(?:\d{2}(?:\.\d+)?|体温|温度|量|测|不知道|不清楚|没注意)/u.test(text))return null
+  if(key==='temperature'&&!/(?:\d{2}(?:\.\d+)?|[三四]十[零一二两三四五六七八九]?|体温|温度|量|测|不知道|不清楚|没注意)/u.test(text))return null
   return question
 }
 const withoutQuestion = (reply, question) => {
@@ -42,7 +52,7 @@ const withoutQuestion = (reply, question) => {
 export function guideFrontDeskReply(value,{previous,messages=[],latest,effectiveQuestion,knowledge=[]}={}) {
   const checks = [...previous?.checks ?? []].filter(check=>messages.some(message=>message.id===check.answerMessageId&&message.text===check.answerText&&message.kind!=='assistant'&&message.status==='completed'&&!message.retracted))
   const remember=(question,message)=>{
-    const topic=questionTopic(question),answer={...topic,questionId:question.id,question:question.text,answerMessageId:message.id,answerText:message.text,state:uncertain(message.text)?'uncertain':'answered'}
+    const topic=questionTopic(question),answer={...topic,questionId:question.id,question:question.text,answerMessageId:message.id,answerText:message.text,state:questionAnswerState(question,message.text)}
     const index=checks.findIndex(check=>check.key===topic.key)
     if(index<0)checks.push(answer);else checks[index]=answer
   }
