@@ -286,21 +286,8 @@ try {
   await page.screenshot({ path: path.join(output, 'reminder-semantics-375.png'), fullPage: true })
   for (const reminder of reminders) await api(`/api/medication-reminders/${reminder.id}`, undefined, 'DELETE')
   await page.goto(base + '/nurse-station')
-  const install = page.getByRole('button', { name: '添加 Hoooho 到主屏' })
-  await install.click(); await expect(page.getByRole('dialog', { name: '添加到主屏幕' })).toBeVisible()
-  await page.getByRole('button', { name: '关闭添加到主屏幕图示' }).click()
-  await page.evaluate(() => {
-    const event = new Event('beforeinstallprompt', { cancelable: true })
-    event.syntheticAcceptance = true
-    event.prompt = async () => {}
-    event.userChoice = new Promise(resolve => { window.resolveSyntheticInstall = () => resolve({ outcome: 'accepted', platform: 'web' }) })
-    window.dispatchEvent(event)
-  })
-  await install.click(); await expect(install).toBeDisabled()
-  await page.getByRole('button', { name: '取消等待' }).click()
-  await expect(install).toBeEnabled(); await page.evaluate(() => window.resolveSyntheticInstall())
-  await expect(install).toBeVisible()
-  result.checks.installGuideAndSimulatedPendingCancel = 'PASS_SIMULATED_NATIVE_EVENT_NOT_PHYSICAL_INSTALL'
+  await expect(page.getByRole('button', { name: '添加 Hoooho 到主屏' })).toHaveCount(0)
+  result.checks.installEntryRemoved = 'PASS'
   assert.equal(result.runtimeErrors, 0)
   assert.equal(result.http5xx, 0)
 } catch (error) {

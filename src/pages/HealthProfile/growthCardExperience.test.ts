@@ -10,8 +10,9 @@ const bloodTypeEditor = readFileSync(new URL('../NurseStation/BloodTypeEditorShe
 const editor = readFileSync(new URL('./BasicHealthProfilePage.tsx', import.meta.url), 'utf8')
 const polish = readFileSync(new URL('../../styles/product-polish.css', import.meta.url), 'utf8')
 
-test('健康档案首页复用健康随记的记录对象页头并直接衔接过敏记录', () => {
-  assert.match(home, /HealthRecordSubjectHeader className="health-profile-record-subject"/)
+test('孩子档案将对象与上传收进顶栏，正文保留分组档案入口', () => {
+  assert.match(home, /MainAppHeader compact childIdentity title="孩子档案" action=/)
+  assert.doesNotMatch(home, /HealthRecordSubjectHeader/)
   assert.doesNotMatch(healthEvents, /HealthRecordSubjectHeader/)
   assert.match(healthEvents, /<MainAppHeader title="健康日历"/)
   assert.match(subjectHeader, /journal-subject-row/)
@@ -21,7 +22,8 @@ test('健康档案首页复用健康随记的记录对象页头并直接衔接�
   assert.doesNotMatch(home, /查看与补充/)
   assert.doesNotMatch(home, /建议优先补充|搜索健康档案|重要健康事实/)
   assert.doesNotMatch(home, /已建立|growth-identity-card|更新成长数据|铸造成长身份卡|growth-identity-card__metrics|growth-identity-card__action|growth-identity-card__updated/)
-  assert.match(home, /health-profile-record-subject[\s\S]*health-profile-entries/)
+  assert.match(home, /title: '基本资料'[\s\S]*title: '健康史'[\s\S]*title: '儿童保健'/)
+  assert.match(home, /<HohoSection[\s\S]*health-profile-entries/)
   // Growth editing now remains in the profile; the approved conversation home
   // no longer duplicates its data board. The editor contracts stay below.
   assert.doesNotMatch(bloodTypeEditor, /ProfileChoiceGroup label="RhD"/)
@@ -46,14 +48,14 @@ test('成长数据合并曲线、录入和记录列表入口', () => {
   assert.doesNotMatch(editor, /积分|签到|连续填写|超过.*用户/)
 })
 
-test('五类档案顺序固定，入口真实导航，智能记录合并报告入口', () => {
+test('现有档案入口真实导航，统一上传保留原核对保存组件', () => {
   assert.match(home, /title: '过敏史'[\s\S]*title: '慢性病史'[\s\S]*title: '家族史'[\s\S]*title: '手术史'[\s\S]*title: '疫苗接种记录'/)
-  assert.match(home, /navigate\((?:path\?\?)?`\/health-profile\/\$\{id\}`\)/)
+  assert.match(home, /navigate\(path\)/)
   assert.match(home, /ProfileUploadBatch/)
   const upload=readFileSync(new URL('./ProfileUploadBatch.tsx',import.meta.url),'utf8')
   assert.doesNotMatch(upload,/navigate\('\/health-profile\/smart-record'\)/)
   assert.match(upload,/上传资料[\s\S]*报告、病历、接种回执，自动整理到各项档案/)
   assert.match(upload,/\.current\?\.click\(\)/)
-  assert.match(home, /MainAppHeader compact title="孩子档案"/)
+  assert.equal((home.match(/<ProfileUploadBatch/g) ?? []).length, 1)
   assert.doesNotMatch(home, /aria-disabled="true"|LockKeyhole|暂未开放|health-profile-allergy-card|检查 \/ 体检报告|住院 \/ 急诊史|家族遗传史/)
 })

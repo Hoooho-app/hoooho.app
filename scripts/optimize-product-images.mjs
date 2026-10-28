@@ -42,7 +42,7 @@ for (const file of await walk(path.join(root, 'src/assets'))) {
   if (/\.(png|jpe?g)$/i.test(file)) await optimize(file, file.includes('food-label-camera') ? 960 : 768, 80 * 1024)
   else if (file.includes('/avatars/') && file.endsWith('.webp')) await optimize(file, 256, 16 * 1024, true)
 }
-for (const directory of ['public/body-locator', 'public/nurse-triage', 'public/tutorials/add-to-home-screen']) {
+for (const directory of ['public/body-locator', 'public/nurse-triage']) {
   for (const file of await walk(path.join(root, directory))) {
     if (/\.(png|jpe?g)$/i.test(file)) {
       const metadata = await sharp(file).metadata()

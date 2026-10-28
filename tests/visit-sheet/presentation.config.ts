@@ -7,7 +7,7 @@ export default defineConfig({
   timeout: 90_000,
   expect: { timeout: 10_000 },
   globalTeardown: './teardown.mjs',
-  outputDir: '../../test-results/visit-paper',
+  outputDir: '../../outputs/visit-paper',
   use: {
     baseURL: 'http://127.0.0.1:4263',
     serviceWorkers: 'block',
