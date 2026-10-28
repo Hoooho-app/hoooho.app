@@ -25,7 +25,7 @@ async function setup(t){
  const snapshot=()=>jobs.get('synthetic',member.id,'task-1')
  return {directory,member,events,business,front,model,frontModel,audio,jobs,calls,submit,snapshot}
 }
-test('manual front-card revisions queue organization without another dialogue and enrich the same saved record',async t=>{
+test('manual front-card revisions queue organization and require explicit save for the same saved record',async t=>{
  const f=await setup(t),accountId='synthetic',memberId=f.member.id,contextId='manual-context',at=new Date(Date.now()-60000).toISOString(),subject={kind:'current',memberId,confirmed:true,confirmedBy:'selection'}
  await f.front.store.update(()=>({contexts:[{id:contextId,accountId,memberId,continuousRecord:true,version:1,evidenceVersion:1,firstDescribedAt:at,createdAt:at,updatedAt:at,subject}],messages:[{id:'original',accountId,memberId,contextId,kind:'text',text:'手臂有点痒',status:'completed',acceptedInput:true,at,inputAt:Date.parse(at),subject,files:[],voices:[]}]}))
  const first=await f.front.continuous(accountId,memberId,contextId,{action:'save_current',expectedVersion:1,confirmed:true})
@@ -34,7 +34,9 @@ test('manual front-card revisions queue organization without another dialogue an
  const same=await f.jobs.organizeContext(accountId,memberId,contextId,2);assert.equal(same.id,edited.recognitionJob.id)
  const completed=await until(async()=>{const job=await f.jobs.get(accountId,memberId,same.id);if(job.state==='failed')assert.fail(JSON.stringify(job.error));return ['ready','needs_review'].includes(job.state)&&job})
  assert.ok(completed.review.items.length);assert.equal(f.calls.filter(task=>task==='front-desk-record').length,0)
- const card=await f.front.continuous(accountId,memberId,contextId),record=await f.business.records.getOwnedRecord(accountId,first.saved.recordId)
+ const pending=await f.front.continuous(accountId,memberId,contextId)
+ assert.equal((await f.business.records.getOwnedRecord(accountId,first.saved.recordId)).content,'手臂有点痒')
+ const card=await f.front.continuous(accountId,memberId,contextId,{action:'save_current',expectedVersion:pending.version,confirmed:true}),record=await f.business.records.getOwnedRecord(accountId,first.saved.recordId)
  assert.equal(card.saved.recordId,first.saved.recordId);assert.equal(record.content,'现在手臂不痒了');assert.ok(record.aiProvenance.structuredItems.length);assert.match(record.sourceText,/手臂有点痒/)
  assert.equal((await f.business.records.repository.findByAccountId(accountId)).length,1)
 })

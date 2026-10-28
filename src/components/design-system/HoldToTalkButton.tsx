@@ -5,10 +5,10 @@ import { HohoButton } from './HohoButton'
 import './HoldToTalkButton.css'
 
 /** Shared press feedback; microphone and transcript ownership stay with the caller. */
-export function HoldToTalkButton({ onStart, onStop, onDiscard, listening = false, requesting = false, processing = false, disabled = false, audioLevel = 0, releaseLabel = '松开即结束', discardOnBlur = true, className = '', fullWidth = false, expandedFeedback = false, feedbackHint, liveTranscript, liveStatus, presentation='floating' }: {
+export function HoldToTalkButton({ onStart, onStop, onDiscard, listening = false, requesting = false, processing = false, disabled = false, audioLevel = 0, releaseLabel = '松开即结束', idleLabel = '按住说话', discardOnBlur = true, className = '', fullWidth = false, expandedFeedback = false, feedbackHint, liveTranscript, liveStatus, presentation='floating' }: {
   onStart: () => void; onStop: () => void; onDiscard?: () => void
   listening?: boolean; requesting?: boolean; processing?: boolean; disabled?: boolean
-  audioLevel?: number; releaseLabel?: string; discardOnBlur?: boolean; className?: string; fullWidth?: boolean
+  audioLevel?: number; releaseLabel?: string; idleLabel?: string; discardOnBlur?: boolean; className?: string; fullWidth?: boolean
   expandedFeedback?: boolean; feedbackHint?: string; liveTranscript?:string; liveStatus?:string
   presentation?:'floating'|'conversation'
 }) {
@@ -47,7 +47,7 @@ export function HoldToTalkButton({ onStart, onStop, onDiscard, listening = false
     try { navigator.vibrate?.(15) } catch { /* Browsers may decline vibration. */ }
     onStart()
   }
-  const status = cancelling ? '松开取消' : listening ? releaseLabel : requesting || press ? '正在开启麦克风…' : processing ? '识别中…' : '按住说话'
+  const status = cancelling ? '松开取消' : listening ? releaseLabel : requesting || press ? '正在开启麦克风…' : processing ? '识别中…' : idleLabel
   const liveTextElement=useRef<HTMLParagraphElement>(null)
   useEffect(()=>{if(liveTextElement.current)liveTextElement.current.scrollTop=liveTextElement.current.scrollHeight},[liveTranscript])
   return <>

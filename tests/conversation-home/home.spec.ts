@@ -24,7 +24,7 @@ test.beforeEach(async({page,request})=>{
  await page.addInitScript(({token,memberId})=>{sessionStorage.setItem('hoooho-auth-token',token);localStorage.setItem('hoooho-app',JSON.stringify({state:{authUser:{id:'visit-test'},currentMemberId:memberId,members:[],profile:null},version:5}));let calls=0;Object.defineProperty(window,'__speechCalls',{get:()=>calls});if(window.speechSynthesis)window.speechSynthesis.speak=()=>{calls++}},{token,memberId})
  await page.goto('/nurse-station')
  await expect(page.getByRole('heading',{name:'前台',exact:true})).toBeVisible()
- await expect(page.getByRole('button',{name:'按住说话',exact:true})).toBeEnabled()
+ await expect(page.getByRole('button',{name:'按住记录症状',exact:true})).toBeEnabled()
 })
 
 // Current home conversation/card/follow-up contracts are exercised by tests/front-desk-continuous.
@@ -62,7 +62,7 @@ async function startNew(page:import('@playwright/test').Page){
  await expect(page.locator('.hoho-dialogue-composer--conversation')).toBeVisible()
  const input=page.getByLabel('对话输入')
  if(await input.count())await expect(input).toHaveValue('')
- else await expect(page.getByRole('button',{name:'按住说话',exact:true})).toBeEnabled()
+ else await expect(page.getByRole('button',{name:'按住记录症状',exact:true})).toBeEnabled()
 }
 
 test('new conversation survives reload and exposes submitted originals and unsent drafts in history',async({page},info)=>{
@@ -77,7 +77,7 @@ test('new conversation survives reload and exposes submitted originals and unsen
  expect(await page.locator('.nurse-turn--user .nurse-turn-content').last().evaluate(e=>getComputedStyle(e).backgroundColor)).toBe('rgb(255, 255, 255)')
  await page.screenshot({path:info.outputPath('chat.png')})
  await startNew(page)
- await page.reload();await expect(page.getByRole('button',{name:'按住说话',exact:true})).toBeEnabled();await typeText(page,'')
+ await page.reload();await expect(page.getByRole('button',{name:'按住记录症状',exact:true})).toBeEnabled();await typeText(page,'')
  await typeText(page,'还没发送的饮食观察')
  await startNew(page)
  await page.getByRole('button',{name:'更多操作',exact:true}).click()
@@ -106,7 +106,7 @@ test('leaving with unsent input keeps the existing draft guard and restores the 
 
 test('failed recording survives refresh, retries and remains readable after a new conversation',async({page,request})=>{
  await request.get('http://127.0.0.1:4198/failure')
- const hold=page.getByRole('button',{name:'按住说话',exact:true})
+ const hold=page.getByRole('button',{name:'按住记录症状',exact:true})
  await hold.focus();await page.keyboard.down('Space')
  await expect(page.getByRole('button',{name:'正在录音，松开即结束',exact:true})).toBeVisible()
  await page.waitForTimeout(650);await page.keyboard.up('Space')
@@ -170,7 +170,7 @@ test('a long conversation keeps the composer stable and lets the reader return t
 })
 
 test('recording keeps the home in place and supports cancellation without a ghost message',async({page},info)=>{
- const hold=page.getByRole('button',{name:'按住说话',exact:true})
+ const hold=page.getByRole('button',{name:'按住记录症状',exact:true})
  await hold.focus();await page.keyboard.down('Space')
  await expect(page.getByRole('button',{name:'正在录音，松开即结束',exact:true})).toBeVisible()
  await expect(page.locator('.hoho-hold-feedback--conversation')).toBeVisible()
@@ -225,6 +225,8 @@ test('one camera exposes four native sources and a blank PDF retains its origina
  expect(completed.operationReceipt).toBeUndefined()
  await expect(page.getByRole('button',{name:'核对记录',exact:true})).toHaveCount(0)
  await expect(page.locator('.front-desk-top-entries')).toHaveCount(0)
+ await expect(page.getByRole('region',{name:'当前记录单'})).toHaveCount(0)
+ await page.getByRole('button',{name:'生成记录单',exact:true}).click()
  await expect(page.getByRole('region',{name:'当前记录单'}).getByRole('button',{name:'保存记录',exact:true})).toBeVisible()
  await expect(page.getByText('已记录',{exact:true})).toHaveCount(0)
  await expect(page.locator('.smart-record-saved')).toHaveCount(0)
@@ -306,7 +308,7 @@ test('speech text appears before release and cancel leaves no submitted or saved
   if(method==='GET')readCount++
   return route.fulfill({json:{id:'00000000-0000-4000-a000-000000000001',state:method==='DELETE'?'closed':'listening',text:readCount?'孩子今天左手有点红':'',sequence:1,revision:readCount?1:0}})
  })
- const hold=page.getByRole('button',{name:'按住说话',exact:true})
+ const hold=page.getByRole('button',{name:'按住记录症状',exact:true})
  await hold.focus();await page.keyboard.down('Space')
  await expect(page.getByRole('button',{name:'正在录音，松开即结束',exact:true})).toBeVisible()
  await expect(page.getByLabel('正在说的话')).toContainText('孩子今天左手有点红')

@@ -4,6 +4,10 @@ enum NavigationDestination: Equatable { case app, download, external, blocked }
 
 enum NavigationPolicy {
     static let home = URL(string: "https://hoooho.com/nurse-station")!
+    static func captureTrusted(scheme: String, host: String, port: Int, frameURL: URL?, isMainFrame: Bool, pageURL: URL?) -> Bool {
+        scheme == "https" && host == "hoooho.com" && (port == 0 || port == 443) &&
+            isMainFrame && trusted(frameURL) && trusted(pageURL)
+    }
     static func trusted(_ url: URL?) -> Bool {
         guard let url, url.scheme?.lowercased() == "https",
               url.host?.lowercased() == "hoooho.com",

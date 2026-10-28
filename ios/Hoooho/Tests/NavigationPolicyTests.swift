@@ -2,6 +2,16 @@ import XCTest
 @testable import HooohoRecords
 
 final class NavigationPolicyTests: XCTestCase {
+    func testCaptureCannotBeGrantedToAnUntrustedOriginOrFrame() {
+        let home = NavigationPolicy.home
+        XCTAssertTrue(NavigationPolicy.captureTrusted(scheme: "https", host: "hoooho.com", port: 443, frameURL: home, isMainFrame: true, pageURL: home))
+        XCTAssertFalse(NavigationPolicy.captureTrusted(scheme: "http", host: "hoooho.com", port: 0, frameURL: home, isMainFrame: true, pageURL: home))
+        XCTAssertFalse(NavigationPolicy.captureTrusted(scheme: "https", host: "hoooho.com.evil.example", port: 0, frameURL: home, isMainFrame: true, pageURL: home))
+        XCTAssertFalse(NavigationPolicy.captureTrusted(scheme: "https", host: "hoooho.com", port: 444, frameURL: home, isMainFrame: true, pageURL: home))
+        XCTAssertFalse(NavigationPolicy.captureTrusted(scheme: "https", host: "hoooho.com", port: 0, frameURL: home, isMainFrame: false, pageURL: home))
+        XCTAssertFalse(NavigationPolicy.captureTrusted(scheme: "https", host: "hoooho.com", port: 0, frameURL: URL(string: "https://example.com"), isMainFrame: true, pageURL: home))
+        XCTAssertFalse(NavigationPolicy.captureTrusted(scheme: "https", host: "hoooho.com", port: 0, frameURL: home, isMainFrame: true, pageURL: URL(string: "https://example.com")))
+    }
     func testOnlyOwnedHTTPSOriginIsTrusted() {
         XCTAssertTrue(NavigationPolicy.trusted(URL(string: "https://hoooho.com/nurse-station")))
         for raw in ["http://hoooho.com/", "https://hoooho.com.evil.example/", "https://evil.example/?hoooho.com", "https://user:pass@hoooho.com/", "https://hoooho.com:444/"] {

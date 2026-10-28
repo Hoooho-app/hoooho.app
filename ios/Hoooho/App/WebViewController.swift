@@ -13,6 +13,7 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
     private var shareRetry: DispatchWorkItem?
     private var printJob: ReportPrintJob?
     private var hasLoadedPage = false
+    private let capturePermissions = CapturePermissions.system()
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -148,9 +149,19 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
     }
 
     func webView(_ webView: WKWebView, requestMediaCapturePermissionFor origin: WKSecurityOrigin, initiatedByFrame frame: WKFrameInfo, type: WKMediaCaptureType, decisionHandler: @escaping (WKPermissionDecision) -> Void) {
-        let trusted = origin.protocol == "https" && origin.host == "hoooho.com" &&
-            (origin.port == 0 || origin.port == 443) && NavigationPolicy.trusted(frame.request.url)
-        decisionHandler(trusted ? .prompt : .deny)
+        let trusted = NavigationPolicy.captureTrusted(scheme: origin.protocol, host: origin.host, port: origin.port,
+            frameURL: frame.request.url, isMainFrame: frame.isMainFrame, pageURL: webView.url)
+        guard trusted else { decisionHandler(.deny); return }
+        let resources: [CaptureResource]
+        switch type {
+        case .microphone: resources = [.microphone]
+        case .camera: resources = [.camera]
+        case .cameraAndMicrophone: resources = [.microphone, .camera]
+        @unknown default: decisionHandler(.deny); return
+        }
+        capturePermissions.authorize(resources) { [weak webView] allowed in
+            decisionHandler(allowed && NavigationPolicy.trusted(webView?.url) ? .grant : .deny)
+        }
     }
 
     private func openExternal(_ url: URL) {
