@@ -90,5 +90,6 @@ jobs:
           retention-days: 7
           path: |
             outputs/symptom-followup/
+            outputs/calendar-review-only/
             test-results/
             playwright-report/

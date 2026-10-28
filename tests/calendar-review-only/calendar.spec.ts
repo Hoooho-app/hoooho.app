@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { mkdir } from 'node:fs/promises'
 import { TokenService } from '../../server/auth/token-service.mjs'
 import { getLocalDateKey } from '../../src/utils/localCalendarDate'
 
@@ -17,7 +18,7 @@ test.beforeEach(async ({ page, request }) => {
   }, { token, memberId })
 })
 
-test('calendar has no creation controls and its month fills the space above bottom navigation', async ({ page }, info) => {
+test('calendar has no creation controls and its month fills the space above bottom navigation', async ({ page }) => {
   await page.goto(`/health-events?view=month&day=${day}&month=${day.slice(0, 7)}`)
   await expect(page.getByRole('heading', { name: '健康日历', exact: true })).toBeVisible()
   await expect(page.getByRole('region', { name: '月历', exact: true })).toBeVisible()
@@ -35,7 +36,8 @@ test('calendar has no creation controls and its month fills the space above bott
     expect(geometry.navTop - geometry.bottom).toBeLessThan(32)
     expect(geometry.height).toBeGreaterThan(500)
     expect(geometry.overflow).toBe(false)
-    await page.screenshot({ path: info.outputPath(`calendar-month-${width}.png`) })
+    await mkdir('outputs/calendar-review-only', { recursive: true })
+    await page.screenshot({ path: `outputs/calendar-review-only/calendar-month-${width}.png` })
   }
   await page.getByRole('button', { name: '切换日历视图', exact: true }).click()
   await expect(page.getByRole('region', { name: '单日时间轴', exact: true })).toBeVisible()
@@ -67,8 +69,9 @@ test('saved full text remains readable from the month and recording still starts
   await page.getByRole('navigation', { name: '主要导航' }).getByRole('button', { name: '症状记录', exact: true }).click()
   await page.getByRole('button', { name: '改用文字', exact: true }).click()
   await page.getByRole('button', { name: '记录症状', exact: true }).click()
-  await expect(page.getByRole('dialog', { name: '记录症状', exact: true })).toBeVisible()
-  await page.keyboard.press('Escape')
+  const form = page.getByRole('dialog', { name: '记录症状', exact: true })
+  await expect(form).toBeVisible()
+  await form.getByRole('button', { name: '返回', exact: true }).click()
   await expect(page).toHaveURL(/\/nurse-station$/)
   expect(writes).toBe(0)
 })
