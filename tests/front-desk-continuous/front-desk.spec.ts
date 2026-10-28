@@ -97,7 +97,8 @@ test('processing and questions precede explicit generation, save and reopening t
   if(slowCardReads&&route.request().postDataJSON()?.action==='current_card'){const response=await route.fetch();await new Promise(resolve=>setTimeout(resolve,700));return route.fulfill({response})}
   return route.continue()
  })
- await card.getByRole('button',{name:'查看记录',exact:true}).click();await expect(page).toHaveURL(new RegExp(`recordId=${recordId}`));slowCardReads=true;await page.goBack();await expect(page.getByRole('textbox',{name:'对话输入'})).toHaveValue('还没发出的补充')
+ const cpu=await page.context().newCDPSession(page);await cpu.send('Emulation.setCPUThrottlingRate',{rate:4})
+ try{await card.getByRole('button',{name:'查看记录',exact:true}).click();await expect(page).toHaveURL(new RegExp(`recordId=${recordId}`));slowCardReads=true;await page.goBack();await expect(page).toHaveURL(/\/nurse-station$/);await expect(page.getByRole('textbox',{name:'对话输入'})).toHaveValue('还没发出的补充')}finally{await cpu.send('Emulation.setCPUThrottlingRate',{rate:1});await cpu.detach()}
  expect(await page.evaluate(()=>Number(sessionStorage.getItem('front-desk-calendar-replacements')))).toBe(0)
  await page.locator('.front-desk-top-entries').getByRole('button',{name:'症状记录单',exact:true}).click();await expect(page.getByRole('dialog',{name:'症状记录单'})).toContainText(/额头[疼痛]/u);await page.getByRole('dialog',{name:'症状记录单'}).getByRole('button',{name:'关闭症状记录单',exact:true}).click()
  await page.reload();await expect(page.locator('.front-desk-top-entries button')).toHaveText(['症状记录单']);await expect(page.getByRole('region',{name:'就诊情况单'})).toHaveCount(0)

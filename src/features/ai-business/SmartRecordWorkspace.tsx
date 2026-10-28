@@ -89,6 +89,9 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
   const leaving=useRef(false),allowLeave=useRef(false),voiceBusy=useRef(false),initialization=useRef<Promise<void>>(Promise.resolve())
   const unfinished=!completed&&(hasCaptureContent(local)||Boolean(local.conversationTurns?.some(t=>t.role!=='assistant'&&t.status&&t.status!=='completed')))
   const blocker=useBlocker(({currentLocation,nextLocation})=>{
+    // History can advance before React unmounts this workspace. Its draft
+    // guard must not intercept a Back from the record page to this workspace.
+    if(currentLocation.pathname!==location.pathname||currentLocation.search!==location.search)return false
     const entry=nextLocation.state
     const internalRecord=home&&nextLocation.pathname==='/health-events'&&entry?.frontDeskReturn===true&&entry?.calendarIdentity===`${accountId}:${memberId}`&&['symptom','diet','sleep','elimination','medication','visit'].includes(entry?.nurseRecordEntry)
     const savedRecord=recordDestination.current?.url===`${nextLocation.pathname}${nextLocation.search}`&&recordDestination.current.identity===`${accountId}:${memberId}`&&current.current.returningFromRecord===true&&memberId===useAppStore.getState().currentMemberId&&accountId===(useAppStore.getState().authUser?.id??'guest')
