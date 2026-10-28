@@ -155,8 +155,11 @@ test('a dialogue-only version advance safely retries the same save evidence once
 test('manual card edits survive background organization and a reload',async({page,request})=>{
  const text='手臂有点痒';await reply(request,text);const job=await send(page,text);await settle(request,job.id,job.inputRevision);await generate(page)
  await request.get(`${control}/delay?ms=900`)
- const card=page.getByRole('region',{name:'当前记录单'});await card.getByRole('button',{name:'编辑',exact:true}).click();await card.getByRole('textbox',{name:'记录内容',exact:true}).fill('现在手臂已经不痒了');await card.getByRole('button',{name:'完成修改',exact:true}).click();await expect(card).toContainText('现在手臂已经不痒了')
- const latest=await(await request.get(`/api/members/${memberId}/recognition-jobs?scopeKey=front`,{headers})).json();expect(latest.id).not.toBe(job.id);await settle(request,latest.id,latest.inputRevision)
+ const card=page.getByRole('region',{name:'当前记录单'});await card.getByRole('button',{name:'编辑',exact:true}).click();await card.getByRole('textbox',{name:'记录内容',exact:true}).fill('现在手臂已经不痒了')
+ const editResponse=page.waitForResponse(response=>response.url().includes('/front-desk-record/contexts/')&&response.request().method()==='POST'&&response.request().postDataJSON()?.action==='edit_current')
+ await card.getByRole('button',{name:'完成修改',exact:true}).click();const receipt=await editResponse;expect(receipt.ok()).toBe(true);const edited=await receipt.json();expect(edited.recognitionJob?.id).toBeTruthy();expect(edited.recognitionJob.id).not.toBe(job.id)
+ await expect(card).toContainText('现在手臂已经不痒了')
+ const latest=await(await request.get(`/api/members/${memberId}/recognition-jobs?scopeKey=front`,{headers})).json();expect(latest.id).toBe(edited.recognitionJob.id);await settle(request,latest.id,latest.inputRevision)
  await expect(card).toContainText('现在手臂已经不痒了');await page.reload();await expect(page.getByRole('region',{name:'当前记录单'})).toContainText('现在手臂已经不痒了')
 })
 
