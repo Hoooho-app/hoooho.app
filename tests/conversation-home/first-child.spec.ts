@@ -123,7 +123,7 @@ test('a response lost after saving is recovered before retry without creating a 
   await review(page).getByRole('button', { name: '确认添加，开始记录', exact: true }).click()
   await expect(review(page).getByRole('button', { name: '重试添加', exact: true })).toBeVisible()
   await review(page).getByRole('button', { name: '重试添加', exact: true }).click()
-  await expect(page.locator('.hoho-reception img')).toBeVisible()
+  await expect(page.locator('.hoho-reception video')).toBeVisible()
   expect(attempts).toBe(1)
   const members = await (await page.request.get('/api/members', { headers: { Authorization: `Bearer ${token}` } })).json()
   expect(members).toHaveLength(1)
