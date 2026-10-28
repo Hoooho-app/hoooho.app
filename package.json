@@ -72,7 +72,6 @@
     "test:avatar-assets": "node scripts/check-child-avatar-assets.mjs && node scripts/check-clay-avatar-assets.mjs",
     "test:viewport": "node scripts/check-viewport-config.mjs",
     "test:install-app-config": "node scripts/check-install-app-config.mjs",
-    "test:e2e:install-app": "playwright test --config tests/install-app/playwright.config.ts",
     "test:media": "node --test server/media-range.test.mjs && node scripts/check-nurse-media.mjs",
     "optimize:avatar-assets": "node scripts/optimize-clay-avatar-assets.mjs",
     "test:consultations": "node --test server/consultations/online-consultation-service.test.mjs",

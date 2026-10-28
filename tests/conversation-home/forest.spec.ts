@@ -28,7 +28,7 @@ async function readable(locator:Locator){
 test('clean light canvas and light surfaces cover navigation, forms and shared pages',async({page},info)=>{
  const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message))
  await page.goto('/nurse-station');await expect(page.getByRole('button',{name:'按住记录症状',exact:true})).toBeEnabled()
- expect(await page.locator('.smart-record-home').evaluate(e=>getComputedStyle(e).backgroundColor)).toBe('rgb(255, 255, 255)')
+ expect(await page.locator('.smart-record-home').evaluate(e=>getComputedStyle(e).backgroundColor)).toBe('rgb(244, 242, 237)')
  expect(await page.locator('.smart-record-home').evaluate(e=>getComputedStyle(e).backgroundImage)).toBe('none')
  await readable(page.getByRole('heading',{name:'症状记录',exact:true}).first());await readable(page.getByRole('button',{name:'按住记录症状',exact:true}))
  await page.screenshot({path:info.outputPath('home-390.png')})

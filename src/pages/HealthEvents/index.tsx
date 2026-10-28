@@ -194,7 +194,7 @@ function HealthEventsContent() {
   if (nextActionOpen && currentMemberId) return <Navigate to="/visit-summary" />
   return <main className="hoho-health-events-page unified-health-calendar app-shell app-shell--wide relative flex flex-col overflow-hidden pb-0" data-view-mode="list" data-calendar-view={calendar.view}>
     <div className="calendar-background" ref={backgroundRef}>
-    <MainAppHeader title="健康日历" showInstallApp={false} action={<HohoButton size="icon" variant="ghost" aria-label="搜索健康日历" onClick={() => navigate('/health-events/search', { state: { journalReturn: { ...calendar, identity, search: location.search, hash: location.hash, scrollTop: contentRef.current?.querySelector<HTMLElement>('.journal-scroll-region')?.scrollTop ?? 0 } } })}><Search size={20}/></HohoButton>}/>
+    <MainAppHeader title="健康日历" action={<HohoButton size="icon" variant="ghost" aria-label="搜索健康日历" onClick={() => navigate('/health-events/search', { state: { journalReturn: { ...calendar, identity, search: location.search, hash: location.hash, scrollTop: contentRef.current?.querySelector<HTMLElement>('.journal-scroll-region')?.scrollTop ?? 0 } } })}><Search size={20}/></HohoButton>}/>
     <CalendarToolbar state={calendar} today={today} onChange={navigation.change}/>
     <div className="unified-calendar-content" ref={contentRef}>
       {scheduled.error && <StatusNotice tone="error" title={scheduled.error} action={<HohoButton variant="secondary" size="small" onClick={scheduled.retry}>重试提醒</HohoButton>}/>}
