@@ -34,7 +34,7 @@ test('情况单直接展示资料，后台诊断不占位；编辑、刷新与�
   await page.getByRole('button', { name: '目前情况', exact: true }).click()
   await page.getByRole('button', { name: '编辑情况描述', exact: true }).click()
   await expect(page.getByRole('dialog', { name: '编辑情况描述', exact: true })).toBeVisible()
-  await page.getByRole('button', { name: '关闭编辑情况描述', exact: true }).click()
+  await page.getByRole('dialog', { name: '编辑情况描述', exact: true }).getByRole('button', { name: '关闭编辑情况描述', exact: true }).click()
   await page.reload()
   await expect(page.locator('.visit-reading .organize-member-identity')).toBeVisible()
   for (const diagnostic of diagnostics) await expect(page.getByText(diagnostic, { exact: true })).toHaveCount(0)
