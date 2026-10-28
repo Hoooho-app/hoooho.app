@@ -55,7 +55,7 @@ jobs:
       - run: node --test tests/dialogue/synthetic-acceptance-account.test.mjs tests/dialogue/synthetic-acceptance-cleanup.test.mjs
       - run: node --test tests/visit-sheet/front-desk-v3-fixture.test.mjs
       - run: npm run test:help
-      - run: node --test tests/selective-rollback/baseline-contract.test.mjs server/ai/front-desk-continuous.test.mjs server/ai/front-desk-understanding.test.mjs server/ai/front-desk-record-targets.test.mjs
+      - run: node --test tests/selective-rollback/baseline-contract.test.mjs server/ai/front-desk-continuous.test.mjs server/ai/front-desk-question-progress.test.mjs server/ai/front-desk-understanding.test.mjs server/ai/front-desk-record-targets.test.mjs
       - name: Preserve partial upload recognition and pending attachment summaries
         run: |
           node --test server/ai/front-desk-recognition-preview.test.mjs

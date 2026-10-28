@@ -5,15 +5,22 @@ import path from 'node:path'
 import test from 'node:test'
 import { AudioTranscriptionService } from './audio-transcription-service.mjs'
 
-function realWavBuffer() {
-  const samples = Buffer.alloc(1600 * 2)
+function realWavBuffer(sampleCount=1600) {
+  const samples = Buffer.alloc(sampleCount * 2)
   const header = Buffer.alloc(44)
   header.write('RIFF'); header.writeUInt32LE(36 + samples.length, 4); header.write('WAVE', 8); header.write('fmt ', 12)
   header.writeUInt32LE(16, 16); header.writeUInt16LE(1, 20); header.writeUInt16LE(1, 22); header.writeUInt32LE(16000, 24)
   header.writeUInt32LE(32000, 28); header.writeUInt16LE(2, 32); header.writeUInt16LE(16, 34); header.write('data', 36); header.writeUInt32LE(samples.length, 40)
-  for (let index = 0; index < 1600; index += 1) samples.writeInt16LE(Math.round(Math.sin(index / 8) * 4000), index * 2)
+  for (let index = 0; index < sampleCount; index += 1) samples.writeInt16LE(Math.round(Math.sin(index / 8) * 4000), index * 2)
   return Buffer.concat([header, samples])
 }
+
+test('15-second PCM is locally compressed before the single ASR call; original remains byte-exact',async()=>{
+  const original=realWavBuffer(16000*15),copy=Buffer.from(original);let calls=0,bytes
+  const service=new AudioTranscriptionService({logger:{info(){},warn(){}},provider:{name:'synthetic-asr',async transcribeAudio(audio){calls++;assert.equal(audio.mimeType,'audio/mpeg');bytes=audio.buffer.length;assert.ok(bytes<original.length/4);return {transcript:'合成音频经过真实编码解码，仅供应商响应为合成。'}}}})
+  const result=await service.transcribe({mimeType:'audio/wav',dataUrl:`data:audio/wav;base64,${original.toString('base64')}`},'synthetic-compression')
+  assert.equal(calls,1);assert.deepEqual(original,copy);assert.ok(result.transcript);console.info('Local audio preparation bytes',{original:original.length,prepared:bytes})
+})
 
 test('unsupported WAV codec is rejected before ASR and does not consume its call budget', async () => {
   let calls = 0

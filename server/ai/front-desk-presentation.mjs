@@ -38,7 +38,7 @@ export function continuousPresentation(context, messages, { recordable, hasOrigi
   const partial = inputs.some(message => message.status === 'failed')
   return {
     generated,
-    canGenerate: Boolean((recordable || hasOriginals) && !processing && !asking && (!context.provisional || partial)),
+    canGenerate: Boolean((recordable || hasOriginals) && !processing && (!asking || (context.interview?.turnCount ?? 0) >= 2) && (!context.provisional || partial)),
     processing,
     asking,
     partial,

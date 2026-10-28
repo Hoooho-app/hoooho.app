@@ -1,3 +1,4 @@
+import {RecordNarrative} from '../../../features/ai-business/RecordNarrative'
 import { NurseNotes } from '../../../features/ai-nurse/NurseNotes'
 import type { NurseMetadata } from '../../../features/ai-nurse/types'
 import { Link2, Pencil, Save, Trash2 } from 'lucide-react'
@@ -25,6 +26,7 @@ interface SymptomRecordSheetProps {
   onClose: () => void
   onEditDiet?: () => void
   onEditTopical?: () => void
+  onEditRecord?: () => void
   onDelete: (recordId: string) => Promise<void>
   onUpdate: (recordId: string, input: UpdateHealthEventRecordInput) => Promise<unknown>
   relatedEntries?: JournalEntry[]
@@ -68,7 +70,7 @@ export function symptomRecordTypeLabel(entry: TimelineEntry) {
   return entry.source.label
 }
 
-export function SymptomRecordSheet({ origin, entry, memberId, memberName, record, refreshError, initialEditing = false, onClose, onEditDiet, onEditTopical, onDelete, onUpdate, relatedEntries = [], relatedLoading = false, relatedError = '', onRelatedRetry = () => undefined }: SymptomRecordSheetProps) {
+export function SymptomRecordSheet({ origin, entry, memberId, memberName, record, refreshError, initialEditing = false, onClose, onEditDiet, onEditTopical, onEditRecord, onDelete, onUpdate, relatedEntries = [], relatedLoading = false, relatedError = '', onRelatedRetry = () => undefined }: SymptomRecordSheetProps) {
   const [nurseMetadata, setNurseMetadata] = useState<NurseMetadata>()
   const [editing, setEditing] = useState(false)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
@@ -190,7 +192,7 @@ export function SymptomRecordSheet({ origin, entry, memberId, memberName, record
       </div>
     : <div className="symptom-record-detail-actions">
         <HohoButton disabled={!canEdit || busy} onClick={() => setConfirmingDelete(true)} variant="danger"><Trash2 size={17} />删除这条记录</HohoButton>
-        <HohoButton disabled={!canEdit || busy} onClick={onEditTopical ?? onEditDiet ?? (() => initializeEditor(true))}><Pencil size={17} />{onEditTopical?'编辑身体涂抹':onEditDiet?'编辑喂养/饮食':`编辑${recordLabel}`}</HohoButton>
+        <HohoButton disabled={!canEdit || busy} onClick={onEditTopical ?? onEditDiet ?? onEditRecord ?? (() => initializeEditor(true))}><Pencil size={17} />{onEditTopical?'编辑身体涂抹':onEditDiet?'编辑喂养/饮食':`编辑${recordLabel}`}</HohoButton>
       </div>
 
   const originalSymptom = record?.journal?.symptom
@@ -243,7 +245,7 @@ export function SymptomRecordSheet({ origin, entry, memberId, memberName, record
       ) : (
         <div className="symptom-record-detail">
           {origin}
-          <section><h3>{isSymptomRecord ? '主要症状' : '记录内容'}</h3><p className="symptom-record-original">{originalNarrative}</p>{detailKeywords.length > 0 && <div className="symptom-detail-tags">{detailKeywords.map((keyword) => <span key={keyword}>{keyword}</span>)}</div>}</section>
+          <RecordNarrative text={originalNarrative} title={isSymptomRecord ? '主要症状' : '记录内容'}/>{detailKeywords.length > 0 && <div className="symptom-detail-tags">{detailKeywords.map((keyword) => <span key={keyword}>{keyword}</span>)}</div>}
           {detailLocation && <section><h3>症状部位</h3><p className="symptom-record-original">{detailLocation}</p></section>}
           {record?.journal?.symptom && <SymptomOptionalDetails symptom={record.journal.symptom} />}
           {record?.journal?.symptom?.linkedRecordIds && <LinkedRecordDetails entries={relatedEntries} linked={record.journal.symptom.linkedRecordIds} />}

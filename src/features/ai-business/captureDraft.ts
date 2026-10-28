@@ -61,7 +61,7 @@ export const hasCaptureContent = (draft: CaptureDraft | null) => Boolean(draft &
 
 export async function pendingCaptureCancellations(key:string):Promise<{key:string;draft:CaptureDraft}[]>{
   const db=await database()
-  try{return await new Promise((resolve,reject)=>{const transaction=db.transaction('drafts','readonly'),request=transaction.objectStore('drafts').openCursor(),items:{key:string;draft:CaptureDraft}[]=[];request.onsuccess=()=>{const cursor=request.result;if(!cursor)return;if(typeof cursor.key==='string'&&cursor.key.startsWith(`${key}:cancel:`))items.push({key:cursor.key,draft:unpackCaptureDraft(cursor.value)});cursor.continue()};transaction.oncomplete=()=>resolve(items);transaction.onerror=()=>reject(transaction.error)})}finally{db.close()}
+  try{return await new Promise((resolve,reject)=>{const transaction=db.transaction('drafts','readonly'),prefix=`${key}:cancel:`,request=transaction.objectStore('drafts').openCursor(IDBKeyRange.bound(prefix,`${prefix}\uffff`)),items:{key:string;draft:CaptureDraft}[]=[];request.onsuccess=()=>{const cursor=request.result;if(!cursor)return;if(typeof cursor.key==='string'&&cursor.key.startsWith(prefix))items.push({key:cursor.key,draft:unpackCaptureDraft(cursor.value)});cursor.continue()};transaction.oncomplete=()=>resolve(items);transaction.onerror=()=>reject(transaction.error)})}finally{db.close()}
 }
 
 /** Only retained drafts of this exact account/member/event context are read. */
@@ -70,7 +70,8 @@ export async function retainedCaptureDrafts(key: string): Promise<{ key: string;
   try {
     return await new Promise((resolve, reject) => {
       const transaction = db.transaction('drafts', 'readonly')
-      const request = transaction.objectStore('drafts').openCursor()
+      const prefix = `${key}:retained:`
+      const request = transaction.objectStore('drafts').openCursor(IDBKeyRange.bound(prefix, `${prefix}\uffff`))
       const drafts: { key: string; draft: CaptureDraft }[] = []
       request.onsuccess = () => {
         const cursor = request.result

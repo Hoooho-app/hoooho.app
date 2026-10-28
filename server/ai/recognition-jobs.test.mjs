@@ -40,6 +40,20 @@ test('manual front-card revisions queue organization and require explicit save f
  assert.equal(card.saved.recordId,first.saved.recordId);assert.equal(record.content,'现在手臂不痒了');assert.ok(record.aiProvenance.structuredItems.length);assert.match(record.sourceText,/手臂有点痒/)
  assert.equal((await f.business.records.repository.findByAccountId(accountId)).length,1)
 })
+test('draft consent does not repeat ready or failed analysis, or reuse an older deferred-input checkpoint',async t=>{
+ const f=await setup(t),accountId='synthetic',memberId=f.member.id,contextId='consent-budget',at=new Date(Date.now()-60000).toISOString(),subject={kind:'current',memberId,confirmed:true,confirmedBy:'selection'}
+ await f.front.store.update(()=>({contexts:[{id:contextId,accountId,memberId,continuousRecord:true,version:1,evidenceVersion:1,firstDescribedAt:at,createdAt:at,updatedAt:at,subject,facts:[{id:'observed-fact',contextId,text:'手上有红点',scope:'record',polarity:'affirmed',status:'active',subject,sources:[{messageId:'observation',attachmentId:null,quote:'手上有红点'}]}],interview:{status:'asking',turnCount:2,question:{id:'exposure',text:'有新接触吗？'}}}],messages:[{id:'observation',accountId,memberId,contextId,kind:'text',text:'手上有红点',status:'completed',acceptedInput:true,at,inputAt:Date.parse(at),subject,files:[],voices:[]}]}))
+ const completed={id:'prior-analysis',accountId,memberId,contextId,scopeKey:'front',mode:'front',state:'ready',stage:'ready',inputRevision:2,resultRevision:2,options:{continuousRecord:true},inputs:[],frontDesk:{context:{id:contextId,version:1,messages:[]}}}
+ for(const checkpoint of [completed,{...completed,state:'failed',error:{code:'SYNTHETIC_FAILURE'},organizationDeferred:{contextId,version:1,revision:2}},{...completed,organizationDeferred:{contextId,version:1,revision:1}}]){
+  f.jobs.put({...checkpoint,seq:f.jobs.raw(checkpoint.id)?.seq??0})
+  // Accepted observations are already displayable; confirming a draft is not
+  // permission to retry failed analysis or replay an older input revision.
+  const card=await f.front.continuous(accountId,memberId,contextId,{action:'generate_current',expectedVersion:1,confirmed:true})
+  assert.equal(card.presentation.generated,true);assert.equal(card.recognitionJob,undefined)
+  assert.deepEqual(f.calls,[]);assert.equal(f.jobs.all().length,1)
+ }
+ assert.equal((await f.business.records.repository.findByAccountId(accountId)).length,0)
+})
 test('another instance cannot publish a task with a live owner lease',async t=>{
  const f=await setup(t),other=new RecognitionJobs({dataDirectory:f.directory,events:f.events,business:f.business,frontDesk:f.front,audio:f.audio,autoStart:false,logger:{warn(){}}})
  let publications=0;other.publish=async()=>{publications++}

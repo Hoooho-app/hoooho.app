@@ -32,14 +32,16 @@ export async function validateWavAudio(audio, signal) {
   } finally { await rm(directory, { recursive: true, force: true }) }
 }
 
-// Bailian accepts compressed WebM/MP3, but not Safari's MP4/AAC container.
-// Keep the original upload untouched and convert only that container, locally.
+// Retain immutable originals; prepare a small supplier-only MP3 for Safari MP4
+// and larger PCM WAV. Sending expanded PCM across regions can consume the
+// entire ASR deadline before the supplier receives the request body.
 export async function normalizeMp4Audio(audio, signal) {
-  if (audio.mimeType !== 'audio/mp4') return audio
+  const pcm = ['audio/wav', 'audio/x-wav'].includes(audio.mimeType)
+  if (audio.mimeType !== 'audio/mp4' && !(pcm && audio.buffer.length > 64000)) return audio
   if (signal?.aborted) throw cancelled()
-  if (audio.buffer.subarray(4, 8).toString('ascii') !== 'ftyp') throw invalid()
+  if (!pcm && audio.buffer.subarray(4, 8).toString('ascii') !== 'ftyp') throw invalid()
   const directory = await mkdtemp(path.join(tmpdir(), 'hoooho-asr-'))
-  const source = path.join(directory, 'source.m4a'), target = path.join(directory, 'prepared.mp3')
+  const source = path.join(directory, pcm ? 'source.wav' : 'source.m4a'), target = path.join(directory, 'prepared.mp3')
   const options = { signal, timeout: 8000, maxBuffer: 256 * 1024, windowsHide: true, killSignal: 'SIGKILL' }
   try {
     await writeFile(source, audio.buffer)

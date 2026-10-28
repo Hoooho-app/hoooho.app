@@ -1,3 +1,4 @@
+import {guideFrontDeskReply,frontDeskAnswerQuestion} from './front-desk-question-progress.mjs'
 import {continuousCard,continuousChecklist,generateContinuousRecord,saveContinuousRecord,editContinuousRecord,enrichContinuousRecord} from './front-desk-continuous.mjs'
 import {rebindSemanticSummaryOwnership,validSemanticSummary} from './business/semantic-summary.mjs'
 import {LegacySemanticFrontDeskRecord} from './front-desk-legacy-semantic-record.mjs'
@@ -26,7 +27,7 @@ const messageOrder=(a,b)=>(a.inputAt??Date.parse(a.at))-(b.inputAt??Date.parse(b
 const messageSignature=(kind,text,files=[],voices=[],answerTo,contextId,presentedDraft,expectedContextVersion)=>fingerprint([kind,text.trim(),files.map(f=>f.contentHash??fingerprint(f.dataUrl)),voices.map(f=>createHash('sha256').update(Buffer.from(f.dataUrl.slice(f.dataUrl.indexOf(',')+1),'base64')).digest('hex')),...(answerTo?[answerTo]:[]),...(contextId?[{contextId}]:[]),...(presentedDraft||expectedContextVersion!==undefined?[{presentedDraft:presentedDraft??null,expectedContextVersion:expectedContextVersion??null}]:[])])
 const conversationIdOf=context=>context.conversationId??context.id
 const latestConversationContext=contexts=>{
-  const parents=new Set(contexts.map(c=>c.continuedFromId).filter(Boolean))
+  const parents=new Set(contexts.filter(c=>c.continuedFromId&&c.continuedFromId!==c.id).map(c=>c.continuedFromId))
   return contexts.filter(c=>!parents.has(c.id)).sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt)||b.createdAt.localeCompare(a.createdAt)||b.id.localeCompare(a.id))[0]
 }
 
@@ -133,7 +134,7 @@ export class FrontDeskRecord {
     await this.scope(accountId, memberId)
     const data = await this.store.read()
     const scoped=data.contexts.filter(c=>c.accountId===accountId&&c.memberId===memberId)
-    const parents=new Set(scoped.map(c=>c.continuedFromId).filter(Boolean))
+    const parents=new Set(scoped.filter(c=>c.continuedFromId&&c.continuedFromId!==c.id).map(c=>c.continuedFromId))
     const context = scoped.filter(c => !parents.has(c.id)&&!c.closedAt&&data.messages.some(m=>m.contextId===c.id&&m.status!=='discarded')).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || b.id.localeCompare(a.id))[0]
     return context ? this.conversation(accountId, memberId, context.id) : null
   }
@@ -178,6 +179,11 @@ export class FrontDeskRecord {
   }
   async closeMessages(accountId,memberId,ids){const data=await this.store.read();const contexts=[...new Set(data.messages.filter(m=>m.accountId===accountId&&m.memberId===memberId&&ids.includes(m.id)).map(m=>m.contextId))];return this.closeSession(accountId,memberId,contexts)}
   async continuous(accountId,memberId,contextId,input={}){
+    if(input.action==='generate_current'){
+      const card=await generateContinuousRecord(this,accountId,memberId,contextId,input)
+      if(this.onGenerate)try{const job=await this.onGenerate(accountId,memberId,contextId,card.version);if(job)card.recognitionJob=job}catch{this.logger?.warn?.('[Hoooho front desk] generation organization deferred')}
+      return card
+    }
     if(input.action==='edit_current'){
       const card=await editContinuousRecord(this,accountId,memberId,contextId,input)
       // The edit is already durable. Failure to queue optional organization must
@@ -328,13 +334,14 @@ export class FrontDeskRecord {
       const sourceMessages=data.messages.filter(m=>candidates.some(c=>c.id===m.contextId)&&m.status==='completed')
       const activeContextId=message.targetContextId??message.answerTo?.contextId??candidates[0]?.id
       const activeContext=candidates.find(c=>c.id===activeContextId)
+      const continuousRecord=execution.continuousRecord===true||activeContext?.continuousRecord===true
       const turnContext=frontDeskUnderstandingContext({contexts:candidates,messages:sourceMessages,latestMessage:message,activeContextId})
+      if(continuousRecord)turnContext.effectiveQuestion=frontDeskAnswerQuestion(turnContext.effectiveQuestion,message)
       let candidateReview
       if(activeContext?.draftId)candidateReview=await this.business.read(accountId,memberId,activeContext.draftId).catch(()=>null)
       const selectedMember=await this.scope(accountId,memberId)
       const ownedMembers=await this.events.members.findByAccountId(accountId)
       const explicitSubjects=frontDeskSubjectConfirmations({member:selectedMember,members:ownedMembers,message})
-      const continuousRecord=execution.continuousRecord===true||activeContext?.continuousRecord===true
       const subjectEstablished=continuousRecord||activeContext?.subject?.confirmed===true||explicitSubjects.length>0
       const recordTargets=this.business.records?.getOwnedRecord&&this.business.events?.get?await accessibleFrontDeskTargets({business:this.business,accountId,memberId,contexts:candidates}):[]
 
@@ -372,7 +379,7 @@ export class FrontDeskRecord {
       const understanding=normalizeFrontDeskUnderstanding(value,{latestMessage:message,messages:sourceMessages,contexts:candidates,contextIds:candidates.map(c=>c.id),activeContextId,activeContextVersion:activeContext?.version,allowDeferredCandidateFeedback:execution.deferCandidateFeedback===true,candidateReceipt:candidateReview?{contextId:activeContextId,state:candidateReview.state,itemCount:candidateReview.items.length,evidenceVersion:candidateReview.frontEvidenceVersion,contextEvidenceVersion:activeContext?.evidenceVersion}:null,subjectMembers:ownedMembers,questionIds,facts:turnContext.facts,confirmedSubjects,effectiveQuestion:turnContext.effectiveQuestion,pendingSaveConfirmation:activeContext?.pendingSaveConfirmation,selectedMemberSubject:continuousRecord?{memberId,label:selectedMember.name,aliases:selectedMember.relationship==='child'?['孩子','宝宝','宝贝','患儿','小孩']:selectedMember.isSelf?['我','本人','我自己']:[]}:null})
       value=understanding
       // Supplier acknowledgements cannot claim an unconfirmed formal save.
-      const acknowledged=value.reply
+      let acknowledged=value.reply
       // Read-back can select saved history; new facts always get a fresh intent
       // when the selected history has already been formally saved.
       const selected=candidates.find(c=>c.id===value.contextId)
@@ -380,10 +387,12 @@ export class FrontDeskRecord {
       const full=[...existing.filter(m=>m.status==='completed').map(m=>m.text),message.text].join('\n').length>5000||existing.reduce((n,m)=>n+(m.files?.length??0)+(m.voices?.length??0),0)+prepared.documents.length+voices.length>12||bytesFor(existing.flatMap(m=>[...m.files??[],...m.voices??[]]))+bytesFor([...prepared.documents,...voices])>15*1024*1024
       if(full&&message.answerTo)throw fail('当前记录内容已满，请先保存已有记录。这个回答已保留，可稍后继续补充。',422,'FRONT_ANSWER_CONTEXT_FULL')
       const contextId = value.contextId === 'new'||(selected?.saved&&(value.recordChanges.length||value.recordChangesPending))||(full&&value.action==='record') ? provisionalId : value.contextId, at = this.now().toISOString()
+      const guidance=continuousRecord&&!legacy?guideFrontDeskReply(value,{previous:selected?.interview,messages:existing,latest:message,effectiveQuestion:turnContext.effectiveQuestion?.contextId===contextId?turnContext.effectiveQuestion:null,knowledge:nursingKnowledge.flatMap(k=>k.nodes??[])}):null
+      if(guidance){value.nextQuestion=guidance.question;value.questionId=guidance.question?.id??null;value.reply=guidance.reply;acknowledged=guidance.reply}
       const interpreted=message.answerTo?interpretNursingAnswer(message.answerTo.questionId,message.text):null
       const observedEmergency=(message.answerTo?.questionId==='resp-effort'&&(interpreted?.polarity==='yes'||message.text==='家长现在看到孩子呼吸明显费力。'))||confirmedCurrentEmergency(value.emergency,{text:message.text})
       if(observedEmergency){understanding.nextQuestion=null;understanding.questionId=null}
-      const interview=observedEmergency?{status:'urgent',question:null,domain:selected?.interview?.domain??null}:legacy?(value.action==='record'?nursingInterview({text:[...(contextId===selected?.id?existing:[]).filter(m=>m.status==='completed').sort(messageOrder).map(m=>m.text),message.text].filter(Boolean).join('\n'),latestText:message.text,previous:contextId===selected?.id?selected.interview:null,requestedQuestionId:value.questionId,member:memberContext,urgent:false}):selected?.interview):{version:value.version,status:value.nextQuestion?'asking':'ready',question:value.nextQuestion?{...value.nextQuestion,options:[],sourceIds:[]}:null,domain:value.responseMode==='record'?'record':null,stopReason:value.nextQuestion?null:'no_necessary_question'}
+      const interview=observedEmergency?{status:'urgent',question:null,domain:selected?.interview?.domain??null}:legacy?(value.action==='record'?nursingInterview({text:[...(contextId===selected?.id?existing:[]).filter(m=>m.status==='completed').sort(messageOrder).map(m=>m.text),message.text].filter(Boolean).join('\n'),latestText:message.text,previous:contextId===selected?.id?selected.interview:null,requestedQuestionId:value.questionId,member:memberContext,urgent:false}):selected?.interview):guidance?.interview??{version:value.version,status:value.nextQuestion?'asking':'ready',question:value.nextQuestion?{...value.nextQuestion,options:[],sourceIds:[]}:null,domain:value.responseMode==='record'?'record':null,stopReason:value.nextQuestion?null:'no_necessary_question'}
       const reply=observedEmergency?(continuousRecord?'这条描述中有需要尽快由专业人员评估的异常，请先就医或寻求急救帮助，先不用继续回答普通记录问题。':'这条描述中有需要尽快由专业人员评估的异常，请先就医或寻求急救帮助。原话已保留，先不用继续回答普通记录问题。'):legacy&&interview?.question&&!/[?？]/u.test(acknowledged)?`${acknowledged}${interview.question.text}`:acknowledged
       const oldFacts=contextId===selected?.id?selected.facts??[]:[]
       const subjectClarification=Boolean(turnContext.effectiveQuestion&&/(?:subject|member|person|identity|归属|对象)/iu.test(turnContext.effectiveQuestion.target))||/(?:这(?:条|份|张|个)?(?:记录|资料|报告|情况)?|刚才(?:说的)?|前面(?:说的)?|说的|对象)的?\s*(?:是|属于|记给)|(?:^|[，,。；;])\s*(?:说的|对象)?(?:是|记给)/u.test(message.text)
@@ -415,7 +424,7 @@ export class FrontDeskRecord {
           if(continuousRecord&&contextId!==provisionalId&&d.contexts.find(c=>c.id===provisionalId)?.currentRecord)throw fail('原话记录已保存，旧回复未改变其归属',409,'FRONT_CONTEXT_CHANGED')
           if(actionPlan.type!=='none'&&actionPlan.type!=='clarify'&&d.contexts.find(c=>c.id===contextId)?.version!==actionContext?.version)throw fail('对话已有更新，请核对最新内容后继续',409,'FRONT_CONTEXT_CHANGED')
           if(message.answerTo&&!retryTranscription){const owner=d.contexts.find(c=>c.id===message.answerTo.contextId&&c.accountId===accountId&&c.memberId===memberId&&!c.saved&&!c.closedAt);if(!owner||owner.interview?.question?.id!==message.answerTo.questionId)throw fail('这个问题已有更新，请查看最新记录后继续',409,'FRONT_ANSWER_STALE')}
-          return {...d,contexts:d.contexts.filter(c=>c.id!==provisionalId||contextId===provisionalId).map(c=>c.id===contextId?{...c,...(continuousRecord?{continuousRecord:true,firstDescribedAt:c.firstDescribedAt??new Date(Math.min(message.inputAt??Date.parse(message.at),...d.messages.filter(m=>m.contextId===c.id&&m.kind!=='assistant'&&m.status!=='discarded').map(m=>m.inputAt??Date.parse(m.at)).filter(Number.isFinite))).toISOString()}:{}),provisional:false,updatedAt:at,version:(c.version??0)+1,originalsVersion:(c.originalsVersion??0)+(newOriginals&&contextId!==provisionalId?1:0),evidenceVersion:(c.evidenceVersion??0)+(changed?1:0),understanding,resultKind,facts,actionPlan,pendingSaveConfirmation,mediaProblems:prepared.problems,subject:!changed&&c.subject?.confirmed&&understanding.subject.kind==='unknown'&&!understanding.subject.sources.length?c.subject:understanding.subject,...(contextId===provisionalId&&parent&&(!legacy||message.targetContextId)?{conversationId:conversationIdOf(parent),continuedFromId:parent.id}:{}),interview:interview??c.interview}:c),messages:[...d.messages.filter(m=>m.id!==`${message.id}:reply`||m.accountId!==accountId||m.memberId!==memberId).map(m=>m===original?{...m,contextId,contextQuestion,subject:understanding.subject,status:'completed',recordEligible:changed,revision:m.revision??1,error:undefined}:m),{id:`${message.id}:reply`,accountId,memberId,contextId,kind:'assistant',text:reply,at,inputAt:(message.retranscribedAt?Date.parse(message.retranscribedAt):message.inputAt??Date.parse(message.at))+.1,status:'completed',understanding,resultKind,diagnostics}]}
+          return {...d,contexts:d.contexts.filter(c=>c.id!==provisionalId||contextId===provisionalId).map(c=>c.id===contextId?{...c,...(continuousRecord?{continuousRecord:true,firstDescribedAt:c.firstDescribedAt??new Date(Math.min(message.inputAt??Date.parse(message.at),...d.messages.filter(m=>m.contextId===c.id&&m.kind!=='assistant'&&m.status!=='discarded').map(m=>m.inputAt??Date.parse(m.at)).filter(Number.isFinite))).toISOString()}:{}),provisional:false,updatedAt:at,version:(c.version??0)+1,originalsVersion:(c.originalsVersion??0)+(newOriginals&&contextId!==provisionalId?1:0),evidenceVersion:(c.evidenceVersion??0)+(changed?1:0),understanding,resultKind,facts,actionPlan,pendingSaveConfirmation,mediaProblems:prepared.problems,subject:!changed&&c.subject?.confirmed&&understanding.subject.kind==='unknown'&&!understanding.subject.sources.length?c.subject:understanding.subject,...(contextId===provisionalId&&parent&&parent.id!==contextId&&(!legacy||message.targetContextId)?{conversationId:conversationIdOf(parent),continuedFromId:parent.id}:{}),interview:interview??c.interview}:c),messages:[...d.messages.filter(m=>m.id!==`${message.id}:reply`||m.accountId!==accountId||m.memberId!==memberId).map(m=>m===original?{...m,contextId,contextQuestion,subject:understanding.subject,status:'completed',recordEligible:changed,revision:m.revision??1,error:undefined}:m),{id:`${message.id}:reply`,accountId,memberId,contextId,kind:'assistant',text:reply,at,inputAt:(message.retranscribedAt?Date.parse(message.retranscribedAt):message.inputAt??Date.parse(message.at))+.1,status:'completed',understanding,resultKind,diagnostics}]}
         })
       })
       return { context: await this.snapshot(accountId, memberId, contextId), messageId: message.id, replyId: `${message.id}:reply` }
