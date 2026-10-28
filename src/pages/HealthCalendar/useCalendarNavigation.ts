@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { calendarNavigationParams, normalizeCalendarNavigation, type CalendarNavigation } from './navigation'
 import { normalizeCalendarCategory } from './presentation'
@@ -35,7 +35,10 @@ export function useCalendarNavigation(identity: string, today: string) {
   if (differentOwner) { original.delete('eventId'); original.delete('recordId') }
   const state = normalizeCalendarNavigation(differentOwner ? new URLSearchParams() : original, today, initial.current)
   const canonical = calendarNavigationParams(state, original).toString()
-  useEffect(() => {
+  useLayoutEffect(() => {
+    // A browser Back can update history before React commits the next route.
+    // A queued normalization from this page must not pull that navigation back.
+    if (`${window.location.pathname}${window.location.search}${window.location.hash}` !== `${location.pathname}${location.search}${location.hash}`) return
     try { sessionStorage.setItem(key, JSON.stringify(state)); sessionStorage.setItem('hoooho:journal-sort', state.sort); localStorage.setItem(viewKey, state.view) } catch { /* Navigation works without storage. */ }
     if (location.search.slice(1) !== canonical || owner !== identity || (isReturn && state.view === 'month')) navigate(`${location.pathname}?${canonical}${location.hash}`, { replace: true, state: { ...location.state, ...(state.view === 'month' ? { journalReturn: undefined } : {}), calendarIdentity: identity } })
   }, [canonical, key, location.pathname, location.search, location.hash, location.state, navigate])
