@@ -60,9 +60,10 @@ async function startNew(page:import('@playwright/test').Page){
  await page.getByRole('button',{name:'打开菜单',exact:true}).click()
  await page.getByRole('button',{name:'新建对话',exact:true}).click()
  await expect(page.locator('.hoho-dialogue-composer--conversation')).toBeVisible()
- const input=page.getByLabel('对话输入')
- if(await input.count())await expect(input).toHaveValue('')
- else await expect(page.getByRole('button',{name:'按住记录症状',exact:true})).toBeEnabled()
+ // New-conversation archival is asynchronous; wait for its final voice state
+ // instead of asserting against the disabled keyboard while it is unmounting.
+ await expect(page.getByRole('button',{name:'按住记录症状',exact:true})).toBeEnabled()
+ await expect(page.getByLabel('对话输入')).toHaveCount(0)
 }
 
 test('new conversation survives reload and exposes submitted originals and unsent drafts in history',async({page},info)=>{
