@@ -56,7 +56,7 @@ test('numeric values are requested directly; unrelated observations do not compl
  assert.doesNotMatch(result.reply,/有没有量过/);assert.match(result.reply,/填写/)
  const unrelated=guideFrontDeskReply(value(null),{latest:{id:'m',text:'精神和平时一样。'},effectiveQuestion:measurement})
  assert.deepEqual(unrelated.interview.checks,[])
- for(const text of ['还没量。','没测。','尚未测量。','已经量过。','量了20次。','量了20 次。','体温等到20点再量。','没量，估计38度。']){
+ for(const text of ['还没量。','没测。','尚未测量。','已经量过。','量了20次。','量了20 次。','体温等到20点再量。','没量，估计38度。','估计38度。','猜测体温38.6℃。']){
   const unknown=guideFrontDeskReply(value(measurement),{latest:{id:'m',text},effectiveQuestion:measurement})
   assert.equal(unknown.question,null,text);assert.equal(unknown.interview.checks[0].state,'uncertain',text)
  }

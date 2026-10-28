@@ -26,6 +26,7 @@ const uncertain = text => /不确定|不清楚|说不清|讲不清|不知道|没
 export function questionAnswerState(question,text){
   if(uncertain(text))return 'uncertain'
   if(questionTopic(question).key==='temperature'){
+    if(/估计|估算|猜测|猜的/u.test(text))return 'uncertain'
     // Knowing whether someone measured is not knowing the temperature. A
     // clock time or measurement count must not complete this numeric slot.
     const numeric=/^\s*\d{2}(?:\.\d+)?\s*[。！!]?\s*$/u.test(text)||/(?:体温|温度|测得|量了|测了|量到|测到)[^\d。；;\n]{0,6}\d{2}(?:\.\d+)?(?![\d.])(?!\s*[点分时次岁])/u.test(text)||/(?:\d{2}(?:\.\d+)?|[三四]十[零一二两三四五六七八九]?(?:点[零一二两三四五六七八九]+)?)\s*(?:℃|°C|摄氏度|度)/u.test(text)
