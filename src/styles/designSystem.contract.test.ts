@@ -46,20 +46,17 @@ test('product polish keeps shared navigation and grouped rows on one visual syst
   assert.match(styles, /\.event-identity-details/)
 })
 
-test('short mobile drawers use one compact current-child trigger without compressing navigation', async () => {
-  const styles = await read('./product-polish.css')
+test('short mobile drawers reserve two compact identity rows and let history scroll independently', async () => {
+  const styles = await read('../components/navigation/side-drawer-layout.css')
   const drawer = await read('../components/navigation/SideDrawer.tsx')
-  const childSheetStyles = await read('../components/navigation/current-child-sheet.css')
-  assert.match(styles, /\.hoho-drawer__member\s*\{[^}]*padding:\s*0 var\(--hoho-space-2\) var\(--hoho-space-2\)/s)
-  assert.match(drawer, /hoho-drawer__member mt-2/)
-  assert.match(drawer, /<Avatar[^>]*size="md"/)
-  assert.match(drawer, />当前记录对象</)
-  assert.match(drawer, /aria-label="打开我的孩子"/)
+  assert.equal((drawer.match(/className="drawer-identity-row"/g) ?? []).length, 2)
+  assert.match(drawer, /<Avatar[^>]*size="sm"/)
+  assert.match(drawer, /'切换记录对象'/)
   assert.doesNotMatch(drawer, />切换人物</)
   assert.doesNotMatch(drawer, />编辑资料</)
-  assert.match(childSheetStyles, /\.hoho-drawer__member-trigger\s*\{[^}]*min-height:\s*56px/s)
-  assert.match(styles, /@media \(max-height:\s*700px\)[\s\S]*\.hoho-drawer > nav\s*\{[^}]*margin-top:\s*var\(--hoho-space-2\)/)
-  assert.match(styles, /@media \(max-height:\s*700px\)[\s\S]*\.hoho-drawer \.hoho-drawer__account\s*\{[^}]*margin-top:\s*var\(--hoho-space-2\)/)
+  assert.match(styles, /\.drawer-identity-row\{[^}]*min-height:44px/)
+  assert.match(styles, /\.drawer-conversations\{[^}]*min-height:0;overflow-y:auto/)
+  assert.match(styles, /\.drawer-utilities\{flex:none/)
 })
 
 test('global UI supports reduced motion and responsive desktop content', async () => {

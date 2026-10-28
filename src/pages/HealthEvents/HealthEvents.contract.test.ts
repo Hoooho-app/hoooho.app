@@ -37,7 +37,7 @@ test('统一健康日历移除身份块，共享入口与首页均保留情况�
   assert.match(subjectHeader, /<MedicalPrepButton aria-label="就诊情况单，孩子情况快速整理" className="journal-subject-summary" label="就诊情况单"/)
   assert.doesNotMatch(page, />摘要生成<\/HohoButton>/)
   assert.match(homeFlows, /<OrganizeSheet/)
-  assert.match(read('../../components/navigation/SideDrawer.tsx'), /to: '\/visit-summary'/)
+  assert.match(read('../../components/navigation/MainBottomNavigation.tsx'), /<OrganizeSheet/)
   assert.doesNotMatch(page, /journal-quick-record-action|aria-label="快捷记录"/)
   assert.doesNotMatch(station, />摘要生成<\/HohoButton>/)
 })
@@ -46,7 +46,7 @@ test('前台护士站成为默认首页且健康随记保持独立', () => {
   assert.match(router, /path: '\/', element: <Navigate to="\/nurse-station" replace/)
   assert.match(router, /path: '\/nurse-station'/)
   assert.doesNotMatch(page, /health-events-view-switch|DEFAULT_HEALTH_EVENTS_VIEW_MODE/)
-  assert.match(read('../NurseStation/FirstChildSetup.tsx'), /<MainAppHeader title="前台"/)
+  assert.match(read('../NurseStation/FirstChildSetup.tsx'), /<MainAppHeader title="症状记录"/)
 })
 
 test('零成员在护士站内分流且不会预先创建空健康事件', () => {

@@ -9,6 +9,7 @@ import { useDialogFocus } from '../../hooks/useDialogFocus'
 import { usePageScrollLock } from '../../hooks/usePageScrollLock'
 import './current-child-sheet.css'
 import { getChildMembers } from '../../features/family/currentChild'
+import { maskIdentityName, recordSubjectRelationship } from '../../utils/privateIdentity'
 
 interface CurrentChildSheetProps {
   onClose: () => void
@@ -17,7 +18,6 @@ interface CurrentChildSheetProps {
   open: boolean
 }
 
-const genderLabel = { male: '男', female: '女', undisclosed: '不方便透露', '': '未填写' } as const
 const closeThreshold = 72
 
 export function CurrentChildSheet({ onAdd, onClose, onEdit, open }: CurrentChildSheetProps) {
@@ -113,10 +113,11 @@ export function CurrentChildSheet({ onAdd, onClose, onEdit, open }: CurrentChild
           {children.map((member) => {
             const current = member.id === currentMemberId
             const busy = switchingId === member.id
+            const privateName = maskIdentityName(member.name) || '记录对象'
             return (
               <div className="current-child-sheet__row" data-current={current} key={member.id}>
                 <button
-                  aria-label={current ? `${member.name}，当前记录对象` : `切换到${member.name}`}
+                  aria-label={current ? `${privateName}，当前记录对象` : `切换到${privateName}`}
                   className="current-child-sheet__select"
                   disabled={Boolean(switchingId)}
                   onClick={() => current ? onClose() : void switchMember(member.id)}
@@ -125,18 +126,18 @@ export function CurrentChildSheet({ onAdd, onClose, onEdit, open }: CurrentChild
                   <span className="current-child-sheet__selection" data-current={current}>
                     {current ? <Check aria-hidden="true" size={18} strokeWidth={2.4} /> : <Circle aria-hidden="true" size={22} strokeWidth={1.8} />}
                   </span>
-                  <Avatar name={member.name} src={member.avatar} size="md" />
+                  <Avatar name={privateName} src={member.avatar} size="md" />
                   <span className="current-child-sheet__identity">
                     <span className="current-child-sheet__name-line">
-                      <strong>{member.name}</strong>
+                      <strong>{privateName}</strong>
                       {current && <span className="current-child-sheet__current-label">当前记录对象</span>}
                     </span>
-                    <span>{genderLabel[member.gender ?? '']} · {member.birthday ? formatAgeFromBirthday(member.birthday) : member.age}</span>
+                    <span>{recordSubjectRelationship(member)} · {member.birthday ? formatAgeFromBirthday(member.birthday) : member.age}</span>
                   </span>
                   {busy && <span className="current-child-sheet__busy" aria-hidden="true" />}
                 </button>
                 <button
-                  aria-label={`编辑${member.name}的资料`}
+                  aria-label={`编辑${privateName}的资料`}
                   className="current-child-sheet__edit"
                   disabled={Boolean(switchingId)}
                   onClick={(event) => { event.stopPropagation(); onEdit(member.id) }}

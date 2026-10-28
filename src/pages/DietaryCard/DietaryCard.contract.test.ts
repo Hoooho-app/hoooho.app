@@ -8,8 +8,8 @@ const styles = readFileSync(new URL('./dietaryCard.css', import.meta.url), 'utf8
 const router = readFileSync(new URL('../../app/router.tsx', import.meta.url), 'utf8')
 const home = readFileSync(new URL('../../components/navigation/SideDrawer.tsx', import.meta.url), 'utf8')
 
-test('侧栏工具入口进入受当前人物保护的忌口卡', () => {
-  assert.match(home, /label: '忌口卡'.*to: '\/dietary-card'/)
+test('暂藏辅助工具保留受当前人物保护的忌口卡原路由', () => {
+  assert.doesNotMatch(home, /label: '忌口卡'/)
   assert.doesNotMatch(home, /忌口卡功能暂未开放/)
   assert.match(router, /path: '\/dietary-card'/)
   assert.match(router, /path: '\/dietary-card\/edit'/)

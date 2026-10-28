@@ -1,5 +1,5 @@
 import {UpdateDot,useRecordUpdates} from '../../features/record-updates/RecordUpdates'
-import { Menu } from 'lucide-react'
+import { ChevronDown, Menu } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
@@ -8,8 +8,12 @@ import { CurrentChildSheet } from './CurrentChildSheet'
 import { consumeMemberProfileRestore, getCurrentPath, readMemberProfileRestore, type MemberProfileEditOrigin } from './navigationState'
 import { useAppStore } from '../../store/useAppStore'
 import { useInstallApp } from '../../features/install-app'
+import { useCurrentMember } from '../../hooks/useCurrentMember'
+import { Avatar } from '../common/Avatar'
+import { compactIdentityAge, maskIdentityName } from '../../utils/privateIdentity'
+import { MainBottomNavigation } from './MainBottomNavigation'
 
-export function MainAppHeader({ title, compact = false, action, childSelectionRequest = 0, showInstallApp = true, conversation = false }: { title: string; compact?: boolean; action?: ReactNode; childSelectionRequest?: number; showInstallApp?: boolean; conversation?: boolean }) {
+export function MainAppHeader({ title, compact = false, action, childSelectionRequest = 0, showInstallApp = true, conversation = false, onHistoryNavigate, onNewConversation, conversationDisabled = false }: { title: string; compact?: boolean; action?: ReactNode; childSelectionRequest?: number; showInstallApp?: boolean; conversation?: boolean; onHistoryNavigate?: (destination: string) => void; onNewConversation?: () => void; conversationDisabled?: boolean }) {
   const updates=useRecordUpdates()
   const location = useLocation()
   const navigate = useNavigate()
@@ -21,6 +25,9 @@ export function MainAppHeader({ title, compact = false, action, childSelectionRe
   const [childSheetOpen, setChildSheetOpen] = useState(() => Boolean(restore))
   const [notice, setNotice] = useState(accountNotice)
   const installApp = useInstallApp()
+  const member = useCurrentMember()
+  const hasMembers = useAppStore(state => state.members.length > 0)
+  const privateName = maskIdentityName(member.name) || '记录对象'
 
   useEffect(() => {
     if (childSelectionRequest > 0) { setOpen(false); setChildSheetOpen(true) }
@@ -69,13 +76,14 @@ export function MainAppHeader({ title, compact = false, action, childSelectionRe
         <button className="absolute left-3 grid h-11 w-11 place-items-center rounded-full hover:bg-primary-soft" type="button" aria-label="打开菜单" onClick={() => setOpen(true)}>
           <Menu size={24} strokeWidth={1.8} /><span className="absolute right-1 top-1"><UpdateDot show={updates.length>0}/></span>
         </button>
-        <h1 className="hoho-text-section-title w-full truncate text-center">{title}{conversation && title==='护护' && <span className="hoho-conversation-ai" aria-label="AI 助手">AI</span>}</h1>
+        {conversation && title === '症状记录' ? <div className="hoho-main-header__identity"><h1>{title}</h1>{hasMembers && <button className="hoho-main-header__child" type="button" aria-label="切换记录对象" onClick={() => setChildSheetOpen(true)}><Avatar name={privateName} src={member.avatar} size="sm" /><span>{privateName}{member.age ? ` · ${compactIdentityAge(member.age)}` : ''}</span><ChevronDown size={13} aria-hidden="true" /></button>}</div> : <h1 className="hoho-text-section-title w-full truncate text-center">{title}{conversation && title==='护护' && <span className="hoho-conversation-ai" aria-label="AI 助手">AI</span>}</h1>}
         {(action || (showInstallApp && installApp.visible)) && <div className="hoho-main-header__actions absolute right-3 flex min-h-11 items-center">
           {action}
           {showInstallApp && installApp.visible && <button aria-label="添加 Hoooho 到主屏" className="install-app-trigger" disabled={installApp.busy} onClick={() => void installApp.activate()} type="button">添加到主屏</button>}
         </div>}
       </header>
-      <SideDrawer open={open} onClose={() => setOpen(false)} onOpenChildSheet={() => setChildSheetOpen(true)} />
+      {['/health-events', '/health-profile'].includes(location.pathname) && <MainBottomNavigation />}
+      <SideDrawer open={open} onClose={() => setOpen(false)} onOpenChildSheet={() => setChildSheetOpen(true)} onHistoryNavigate={onHistoryNavigate} onNewConversation={onNewConversation} conversationDisabled={conversationDisabled} />
       <CurrentChildSheet
         onAdd={() => { setChildSheetOpen(false); navigate('/family/new') }}
         onClose={() => setChildSheetOpen(false)}

@@ -16,7 +16,7 @@ async function openDiet(page:Page){
  // The entry navigates to the existing calendar form. Reload remains on that
  // page, whose own shortcut names are intentionally unchanged.
  if(new URL(page.url()).pathname==='/health-events')await page.getByRole('button',{name:'喂养/饮食',exact:true}).click()
- else{await page.getByRole('button',{name:'日常',exact:true}).click();await page.getByRole('button',{name:'喂养与饮食',exact:true}).click()}
+ else{const keyboard=page.getByRole('button',{name:'改用文字',exact:true});if(await keyboard.isVisible())await keyboard.click();await page.getByRole('button',{name:'日常',exact:true}).click();await page.getByRole('button',{name:'喂养与饮食',exact:true}).click()}
  return form
 }
 
@@ -27,8 +27,9 @@ test('hidden features cannot load from bookmarks, navigation or help; core recor
  await page.getByRole('button',{name:'打开菜单',exact:true}).click()
  const drawer=page.getByRole('dialog',{name:'侧边栏菜单'})
  for(const name of ['呵护之旅','辅助工具','免费版'])await expect(drawer.getByText(name,{exact:true})).toHaveCount(0)
- await expect(drawer.getByRole('button',{name:'产品中心',exact:true})).toBeVisible()
- await drawer.locator('.hoho-drawer__account').click()
+ await expect(drawer.getByText('产品中心',{exact:true})).toHaveCount(0)
+ for(const name of ['帮助','反馈','关于'])await expect(drawer.getByRole('button',{name,exact:true})).toBeVisible()
+ await drawer.getByRole('button',{name:'编辑我的信息',exact:true}).click()
  const account=page.getByRole('dialog',{name:'账户',exact:true})
  await expect(account.getByText('会员状态',{exact:true})).toHaveCount(0)
  await expect(account.getByText('账户与安全',{exact:true})).toBeVisible()

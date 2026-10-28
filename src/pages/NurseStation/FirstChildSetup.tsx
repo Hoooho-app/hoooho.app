@@ -123,7 +123,7 @@ export function FirstChildSetup({ accountId, token }: { accountId: string; token
     }
   }
   return <section className="smart-record-page smart-record-home first-child-setup" aria-label="添加孩子信息" style={{ top: viewport.top, height: viewport.height }}>
-    <MainAppHeader title="前台" conversation showInstallApp={false}/>
+    <MainAppHeader title="症状记录" conversation showInstallApp={false}/>
     <div className="smart-record-page__body">
       <div className="front-desk-welcome front-desk-welcome--empty"><ReceptionSurface media={<img className="front-desk-welcome__image" src={reportImage} alt="手机拍摄包含孩子个人信息的记录报告单" width={384} height={256} loading="eager" fetchPriority="high" decoding="async"/>} title="先认识一下孩子" description="聊几句，把基本信息记清楚。"/></div>
       <div className="nurse-conversation first-child-conversation" aria-label="孩子信息对话">

@@ -1,8 +1,5 @@
-import { isProductPathVisible } from '../../../shared/product-visibility.mjs'
-import { CareHandsIcon } from '../design-system/SproutEntry'
-import {UpdateDot,useRecordUpdates} from '../../features/record-updates/RecordUpdates'
-import { Eye, CalendarDays, ClipboardList, ScanLine, Pill, ChevronDown, ChevronRight, CircleHelp, Folder, House, Info, MessageCircle, Package, UserRound, Wrench, X } from 'lucide-react'
-import { useEffect, useRef } from 'react'
+import { ChevronRight, CircleHelp, FileText, Info, MessageCircle, Pencil, Plus, UserRound } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Avatar } from '../common'
 import { useCurrentMember } from '../../hooks/useCurrentMember'
@@ -13,208 +10,131 @@ import { getCurrentPath } from './navigationState'
 import { makeFeedbackState } from '../../features/feedback/navigation'
 import { AccountSheet } from '../account/AccountSheet'
 import { accountService } from '../../services/account'
-import { useState } from 'react'
-import { OrganizeSheet } from '../../features/organize/OrganizeSheet'
-import { organizeNavigationState } from '../../features/organize/navigation'
+import { apiRequest } from '../../services/apiClient'
+import { retainedCaptureDrafts } from '../../features/ai-business/captureDraft'
+import { compactIdentityAge, maskIdentityName, recordSubjectRelationship } from '../../utils/privateIdentity'
+import './side-drawer-layout.css'
 
 interface SideDrawerProps {
   open: boolean
   cleanChrome?: boolean
   onClose: () => void
   onOpenChildSheet: () => void
+  onHistoryNavigate?: (destination: string) => void
+  onNewConversation?: () => void
+  conversationDisabled?: boolean
 }
-
-const allSidebarMenuGroups = [
-  {
-    title: '记录',
-    items: [
-    { label: '服务前台', icon: House, to: '/nurse-station' },
-    { label: '健康日历', icon: CalendarDays, to: '/health-events' },
-    { label: '孩子档案', icon: Folder, to: '/health-profile' },
-    { label: '一键整理', icon: ClipboardList, to: '/visit-summary' }
-    ]
-  },
-  {
-    title: '呵护之旅',
-    icon: CareHandsIcon,
-    items: [{ label: '呵护之旅', icon: CareHandsIcon, to: '/care-journey' }]
-  },
-  {
-    title: '辅助工具',
-    collapsible: true,
-    icon: Wrench,
-    menuId: 'drawer-tools-menu',
-    items: [
-    { label: '忌口卡', icon: ClipboardList, to: '/dietary-card' },
-    { label: '排敏观察', icon: Eye, to: '/food-observations' },
-    { label: '配料表扫描', icon: ScanLine, to: '/food-label' },
-    { label: '用药安排', icon: Pill, to: '/medication-reminders' },
-    { label: '照顾交接单', icon: ClipboardList, to: '/care-handoff' }
-    ]
-  },
-  {
-    title: '产品中心',
-    collapsible: true,
-    icon: Package,
-    menuId: 'drawer-product-menu',
-    items: [
-    { label: '帮助', icon: CircleHelp, to: '/help' },
-    { label: '反馈', icon: MessageCircle, to: '/feedback' },
-    { label: '关于', icon: Info, to: '/about' }
-    ]
-  }
+interface HistoryRow { id: string; title: string; updatedAt: string; destination: string }
+interface ServerHistory { items: { id: string; title: string; updatedAt: string }[]; hasMore: boolean }
+const utilityLinks = [
+  { label: '帮助', icon: CircleHelp, to: '/help' },
+  { label: '反馈', icon: MessageCircle, to: '/feedback' },
+  { label: '关于', icon: Info, to: '/about' }
 ]
-
-export const sidebarMenuGroups = allSidebarMenuGroups.map(group => ({ ...group, items: group.items.filter(item => isProductPathVisible(item.to)) })).filter(group => group.items.length > 0)
-
-const sidebarMenuSections = [
-  { title: sidebarMenuGroups[0].title, groups: sidebarMenuGroups.slice(0, 1) },
-  { title: '其他', groups: sidebarMenuGroups.slice(1) }
-]
-
-const genderLabel = { male: '男', female: '女', undisclosed: '不方便透露', '': '未填写' } as const
-const recorderRelationshipLabel = {
-  father: '爸爸', mother: '妈妈', paternal_grandfather: '爷爷', paternal_grandmother: '奶奶',
-  maternal_grandfather: '外公', maternal_grandmother: '外婆', nanny: '保姆', other: '其他'
-} as const
-
-export function SideDrawer({ onClose, onOpenChildSheet, open, cleanChrome=true }: SideDrawerProps) {
-  const updates=useRecordUpdates()
-  const drawerRef = useRef<HTMLElement>(null)
-  const navigate = useNavigate()
-  const location = useLocation()
+function historyGroup(at: string) {
+  const day = new Date(at), today = new Date(), yesterday = new Date()
+  yesterday.setDate(today.getDate() - 1)
+  const sameDay = (date: Date) => day.getFullYear() === date.getFullYear() && day.getMonth() === date.getMonth() && day.getDate() === date.getDate()
+  return sameDay(today) ? '今天' : sameDay(yesterday) ? '昨天' : '更早'
+}
+export function SideDrawer({ onClose, onOpenChildSheet, open, cleanChrome = true, onHistoryNavigate, onNewConversation, conversationDisabled = false }: SideDrawerProps) {
+  const drawerRef = useRef<HTMLElement>(null), navigate = useNavigate(), location = useLocation()
   const member = useCurrentMember()
-  const members = useAppStore((state) => state.members)
-  const authToken = useAppStore((state) => state.authToken)
-  const authUser = useAppStore((state) => state.authUser)
-  const accountProfile = useAppStore((state) => state.accountProfile)
-  const setAccountProfile = useAppStore((state) => state.setAccountProfile)
-  const [accountOpen, setAccountOpen] = useState(false)
-  const [organizeOpen, setOrganizeOpen] = useState(false)
-  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({})
-  const accountRelationship = member.primaryRecorderRelationship
-    ? recorderRelationshipLabel[member.primaryRecorderRelationship]
-    : null
+  const members = useAppStore(state => state.members), authToken = useAppStore(state => state.authToken)
+  const authUser = useAppStore(state => state.authUser), accountProfile = useAppStore(state => state.accountProfile)
+  const setAccountProfile = useAppStore(state => state.setAccountProfile)
+  const accountId = authUser?.id ?? 'guest', identity = accountId + ':' + member.id
+  const [accountOpen, setAccountOpen] = useState(false), [reload, setReload] = useState(0)
+  const [history, setHistory] = useState<{ identity: string; rows: HistoryRow[]; loading: boolean; error: boolean }>({ identity: '', rows: [], loading: false, error: false })
+  const ownHistory = history.identity === identity ? history : { identity, rows: [], loading: true, error: false }
+  const userName = authUser?.guest ? '创建正式账户' : maskIdentityName(accountProfile?.nickname || authUser?.nickname) || '我的账户'
+  const childName = maskIdentityName(member.name) || '记录对象'
   usePageScrollLock(open)
   useDialogFocus(open, drawerRef)
-
-  useEffect(() => {
-    if (!open) setExpandedGroups({})
-  }, [open])
-
   useEffect(() => {
     if (!open) return
-    const close = (event: KeyboardEvent) => event.key === 'Escape' && onClose()
+    const close = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose() }
     window.addEventListener('keydown', close)
     return () => window.removeEventListener('keydown', close)
   }, [open, onClose])
-
   useEffect(() => {
     if (!open || !authToken || authUser?.guest || accountProfile) return
-    void accountService.get(authToken).then(setAccountProfile).catch(() => undefined)
-  }, [accountProfile, authToken, authUser?.guest, open, setAccountProfile])
-
-  if (!open) return <OrganizeSheet open={organizeOpen} onClose={() => setOrganizeOpen(false)} />
-
-  const openPage = (to: string) => {
+    void accountService.get(authToken).then(profile => {
+      if (useAppStore.getState().authUser?.id === accountId) setAccountProfile(profile)
+    }).catch(() => undefined)
+  }, [accountId, accountProfile, authToken, authUser?.guest, open, setAccountProfile])
+  useEffect(() => {
+    if (!open) return
+    if (!members.length || !authToken) { setHistory({ identity, rows: [], loading: false, error: false }); return }
+    let active = true
+    const controller = new AbortController()
+    setHistory({ identity, rows: [], loading: true, error: false })
+    const key = 'home-smart:' + accountId + ':' + member.id + ':new'
+    void Promise.allSettled([
+      apiRequest<ServerHistory>('/api/members/' + encodeURIComponent(member.id) + '/front-desk-record/history', { token: authToken, signal: controller.signal }),
+      retainedCaptureDrafts(key)
+    ]).then(([server, retained]) => {
+      if (!active || controller.signal.aborted) return
+      const saved = server.status === 'fulfilled' ? server.value.items : []
+      const rows: HistoryRow[] = saved.map(item => ({ ...item, destination: '/conversation-history/' + encodeURIComponent(item.id) }))
+      if (retained.status === 'fulfilled') for (const item of retained.value) {
+        const draft = item.draft
+        if (draft.frontContextId && saved.some(row => row.id === draft.frontContextId) && !draft.conversationInput?.trim() && !draft.pendingVoice) continue
+        const title = draft.conversationInput || draft.text || draft.conversationTurns?.find(turn => turn.role !== 'assistant' && turn.text)?.text || (draft.files.length ? '照片与资料草稿' : '')
+        if (title) rows.push({ id: item.key, title: title.replace(/\s+/g, ' ').slice(0, 80), updatedAt: new Date(draft.updatedAt ?? 0).toISOString(), destination: '/conversation-history?draft=' + encodeURIComponent(item.key) })
+      }
+      rows.sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt))
+      setHistory({ identity, rows, loading: false, error: server.status === 'rejected' })
+    })
+    return () => { active = false; controller.abort() }
+  }, [accountId, authToken, identity, member.id, members.length, open, reload])
+  const openHistory = (destination: string) => {
+    if (conversationDisabled) return
     onClose()
-    if (to === '/visit-summary') { setOrganizeOpen(true); return }
-    if (members.length === 0 && to === '/health-profile') {
-      navigate('/nurse-station', { replace: true })
-      return
-    }
-    navigate(to, to === '/food-observations' ? { state: { observationFrom: getCurrentPath(location.pathname, location.search, location.hash) } } : to === '/care-handoff' ? { state: organizeNavigationState(location, window.history.state?.idx) } : to === '/feedback' ? {
-      state: makeFeedbackState(
-        getCurrentPath(location.pathname, location.search, location.hash),
-        location.pathname.startsWith('/health-events/') ? '健康日历详情' : location.pathname === '/health-events' || location.pathname === '/health-calendar' ? '健康日历' : location.pathname === '/settings' ? '我的' : '原页面',
-        window.scrollY
-      )
-    } : undefined)
+    if (onHistoryNavigate) onHistoryNavigate(destination)
+    else navigate(destination)
   }
-
-  return (
+  const startConversation = () => {
+    if (conversationDisabled) return
+    onClose()
+    if (onNewConversation) onNewConversation()
+    else navigate('/nurse-station', { state: { frontDeskNewConversation: crypto.randomUUID() } })
+  }
+  const openUtility = (to: string) => {
+    onClose()
+    navigate(to, to === '/feedback' ? { state: makeFeedbackState(getCurrentPath(location.pathname, location.search, location.hash), '侧边栏', window.scrollY) } : undefined)
+  }
+  if (!open) return <AccountSheet open={accountOpen} onClose={() => setAccountOpen(false)} />
+  return <>
     <div className="hoho-drawer-layer" role="dialog" aria-modal="true" aria-label="侧边栏菜单">
       <button className="absolute inset-0 bg-text-primary/55" type="button" aria-label="关闭侧边栏" onClick={onClose} />
-      <aside className={`hoho-drawer${cleanChrome?' hoho-drawer--clean':''}`} ref={drawerRef} tabIndex={-1}>
-        {!cleanChrome&&<button className="hoho-drawer__close grid h-10 w-10 place-items-center rounded-full" type="button" aria-label="关闭菜单" onClick={onClose}>
-          <X size={24} strokeWidth={1.7} />
-        </button>}
-
-        <section className="hoho-drawer__member mt-2" aria-label="当前角色">
-          {members.length > 0 ? (
-            <button className="hoho-drawer__member-trigger" type="button" aria-label="打开我的孩子" onClick={() => { onClose(); onOpenChildSheet() }}>
-              <Avatar name={member.name} src={member.avatar} size="md" />
-              <span className="hoho-drawer__member-identity">
-                <span className="hoho-drawer__member-name-line">
-                  <strong className="text-base font-semibold text-heading">{member.name}</strong>
-                  <span className="current-child-label">当前记录对象</span>
-                </span>
-                <span className="hoho-drawer__member-meta">{genderLabel[member.gender ?? '']} · {member.age}</span>
-              </span>
-              <ChevronRight className="shrink-0 text-text-secondary" size={20} strokeWidth={1.7} />
-            </button>
-          ) : (
-            <button className="flex min-h-14 w-full items-center justify-between text-left" type="button" onClick={() => { onClose(); onOpenChildSheet() }}>
-              <span><strong className="block text-base font-semibold text-heading">尚未添加孩子</strong><span className="mt-1 block text-sm text-text-secondary">添加后即可开始记录</span></span>
-              <ChevronRight className="text-text-secondary" size={20} strokeWidth={1.7} />
-            </button>
-          )}
+      <aside className={'hoho-drawer hoho-drawer--history' + (cleanChrome ? ' hoho-drawer--clean' : '')} ref={drawerRef} tabIndex={-1}>
+        <section className="drawer-identities" aria-label="账户与记录对象">
+          <button type="button" className="drawer-identity-row" aria-label="编辑我的信息" onClick={() => setAccountOpen(true)}>
+            {accountProfile?.avatar ? <Avatar name={userName} src={accountProfile.avatar} size="sm" /> : <span className="drawer-identity-avatar"><UserRound size={20} aria-hidden="true" /></span>}
+            <strong>{userName}</strong><Pencil className="drawer-identity-action" size={17} aria-hidden="true" />
+          </button>
+          <button type="button" className="drawer-identity-row" aria-label={members.length ? '切换记录对象' : '添加记录对象'} onClick={() => { onClose(); onOpenChildSheet() }}>
+            {members.length ? <Avatar name={childName} src={member.avatar} size="sm" /> : <span className="drawer-identity-avatar"><Plus size={20} aria-hidden="true" /></span>}
+            <strong>{members.length ? childName : '添加孩子'}</strong>
+            {members.length > 0 && <span className="drawer-identity-meta">{recordSubjectRelationship(member)}{member.age ? ' · ' + compactIdentityAge(member.age) : ''}</span>}
+            <ChevronRight className="drawer-identity-action" size={17} aria-hidden="true" />
+          </button>
         </section>
-
-        <nav className="mt-3 flex-1 space-y-3" aria-label="侧边栏导航">
-          {sidebarMenuSections.map((section) => (
-            <section key={section.title} aria-labelledby={`drawer-${section.title}`}>
-              <h2 id={`drawer-${section.title}`} className="mb-1 px-2 text-xs font-medium tracking-wide text-text-secondary">{section.title}</h2>
-              <div className="hoho-drawer__menu">
-                {section.groups.map((group) => {
-                  const groupOpen = Boolean(expandedGroups[group.title])
-                  const GroupIcon = group.icon
-                  return (
-                  <div key={group.title}>
-                    {group.collapsible && GroupIcon ? (
-                      <h3 id={`drawer-${group.title}`}>
-                        <button className="hoho-drawer__item" type="button" aria-expanded={groupOpen} aria-controls={group.menuId} onClick={() => setExpandedGroups((value) => ({ ...value, [group.title]: !value[group.title] }))}>
-                          <GroupIcon size={20} strokeWidth={1.7} />
-                          <span className="flex-1">{group.title}</span>
-                          {groupOpen ? <ChevronDown className="text-text-secondary" size={17} strokeWidth={1.7} /> : <ChevronRight className="text-text-secondary" size={17} strokeWidth={1.7} />}
-                        </button>
-                      </h3>
-                    ) : null}
-                    {(!group.collapsible || groupOpen) && <div id={group.menuId} className={`hoho-drawer__menu${group.collapsible ? ' pl-6' : ''}`}>
-                    {group.items.map(({ label, icon: Icon, to }) => {
-                      const active = location.pathname === to || location.pathname.startsWith(`${to}/`) || (to === '/health-events' && location.pathname === '/health-calendar')
-                      return (
-                        <button aria-current={active ? 'page' : undefined} key={label} className={`hoho-drawer__item${to === '/care-journey' ? ' hoho-drawer__item--sprout' : ''}`} data-active={active} type="button" onClick={() => openPage(to)}>
-                          <Icon size={20} strokeWidth={1.7} />
-                          <span className="flex-1">{label}<UpdateDot show={updates.some(i=>to==='/health-events'?i.destination!=='profile':to==='/health-profile'?i.destination==='profile':false)}/></span>
-                          <ChevronRight className="text-text-secondary" size={17} strokeWidth={1.7} />
-                        </button>
-                      )
-                    })}
-              </div>}
-            </div>
-            )
+        <nav className="drawer-conversations" aria-label="对话记录">
+          <div className="drawer-conversations__heading"><h2>对话记录</h2><button type="button" disabled={conversationDisabled} onClick={startConversation} aria-label="新建对话"><Pencil size={17} aria-hidden="true" /><span>新建对话</span></button></div>
+          {ownHistory.loading && <p role="status" className="drawer-history-notice">正在读取对话…</p>}
+          {ownHistory.error && <div className="drawer-history-notice" role="status"><span>部分对话暂未加载。</span><button type="button" onClick={() => setReload(value => value + 1)}>重试</button></div>}
+          {!ownHistory.loading && !ownHistory.error && !ownHistory.rows.length && <p className="drawer-history-notice">还没有对话记录</p>}
+          {(['今天', '昨天', '更早'] as const).map(group => {
+            const rows = ownHistory.rows.filter(row => historyGroup(row.updatedAt) === group)
+            return rows.length ? <section className="drawer-history-group" key={group} aria-label={group}><h3>{group}</h3>{rows.map(row => <button type="button" key={row.id} disabled={conversationDisabled} onClick={() => openHistory(row.destination)}><FileText size={18} aria-hidden="true" /><span>{row.title}</span><ChevronRight size={16} aria-hidden="true" /></button>)}</section> : null
           })}
-              </div>
-            </section>
-          ))}
+          {!ownHistory.loading && (ownHistory.rows.length > 0 || ownHistory.error) && <button type="button" className="drawer-history-all" disabled={conversationDisabled} onClick={() => openHistory('/conversation-history')}>查看全部对话<ChevronRight size={16} aria-hidden="true" /></button>}
         </nav>
-
-        <button className="hoho-drawer__account mt-3 flex min-h-[58px] w-full items-center gap-3 px-2 text-left" type="button" onClick={() => setAccountOpen(true)}>
-          {authUser?.guest
-            ? <span className="account-neutral-avatar"><UserRound size={19} /></span>
-            : <Avatar name={accountProfile?.nickname ?? '用户'} src={accountProfile?.avatar ?? undefined} size="sm" />}
-          <span className="min-w-0 flex-1">
-            <strong className="block truncate text-sm font-semibold">
-              {authUser?.guest ? '创建正式账户' : accountProfile?.nickname ?? authUser?.nickname ?? 'Hoooho 用户'}
-              {!authUser?.guest && accountRelationship && <span className="ml-1.5 font-normal text-text-secondary">{accountRelationship}</span>}
-            </strong>
-            <span className="mt-0.5 block truncate text-xs text-text-secondary">{authUser?.guest ? '保留当前健康记录' : '已同步'}</span>
-          </span>
-          <ChevronRight className="text-text-secondary" size={17} strokeWidth={1.7} />
-        </button>
+        <footer className="drawer-utilities" aria-label="帮助与信息">{utilityLinks.map(({ label, icon: Icon, to }) => <button key={to} type="button" onClick={() => openUtility(to)}><Icon size={22} strokeWidth={1.7} aria-hidden="true" /><span>{label}</span></button>)}</footer>
       </aside>
-      <AccountSheet open={accountOpen} onClose={() => setAccountOpen(false)} />
     </div>
-  )
+    <AccountSheet open={accountOpen} onClose={() => setAccountOpen(false)} />
+  </>
 }

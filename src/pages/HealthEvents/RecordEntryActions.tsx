@@ -6,6 +6,7 @@ import feeding from '../../assets/health-events/daily-record/feeding.webp'
 import sleep from '../../assets/health-events/daily-record/sleep.webp'
 import bowel from '../../assets/health-events/daily-record/bowel.webp'
 import './RecordEntryActions.css'
+import { ClipboardList, Folder, Pill, Smile } from 'lucide-react'
 
 const direct: readonly { id: string; category: JournalCategory; label: string; kind?: DietRecordKind }[] = [
   { id:'symptom',category:'symptom',label:'记录症状' },
@@ -26,12 +27,12 @@ export function RecordEntryActions({ disabled, identity, onRecord, onSmartRecord
     document.addEventListener('pointerdown',outside); document.addEventListener('keydown',escape)
     return () => { document.removeEventListener('pointerdown',outside); document.removeEventListener('keydown',escape) }
   },[open])
-  const entries=conversation?[direct[0],{...direct[4],label:'就诊资料回传'},direct[3],direct[2]]:direct
+  const entries=conversation?[direct[0],direct[3],direct[2],{...direct[4],label:'治疗复诊'}]:direct
   const daily=conversation?[{category:'diet' as const,label:'喂养与饮食',kind:'feeding' as const,image:feeding},...routines]:routines
   const choose = (category: JournalCategory, kind?: DietRecordKind) => { setOpen(false); onRecord(category,kind) }
   return <div className={`record-entry-actions${open?' is-daily-open':''}${conversation?' record-entry-actions--conversation':''}`} ref={root}>
     {open && <div aria-label="记录日常选项" className="daily-record-options" id="daily-record-options" role="group">{daily.map(item => <button disabled={disabled} key={item.category} onClick={() => choose(item.category,'kind' in item?item.kind:undefined)} type="button">{'image' in item&&<CompleteImage alt="" src={item.image}/>}<span>{item.label}</span></button>)}</div>}
-    <div aria-label="记录入口" className="record-entry-grid" role="group">{entries.map(item => <button aria-controls={item.id==='daily'?'daily-record-options':undefined} aria-expanded={item.id==='daily'?open:undefined} aria-pressed={item.id==='daily'?open:undefined} data-record-entry={item.id} disabled={disabled} key={item.id} onClick={() => item.id==='daily'?setOpen(value=>!value):choose(item.category,item.kind)} type="button"><span>{item.label}</span></button>)}</div>
+    <div aria-label="记录入口" className="record-entry-grid" role="group">{entries.map(item => <button aria-controls={item.id==='daily'?'daily-record-options':undefined} aria-expanded={item.id==='daily'?open:undefined} aria-pressed={item.id==='daily'?open:undefined} data-record-entry={item.id} disabled={disabled} key={item.id} onClick={() => item.id==='daily'?setOpen(value=>!value):choose(item.category,item.kind)} type="button">{conversation&&<span className="record-entry-category-icon" aria-hidden="true">{item.id==='symptom'?<ClipboardList size={25}/>:item.id==='medication'?<Pill size={25}/>:item.id==='daily'?<Smile size={25}/>:<Folder size={25}/>}</span>}<span>{item.label}</span>{conversation&&item.id==='materials'&&<small>资料回传</small>}</button>)}</div>
     {!conversation && <HohoButton className="record-symptom-action" disabled={disabled} fullWidth onClick={onSmartRecord} size="large">智能记录</HohoButton>}
   </div>
 }

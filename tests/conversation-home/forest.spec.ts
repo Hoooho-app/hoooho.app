@@ -28,24 +28,25 @@ async function readable(locator:Locator){
 test('clean light canvas and light surfaces cover navigation, forms and shared pages',async({page},info)=>{
  const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message))
  await page.goto('/nurse-station');await expect(page.getByRole('button',{name:'按住记录症状',exact:true})).toBeEnabled()
- expect(await page.locator('.smart-record-home').evaluate(e=>getComputedStyle(e).backgroundColor)).toBe('rgb(244, 242, 237)')
+ expect(await page.locator('.smart-record-home').evaluate(e=>getComputedStyle(e).backgroundColor)).toBe('rgb(255, 255, 255)')
  expect(await page.locator('.smart-record-home').evaluate(e=>getComputedStyle(e).backgroundImage)).toBe('none')
- await readable(page.getByRole('heading',{name:'前台',exact:true}).first());await readable(page.getByRole('button',{name:'按住记录症状',exact:true}))
+ await readable(page.getByRole('heading',{name:'症状记录',exact:true}).first());await readable(page.getByRole('button',{name:'按住记录症状',exact:true}))
  await page.screenshot({path:info.outputPath('home-390.png')})
  await page.getByRole('button',{name:'打开菜单',exact:true}).click()
  await expect(page.getByRole('dialog',{name:'侧边栏菜单'}).getByText('辅助工具',{exact:true})).toHaveCount(0)
- await readable(page.getByRole('dialog',{name:'侧边栏菜单'}).getByRole('button',{name:'健康日历',exact:true}))
+ await expect(page.getByRole('dialog',{name:'侧边栏菜单'}).getByRole('button',{name:'健康日历',exact:true})).toHaveCount(0)
+ await readable(page.getByRole('dialog',{name:'侧边栏菜单'}).getByRole('button',{name:'帮助',exact:true}))
  await page.screenshot({path:info.outputPath('drawer-390.png')})
  await page.keyboard.press('Escape')
- for(const [entry,form] of [['记录症状','记录症状'],['喂养与饮食','喂养/饮食'],['用药','记录用药'],['就诊资料回传','就诊资料']]){
-  await page.goto('/nurse-station');if(entry==='喂养与饮食')await page.getByRole('button',{name:'日常',exact:true}).click();await page.getByRole('button',{name:entry,exact:true}).click()
+ for(const [entry,form] of [['记录症状','记录症状'],['喂养与饮食','喂养/饮食'],['用药','记录用药'],['治疗复诊 资料回传','就诊资料']]){
+  await page.goto('/nurse-station');await page.getByRole('button',{name:'改用文字',exact:true}).click();if(entry==='喂养与饮食')await page.getByRole('button',{name:'日常',exact:true}).click();await page.getByRole('button',{name:entry,exact:true}).click()
   await expect(page.getByRole('dialog')).toBeVisible();await noOverflow(page)
   await readable(page.getByRole('dialog').locator('header h1').first());await readable(page.getByRole('dialog').locator('header>button').first())
   await page.screenshot({path:info.outputPath(`form-${entry.replace('/','-')}.png`)})
   await page.keyboard.press('Escape')
  }
  for(const entry of ['睡眠','排便']){
-  await page.goto('/nurse-station');await page.getByRole('button',{name:'日常',exact:true}).click();await page.getByRole('button',{name:entry,exact:true}).click()
+  await page.goto('/nurse-station');await page.getByRole('button',{name:'改用文字',exact:true}).click();await page.getByRole('button',{name:'日常',exact:true}).click();await page.getByRole('button',{name:entry,exact:true}).click()
   await expect(page.getByRole('dialog')).toBeVisible();await readable(page.getByRole('dialog').locator('header h1'));await readable(page.getByRole('dialog').locator('header>button').first());await noOverflow(page)
   if(entry==='排便')await readable(page.locator('.bowel-fieldset>legend').first())
   await page.screenshot({path:info.outputPath(`form-${entry}.png`)})
