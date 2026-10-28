@@ -309,7 +309,7 @@ test('a failed model still leaves a viewable raw record without false structured
 })
 
 test('blank input does not submit; punctuation remains conversation with no automatic save',async({page,request})=>{
- await page.getByRole('button',{name:'改用文字',exact:true}).click();const input=page.getByRole('textbox',{name:'对话输入'});await input.fill('   ');await expect(page.getByRole('button',{name:'发送',exact:true})).toBeDisabled()
+ await page.getByRole('button',{name:'改用文字',exact:true}).click();const input=page.getByRole('textbox',{name:'对话输入'});await input.fill('   ');await expect(page.getByRole('button',{name:'发送',exact:true})).toHaveCount(0);const callsBefore=(await(await request.get(`${control}/status`)).json()).calls;await input.press('Enter');expect((await(await request.get(`${control}/status`)).json()).calls).toBe(callsBefore);await expect(page.locator('.nurse-turn--user')).toHaveCount(0)
  await request.post(`${control}/front-reply-data`,{data:{reply:'收到，可以慢慢说。',contextId:'new',responseMode:'conversation',taskRelation:'new',subject,recordChanges:[],nextQuestion:null,requestedAction:noAction,uncertainties:[],emergency:{currentChild:false,quote:''}}})
  const job=await send(page,'。');await settle(request,job.id,job.inputRevision);const context=await(await request.get(`/api/members/${memberId}/front-desk-record`,{headers})).json();expect(context.currentRecord).toBeUndefined();expect(context.review?.items??[]).toHaveLength(0)
 })
