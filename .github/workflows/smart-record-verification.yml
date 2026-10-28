@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
   pull_request:
     branches: [main]
-    paths: ['server/ai/**', 'src/features/ai-business/**', 'src/components/navigation/**', 'src/utils/privateIdentity*', 'tests/dialogue/**', 'tests/helpers/**', 'tests/visit-sheet/**', 'tests/nurse-frontdesk-upgrade-mobile/**', 'tests/front-desk-continuous/**', 'tests/frontdesk-navigation/**', 'tests/selective-rollback/**', 'tests/conversation-home/**', '.github/workflows/smart-record-verification.yml']
+    paths: ['server/ai/**', 'src/features/ai-business/**', 'src/features/health-attachments/**', 'src/services/imageAnalysisPresentation*', 'src/services/healthEventDetailAdapter*', 'src/components/navigation/**', 'src/utils/privateIdentity*', 'tests/upload-recognition/**', 'tests/dialogue/**', 'tests/helpers/**', 'tests/visit-sheet/**', 'tests/nurse-frontdesk-upgrade-mobile/**', 'tests/front-desk-continuous/**', 'tests/frontdesk-navigation/**', 'tests/selective-rollback/**', 'tests/conversation-home/**', '.github/workflows/smart-record-verification.yml']
 permissions:
   contents: read
 concurrency:
@@ -56,6 +56,10 @@ jobs:
       - run: node --test tests/visit-sheet/front-desk-v3-fixture.test.mjs
       - run: npm run test:help
       - run: node --test tests/selective-rollback/baseline-contract.test.mjs server/ai/front-desk-continuous.test.mjs server/ai/front-desk-understanding.test.mjs server/ai/front-desk-record-targets.test.mjs
+      - name: Preserve partial upload recognition and pending attachment summaries
+        run: |
+          node --test server/ai/front-desk-recognition-preview.test.mjs
+          node --import ./scripts/register-node-ts-loader.mjs --test src/features/health-attachments/photoAnalysis.test.ts src/services/imageAnalysisPresentation.test.ts src/services/healthEventDetailAdapter.test.ts
       - run: npm run build
       - name: Verify private identities, four-tab navigation and draft continuity
         run: npx playwright test --config tests/frontdesk-navigation/playwright.config.ts
@@ -65,6 +69,8 @@ jobs:
       - name: Verify current protocol3 front-desk mobile flows
         if: ${{ !cancelled() }}
         run: npx playwright test --config tests/front-desk-continuous/playwright.config.ts
+      - name: Verify shared upload candidates without enabling frozen tools
+        run: npx playwright test --config tests/upload-recognition/playwright.config.ts
       - name: Verify selective rollback draft and data compatibility
         run: npx playwright test --config tests/selective-rollback/playwright.config.ts
       - run: npx playwright test --config tests/conversation-home/playwright.config.ts

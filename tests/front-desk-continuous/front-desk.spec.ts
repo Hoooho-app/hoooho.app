@@ -4,6 +4,7 @@ import {TokenService} from '../../server/auth/token-service.mjs'
 import sharp from 'sharp'
 import {writeFile} from 'node:fs/promises'
 import {maskIdentityName} from '../../src/utils/privateIdentity'
+import {fingerprint} from '../../server/ai/business/contract.mjs'
 const control='http://127.0.0.1:4868',token=new TokenService('visit-sheet-e2e-secret',3600000).create({id:'visit-test'}),headers={Authorization:`Bearer ${token}`}
 let memberId:string,memberName:string
 const noAction={type:'none',targetIds:[],targetVersion:null,confirmation:'none',quote:''}
@@ -46,6 +47,7 @@ test('private home, keyboard classifications, four direct attachment actions, da
  await expect.poll(()=>dailyImages.evaluateAll(images=>images.every(image=>image instanceof HTMLImageElement&&image.complete&&image.naturalWidth>0&&getComputedStyle(image).visibility==='visible'))).toBe(true)
  await page.getByRole('button',{name:'日常',exact:true}).click()
  const input=page.getByRole('textbox',{name:'对话输入',exact:true})
+ await input.fill('第一行\n第二行\n第三行');expect((await page.locator('.hoho-dialogue-composer').boundingBox())!.height).toBeGreaterThan(before!.height)
  await input.fill('尚未发送的观察')
  expect(await input.evaluate(element=>{const style=getComputedStyle(element);return [style.borderTopWidth,style.borderRightWidth,style.borderBottomWidth,style.borderLeftWidth,style.outlineStyle,style.boxShadow]})).toEqual(['0px','0px','0px','0px','none','none'])
  await page.getByRole('button',{name:'日常',exact:true}).click();await page.getByRole('button',{name:'喂养与饮食',exact:true}).click()
@@ -95,7 +97,8 @@ test('processing and questions precede explicit generation, save and reopening t
   if(slowCardReads&&route.request().postDataJSON()?.action==='current_card'){const response=await route.fetch();await new Promise(resolve=>setTimeout(resolve,700));return route.fulfill({response})}
   return route.continue()
  })
- await card.getByRole('button',{name:'查看记录',exact:true}).click();await expect(page).toHaveURL(new RegExp(`recordId=${recordId}`));slowCardReads=true;await page.goBack();await expect(page.getByRole('textbox',{name:'对话输入'})).toHaveValue('还没发出的补充')
+ const cpu=await page.context().newCDPSession(page);await cpu.send('Emulation.setCPUThrottlingRate',{rate:4})
+ try{await card.getByRole('button',{name:'查看记录',exact:true}).click();await expect(page).toHaveURL(new RegExp(`recordId=${recordId}`));slowCardReads=true;await page.goBack();await expect(page).toHaveURL(/\/nurse-station$/);await expect(page.getByRole('textbox',{name:'对话输入'})).toHaveValue('还没发出的补充')}finally{await cpu.send('Emulation.setCPUThrottlingRate',{rate:1});await cpu.detach()}
  expect(await page.evaluate(()=>Number(sessionStorage.getItem('front-desk-calendar-replacements')))).toBe(0)
  await page.locator('.front-desk-top-entries').getByRole('button',{name:'症状记录单',exact:true}).click();await expect(page.getByRole('dialog',{name:'症状记录单'})).toContainText(/额头[疼痛]/u);await page.getByRole('dialog',{name:'症状记录单'}).getByRole('button',{name:'关闭症状记录单',exact:true}).click()
  await page.reload();await expect(page.locator('.front-desk-top-entries button')).toHaveText(['症状记录单']);await expect(page.getByRole('region',{name:'就诊情况单'})).toHaveCount(0)
@@ -236,6 +239,61 @@ test('photo-only upload retains its bytes and saves a readable original without 
  await expect(page.locator('.front-desk-top-entries')).toHaveCount(0);const card=page.getByRole('region',{name:'当前记录单'});await card.getByRole('button',{name:'保存记录',exact:true}).click();await expect(card.getByRole('button',{name:'查看记录',exact:true})).toBeVisible();await expect(page.locator('.front-desk-top-entries button')).toHaveText(['症状记录单'])
  const context=await(await request.get(`/api/members/${memberId}/front-desk-record`,{headers})).json(),records=await(await request.get(`/api/events/${context.currentRecord.eventId}/records`,{headers})).json();expect(records).toHaveLength(1);expect(records[0].type).toBe('note');expect(records[0].aiProvenance.attachmentIds).toHaveLength(1)
  await card.getByRole('button',{name:'查看记录',exact:true}).click();await expect(page.locator('.symptom-record-sheet')).toBeVisible();await page.locator('.symptom-record-sheet').getByRole('button',{name:'读取原件 1',exact:true}).click();const original=page.locator('.symptom-record-sheet').getByRole('link',{name:'查看原件 1',exact:true});await expect(original).toHaveAttribute('href',/^blob:/);expect(await original.evaluate(async link=>{const buffer=await(await fetch((link as HTMLAnchorElement).href)).arrayBuffer();return btoa(String.fromCharCode(...new Uint8Array(buffer)))})).toBe(bytes.toString('base64'))
+})
+
+test('image-only recognition stays visible while ownership is pending, then confirms, saves and reopens its actual text',async({page,request},info)=>{
+ const observation='图中可见局部发红'
+ await request.post(`${control}/draft-data`,{data:{visualOutput:{kind:'observation',status:'readable',text:'',observations:[{text:observation,region:'图像中央'}]},items:[{category:'symptom',title:'照片观察',timeText:null,subject:'current',archiveCategory:null,relationKey:null,fields:[{name:'symptom',value:observation,quote:observation,sourceId:'@visual',page:1}]}]}})
+ const bytes=await sharp({create:{width:120,height:120,channels:3,background:'#cc8877'}}).png().toBuffer()
+ const accepted=page.waitForResponse(r=>r.url().endsWith('/recognition-jobs')&&r.request().method()==='POST')
+ await page.getByRole('button',{name:'添加照片、视频或文件'}).click();const picker=page.waitForEvent('filechooser');await page.getByRole('button',{name:'传照片',exact:true}).click();await(await picker).setFiles({name:'合成待核对照片.png',mimeType:'image/png',buffer:bytes})
+ const response=await accepted;expect(response.ok()).toBe(true);const job=await response.json();await settle(request,job.id,job.inputRevision)
+ const preview=page.getByRole('region',{name:'资料识别结果'})
+ await expect(preview).toBeVisible();await expect(preview).toContainText(observation)
+ await expect(preview).toContainText('记录对象待核对')
+ await expect(page.getByRole('region',{name:'当前记录单'})).toHaveCount(0)
+ await page.screenshot({path:info.outputPath('recognized-pending-photo.png')})
+ await preview.getByRole('button',{name:`这是${maskIdentityName(memberName)}的资料`,exact:true}).click()
+ await generate(page)
+ const card=page.getByRole('region',{name:'当前记录单'})
+ await expect(card).toContainText(observation)
+ await card.getByRole('button',{name:'保存记录',exact:true}).click()
+ await expect(card.getByRole('button',{name:'查看记录',exact:true})).toBeVisible()
+ const context=await(await request.get(`/api/members/${memberId}/front-desk-record`,{headers})).json()
+ const records=await(await request.get(`/api/events/${context.currentRecord.eventId}/records`,{headers})).json()
+ expect(records).toHaveLength(1);expect(records[0].content).toContain(observation)
+ await card.getByRole('button',{name:'查看记录',exact:true}).click()
+ await expect(page.locator('.symptom-record-sheet')).toContainText(observation)
+ await page.screenshot({path:info.outputPath('recognized-photo-record.png')})
+})
+
+test('uncertain uploaded text can be reviewed without losing its warning and saved only after explicit adoption',async({page,request},info)=>{
+ const observation='合成照片可见局部发红'
+ const bytes=await sharp({create:{width:80,height:80,channels:3,background:'#bb7766'}}).png().toBuffer(),dataUrl=`data:image/png;base64,${bytes.toString('base64')}`,attachmentId=`file-${fingerprint(dataUrl).slice(0,24)}`
+ await request.post(`${control}/draft-data`,{data:{visualOutput:{kind:'document',status:'uncertain',text:observation,observations:[]},items:[{category:'symptom',title:'待核对照片',timeText:null,subject:'current',archiveCategory:null,relationKey:null,fields:[{name:'symptom',value:observation,quote:observation,sourceId:'@first',page:1}]}]}})
+ await request.post(`${control}/front-reply-data`,{data:{reply:'已看到部分资料，请对照原件核对。',contextId:'new',responseMode:'record',taskRelation:'new',subject,recordChanges:[{type:'add',targetId:null,text:observation,scope:'record',polarity:'affirmed',subject,sources:[{messageId:'@latest',attachmentId,quote:observation}]}],nextQuestion:null,requestedAction:noAction,uncertainties:[],emergency:{currentChild:false,quote:''}}})
+ const accepted=page.waitForResponse(r=>r.url().endsWith('/recognition-jobs')&&r.request().method()==='POST')
+ await page.getByRole('button',{name:'添加照片、视频或文件'}).click();const picker=page.waitForEvent('filechooser');await page.getByRole('button',{name:'传照片',exact:true}).click();await(await picker).setFiles({name:'合成不完整照片.png',mimeType:'image/png',buffer:bytes})
+ const job=await(await accepted).json();await settle(request,job.id,job.inputRevision)
+ const preview=page.getByRole('region',{name:'资料识别结果'})
+ await expect(preview).toContainText(observation)
+ const confirm=preview.getByRole('button',{name:`这是${maskIdentityName(memberName)}的资料`,exact:true});if(await confirm.isVisible())await confirm.click()
+ await generate(page)
+ const card=page.getByRole('region',{name:'当前记录单'})
+ await expect(card.getByRole('region',{name:'资料识别结果'})).toContainText('不清楚')
+ await expect(card.getByRole('button',{name:'仅保存原话和附件',exact:true})).toBeVisible()
+ await card.getByRole('button',{name:'核对识别内容',exact:true}).click()
+ await expect(card.getByRole('textbox',{name:'记录内容',exact:true})).toHaveValue(new RegExp(observation))
+ await page.reload();await expect(card.getByRole('textbox',{name:'记录内容',exact:true})).toHaveValue(new RegExp(observation))
+ await card.getByRole('button',{name:'取消',exact:true}).click()
+ await expect(card.getByRole('region',{name:'资料识别结果'})).toContainText(observation)
+ await card.getByRole('button',{name:'核对识别内容',exact:true}).click()
+ await card.getByRole('button',{name:'完成修改',exact:true}).click()
+ await expect(card.getByRole('button',{name:'保存记录',exact:true})).toBeEnabled()
+ await card.getByRole('button',{name:'保存记录',exact:true}).click();await expect(card.getByRole('button',{name:'查看记录',exact:true})).toBeVisible()
+ const context=await(await request.get(`/api/members/${memberId}/front-desk-record`,{headers})).json(),records=await(await request.get(`/api/events/${context.currentRecord.eventId}/records`,{headers})).json()
+ expect(records).toHaveLength(1);expect(records[0].content).toContain(observation)
+ await page.screenshot({path:info.outputPath('reviewed-partial-photo.png')})
 })
 
 test('archive classification keeps the exact vaccination entry destination and the universal view button',async({page,request},info)=>{

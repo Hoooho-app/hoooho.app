@@ -60,9 +60,8 @@ async function startNew(page:import('@playwright/test').Page){
  await page.getByRole('button',{name:'打开菜单',exact:true}).click()
  await page.getByRole('button',{name:'新建对话',exact:true}).click()
  await expect(page.locator('.hoho-dialogue-composer--conversation')).toBeVisible()
- const input=page.getByLabel('对话输入')
- if(await input.count())await expect(input).toHaveValue('')
- else await expect(page.getByRole('button',{name:'按住记录症状',exact:true})).toBeEnabled()
+ await expect(page.getByRole('button',{name:'按住记录症状',exact:true})).toBeEnabled()
+ await expect(page.getByLabel('对话输入')).toHaveCount(0)
 }
 
 test('new conversation survives reload and exposes submitted originals and unsent drafts in history',async({page},info)=>{
@@ -141,7 +140,13 @@ test('camera retains the original image upload and feeding label opens its origi
  await page.getByRole('button',{name:'传照片',exact:true}).click()
  await(await chooser).setFiles({name:'合成观察.png',mimeType:'image/png',buffer:png})
  await finishNursingQuestions(page)
- await expect(page.getByRole('region',{name:'当前记录单'}).getByRole('button',{name:'保存记录',exact:true})).toBeEnabled()
+ const card=page.getByRole('region',{name:'当前记录单'}),recognition=card.getByRole('region',{name:'资料识别结果'})
+ await expect(recognition).toContainText('合成可见表现：局部发红')
+ await expect(card.getByRole('button',{name:'仅保存原话和附件',exact:true})).toBeEnabled()
+ await recognition.getByRole('button',{name:/^这是.+的资料$/}).click()
+ await expect(recognition).toHaveCount(0)
+ await expect(card).toContainText('合成可见表现：局部发红')
+ await expect(card.getByRole('button',{name:'保存记录',exact:true})).toBeEnabled()
  await expect(page.getByRole('img',{name:'合成观察.png',exact:true})).toBeVisible()
  await startNew(page)
  await page.getByRole('button',{name:'改用文字',exact:true}).click()
