@@ -6,7 +6,7 @@ import path from 'node:path'
 import { randomUUID, createHash } from 'node:crypto'
 import { JsonStore } from '../auth/storage/json-store.mjs'
 import { accountTransaction } from '../auth/storage/transaction.mjs'
-import { BailianProvider } from './providers/bailian-provider.mjs'
+import { createDialogueProvider } from './providers/dialogue-provider.mjs'
 import { bailianConfiguration, configurationError } from './providers/provider-config.mjs'
 import { createBailianRealtimeTransport } from './providers/bailian-transport.mjs'
 import { NURSE_GREETING, NURSE_POLICY, nurseText, validateNurseTurns, validateNurseMetadata } from './nurse-contract.mjs'
@@ -103,7 +103,7 @@ export class NurseService {
     const callAt = this.now().toISOString(), callStarted = Date.now()
     let receipt = {}, attempted = false, accepted = false
     try {
-      const provider = this.provider ?? new BailianProvider({ env: this.env })
+      const provider = this.provider ?? createDialogueProvider({ env: this.env })
       const lastUser = draft.turns.filter(t => t.role === 'user').at(-1)
       const member = await this.events.assertMemberOwnership(accountId, memberId)
       // Short transport aliases reduce model transcription errors in UUID references.
@@ -149,7 +149,7 @@ export class NurseService {
       const response = await withAIAccount(accountId, () => provider.fetch(`${provider.baseUrl}/responses`, { method: 'POST', task:input.organize?'nurse-organization':input.assessOnly?'nurse-assessment':'nurse-dialogue', signal: AbortSignal.timeout(60000), body: JSON.stringify({ instructions, input: JSON.stringify(modelTurns), text: { format: { type: 'json_schema', name: 'hoooho_nurse_v1', schema:responseSchema } }, max_output_tokens: 4000 }) }))
       linkedAISignal()?.throwIfAborted()
       const payload = await response.json()
-      receipt = { model: provider.model, requestId: payload.diagnostics?.requestId ?? null, inputTokens: payload.usage?.input_tokens ?? null, outputTokens: payload.usage?.output_tokens ?? null }
+      receipt = { provider: provider.name, model: provider.model, requestId: payload.diagnostics?.requestId ?? null, inputTokens: payload.usage?.input_tokens ?? null, outputTokens: payload.usage?.output_tokens ?? null }
       let output
       try { output = JSON.parse(payload.output[0].content[0].text) } catch { throw configurationError('整理回复格式未通过核对，原话保留，可手动记录', 'NURSE_FORMAT_UNAVAILABLE') }
       return await accountTransaction(this.directory, async () => {

@@ -52,7 +52,7 @@ export function readablePreview(content, metadata = {}) {
   }
   const text = lines.join('\n')
   if (!text || text.length > 24000) return null // No silent truncation.
-  return { text, provider: ['bailian','openai'].includes(metadata.provider) ? metadata.provider : 'unknown', model: typeof metadata.model==='string'&&/^[\w.:-]{1,100}$/.test(metadata.model)?metadata.model:null, requestId: typeof metadata.requestId==='string'&&/^[\w.:-]{1,200}$/.test(metadata.requestId)?metadata.requestId:null, inputTokens:Number.isInteger(metadata.inputTokens)?metadata.inputTokens:null,outputTokens:Number.isInteger(metadata.outputTokens)?metadata.outputTokens:null }
+  return { text, provider: ['bailian','openai','openrouter'].includes(metadata.provider) ? metadata.provider : 'unknown', model: typeof metadata.model==='string'&&/^[\w.:-]{1,100}(?:\/[\w.:-]{1,120})?$/.test(metadata.model)?metadata.model:null, requestId: typeof metadata.requestId==='string'&&/^[\w.:-]{1,200}$/.test(metadata.requestId)?metadata.requestId:null, inputTokens:Number.isInteger(metadata.inputTokens)?metadata.inputTokens:null,outputTokens:Number.isInteger(metadata.outputTokens)?metadata.outputTokens:null }
 }
 
 export function quarantinePreview(preview, validation) {

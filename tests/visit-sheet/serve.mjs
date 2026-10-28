@@ -24,21 +24,23 @@ if (process.env.VISIT_AI_TEST === '1') {
   process.env.AI_MODEL = 'fixture-summary-model'
   process.env.OPENAI_BASE_URL = 'https://api.openai.com/v1'
   const bailian = process.env.VISIT_BAILIAN_TEST === '1'
-  process.env.AI_PROVIDER = bailian ? 'bailian' : 'openai'
+  const openrouter = process.env.VISIT_OPENROUTER_TEST === '1', chat = bailian || openrouter
+  process.env.AI_PROVIDER = openrouter ? 'openrouter' : bailian ? 'bailian' : 'openai'
+  if(openrouter){process.env.OPENROUTER_API_KEY='fixture-openrouter-not-a-real-key';process.env.OPENROUTER_MODEL='mistralai/synthetic';process.env.OPENROUTER_VISION_MODEL='mistralai/synthetic'}
   if(bailian){process.env.BAILIAN_API_KEY='fixture-bailian-not-a-real-key';process.env.BAILIAN_BASE_URL='https://fixture.cn-beijing.maas.aliyuncs.com/compatible-mode/v1';process.env.BAILIAN_MODEL='qwen3.7-plus';process.env.ASR_PROVIDER=process.env.VISIT_ASR_TEST==='1'?'bailian':'none';process.env.TTS_PROVIDER='none'}
-  const fixtureResponse = value => bailian ? Response.json({id:'chatcmpl-fixture',choices:[{finish_reason:'stop',message:{content:value.output[0].content[0].text}}],usage:{prompt_tokens:value.usage?.input_tokens??10,completion_tokens:value.usage?.output_tokens??20}},{headers:{'x-request-id':'01234567-1234-1234-1234-123456789abc'}}) : Response.json(value)
+  const fixtureResponse = value => chat ? Response.json({id:'chatcmpl-fixture',choices:[{finish_reason:'stop',message:{content:value.output[0].content[0].text}}],usage:{prompt_tokens:value.usage?.input_tokens??10,completion_tokens:value.usage?.output_tokens??20}},{headers:{'x-request-id':'01234567-1234-1234-1234-123456789abc'}}) : Response.json(value)
   globalThis.fetch = async (url, init) => {
-    if(!String(url).startsWith('https://api.openai.com/v1/')&&!String(url).startsWith(process.env.BAILIAN_BASE_URL??'https://not-a-fixture.invalid/'))return nativeFetch(url,init)
-    if(bailian&&String(url).startsWith('https://api.openai.com/v1/'))throw new Error('Bailian fixture must not call OpenAI')
+    if(!String(url).startsWith('https://api.openai.com/v1/')&&!String(url).startsWith(process.env.BAILIAN_BASE_URL??'https://not-a-fixture.invalid/')&&!String(url).startsWith('https://openrouter.ai/api/v1/'))return nativeFetch(url,init)
+    if(chat&&String(url).startsWith('https://api.openai.com/v1/'))throw new Error('Explicit supplier fixture must not call OpenAI')
     if(bailian&&JSON.parse(init.body).model==='qwen3-asr-flash'){asrCalls++;await new Promise(resolve=>setTimeout(resolve,600));if(mode==='failure')return Response.json({error:{code:'AllocationQuota.FreeTierOnly',message:'The free tier of the model has been exhausted.'}},{status:403});return Response.json({id:'chatcmpl-synthetic-asr',choices:[{finish_reason:'stop',message:{content:transcript}}],usage:{prompt_tokens:100,completion_tokens:12,seconds:4}})}
     if(String(url)==='https://api.openai.com/v1/audio/transcriptions'){asrCalls++;return Response.json({text:transcript})}
     if(String(url)==='https://api.openai.com/v1/audio/speech'){speechCalls++;const wave=Buffer.alloc(44+3200);wave.write('RIFF');wave.writeUInt32LE(wave.length-8,4);wave.write('WAVEfmt ',8);wave.writeUInt32LE(16,16);wave.writeUInt16LE(1,20);wave.writeUInt16LE(1,22);wave.writeUInt32LE(16000,24);wave.writeUInt32LE(32000,28);wave.writeUInt16LE(2,32);wave.writeUInt16LE(16,34);wave.write('data',36);wave.writeUInt32LE(3200,40);return new Response(wave,{headers:{'Content-Type':'audio/wav'}})}
-    if(String(url)!==(bailian?process.env.BAILIAN_BASE_URL+'/chat/completions':'https://api.openai.com/v1/responses'))throw new Error('Unconfigured synthetic endpoint; network prohibited')
+    if(String(url)!==(openrouter?'https://openrouter.ai/api/v1/chat/completions':bailian?process.env.BAILIAN_BASE_URL+'/chat/completions':'https://api.openai.com/v1/responses'))throw new Error('Unconfigured synthetic endpoint; network prohibited')
     calls++
     await new Promise(resolve => setTimeout(resolve, delayMs))
-    if (mode === 'failure') return new Response(JSON.stringify({ error: { type: bailian?'AllocationQuota.FreeTierOnly':'insufficient_quota', code: bailian?'AllocationQuota.FreeTierOnly':'insufficient_quota', message: 'You exceeded your current quota, please check your plan and billing details.' } }), { status: bailian?403:429, headers: { 'x-request-id': 'req_fixture' } })
+    if (mode === 'failure') return new Response(JSON.stringify({ error: { type: bailian?'AllocationQuota.FreeTierOnly':'insufficient_quota', code: openrouter?402:bailian?'AllocationQuota.FreeTierOnly':'insufficient_quota', message: 'You exceeded your current quota, please check your plan and billing details.' } }), { status: openrouter?402:bailian?403:429, headers: { 'x-request-id': 'req_fixture' } })
     let body=JSON.parse(init.body)
-    if(bailian){const text=body.messages[1].content[0].text;body={input:text,text:{format:body.response_format.json_schema}}}
+    if(chat){const text=body.messages[1].content[0].text;body={input:text,text:{format:body.response_format.json_schema}}}
     if (body.text.format.name === 'hoooho_nurse_v1') return fixtureResponse({usage:{input_tokens:30,output_tokens:30},output:[{content:[{type:'output_text',text:JSON.stringify(nurseFixtureOutput(body))}]}]})
     if (isCurrentSituationTransport(body)) return fixtureResponse({output:[{content:[{type:'output_text',text:JSON.stringify(currentSituationFixtureOutput(body,summaryOutput))}]}]})
     if(body.text.format.name==='symptom_media_observations')return fixtureResponse({output:[{content:[{type:'output_text',text:JSON.stringify({observations:[{frame:0,text:'合成可见表现：局部发红'}],questions:['请核对人物、部位与原件日期']})}]}]})

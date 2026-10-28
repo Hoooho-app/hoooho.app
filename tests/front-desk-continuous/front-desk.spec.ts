@@ -194,6 +194,11 @@ test('processing and questions precede explicit generation, save and reopening t
  await expect(page.getByRole('button',{name:'确认整理',exact:true})).toBeVisible()
  await expect(page.getByRole('region',{name:'当前记录单'})).toHaveCount(0)
  let context=await(await request.get(`/api/members/${memberId}/front-desk-record`,{headers})).json();expect(context.currentRecord).toBeUndefined()
+ if(process.env.VISIT_OPENROUTER_TEST==='1'){
+  const replies=context.messages.filter((message:any)=>message.kind==='assistant'&&message.diagnostics)
+  expect(replies.length).toBeGreaterThan(0)
+  for(const message of replies){expect(message.diagnostics.provider).toBe('openrouter');expect(message.diagnostics.model).toBe('mistralai/synthetic')}
+ }
  await page.reload();await expect(page.getByRole('button',{name:'确认整理',exact:true})).toBeVisible();await generate(page)
  const card=page.getByRole('region',{name:'当前记录单'})
  await expect(card.getByText('查看原话',{exact:true})).toHaveCount(0);await expect(card.getByText('已记录',{exact:true})).toHaveCount(0)

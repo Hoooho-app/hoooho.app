@@ -1,7 +1,7 @@
 import {defineConfig,devices} from '@playwright/test'
 import path from 'node:path'
 import dialogue from '../dialogue/playwright.config'
-export default defineConfig({testDir:'.',testMatch:'*.spec.ts',workers:1,timeout:90000,expect:{timeout:20000},outputDir:'../../test-results/front-desk-continuous',
+export default defineConfig({testDir:'.',testMatch:'*.spec.ts',workers:1,timeout:90000,expect:{timeout:20000},outputDir:process.env.VISIT_OPENROUTER_TEST==='1'?'../../test-results/openrouter-front-desk':'../../test-results/front-desk-continuous',
  use:{baseURL:'http://127.0.0.1:4867',timezoneId:'Asia/Shanghai',serviceWorkers:'block',launchOptions:{args:dialogue.use?.launchOptions?.args,executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE??(process.platform==='win32'?'C:/Program Files/Google/Chrome/Application/chrome.exe':undefined)},screenshot:'only-on-failure',trace:'retain-on-failure'},
  projects:[{name:'iphone-se',use:{...devices['iPhone SE (3rd gen)'],browserName:'chromium'}},...[320,390,430].map(width=>({name:`mobile-${width}`,use:{browserName:'chromium' as const,viewport:{width,height:667}}}))],
  globalTeardown:'./teardown.mjs',
