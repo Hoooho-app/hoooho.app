@@ -20,9 +20,10 @@ export function questionTopic(question) {
   return {key:String(target&&!/^(?:observation|record|context|question)$/iu.test(target)?target:question?.text??question?.id??'').toLowerCase().replace(/[\s，,。？?：:_-]/gu,''),label:'补充观察'}
 }
 const uncertain = text => /不确定|不清楚|说不清|讲不清|不知道|没(?:有)?(?:(?:看|观察)(?!到)|留意)|没注意|无法(?:确认|比较|判断)/u.test(text)
+const locationSupplement = text => /^(?:补充症状部位[：:]|暂时无法确认具体症状部位。?$)/u.test(text??'')
+const pickerQuestion={id:'body-location-selection',text:'具体症状部位',target:'location'}
 export function frontDeskAnswerQuestion(question,message) {
-  const locationSupplement=/^(?:补充症状部位[：:]|暂时无法确认具体症状部位。?$)/u.test(message?.text??'')
-  return locationSupplement&&questionTopic(question).key!=='location'?null:question
+  return locationSupplement(message?.text)&&questionTopic(question).key!=='location'?null:question
 }
 const withoutQuestion = (reply, question) => {
   let text = reply.replace(question.text,'').trim()
@@ -43,10 +44,12 @@ export function guideFrontDeskReply(value,{previous,messages=[],latest,effective
     if(message.kind==='assistant'||message.status!=='completed'||message.retracted||!message.text?.trim())continue
     const question=message.contextQuestion
     if(question?.text&&question.target!=='unresolved'&&frontDeskAnswerQuestion(question,message))remember(question,message)
+    if(locationSupplement(message.text))remember(pickerQuestion,message)
   }
   if (effectiveQuestion && value.taskRelation==='continue' && effectiveQuestion.target!=='unresolved' && latest?.text?.trim() && frontDeskAnswerQuestion(effectiveQuestion,latest)) {
     remember(effectiveQuestion,latest)
   }
+  if(locationSupplement(latest?.text)&&['continue','new'].includes(value.taskRelation))remember(pickerQuestion,latest)
   let question=value.nextQuestion,reply=value.reply
   if (question && checks.some(check=>check.key===questionTopic(question).key || check.questionId===question.id)) {
     reply=withoutQuestion(reply,question);question=null
@@ -60,6 +63,6 @@ export function guideFrontDeskReply(value,{previous,messages=[],latest,effective
     question={...question,options,sourceIds:node?.sourceIds??[]}
   }
   const lastLocation=[...checks].reverse().find(check=>check.key==='location')
-  const locationUnclear=lastLocation?.state==='uncertain'
+  const locationUnclear=lastLocation?.state==='uncertain'||uncertain(latest?.text??'')&&/部位|位置|哪里|哪儿|哪一块/u.test(latest?.text??'')||previous?.bodyLocationSuggested&&!lastLocation
   return {reply,question,interview:{version:'front-desk-question-progress-v1',status:question?'asking':'ready',domain:previous?.domain??'record',question,turnCount,askedQuestionIds,checks:checks.slice(-20),bodyLocationSuggested:questionTopic(question).key==='location'||locationUnclear,stopReason:question?null:'no_necessary_question'}}
 }

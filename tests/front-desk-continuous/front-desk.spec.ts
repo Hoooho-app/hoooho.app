@@ -92,7 +92,7 @@ test('second follow-up offers text consent, unknown location opens picker, and r
 })
 
 test('selected body location and choice answers become one owned input each; fresh nurse reply is visible without scrolling',async({page,request},info)=>{
- const text='看见一小片红点，位置说不清。';await reply(request,text,'具体在哪个部位？')
+ const text='看见一小片红点，位置说不清。';await reply(request,text,'有没有新接触的衣物或洗护用品？')
  let job=await send(page,text);await settle(request,job.id,job.inputRevision)
  await page.getByRole('button',{name:'选择症状部位',exact:true}).click()
  const picker=page.getByRole('dialog',{name:'身体部位定位器',exact:true})

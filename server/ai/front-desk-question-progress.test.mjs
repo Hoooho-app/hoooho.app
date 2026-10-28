@@ -35,7 +35,11 @@ test('an upgraded conversation retires an older unknown target using persisted q
 })
 test('a body picker supplement does not answer the other observation currently being asked',()=>{
  const result=guideFrontDeskReply(value(q('bath','洗澡前后有没有变化？')),{latest:{id:'selection',text:'暂时无法确认具体症状部位。'},effectiveQuestion:q('bath','洗澡前后有没有变化？')})
- assert.ok(result.question);assert.deepEqual(result.interview.checks,[])
+ assert.ok(result.question);assert.deepEqual(result.interview.checks.map(check=>check.key),['location']);assert.equal(result.interview.checks[0].state,'uncertain')
+ const first=guideFrontDeskReply(value(q('exposure','有没有新接触的衣物？')),{latest:{id:'first',text:'手上有红点，具体位置说不清。'}})
+ assert.equal(first.interview.bodyLocationSuggested,true)
+ const selected=guideFrontDeskReply(value(null),{previous:first.interview,latest:{id:'selected',text:'补充症状部位：左掌心。'}})
+ assert.equal(selected.interview.bodyLocationSuggested,false);assert.equal(selected.interview.checks[0].state,'answered')
 })
 test('record fallback groups only current source-backed facts; excludes concern, retracted facts, and unknown negative inference',()=>{
  const subject={kind:'current',memberId:'child',confirmed:true},messages=[{id:'m1',contextId:'ctx',kind:'voice',status:'completed',text:'胳膊有红点。担心是不是过敏。'},{id:'m2',contextId:'ctx',kind:'text',status:'completed',text:'洗澡之前没有观察，不确定。'}]

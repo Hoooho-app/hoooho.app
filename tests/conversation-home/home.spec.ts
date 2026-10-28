@@ -226,7 +226,7 @@ test('one camera exposes four native sources and a blank PDF retains its origina
  await expect(page.getByRole('button',{name:'核对记录',exact:true})).toHaveCount(0)
  await expect(page.locator('.front-desk-top-entries')).toHaveCount(0)
  await expect(page.getByRole('region',{name:'当前记录单'})).toHaveCount(0)
- await page.getByRole('button',{name:'生成记录单',exact:true}).click()
+ await page.getByRole('button',{name:'确认整理',exact:true}).click()
  await expect(page.getByRole('region',{name:'当前记录单'}).getByRole('button',{name:'保存记录',exact:true})).toBeVisible()
  await expect(page.getByText('已记录',{exact:true})).toHaveCount(0)
  await expect(page.locator('.smart-record-saved')).toHaveCount(0)
