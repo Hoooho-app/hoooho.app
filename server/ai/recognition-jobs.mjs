@@ -462,6 +462,15 @@ export class RecognitionJobs {
   async close(){this.closed=true;for(const listeners of this.waiters.values())for(const notify of [...listeners])notify();this.unregister();clearInterval(this.timer);for(const a of this.active.values()){const j=this.raw(a.id);if(j&&['running','publishing'].includes(j.state)){j.state='paused';j.stage='paused';j.cancelEpoch++;j.owner=null;j.leaseUntil=0;this.put(j)}a.controller.abort()}await Promise.allSettled([])}
 }
 
+// HTTP 200 alone cannot distinguish a completed task from paused work. Emit
+// only bounded lifecycle metadata, never identities, originals or model text.
+export function recognitionDiagnostics(job){
+  if(!job||!['queued','running','publishing','paused','failed','ready','needs_review','discarded'].includes(job.state))return undefined
+  const stages=['queued','converting','transcribing','responding','preparing','reading','organizing','publishing','ready','paused','failed','discarded','partial']
+  const code=job.error?.code
+  return {jobState:job.state,jobStage:stages.includes(job.stage)?job.stage:'unknown',inputCount:Array.isArray(job.inputStates)?job.inputStates.length:0,unresolvedCount:Array.isArray(job.unresolvedInputs)?job.unresolvedInputs.length:0,...(typeof code==='string'&&/^[A-Z][A-Z0-9_]{0,79}$/.test(code)?{jobErrorCode:code}:{})}
+}
+
 export const recognitionRoute=pathname=>/^\/api\/members\/([^/]+)\/recognition-(jobs|assets)(?:\/([^/]+))?(?:\/(commands))?$/.exec(pathname)
 export async function recognitionApi(service,accountId,request,pathname,readJson){
   const match=recognitionRoute(pathname);if(!match)return null

@@ -70,6 +70,68 @@ test('rejected image cannot borrow an older task ACK; legacy pending image recov
  expect(context.messages.filter((message:any)=>message.kind==='image')).toHaveLength(1);expect(context.currentRecord).toBeUndefined()
 })
 
+test('an accepted image paused during processing survives reload and resumes the same task without reupload',async({page,request})=>{
+ const {bytes,attachmentId}=await photo();await fixture(request,text,attachmentId)
+ await request.get(`${control}/delay?ms=3000`)
+ let uploads=0,posts=0
+ page.on('request',r=>{if(r.method()==='POST'&&r.url().includes('/recognition-assets'))uploads++;if(r.method()==='POST'&&r.url().endsWith('/recognition-jobs'))posts++})
+ const response=await upload(page,bytes),accepted=await response.json(),input=response.request().postDataJSON().input
+ const pause=await request.post(`${base}${memberId}/recognition-jobs/${accepted.id}/commands`,{headers,data:{id:'synthetic-interruption',type:'pause'}})
+ expect(pause.ok()).toBe(true);expect((await pause.json()).state).toBe('paused')
+ await expect(page.getByRole('button',{name:'继续处理',exact:true})).toBeVisible()
+ await expect(page.getByRole('button',{name:'继续处理',exact:true})).toBeInViewport()
+ await expect(page.getByRole('status',{name:'正在处理这条消息'})).toHaveCount(0)
+ const before=(await(await request.get(`${control}/status`)).json()).calls
+ await page.reload()
+ await expect(page.getByRole('button',{name:'继续处理',exact:true})).toBeVisible()
+ await expect(page.getByRole('button',{name:'继续处理',exact:true})).toBeInViewport()
+ await expect(page.getByText('处理已暂停，原件和已完成步骤保留',{exact:true})).toBeVisible()
+ await expect(page.getByRole('img',{name:'合成收费单.png',exact:true})).toBeVisible()
+ await expect(page.getByRole('status',{name:'正在处理这条消息'})).toHaveCount(0)
+ expect((await(await request.get(`${control}/status`)).json()).calls).toBe(before)
+ await request.get(`${control}/delay?ms=80`)
+ const commanded=page.waitForResponse(r=>r.url().endsWith(`/recognition-jobs/${accepted.id}/commands`)&&r.request().method()==='POST')
+ await page.getByRole('button',{name:'继续处理',exact:true}).click()
+ const resumed=await commanded;expect(resumed.ok()).toBe(true);expect(resumed.request().postDataJSON().type).toBe('resume')
+ const ready=await settled(request,accepted.id)
+ expect(ready.inputStates.map((value:any)=>value.id)).toEqual([input.id])
+ await expect(page.getByRole('region',{name:'资料识别结果'})).toContainText(text)
+ await expect(page.getByRole('button',{name:'继续处理',exact:true})).toHaveCount(0)
+ expect(uploads).toBe(1);expect(posts).toBe(1)
+ const context=await(await request.get(`${base}${memberId}/front-desk-record/contexts/${ready.frontDesk.context.id}`,{headers})).json()
+ expect(context.messages.filter((message:any)=>message.kind==='image')).toHaveLength(1);expect(context.currentRecord).toBeUndefined()
+})
+
+test('organization failure after a readable image exposes same-task retry and retains the first reading',async({page,request})=>{
+ const {bytes,attachmentId}=await photo();await fixture(request,text,attachmentId)
+ let uploads=0,posts=0
+ page.on('request',r=>{if(r.method()==='POST'&&r.url().includes('/recognition-assets'))uploads++;if(r.method()==='POST'&&r.url().endsWith('/recognition-jobs'))posts++})
+ const response=await upload(page,bytes),accepted=await response.json()
+ await settled(request,accepted.id)
+ await expect(page.getByRole('region',{name:'资料识别结果'})).toContainText(text)
+ await request.get(`${control}/failure`)
+ const generated=page.waitForResponse(r=>r.request().method()==='POST'&&r.url().includes('/front-desk-record/contexts/')&&r.request().postDataJSON()?.action==='generate_current')
+ await page.getByRole('button',{name:'确认整理',exact:true}).click()
+ const organization=(await(await generated).json()).recognitionJob
+ expect(organization.id).toBeTruthy()
+ let failed:any
+ await expect.poll(async()=>{failed=await(await request.get(`${base}${memberId}/recognition-jobs/${organization.id}`,{headers})).json();return failed.state}).toBe('failed')
+ expect(failed.unresolvedInputs).toHaveLength(0)
+ expect(failed.inputStates.every((value:any)=>value.status==='completed')).toBe(true)
+ await expect(page.getByRole('button',{name:'重试这一步',exact:true})).toBeVisible()
+ await expect(page.getByRole('button',{name:'重试这一步',exact:true})).toBeInViewport()
+ await expect(page.getByRole('group',{name:'护护的回复',exact:true}).filter({hasText:'单据类型：收费导引单'})).toContainText('合成检查甲')
+ await expect(page.getByRole('status',{name:'正在处理这条消息'})).toHaveCount(0)
+ await request.get(`${control}/success`)
+ const commanded=page.waitForResponse(r=>r.url().endsWith(`/recognition-jobs/${encodeURIComponent(organization.id)}/commands`)&&r.request().method()==='POST')
+ await page.getByRole('button',{name:'重试这一步',exact:true}).click()
+ const retried=await commanded;expect(retried.ok()).toBe(true);expect(retried.request().postDataJSON().type).toBe('retry')
+ await settled(request,organization.id)
+ expect(uploads).toBe(1);expect(posts).toBe(1)
+ const context=await(await request.get(`${base}${memberId}/front-desk-record`,{headers})).json()
+ expect(context.messages.filter((message:any)=>message.kind==='image')).toHaveLength(1);expect(context.currentRecord).toBeUndefined()
+})
+
 test('lost image ACK recovers the exact accepted input without duplicate uploads or recognition',async({page,request})=>{
  const {bytes,attachmentId}=await photo();await fixture(request,text,attachmentId)
  let posts=0

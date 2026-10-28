@@ -4,7 +4,7 @@ import {mkdtemp,rm,readdir} from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import sharp from 'sharp'
-import {RecognitionJobs} from './recognition-jobs.mjs'
+import {RecognitionJobs,recognitionDiagnostics} from './recognition-jobs.mjs'
 import {recognitionOwnerLifecycle} from './recognition-lifecycle.mjs'
 import {FamilyMemberRepository} from '../members/repositories/family-member-repository.mjs'
 import {FamilyMemberService} from '../members/family-member-service.mjs'
@@ -602,4 +602,11 @@ test('semantic v2 resolving the latest subject group cannot release a different 
  assert.equal(b.semanticSubject,'current');assert.equal(b.recordable,true);assert.equal(b.subjectResolvedBy,'owner-group-b-answer')
  assert.equal(semanticTestRaw(current.context),'报告写体温38.5℃\n这份报告是宝宝的')
  await f.business.frontAnswerObservations('synthetic',f.member.id,state.contextId,semanticTestRaw(current.context))
+})
+
+test('task diagnostics distinguish stopped work without logging identities or source text',()=>{
+ assert.deepEqual(recognitionDiagnostics({state:'paused',stage:'paused',inputStates:[{id:'private-input',text:'private source text'}],unresolvedInputs:[],error:{code:'RECOGNITION_INTERRUPTED',message:'private error text'},accountId:'private-account',frontDesk:{context:{}}}),{jobState:'paused',jobStage:'paused',inputCount:1,unresolvedCount:0,jobErrorCode:'RECOGNITION_INTERRUPTED'})
+ assert.deepEqual(recognitionDiagnostics({state:'failed',stage:'private source text',error:{code:'private error text'}}),{jobState:'failed',jobStage:'unknown',inputCount:0,unresolvedCount:0})
+ assert.equal(recognitionDiagnostics(null),undefined)
+ assert.equal(recognitionDiagnostics({state:'private source text'}),undefined)
 })

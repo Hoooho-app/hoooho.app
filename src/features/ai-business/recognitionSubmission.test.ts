@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import {recognitionAcceptedInput,recoverUnreceivedTurns,applyRecognitionReceipt} from './recognitionSubmission'
+import {recognitionAcceptedInput,recoverUnreceivedTurns,applyRecognitionReceipt,recognitionInputProcessing,retainUnreceivedFailures} from './recognitionSubmission'
 import type {RecognitionJob} from './recognitionJobs'
 import type {CaptureTurn} from './captureDraft'
 const receipt=(patch:Partial<RecognitionJob>={}):RecognitionJob=>({id:'old-job',state:'ready',stage:'ready',seq:9,inputRevision:1,resultRevision:1,createdAt:'2026-10-29T00:00:00Z',updatedAt:'2026-10-29T00:00:01Z',inputStates:[{id:'older-text',status:'completed',text:'先前的观察'}],...patch})
@@ -25,4 +25,21 @@ test('a cancellation receipt never turns a cancelled image back into pending or 
   const next=applyRecognitionReceipt(turns,receipt({state:'discarded',inputStates:[{id:'new-photo',text:'',status:'pending'},{id:'older-text',text:'先前的观察',status:'completed'}]}))!
   assert.equal(next[0].status,'failed');assert.equal(next[0].errorCode,'RECOGNITION_INPUT_CANCELLED');assert.deepEqual(next[0].fileKeys,['original'])
   assert.equal(next[1].status,'completed')
+})
+
+test('only active accepted work spins; stopped task receipts leave fresh local inputs alone',()=>{
+  for(const state of ['paused','failed','needs_review','ready','discarded'] as const){
+    assert.equal(recognitionInputProcessing(receipt({state}),'older-text'),false,state)
+    assert.equal(recognitionInputProcessing(receipt({state}),'new-photo'),true,'an unacknowledged upload retains its own loading state')
+  }
+  for(const state of ['queued','running','publishing'] as const)assert.equal(recognitionInputProcessing(receipt({state}),'older-text'),true)
+  assert.equal(recognitionInputProcessing(undefined,'new-photo'),true)
+})
+
+test('a late old-task poll cannot replace a new image rejection with its earlier pending snapshot',()=>{
+ const pending:CaptureTurn={id:'new-photo',role:'user',kind:'image',status:'pending',text:'',fileKeys:['original']}
+ const failed:CaptureTurn={...pending,status:'failed',errorCode:'RECOGNITION_NOT_ACCEPTED',error:'not accepted'}
+ assert.equal(retainUnreceivedFailures([pending],[failed],receipt())?.[0],failed)
+ assert.equal(retainUnreceivedFailures([pending],[failed],receipt({inputStates:[{id:pending.id,status:'pending',text:''}]}))?.[0],pending,'a genuine exact-input acceptance remains authoritative')
+ assert.equal(pending.status,'pending');assert.equal(failed.status,'failed')
 })

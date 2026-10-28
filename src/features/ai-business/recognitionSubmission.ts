@@ -1,5 +1,11 @@
 import type {CaptureTurn} from './captureDraft'
 import type {RecognitionJob} from './recognitionJobs'
+import {recognitionActive} from './recognitionJobs'
+
+/** A stopped accepted task needs a recovery action, never an activity spinner. */
+export function recognitionInputProcessing(job:RecognitionJob|undefined,inputId:string){
+  return !job?.inputStates?.some(input=>input.id===inputId)||recognitionActive(job)
+}
 
 /** A task existing is not an acknowledgement of this particular message. */
 export function recognitionAcceptedInput(job:RecognitionJob,inputId:string){
@@ -26,4 +32,11 @@ export function recoverUnreceivedTurns(turns:CaptureTurn[]|undefined,job:Recogni
     return {...turn,status:'failed' as const,errorCode:'RECOGNITION_NOT_ACCEPTED',error:'这条内容尚未开始识别，原件仍保留，可以重试。'}
   })
   return changed?next:turns
+}
+
+/** An older receipt must not erase a rejection recorded while it was in flight. */
+export function retainUnreceivedFailures(next:CaptureTurn[]|undefined,current:CaptureTurn[]|undefined,job:RecognitionJob){
+  const accepted=new Set(job.inputStates?.map(input=>input.id))
+  const failures=new Map(current?.filter(turn=>turn.role!=='assistant'&&turn.status==='failed'&&['RECOGNITION_NOT_ACCEPTED','RECOGNITION_INPUT_CANCELLED'].includes(turn.errorCode??'')&&!accepted.has(turn.id)).map(turn=>[turn.id,turn]))
+  return failures.size?next?.map(turn=>failures.get(turn.id)??turn):next
 }
