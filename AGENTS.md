@@ -1,5 +1,12 @@
 # Hoooho execution and design standards
 
+## 首页与姓名隐私：产品主人确认 2026-10-29
+
+- 本轮明确授权首页/底导/侧栏采用 `docs/design/frontdesk-navigation-privacy-20261029.md` 的新布局，覆盖旧的前台标题和四项侧栏导航安排；不扩展为其他页面的全局重设计。
+- 首页和第一底导为「症状记录」，其余为健康日历、孩子档案、一键整理；默认语音隐藏分类，键盘输入再展开。
+- 侧栏身份摘要最多两行并保留用户头像。姓名显示两字 `*末字`、三字 `姓*末字`；不改原件、编辑值和导出。子女关系以女儿/儿子表达，不以爸爸/妈妈作为用户中心身份。
+- 欢迎语不含孩子姓名，保留现有护士站视频和绿底白字；不加极光和日期海报。侧栏保留真实历史及帮助/反馈/关于，不显示「产品中心」标题。
+
 ## Complete user workflows before implementation — owner instruction 2026-10-27
 
 This requirement applies to product planning, feature design, implementation, bug fixes, testing, reviews and handoffs in ChatGPT and Codex. A list of UI changes or passing tests is not a complete business design.

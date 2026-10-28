@@ -4,6 +4,7 @@ import {TokenService} from '../../server/auth/token-service.mjs'
 import sharp from 'sharp'
 import {writeFile} from 'node:fs/promises'
 import {openRegion,choose} from '../body-locator/helpers'
+import {maskIdentityName} from '../../src/utils/privateIdentity'
 const control='http://127.0.0.1:4868',token=new TokenService('visit-sheet-e2e-secret',3600000).create({id:'visit-test'}),headers={Authorization:`Bearer ${token}`}
 let memberId:string,memberName:string
 const noAction={type:'none',targetIds:[],targetVersion:null,confirmation:'none',quote:''}
@@ -135,22 +136,24 @@ test.beforeEach(async({page,request})=>{
  memberName=`合成孩子${crypto.randomUUID().slice(0,4)}`;const r=await request.post('/api/members',{headers,data:{name:memberName,relationship:'child',birthday:'2024-01-01'}});expect(r.ok()).toBe(true);memberId=(await r.json()).id
  await request.post('/api/auth/current-member',{headers,data:{memberId}});await request.get(`${control}/success`);await request.get(`${control}/delay?ms=100`);await request.post(`${control}/draft-data`,{data:{items:null}})
  await page.addInitScript(({token,memberId})=>{sessionStorage.setItem('hoooho-auth-token',token);if(!sessionStorage.getItem('continuous-initialized')){localStorage.setItem('hoooho-app',JSON.stringify({state:{authUser:{id:'visit-test'},currentMemberId:memberId,members:[],profile:null},version:5}));sessionStorage.setItem('continuous-initialized','true')}},{token,memberId})
- await page.goto('/nurse-station');await expect(page.getByRole('heading',{name:'前台',exact:true})).toBeVisible()
+ await page.goto('/nurse-station');await expect(page.getByRole('heading',{name:'症状记录',exact:true})).toBeVisible()
 })
 test.afterEach(async({request})=>{await request.get(`${control}/success`);await request.get(`${control}/delay?ms=40`);await request.delete(`/api/members/${memberId}`,{headers})})
-test('compact home tools, dynamic name, four direct attachment actions, daily feeding and stable text switch',async({page},info)=>{
- await expect(page.getByText(`我是${memberName}的档案员，TA的任何情况我都能帮助整理。`,{exact:true})).toBeVisible()
+test('private home, keyboard classifications, four direct attachment actions, daily feeding and stable text switch',async({page},info)=>{
+ await expect(page.getByText('我是档案员护工。',{exact:true})).toBeVisible()
+ await expect(page.locator('.front-desk-welcome')).not.toContainText(memberName)
  await expect(page.locator('.front-desk-followup')).toHaveCount(0)
- expect(await page.locator('[aria-label="记录入口"] button').allTextContents()).toEqual(['记录症状','就诊资料回传','用药','日常'])
+ await expect(page.getByRole('group',{name:'记录入口',exact:true})).toHaveCount(0)
  await expect(page.locator('.front-desk-top-entries')).toHaveCount(0)
- expect(await page.locator('[aria-label="记录入口"] button').evaluateAll(buttons=>buttons.map(button=>getComputedStyle(button).backgroundColor))).toEqual(['rgb(228, 243, 234)','rgb(228, 239, 252)','rgb(239, 233, 248)','rgb(248, 237, 244)'])
+ await page.screenshot({path:info.outputPath('front-desk-voice-home.png')})
+ const before=await page.locator('.hoho-dialogue-composer').boundingBox();await page.getByRole('button',{name:'改用文字',exact:true}).click();const after=await page.locator('.hoho-dialogue-composer').boundingBox();expect(after!.height).toBe(before!.height);expect(after!.width).toBe(before!.width)
+ expect(await page.locator('[aria-label="记录入口"] button').allTextContents()).toEqual(['记录症状','用药','日常','治疗复诊资料回传'])
+ expect(await page.locator('[aria-label="记录入口"] button').evaluateAll(buttons=>buttons.map(button=>getComputedStyle(button).backgroundColor))).toEqual(['rgb(228, 243, 234)','rgb(239, 233, 248)','rgb(252, 242, 227)','rgb(228, 239, 252)'])
  await page.getByRole('button',{name:'日常',exact:true}).click();expect(await page.locator('.daily-record-options button').allTextContents()).toEqual(['喂养与饮食','睡眠','排便'])
  const dailyImages=page.locator('.daily-record-options button img')
  await expect(dailyImages).toHaveCount(3)
  await expect.poll(()=>dailyImages.evaluateAll(images=>images.every(image=>image instanceof HTMLImageElement&&image.complete&&image.naturalWidth>0&&getComputedStyle(image).visibility==='visible'))).toBe(true)
  await page.getByRole('button',{name:'日常',exact:true}).click()
- await expect(page.getByRole('button',{name:'按住记录症状',exact:true})).toBeVisible();await page.screenshot({path:info.outputPath('front-desk-voice-home.png')})
- const before=await page.locator('.hoho-dialogue-composer').boundingBox();await page.getByRole('button',{name:'改用文字',exact:true}).click();const after=await page.locator('.hoho-dialogue-composer').boundingBox();expect(after!.height).toBe(before!.height);expect(after!.width).toBe(before!.width)
  const input=page.getByRole('textbox',{name:'对话输入',exact:true})
  await input.fill('尚未发送的观察')
  expect(await input.evaluate(element=>{const style=getComputedStyle(element);return [style.borderTopWidth,style.borderRightWidth,style.borderBottomWidth,style.borderLeftWidth,style.outlineStyle,style.boxShadow]})).toEqual(['0px','0px','0px','0px','none','none'])
@@ -300,7 +303,7 @@ test('a failed model still leaves a viewable raw record without false structured
 })
 
 test('blank input does not submit; punctuation remains conversation with no automatic save',async({page,request})=>{
- await page.getByRole('button',{name:'改用文字',exact:true}).click();const input=page.getByRole('textbox',{name:'对话输入'});await input.fill('   ');await expect(page.getByRole('button',{name:'发送',exact:true})).toHaveCount(0)
+ await page.getByRole('button',{name:'改用文字',exact:true}).click();const input=page.getByRole('textbox',{name:'对话输入'});await input.fill('   ');await expect(page.getByRole('button',{name:'发送',exact:true})).toBeDisabled()
  await request.post(`${control}/front-reply-data`,{data:{reply:'收到，可以慢慢说。',contextId:'new',responseMode:'conversation',taskRelation:'new',subject,recordChanges:[],nextQuestion:null,requestedAction:noAction,uncertainties:[],emergency:{currentChild:false,quote:''}}})
  const job=await send(page,'。');await settle(request,job.id,job.inputRevision);const context=await(await request.get(`/api/members/${memberId}/front-desk-record`,{headers})).json();expect(context.currentRecord).toBeUndefined();expect(context.review?.items??[]).toHaveLength(0)
 })
@@ -323,14 +326,14 @@ test('explicit save command persists once using the displayed current card',asyn
  const context=await(await request.get(`/api/members/${memberId}/front-desk-record`,{headers})).json();expect((await(await request.get(`/api/events/${context.currentRecord.eventId}/records`,{headers})).json()).length).toBe(1)
 })
 
-test('member switch fences a delayed response and updates the dynamic greeting',async({page,request})=>{
+test('member switch fences a delayed response and keeps the welcome private',async({page,request})=>{
  const otherName='另一位合成孩子',created=await request.post('/api/members',{headers,data:{name:otherName,relationship:'child',birthday:'2025-01-01'}});expect(created.ok()).toBe(true);const otherId=(await created.json()).id
  await page.reload();await reply(request,'头有点疼');await request.get(`${control}/delay?ms=1500`)
  let release!:()=>void,held=false;const gate=new Promise<void>(resolve=>{release=resolve})
  await page.route(/\/recognition-jobs\/[^/?]+(?:\?.*)?$/,async route=>{if(route.request().method()!=='GET')return route.continue();const response=await route.fetch(),body=await response.json();if(!held&&body.frontDesk?.context.messages.some((m:any)=>m.kind==='assistant')){held=true;await gate}await route.fulfill({response,json:body}).catch(()=>undefined)})
  try{
-  await send(page,'头有点疼');await expect.poll(()=>held).toBe(true);await page.getByRole('button',{name:'打开菜单',exact:true}).click();await page.getByRole('dialog',{name:'侧边栏菜单'}).getByRole('button',{name:'打开我的孩子',exact:true}).click();await page.getByRole('dialog',{name:'我的孩子'}).getByRole('button',{name:`切换到${otherName}`,exact:true}).click();release()
-  await expect(page.getByText(`我是${otherName}的档案员，TA的任何情况我都能帮助整理。`,{exact:true})).toBeVisible();await expect(page.locator('.nurse-turn--user')).toHaveCount(0);await expect(page.getByRole('region',{name:'当前记录单'})).toHaveCount(0);await expect(page.locator('.front-desk-top-entries')).toHaveCount(0)
+  await send(page,'头有点疼');await expect.poll(()=>held).toBe(true);await page.getByRole('button',{name:'打开菜单',exact:true}).click();await page.getByRole('dialog',{name:'侧边栏菜单'}).getByRole('button',{name:'切换记录对象',exact:true}).click();await page.getByRole('dialog',{name:'我的孩子'}).getByRole('button',{name:`切换到${maskIdentityName(otherName)}`,exact:true}).click();release()
+  await expect(page.getByText('我是档案员护工。',{exact:true})).toBeVisible();await expect(page.locator('.front-desk-welcome')).not.toContainText(otherName);await expect(page.locator('.nurse-turn--user')).toHaveCount(0);await expect(page.getByRole('region',{name:'当前记录单'})).toHaveCount(0);await expect(page.locator('.front-desk-top-entries')).toHaveCount(0)
   await reply(request,'睡得很好');const job=await send(page,'睡得很好');expect((await request.get(`/api/members/${otherId}/recognition-jobs/${job.id}`,{headers})).ok()).toBe(true)
  }finally{release?.();await request.delete(`/api/members/${otherId}`,{headers})}
 })

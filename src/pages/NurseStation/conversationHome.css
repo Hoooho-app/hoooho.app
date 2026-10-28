@@ -166,3 +166,22 @@ body .smart-record-home .nurse-turn--user>.nurse-turn-content{background:rgb(var
 @media(prefers-reduced-motion:reduce){.front-desk-message-loading>svg{animation-duration:2s}}
 .continuous-record-editor,.continuous-record-editor label{display:grid;gap:var(--hoho-space-2);min-width:0}
 .continuous-record-editor input,.continuous-record-editor textarea{box-sizing:border-box;max-width:100%;width:100%;font-size:16px;padding:var(--hoho-space-2);border:1px solid rgb(var(--hoho-color-border));border-radius:var(--hoho-radius-control);background:rgb(var(--hoho-color-surface));color:inherit}
+
+/* Product-owner-approved homepage, 2026-10-29. Other record and archive pages remain unchanged. */
+body .smart-record-home.smart-record-page{background:rgb(var(--hoho-color-surface-white))}
+body .smart-record-home .smart-record-page__footer{background:rgb(var(--hoho-color-surface-white));background-image:none;padding:var(--hoho-space-3) var(--hoho-space-4)}
+.smart-record-home .hoho-bottom-navigation{margin-top:0}
+body .smart-record-home .front-desk-welcome{display:flex;flex-direction:column;gap:var(--hoho-space-4);margin:var(--hoho-space-4) 0 var(--hoho-space-5)}
+.front-desk-welcome__copy h2{margin:0 0 var(--hoho-space-3);font-family:var(--hoho-font-family-heading);font-size:var(--hoho-font-size-display);line-height:1.35;font-weight:500;letter-spacing:-.01em}
+.front-desk-welcome__copy p{margin:0;font-size:var(--hoho-font-size-body);line-height:1.65;color:rgb(var(--hoho-color-text-secondary))}
+.front-desk-welcome__media{width:100%;height:clamp(200px,38dvh,340px);position:relative}
+.front-desk-welcome__media>.idle-nurse-visual{position:relative;inset:auto;width:100%;height:100%;overflow:hidden;mix-blend-mode:multiply}
+.front-desk-welcome__media .idle-nurse-visual__idle-video{width:100%;height:100%;object-fit:contain;opacity:1;transform:scale(1.3);transform-origin:center}
+body .smart-record-home .hoho-dialogue-composer--frontdesk:not(.is-typing)>.hoho-dialogue-hold{color:rgb(var(--hoho-color-action-text));background:rgb(var(--hoho-color-action))}
+body .smart-record-home .hoho-dialogue-composer--frontdesk>.hoho-dialogue-mode,body .smart-record-home .hoho-dialogue-composer--frontdesk>.hoho-dialogue-photo{background:rgb(var(--hoho-color-surface-white));border:1px solid rgb(var(--hoho-color-border)/.65)}
+.smart-record-home .record-entry-actions--conversation .record-entry-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--hoho-space-2)}
+.smart-record-home .record-entry-actions--conversation .record-entry-grid>button{display:flex;flex-direction:column;justify-content:center;align-items:center;gap:var(--hoho-space-1);min-height:84px;padding:var(--hoho-space-2) var(--hoho-space-1);border-radius:var(--hoho-radius-card);background:var(--record-entry-surface);font-size:var(--hoho-font-size-caption);font-weight:500;white-space:nowrap}
+.record-entry-category-icon{display:grid;place-items:center;min-height:28px}
+.smart-record-home .record-entry-grid>button small{font-size:var(--hoho-font-size-caption);font-weight:400;opacity:.85}
+.smart-record-home .record-entry-actions--conversation .record-entry-grid>button[data-record-entry='symptom']{border:1px solid rgb(var(--hoho-color-record-symptom-text)/.55)}
+@media(max-height:650px){.front-desk-welcome__media{height:180px}.front-desk-welcome__copy h2{font-size:var(--hoho-font-size-page-title)}body .smart-record-home .front-desk-welcome{margin-top:var(--hoho-space-2);gap:var(--hoho-space-2)}}

@@ -5,23 +5,25 @@ import test from 'node:test'
 const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8')
 const drawer = read('./SideDrawer.tsx')
 const header = read('./MainAppHeader.tsx')
+const bottom = read('./MainBottomNavigation.tsx')
 const settings = read('../../pages/Settings/index.tsx')
 const guide = read('../../pages/Guide/index.tsx')
 const help = read('../../pages/Help/index.tsx')
 const feedback = read('../../pages/Feedback/index.tsx')
 const about = read('../../pages/About/index.tsx')
 
-test('every direct sidebar destination is represented by the shared top-level header contract', () => {
-  for (const route of ['/nurse-station', '/health-events', '/health-profile', '/help', '/feedback', '/about']) {
-    assert.match(drawer, new RegExp(`to: '${route.replaceAll('/', '\\/')}'`))
-  }
+test('primary destinations move to bottom navigation while utility destinations stay in the sidebar', () => {
+  for (const route of ['/nurse-station', '/health-events', '/health-profile']) assert.match(bottom, new RegExp(`to: '${route.replaceAll('/', '\\/')}'`))
+  for (const route of ['/help', '/feedback', '/about']) assert.match(drawer, new RegExp(`to: '${route.replaceAll('/', '\\/')}'`))
   assert.match(header, /aria-label="打开菜单"/)
   assert.match(header, /<SideDrawer open=\{open\}/)
   assert.match(header, /compact \? 'sticky top-0 z-20 min-h-14' : 'min-h-16'/)
 })
 
-test('sidebar uses the approved concise navigation copy', () => {
-  assert.match(drawer, /label: '服务前台'[^\n]*to: '\/nurse-station'[\s\S]*label: '健康日历'[^\n]*to: '\/health-events'[\s\S]*label: '孩子档案'[^\n]*to: '\/health-profile'/)
+test('four primary actions use approved copy without a duplicated sidebar menu or a fifth personal tab', () => {
+  for (const label of ['症状记录', '健康日历', '孩子档案', '一键整理']) assert.match(bottom, new RegExp(label))
+  assert.doesNotMatch(drawer, /label: '服务前台'|label: '健康日历'|label: '孩子档案'|label: '一键整理'/)
+  assert.doesNotMatch(bottom, />我的</)
   assert.doesNotMatch(drawer, /label: '健康随记'|label: '健康月历'/)
   assert.doesNotMatch(drawer, /label: '设置'|to: '\/settings'/)
   assert.match(drawer, /label: '帮助'[^\n]*to: '\/help'[\s\S]*label: '反馈'[^\n]*to: '\/feedback'[\s\S]*label: '关于'[^\n]*to: '\/about'/)
@@ -31,10 +33,11 @@ test('merged help entry removes the former guide entry', () => {
   assert.doesNotMatch(drawer, /label: '说明'|to: '\/guide'/)
 })
 
-test('sidebar service and account summary use the current member context', () => {
-  assert.match(drawer, /label: '服务前台', icon: House/)
-  assert.match(drawer, /member\.primaryRecorderRelationship/)
-  assert.match(drawer, /accountRelationship/)
+test('sidebar identities use display privacy and a user-centered member relationship', () => {
+  assert.match(drawer, /maskIdentityName\(member\.name\)/)
+  assert.match(drawer, /recordSubjectRelationship\(member\)/)
+  assert.match(drawer, /aria-label="编辑我的信息"/)
+  assert.doesNotMatch(drawer, /accountRelationship|产品中心|已同步/)
 })
 
 test('top-level utility pages use the shared compact sidebar header', () => {

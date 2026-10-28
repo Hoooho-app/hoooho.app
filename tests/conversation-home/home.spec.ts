@@ -23,7 +23,7 @@ test.beforeEach(async({page,request})=>{
  await request.post('http://127.0.0.1:4198/draft-data',{data:{items:null}})
  await page.addInitScript(({token,memberId})=>{sessionStorage.setItem('hoooho-auth-token',token);localStorage.setItem('hoooho-app',JSON.stringify({state:{authUser:{id:'visit-test'},currentMemberId:memberId,members:[],profile:null},version:5}));let calls=0;Object.defineProperty(window,'__speechCalls',{get:()=>calls});if(window.speechSynthesis)window.speechSynthesis.speak=()=>{calls++}},{token,memberId})
  await page.goto('/nurse-station')
- await expect(page.getByRole('heading',{name:'前台',exact:true})).toBeVisible()
+ await expect(page.getByRole('heading',{name:'症状记录',exact:true})).toBeVisible()
  await expect(page.getByRole('button',{name:'按住记录症状',exact:true})).toBeEnabled()
 })
 
@@ -57,8 +57,8 @@ async function typeText(page:import('@playwright/test').Page,value:string){
  await page.getByLabel('对话输入').fill(value)
 }
 async function startNew(page:import('@playwright/test').Page){
- await page.getByRole('button',{name:'更多操作',exact:true}).click()
- await page.getByRole('menuitem',{name:'新建对话',exact:true}).click()
+ await page.getByRole('button',{name:'打开菜单',exact:true}).click()
+ await page.getByRole('button',{name:'新建对话',exact:true}).click()
  await expect(page.locator('.hoho-dialogue-composer--conversation')).toBeVisible()
  const input=page.getByLabel('对话输入')
  if(await input.count())await expect(input).toHaveValue('')
@@ -80,8 +80,8 @@ test('new conversation survives reload and exposes submitted originals and unsen
  await page.reload();await expect(page.getByRole('button',{name:'按住记录症状',exact:true})).toBeEnabled();await typeText(page,'')
  await typeText(page,'还没发送的饮食观察')
  await startNew(page)
- await page.getByRole('button',{name:'更多操作',exact:true}).click()
- await page.getByRole('menuitem',{name:'之前对话',exact:true}).click()
+ await page.getByRole('button',{name:'打开菜单',exact:true}).click()
+ await page.getByRole('button',{name:'查看全部对话',exact:true}).click()
  await expect(page).toHaveURL(/conversation-history$/)
  await expect(page.getByRole('button').filter({hasText:raw})).toBeVisible()
  await expect(page.getByRole('button').filter({hasText:'还没发送的饮食观察'})).toBeVisible()
@@ -122,8 +122,8 @@ test('failed recording survives refresh, retries and remains readable after a ne
  await page.getByRole('button',{name:'发送',exact:true}).click()
  await finishNursingQuestions(page)
  await expect(page.getByRole('region',{name:'当前记录单'}).getByRole('button',{name:'保存记录',exact:true})).toBeEnabled()
- await page.getByRole('button',{name:'更多操作',exact:true}).click()
- await page.getByRole('menuitem',{name:'之前对话',exact:true}).click()
+ await page.getByRole('button',{name:'打开菜单',exact:true}).click()
+ await page.getByRole('button',{name:'查看全部对话',exact:true}).click()
  await page.locator('.conversation-history-list button').filter({hasText:'本机草稿'}).filter({hasText:'今天没有呕吐'}).click()
  await expect(page.getByLabel('语音原件')).toBeVisible()
  await expect(page.locator('.nurse-conversation')).not.toContainText('另一段对话：今天吃了一碗粥')
@@ -144,6 +144,7 @@ test('camera retains the original image upload and feeding label opens its origi
  await expect(page.getByRole('region',{name:'当前记录单'}).getByRole('button',{name:'保存记录',exact:true})).toBeEnabled()
  await expect(page.getByRole('img',{name:'合成观察.png',exact:true})).toBeVisible()
  await startNew(page)
+ await page.getByRole('button',{name:'改用文字',exact:true}).click()
  await page.getByRole('button',{name:'日常',exact:true}).click();await page.getByRole('button',{name:'喂养与饮食',exact:true}).click()
  await expect(page.getByRole('dialog',{name:'喂养/饮食',exact:true})).toBeVisible()
 })
@@ -188,10 +189,10 @@ test('compact sidebar and clean light canvas carry through the shared health pag
   await page.setViewportSize({width,height:680})
   await page.getByRole('button',{name:'打开菜单',exact:true}).click()
   const drawer=page.getByRole('dialog',{name:'侧边栏菜单'})
-  expect((await drawer.locator('.hoho-drawer').boundingBox())!.width).toBeCloseTo(Math.min(width*.78,300),0)
-  for(const selector of ['.hoho-drawer__member','.hoho-drawer__account','.hoho-drawer__member-trigger']){
-   expect(await drawer.locator(selector).evaluate(e=>getComputedStyle(e).borderTopWidth)).toBe('0px')
-   expect(await drawer.locator(selector).evaluate(e=>getComputedStyle(e).borderBottomWidth)).toBe('0px')
+  expect((await drawer.locator('.hoho-drawer').boundingBox())!.width).toBeCloseTo(Math.min(width*.88,360),0)
+  for(const row of await drawer.locator('.drawer-identity-row').all()){
+   expect(await row.evaluate(e=>getComputedStyle(e).borderTopWidth)).toBe('0px')
+   expect(await row.evaluate(e=>getComputedStyle(e).borderBottomWidth)).toBe('0px')
   }
   await page.keyboard.press('Escape')
  }

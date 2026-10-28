@@ -6,7 +6,7 @@ import {startAITiming} from '../../services/aiTiming'
 import {hasVisibleConversationText} from '../../../shared/conversation-input.mjs'
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { ArrowDown, Check, LoaderCircle, Mic, Search, Stethoscope, X } from 'lucide-react'
-import { useBlocker, useNavigate } from 'react-router-dom'
+import { useBlocker, useLocation, useNavigate } from 'react-router-dom'
 import { dismissSavedRecordGuide,savedRecordUrl, savedRecordGuides, type SavedRecordGuide } from './savedRecordGuide'
 import { BottomSheetSurface, HohoButton, DialogueComposer, Typography } from '../../components/design-system'
 import { useAppStore } from '../../store/useAppStore'
@@ -33,18 +33,21 @@ import {RecognitionProgress} from './RecognitionProgress'
 import {recognitionUrl,recognitionActive,recognitionCommand,uploadRecognitionFile,uploadRecognitionAudio,waitForRecognitionJob,type RecognitionJob} from './recognitionJobs'
 import {caseService} from '../case-continuity/api'
 import {CaseMergePrompt} from '../case-continuity/CaseMergePrompt'
-import { MainAppHeader } from '../../components/navigation'
+import { MainAppHeader, MainBottomNavigation } from '../../components/navigation'
 import { RecordEntryActions } from '../../pages/HealthEvents/RecordEntryActions'
 import type { JournalCategory, DietRecordKind } from '../../types/journal'
 import { FrontDeskProcessing } from '../../pages/NurseStation/FrontDeskProcessing'
 import { FrontDeskWelcome } from '../../pages/NurseStation/FrontDeskWelcome'
-import { ConversationMenu } from '../../pages/NurseStation/ConversationMenu'
+import { maskIdentityName } from '../../utils/privateIdentity'
 import '../../pages/NurseStation/conversationHome.css'
 import { conversationTime, showConversationTime } from '../../pages/NurseStation/conversationTime'
 
 export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,onSaved,onCaptured,conversational=false,page=false,followupReturn=false,initialText='',home=false}:{memberId:string;token:string;eventId?:string;eventTitle?:string;onClose:()=>void;onSaved?:(message:string)=>void;onCaptured?:(eventId:string)=>void;conversational?:boolean;page?:boolean;followupReturn?:boolean;initialText?:string;home?:boolean}) {
   const viewport=useVisibleViewport()
-  const navigate=useNavigate()
+  const navigate=useNavigate(),location=useLocation()
+  const [homeTyping,setHomeTyping]=useState(false)
+  const [homeInputEpoch,setHomeInputEpoch]=useState(0)
+  const handledNewConversation=useRef<string>()
   const accountId=useAppStore(s=>s.authUser?.id??'guest'),key=`${conversational?'home-smart':'smart'}:${accountId}:${memberId}:${eventId??'new'}`
   const [local,setLocal]=useState<CaptureDraft>(()=>({text:initialText,files:[],occurredAt:localDateTimeValue(),timeUnknown:false,requestId:crypto.randomUUID(),eventId}))
   const operationTimings=useRef(new Map<string,ReturnType<typeof startAITiming>>())
@@ -80,7 +83,7 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
   const subjectConfirming=useRef(false)
   local.files.forEach(file=>visibleMedia.current.set(fileIdentity(file),file))
   const frontUrl=`/api/members/${encodeURIComponent(memberId)}/front-desk-record`
-  const recorderName=useAppStore(s=>s.accountProfile?.nickname||s.authUser?.nickname||s.profile?.nickname)
+  const recorderName=useAppStore(s=>{const name=s.accountProfile?.nickname||s.authUser?.nickname||s.profile?.nickname;return home?maskIdentityName(name):name})
   const [stage,setStage]=useState<'conversation'|'review'>('conversation')
   const [resumeChoices,setResumeChoices]=useState<{key:string;draft:CaptureDraft}[]|null>(null)
   const switchingDraft=useRef(false)
@@ -603,7 +606,7 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
       setError(e instanceof Error?e.message:'保存未完成，草稿保留，可重试');setStatus('')
     }}finally{pending.current=false;if(mounted.current)setBusy(false)}
   }
-  const conversationFooter=<DialogueComposer variant={home?'conversation':'default'} holdLabel={home?'按住记录症状':undefined} initialTyping={Boolean(local.conversationInput?.trim())} placeholder={home?'说说你的情况…':undefined} expandedFeedback liveTranscript={home?voice.liveText:undefined} liveStatus={voice.liveUnavailable?'实时文字暂不可用，松开后完整转写':'正在听你说'} feedbackHint={home?(voice.liveUnavailable?'录音继续，松开后整理':'边说边显示文字，松开后整理'):'松开后显示文字'} discardOnBlur={!page} directPhoto={page} text={local.conversationInput??''} onTextChange={conversationInput=>change({conversationInput})} maxLength={5000} disabled={!ready||pending.current||completed||!!resumeChoices||exitOpen||!!local.rawSavedGuide} voiceDisabled={!!local.rawSavedGuide} allowTextWhileProcessing audioLevel={voice.audioLevel} requesting={voice.state==='requesting'} listening={voice.state==='listening'} processing={voice.state==='transcribing'} onStart={()=>{void voice.start()}} onStop={voice.stop} onDiscard={voice.discard} onPhoto={source=>({camera,album,video:videoCamera,file:filePicker}[source]).current?.click()} onSend={()=>void sendText()}/>
+  const conversationFooter=<DialogueComposer key={home?homeInputEpoch:undefined} variant={home?'frontdesk':'default'} onTypingChange={home?setHomeTyping:undefined} holdLabel={home?'按住记录症状':undefined} initialTyping={Boolean(local.conversationInput?.trim())} placeholder={home?'输入孩子的情况…':undefined} expandedFeedback liveTranscript={home?voice.liveText:undefined} liveStatus={voice.liveUnavailable?'实时文字暂不可用，松开后完整转写':'正在听你说'} feedbackHint={home?(voice.liveUnavailable?'录音继续，松开后整理':'边说边显示文字，松开后整理'):'松开后显示文字'} discardOnBlur={!page} directPhoto={page} text={local.conversationInput??''} onTextChange={conversationInput=>change({conversationInput})} maxLength={5000} disabled={!ready||pending.current||completed||!!resumeChoices||exitOpen||!!local.rawSavedGuide} voiceDisabled={!!local.rawSavedGuide} allowTextWhileProcessing audioLevel={voice.audioLevel} requesting={voice.state==='requesting'} listening={voice.state==='listening'} processing={voice.state==='transcribing'} onStart={()=>{void voice.start()}} onStop={voice.stop} onDiscard={voice.discard} onPhoto={source=>({camera,album,video:videoCamera,file:filePicker}[source]).current?.click()} onSend={()=>void sendText()}/>
   const saveBlocked=busy||jobBusy||!!localStage||voice.busy||!canSave||!review?.items.length||!!review.documentWarnings?.length||!!review.unmappedRows?.length||review.sources?.some(s=>s.status==='uncertain')
   const reviewFooter=<div className="smart-record-review-footer">
     {subjectConfirmation}
@@ -660,23 +663,27 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
       // Closing a session preserves server originals and formal records.
       await request(frontUrl,'DELETE')
       await persist(freshDraft())
-      hiddenTurns.current.clear();liveVoicePreview.current.clear();completedGuideIds.current.clear();setShowJump(false);setCompleted(false);setStage('conversation');setOriginalsNeedReview(false);voice.clearError();setStatus('');setHomeNotice('已开始新对话，之前的内容可在右上角的「之前对话」中查看。');followScroll.current=true;scrollOpened.current=false
+      setHomeTyping(false);setHomeInputEpoch(value=>value+1)
+      hiddenTurns.current.clear();liveVoicePreview.current.clear();completedGuideIds.current.clear();setShowJump(false);setCompleted(false);setStage('conversation');setOriginalsNeedReview(false);voice.clearError();setStatus('');setHomeNotice('已开始新对话，之前的内容可在侧栏的「对话记录」中查看。');followScroll.current=true;scrollOpened.current=false
     }catch{setError('新对话尚未建立，原内容仍然保留，请重试。')}
     finally{pending.current=false;setBusy(false)}
   }
-  const shareProduct=async()=>{
-    try{
-      const data={title:'Hoooho · 护护',text:'孩子的情况，随手记清楚。',url:new URL('/nurse-station',window.location.origin).href}
-      if(navigator.share)await navigator.share(data)
-      else{await navigator.clipboard.writeText(data.url);setHomeNotice('护护的产品链接已复制。')}
-    }catch(e){if(!(e instanceof DOMException&&e.name==='AbortError'))setHomeNotice('暂时无法分享，请复制浏览器中的产品地址。')}
-  }
-  async function openHistory(){
+  useEffect(()=>{
+    const requestId=(location.state as {frontDeskNewConversation?:string}|null)?.frontDeskNewConversation
+    if(!home||!requestId||handledNewConversation.current===requestId||!ready||busy||dialogueBusy||jobBusy||localStage||voice.busy||pending.current)return
+    handledNewConversation.current=requestId
+    const nextState={...(location.state as Record<string,unknown>)}
+    delete nextState.frontDeskNewConversation
+    navigate(location.pathname+location.search,{replace:true,state:nextState})
+    void newConversation()
+  },[home,ready,location.key,busy,dialogueBusy,jobBusy,localStage,voice.busy])
+  async function openHistory(destination='/conversation-history'){
     if(!ready||busy||dialogueBusy||jobBusy||localStage||voice.busy||pending.current)return
     await writes.current
-    allowLeave.current=true;navigate('/conversation-history')
+    if(!mounted.current||accountId!==(useAppStore.getState().authUser?.id??'guest')||memberId!==useAppStore.getState().currentMemberId)return
+    allowLeave.current=true;navigate(destination)
   }
-  const homeActions=<><HohoButton variant="text" size="icon" aria-label="快速查找" onClick={()=>navigate('/quick-search')}><Search size={22} strokeWidth={1.8} aria-hidden="true" /></HohoButton><ConversationMenu disabled={!ready||busy||dialogueBusy||jobBusy||!!localStage||voice.busy||!!resumeChoices} onNew={()=>void newConversation()} onHistory={()=>void openHistory()} onShare={()=>void shareProduct()} onAbout={()=>navigate('/about')}/></>
+  const homeActions=<HohoButton variant="text" size="icon" aria-label="快速查找" onClick={()=>navigate('/quick-search')}><Search size={22} strokeWidth={1.8} aria-hidden="true" /></HohoButton>
   async function openRecordEntry(category:JournalCategory,kind?:DietRecordKind){
     if(openingRecord.current)return
     openingRecord.current=true
@@ -687,7 +694,7 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
     }catch{if(mounted.current)setError('当前内容暂未保存，请重试记录入口。')}
     finally{openingRecord.current=false}
   }
-  const homeShortcuts=<RecordEntryActions conversation disabled={!ready||busy||voice.busy} identity={`${accountId}:${memberId}`} onSmartRecord={()=>undefined} onRecord={(category,kind)=>void openRecordEntry(category,kind)}/>
+  const homeShortcuts=homeTyping?<RecordEntryActions conversation disabled={!ready||busy||voice.busy} identity={`${accountId}:${memberId}`} onSmartRecord={()=>undefined} onRecord={(category,kind)=>void openRecordEntry(category,kind)}/>:null
   const savedOperationReply=Boolean(job?.frontDesk&&completedFrontSaveReplyIds(job.frontDesk.context).has(job.frontDesk.replyId))
   const timeline=visibleTurns.filter(turn=>!turn.completedOperation).filter(turn=>completed?Boolean(turn.savedGuide&&completedGuideIds.current.has(turn.savedGuide.id)):Boolean((home||page&&!eventId)&&turn.savedGuide)||!turn.savedGuide&&(home||turn.id!==job?.frontDesk?.replyId)&&(!page||!hiddenTurns.current.has(turn.id))).sort((a,b)=>(a.at??0)-(b.at??0))
   useEffect(()=>{
@@ -863,5 +870,5 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
     }catch{leaving.current=false;setExiting(false);setExitError(keepDraft?'草稿保存失败，请重试。当前内容仍在。':'退出未完成，请重试。当前内容仍在。')}
   }
   const exitDialog=<BottomSheetSurface open={exitOpen} viewportAware label="退出智能记录" title="保存这次草稿吗？" onClose={cancelExit} footer={<><HohoButton fullWidth loading={exiting} onClick={()=>void finishExit(true)}>保存草稿并退出</HohoButton><HohoButton fullWidth variant="secondary" disabled={exiting} onClick={()=>void finishExit(false)}>不保存并退出</HohoButton></>}><p>保存后，下次可以接着记录；不保存，下次将重新开始。</p>{exitError&&<p role="alert">{exitError}</p>}</BottomSheetSurface>
-  return <>{page||stage==='review' ? <section className={`smart-record-page smart-record-dialog${home?' smart-record-home':''}`} aria-label={stage==='review'?'核对记录':'智能记录'} style={{top:viewport.top,height:viewport.height}}>{home&&stage==='conversation'?<MainAppHeader conversation title="前台" showInstallApp={false} action={homeActions}/>:<WebPageHeader title={stage==='review'?'核对记录':'智能记录'} onBack={()=>stage==='review'?setStage('conversation'):close()}/>}{topEntries}<div ref={scrollBody} onWheel={()=>{if(home)followingUntil.current=0}} onTouchStart={()=>{if(home)followingUntil.current=0}} onScroll={updateJump} className="smart-record-page__body">{home&&stage==='conversation'&&<FrontDeskWelcome memberName={memberName||'当前对象'} gender={memberGender}/>}{homeNotice&&<p className="front-desk-notice" role="status">{homeNotice}</p>}{body}</div>{home&&showJump&&<div className="front-desk-jump-wrap"><HohoButton size="icon" aria-label="回到最新消息" onClick={()=>{followScroll.current=true;followingUntil.current=performance.now()+450;setShowJump(false);scrollBody.current?.scrollTo({top:scrollBody.current.scrollHeight,behavior:'smooth'})}}><ArrowDown size={20} aria-hidden="true"/></HohoButton></div>}{footer&&<footer className="smart-record-page__footer">{home&&stage==='conversation'&&homeShortcuts}{footer}</footer>}</section> : <BottomSheetSurface open viewportAware size="workspace" className="smart-record-dialog nurse-conversation-sheet" layerClassName="symptom-input-layer" leading={<Stethoscope size={21} aria-hidden="true"/>} dismissText="收起" title="智能记录" label="智能记录" onClose={close} footer={footer}>{body}</BottomSheetSurface>}{exitDialog}{home&&recordOpen&&recordGenerated&&currentCardProps&&(viewingSavedRecord&&continuousCard?.saved?.available&&!local.frontCardEdit?<JournalRecordDetail eventId={continuousCard.saved.eventId} recordId={continuousCard.saved.recordId} onEditRecord={()=>{if(currentCardDisabled)return;change({frontCardEdit:{contextId:continuousCard.contextId,baseVersion:continuousCard.version,text:continuousCard.text,title:continuousCard.title,time:localDateTimeValue(new Date(continuousCard.occurredAt)),originalOccurredAt:continuousCard.occurredAt}});setViewingSavedRecord(false)}} onClose={()=>setRecordOpen(false)} onChanged={()=>{void cardAction('current_card');window.dispatchEvent(new Event('hoooho-data-changed'))}}/>:<BottomSheetSurface open viewportAware className="symptom-record-sheet" label="症状记录单" title="症状记录单" onClose={()=>setRecordOpen(false)}><ContinuousRecordCard key={continuousCard!.contextId} {...currentCardProps}/></BottomSheetSurface>)}{home&&checklistOpen&&<BottomSheetSurface open viewportAware label="就诊清单" title="就诊清单" onClose={()=>setChecklistOpen(false)}><p className="front-desk-checklist">{continuousCard?.checklist?.text}</p></BottomSheetSurface>}</>
+  return <>{page||stage==='review' ? <section className={`smart-record-page smart-record-dialog${home?' smart-record-home':''}`} aria-label={stage==='review'?'核对记录':'智能记录'} style={{top:viewport.top,height:viewport.height}}>{home&&stage==='conversation'?<MainAppHeader conversation title="症状记录" showInstallApp={false} action={homeActions} onHistoryNavigate={destination=>void openHistory(destination)} onNewConversation={()=>void newConversation()} conversationDisabled={!ready||busy||dialogueBusy||jobBusy||!!localStage||voice.busy||!!resumeChoices}/>:<WebPageHeader title={stage==='review'?'核对记录':'智能记录'} onBack={()=>stage==='review'?setStage('conversation'):close()}/>}{topEntries}<div ref={scrollBody} onWheel={()=>{if(home)followingUntil.current=0}} onTouchStart={()=>{if(home)followingUntil.current=0}} onScroll={updateJump} className="smart-record-page__body">{home&&stage==='conversation'&&<FrontDeskWelcome memberName={memberName||'当前对象'} gender={memberGender}/>}{homeNotice&&<p className="front-desk-notice" role="status">{homeNotice}</p>}{body}</div>{home&&showJump&&<div className="front-desk-jump-wrap"><HohoButton size="icon" aria-label="回到最新消息" onClick={()=>{followScroll.current=true;followingUntil.current=performance.now()+450;setShowJump(false);scrollBody.current?.scrollTo({top:scrollBody.current.scrollHeight,behavior:'smooth'})}}><ArrowDown size={20} aria-hidden="true"/></HohoButton></div>}{footer&&<footer className="smart-record-page__footer">{home&&stage==='conversation'&&homeShortcuts}{footer}</footer>}{home&&stage==='conversation'&&<MainBottomNavigation embedded/>}</section> : <BottomSheetSurface open viewportAware size="workspace" className="smart-record-dialog nurse-conversation-sheet" layerClassName="symptom-input-layer" leading={<Stethoscope size={21} aria-hidden="true"/>} dismissText="收起" title="智能记录" label="智能记录" onClose={close} footer={footer}>{body}</BottomSheetSurface>}{exitDialog}{home&&recordOpen&&recordGenerated&&currentCardProps&&(viewingSavedRecord&&continuousCard?.saved?.available&&!local.frontCardEdit?<JournalRecordDetail eventId={continuousCard.saved.eventId} recordId={continuousCard.saved.recordId} onEditRecord={()=>{if(currentCardDisabled)return;change({frontCardEdit:{contextId:continuousCard.contextId,baseVersion:continuousCard.version,text:continuousCard.text,title:continuousCard.title,time:localDateTimeValue(new Date(continuousCard.occurredAt)),originalOccurredAt:continuousCard.occurredAt}});setViewingSavedRecord(false)}} onClose={()=>setRecordOpen(false)} onChanged={()=>{void cardAction('current_card');window.dispatchEvent(new Event('hoooho-data-changed'))}}/>:<BottomSheetSurface open viewportAware className="symptom-record-sheet" label="症状记录单" title="症状记录单" onClose={()=>setRecordOpen(false)}><ContinuousRecordCard key={continuousCard!.contextId} {...currentCardProps}/></BottomSheetSurface>)}{home&&checklistOpen&&<BottomSheetSurface open viewportAware label="就诊清单" title="就诊清单" onClose={()=>setChecklistOpen(false)}><p className="front-desk-checklist">{continuousCard?.checklist?.text}</p></BottomSheetSurface>}</>
 }

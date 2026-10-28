@@ -1,10 +1,9 @@
-import { ReceptionSurface } from '../../components/design-system/ReceptionSurface'
 import { useEffect, useRef, useState } from 'react'
 import { NurseStationIdleVideo } from '../HealthEvents/NurseStationIdleVideo'
 import { useSettingsStore } from '../../store/useSettingsStore'
 import { frontDeskGreeting } from './frontDeskGreeting'
 
-export function FrontDeskWelcome({memberName,gender}:{memberName:string;gender?:string}) {
+export function FrontDeskWelcome(_props:{memberName:string;gender?:string}) {
   const care=useSettingsStore(state=>state.care)
   const root=useRef<HTMLDivElement>(null)
   const [inView,setInView]=useState(true)
@@ -20,7 +19,8 @@ export function FrontDeskWelcome({memberName,gender}:{memberName:string;gender?:
     if(root.current)observer.observe(root.current)
     return()=>observer.disconnect()
   },[])
-  return <div ref={root} className="front-desk-welcome">
-    <ReceptionSurface layout="stacked" media={<NurseStationIdleVideo active={active&&inView} reducedMotion={reduced||(care.enabled&&care.reduceMotion)} portable/>} title={frontDeskGreeting(memberName,gender)}/>
-  </div>
+  return <section ref={root} className="front-desk-welcome" aria-label="记录介绍">
+    <div className="front-desk-welcome__copy"><h2>今天怎么样？</h2><p>{frontDeskGreeting()}</p></div>
+    <div className="front-desk-welcome__media"><NurseStationIdleVideo active={active&&inView} reducedMotion={reduced||(care.enabled&&care.reduceMotion)} portable/></div>
+  </section>
 }
