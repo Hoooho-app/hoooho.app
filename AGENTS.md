@@ -1,5 +1,19 @@
 # Hoooho execution and design standards
 
+## Complete user workflows before implementation — owner instruction 2026-10-27
+
+This requirement applies to product planning, feature design, implementation, bug fixes, testing, reviews and handoffs in ChatGPT and Codex. A list of UI changes or passing tests is not a complete business design.
+
+- Before implementation or a test plan, read `docs/delivery/user-workflow-contract.md` and the lesson in `docs/lessons/2026-10-27-workflow-completeness.md`. Use the current implementation and latest confirmed product decisions; do not restore historical behavior from examples.
+- Define the user's complete task from entry to a usable persisted result, reopening/editing and downstream use. Write one concrete ordinary case, not just component or feature names.
+- Resolve the applicable business rules first: actor/object/task ownership; raw input versus facts, draft and saved result; state transitions, prerequisites, authoritative success receipts, and cross-surface/version consistency.
+- Reason through natural branches before coding: fragmented/rapid input, corrections, side topics and object/task switches, cancel/back/refresh/reopen, delayed/duplicate work, partial failure and retry. For each applicable branch, specify the next user action, what is retained, where work resumes and which effects must not repeat. Do not require unrelated edge cases for a trivial change.
+- Keep a traceable task contract for cross-message, cross-page, asynchronous or persistence changes. Map business rules to implementation owners and observable acceptance evidence. For small changes a short task record is enough; for documentation-only changes use the bounded scope/consistency checklist rather than inventing runtime tests.
+- Do not delegate basic completeness to the owner or ask them to specify predictable failure behavior. Resolve routine details autonomously within scope; ask only for consequential, unresolved product choices. Do not expand a testing request into an unauthorized product rewrite.
+- Derive test expectations from the business contract, not from current implementation. Distinguish synthetic responses, real providers, actual persistence, browser execution and Production. Preserve external-call budgets and release boundaries.
+- Report design, implementation, verification, deployment and owner acceptance separately. Screenshots establish observations, inspected source establishes mechanisms, and traces establish incident causes; label inference. Never call an archived lesson a runtime fix or a simulated path a verified semantic result.
+- When a basic omission is found, repair the missing rule and its directly affected chain, retain the counterexample, and check adjacent consequences. Do not patch only the visible symptom. Keep the contract and unresolved core issues in handoffs; do not claim a complete usable release while its core workflow remains unresolved.
+
 ## Family project separation — owner instruction 2026-10-21
 
 - 家庭统筹会是独立项目，唯一家庭代码仓库为 `https://github.com/Hoooho-app/hoooho-family.git`（私有），正式分支 `main`。今后的家庭功能开发、测试、构建和发布进入该仓库，不继续写回本健康仓库。
@@ -21,6 +35,14 @@
 - This delivery authorization does not permit destructive data operations, force-push, secret disclosure, bypassing security controls, or unrelated business changes.
 - Documentation, release-policy and CI-verification-target changes do not require redeploying an unchanged application binary; verify the affected configuration and current Production access. Runtime/build behavior changes still require a Production deployment.
 - Both Staging services were retired through the authenticated Railway dashboard on 2026-10-20. The Staging environment has zero services and one detached data volume retained as an offline backup; do not delete it or recreate test services. Production is the only running environment. See `docs/production-only-policy.md` for verified evidence.
+
+### Release targets and cost control — owner instruction 2026-10-28
+
+- Follow `docs/release-environments.md` for each channel's purpose, release order, review and completion receipt. A request to submit code does not authorize uploading every client. Runtime changes still follow the existing main/Production chain unless the owner explicitly narrows the task to a branch or says not to deploy.
+- Keep local preview/test servers on demand and stop task-owned servers after verification. Preserve source and data. Keep Production available; do not restore Staging or stop the independent family product as part of health-client housekeeping.
+- Keep relevant verification. Superseded checks in the same PR may be cancelled; historical one-off branch triggers and automatic paid/Production acceptance must not be reintroduced. Real provider calls and Production writes follow the task's existing authorization and budget.
+- Native CI remains scoped to native-related changes or explicit manual runs. TestFlight upload stays manual; App Store submission and mini-program release are separate targets. Reuse an eligible validated build for App Store submission instead of rebuilding every channel by default.
+- The current iOS container uses the shared Production site. Web releases can affect installed beta and release containers, so verify compatibility rather than assuming that installation channels isolate data or backend behavior.
 
 ### Existing Codex Thread rule refresh
 

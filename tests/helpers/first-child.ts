@@ -32,6 +32,6 @@ export async function createFirstChild(page: Page, input: { name: string; birthd
   const result = await response
   expect(result.ok()).toBe(true)
   const member = await result.json()
-  await expect(page.locator('.hoho-reception img')).toBeVisible()
+  await expect(page.locator('.hoho-reception video')).toBeVisible()
   return member
 }

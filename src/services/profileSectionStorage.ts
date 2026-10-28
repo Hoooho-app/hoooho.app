@@ -1,5 +1,6 @@
 import { apiRequest } from './apiClient'
 import type { Member } from '../types'
+import { abortable } from './abortable'
 
 interface Section { memberId: string; sectionId: string; records: unknown[]; revision: number; relatedSections?: Section[] }
 const sections = new Map<string, Section>()
@@ -25,7 +26,8 @@ export async function loadProfileSections(token: string, members: Member[], sign
   snapshot = { ...snapshot, loading: true, failed: false }
   notify()
   try {
-    const saved = await apiRequest<Section[]>('/api/auth/profile-sections', { token, signal })
+    const read = apiRequest<Section[]>('/api/auth/profile-sections', { token, signal })
+    const saved = await (signal ? abortable(read, signal) : read)
     const next = new Map(saved.map((item) => [keyFor(item), item]))
     // Import legacy local archives only for server-confirmed owned members, never
     // overwrite a server archive, and retain the old copy as a recovery source.
@@ -38,7 +40,8 @@ export async function loadProfileSections(token: string, members: Member[], sign
         let records: unknown
         try { records = JSON.parse(localStorage.getItem(key) ?? '[]') } catch { continue }
         if (!Array.isArray(records) || !records.length) continue
-        const item = await apiRequest<Section>('/api/auth/profile-sections', { token, signal, method: 'POST', body: { memberId: member.id, sectionId: key.slice(prefix.length), records, revision: 0, importOnly: true } })
+        const write = apiRequest<Section>('/api/auth/profile-sections', { token, signal, method: 'POST', body: { memberId: member.id, sectionId: key.slice(prefix.length), records, revision: 0, importOnly: true } })
+        const item = await (signal ? abortable(write, signal) : write)
         next.set(key, item)
         item.relatedSections?.forEach(section => next.set(keyFor(section), section))
       }

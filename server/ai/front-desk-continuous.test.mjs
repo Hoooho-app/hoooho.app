@@ -123,6 +123,7 @@ test('an unavailable later reply retains the source on the selected task and sav
 
 test('visit checklist is separate from saving and stays synchronized with the latest manual record',async t=>{
  const f=await fixture(t),args=[f.accountId,f.memberId,f.contextId]
+ await f.front.store.update(d=>({...d,messages:[...d.messages,{...d.messages[0],id:'visit-intent',text:'准备去医院，挂什么科？',inputAt:Date.parse(f.at)+1}]}))
  const generated=await f.front.continuous(...args,{action:'visit_checklist',expectedVersion:1})
  assert.match(generated.checklist.text,/头有点疼/);assert.equal((await f.business.records.repository.findByAccountId(f.accountId)).length,0)
  await f.front.continuous(...args,{action:'edit_current',expectedVersion:1,text:'头部不适减轻了',title:'头部情况',occurredAt:f.at})
@@ -147,4 +148,48 @@ test('a single exact legacy save is adopted without recreating the record or los
  const edit=await f.front.continuous(...args,{action:'edit_current',expectedVersion:restored.version,title:'头部情况',text:'头部不适减轻了',occurredAt:restored.occurredAt})
  const updated=await f.front.continuous(...args,{action:'save_current',expectedVersion:edit.version,confirmed:true})
  assert.equal(updated.saved.recordId,saved.saved.recordId);assert.equal((await f.business.records.repository.findByAccountId(f.accountId)).length,1)
+})
+
+test('generation is explicit and durable but creates no formal record; new facts require new consent',async t=>{
+ const f=await fixture(t),args=[f.accountId,f.memberId,f.contextId]
+ await f.front.store.update(d=>({...d,contexts:d.contexts.map(c=>({...c,facts:[{id:'observed',status:'active',scope:'record',subject:f.subject,text:'头有点疼'}]}))}))
+ const before=await f.front.continuous(...args)
+ assert.equal(before.presentation.generated,false);assert.equal(before.presentation.canGenerate,true)
+ await assert.rejects(()=>f.front.continuous(...args,{action:'generate_current',expectedVersion:1}),e=>e.code==='FRONT_GENERATION_CONFIRMATION_REQUIRED')
+ const generated=await f.front.continuous(...args,{action:'generate_current',expectedVersion:1,confirmed:true})
+ assert.equal(generated.presentation.generated,true)
+ assert.equal((await f.business.records.repository.findByAccountId(f.accountId)).length,0)
+ const restored=new FrontDeskRecord({dataDirectory:f.directory,business:f.business,events:f.business.events,now:f.front.now})
+ assert.equal((await restored.continuous(...args)).presentation.generated,true)
+ const edited=await f.front.continuous(...args,{action:'edit_current',expectedVersion:1,title:'头部情况',text:'头已经不疼了',occurredAt:f.at})
+ assert.equal(edited.presentation.generated,true)
+ await f.front.store.update(d=>({...d,contexts:d.contexts.map(c=>({...c,evidenceVersion:c.evidenceVersion+1,version:c.version+1}))}))
+ assert.equal((await f.front.continuous(...args)).presentation.generated,false)
+})
+test('generation is blocked during questioning, pending input and for another member',async t=>{
+ const f=await fixture(t),args=[f.accountId,f.memberId,f.contextId]
+ await f.front.store.update(d=>({...d,contexts:d.contexts.map(c=>({...c,interview:{status:'asking',question:{id:'q',text:'是否影响睡眠？'}}}))}))
+ await assert.rejects(()=>f.front.continuous(...args,{action:'generate_current',expectedVersion:1,confirmed:true}),e=>e.code==='FRONT_RECORD_NOT_READY')
+ await f.front.store.update(d=>({...d,contexts:d.contexts.map(c=>({...c,interview:{status:'ready',question:null}})),messages:[...d.messages,{...d.messages[0],id:'queued',contextId:'provisional',targetContextId:f.contextId,status:'pending'}]}))
+ await assert.rejects(()=>f.front.continuous(...args,{action:'generate_current',expectedVersion:1,confirmed:true}),e=>e.code==='FRONT_RECORD_NOT_READY')
+ await assert.rejects(()=>f.front.continuous('other',f.memberId,f.contextId,{action:'generate_current',expectedVersion:1,confirmed:true}))
+ assert.equal((await f.business.records.repository.findByAccountId(f.accountId)).length,0)
+})
+test('a new correction is not automatically written over the saved record before explicit save',async t=>{
+ const f=await fixture(t),args=[f.accountId,f.memberId,f.contextId]
+ const original=await f.front.continuous(...args,{action:'save_current',expectedVersion:1,confirmed:true})
+ const edited=await f.front.continuous(...args,{action:'edit_current',expectedVersion:1,title:'更正',text:'头已经不疼了',occurredAt:f.at})
+ await f.front.enrichContinuous(...args)
+ assert.equal((await f.business.records.getOwnedRecord(f.accountId,original.saved.recordId)).content,'头有点疼')
+ const saved=await f.front.continuous(...args,{action:'save_current',expectedVersion:edited.version,confirmed:true})
+ assert.equal(saved.saved.recordId,original.saved.recordId)
+ assert.equal((await f.business.records.getOwnedRecord(f.accountId,original.saved.recordId)).content,'头已经不疼了')
+})
+test('a visit checklist needs an actual care-preparation context and creates no health record',async t=>{
+ const f=await fixture(t),args=[f.accountId,f.memberId,f.contextId]
+ await assert.rejects(()=>f.front.continuous(...args,{action:'visit_checklist',expectedVersion:1}),e=>e.code==='FRONT_VISIT_CONTEXT_REQUIRED')
+ await f.front.store.update(d=>({...d,messages:[...d.messages,{...d.messages[0],id:'visit-question',text:'准备去医院，挂什么科？',inputAt:Date.parse(f.at)+1}]}))
+ const card=await f.front.continuous(...args,{action:'visit_checklist',expectedVersion:1})
+ assert.match(card.checklist.text,/头有点疼/)
+ assert.equal((await f.business.records.repository.findByAccountId(f.accountId)).length,0)
 })

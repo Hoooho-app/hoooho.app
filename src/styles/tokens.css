@@ -33,6 +33,19 @@
   --hoho-color-surface-elevated: 255 254 250;
   --hoho-color-surface-white: 255 255 255;
   --hoho-color-visit-entry-surface: 242 241 234;
+  /* Opt-in record shortcuts and their completed, pinned document entries. */
+  --hoho-color-record-symptom-surface: 228 243 234;
+  --hoho-color-record-symptom-pinned: 190 220 202;
+  --hoho-color-record-symptom-text: 27 92 65;
+  --hoho-color-record-material-surface: 228 239 252;
+  --hoho-color-record-material-pinned: 192 213 242;
+  --hoho-color-record-material-text: 40 83 137;
+  --hoho-color-record-medication-surface: 239 233 248;
+  --hoho-color-record-medication-text: 106 78 139;
+  --hoho-color-record-daily-surface: 248 237 244;
+  --hoho-color-record-daily-text: 137 85 116;
+  --hoho-color-record-organize-surface: 252 242 223;
+  --hoho-color-record-organize-text: 138 99 38;
   --hoho-color-border: 214 218 211;
   --hoho-color-border-strong: 185 194 181;
   --hoho-color-text-primary: 39 51 50;

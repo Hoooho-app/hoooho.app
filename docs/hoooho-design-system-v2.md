@@ -48,6 +48,8 @@ Hoooho V2 is quiet, trustworthy and information-first. Its product-owner-approve
 
 ## Accessibility
 
+`SessionRecoveryScreen`（2026-10-28）在启动与首次档案加载中复用居中品牌标识、平台字体、轻量无百分比等待条及底部“记录 · 整理 · 交接”。等待提示对应账号／孩子／档案的实际阶段，慢连接给出轻提示，失败保留原位重新连接；不把旧账号资料当启动占位。减少动态效果时关闭等待条动画。此视觉仅用于恢复页，已打开表单继续使用现有非阻断提示。
+
 - All interactive controls target at least 44px unless a compact secondary action remains embedded in a larger target.
 - Global `:focus-visible` remains visible independently of color.
 - Current navigation uses `aria-current` plus a background and position marker.
@@ -60,6 +62,10 @@ Hoooho V2 is quiet, trustworthy and information-first. Its product-owner-approve
 `--hoho-color-category-*` identifies the nine family workspace categories. These opt-in tokens are shared by month cells, month-only arrangement entries and grouped arrangement trees. Keep the category name and text summary alongside color, and preserve the existing monochrome family workspace controls and all unrelated product themes.
 
 ## Brand naming
+
+### 前台条件标签（2026-10-27）
+
+前台采用 opt-in `--hoho-color-record-*` 色彩角色：底部症状／就诊资料／用药／日常分别为浅绿／浅蓝／浅紫／相近浅粉紫；顶部已保存记录与已生成清单使用对应较深的 `symptom-pinned`／`material-pinned`，保留文字识别。初始不渲染顶部空栏，记录可访问后出现“症状记录单”，一键整理成功且内容可查看后出现“就诊清单”；首次整理操作留在对话内。仅前台使用这些角色，其他页面配色与全局主题保持原样。
 
 Visible product copy and generated share images use `Hoooho`. Persistence keys and protocol identifiers keep their existing spelling because changing them would be a data or API migration rather than a visual change.
 
@@ -89,3 +95,11 @@ Original photo previews opened from an existing record, reminder or upload works
 ### 2026-10-25 前台定向调整
 
 首页标题为「前台」，欢迎横幅用既有黑发护士的静态半身招呼图；原护士站视频仅在实际解析时显示。双方气泡保持通栏，头像内嵌，助手沿用金发护士。`DialogueComposer` / `HoldToTalkButton` 可选 `liveTranscript` 与 `liveStatus`，将实际转写放在录音反馈层内，避免被遮罩盖住；首次资料对话和前台共用，其他调用保持原行为。症状跟进仅在用户明确启用且存在进行中事项时显示。旧规范中首页无头像、欢迎区常播视频的约定由本段替代。
+
+### 2026-10-28 前台确认与接待区
+
+产品主人确认：首页改用既有护士站视频居中展示，当前成员档案员文案随姓名及性别更新。`ReceptionSurface` 增加可选 `layout="stacked"`，可供接待与首次使用介绍复用；默认横排及其他调用不变。媒体离屏、页面后台或减少动态效果时暂停。
+
+`DialogueComposer.holdLabel` / `HoldToTalkButton.idleLabel` 是场景可选文案，前台为“按住记录症状”，其他场景仍为“按住说话”。用户消息处理时在自己的气泡内保留一个 loading，无伪造的护士“收到”气泡。记录单在追问结束并确认生成后展示；保存状态以底部小图标和真实查看动作体现，不再将“已记录”拼在标题后，也不提供“查看原话”展开入口；持久原件不删除。
+
+前台症状／资料／用药／日常色彩分别调整为浅绿、浅蓝、浅紫、相近浅粉紫。就诊整理动作独立采用前台专用暖杏色 `record-organize-*`，不复用警告语义；已生成清单的顶部入口仍采用较深的资料蓝色。颜色仅改变前台 opt-in 角色，不改变全局主题或其他页面。

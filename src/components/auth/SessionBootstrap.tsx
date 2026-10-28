@@ -9,6 +9,7 @@ import { useBrowserRecoveryState, type RecoveryStage } from '../../services/brow
 import { resolveCurrentChildId } from '../../features/family/currentChild'
 import { appCache } from '../../services/appCacheStorage'
 import type { AuthSession } from '../../types'
+import { abortable } from '../../services/abortable'
 import { SessionRecoveryScreen, SessionRecoveryNotice } from './SessionRecoveryView'
 
 class StaleSessionRecoveryError extends Error {}
@@ -69,15 +70,17 @@ async function refreshBrowserSessionToken(generation: number) {
     try {
       // This is an idempotent session GET. A suspended tab must not hold up
       // another tab's read; actual authentication stays authoritative on server.
-      session = await (navigator.locks
+      // Bound the lock and response wait too: transport cancellation alone may not settle them.
+      session = await abortable(navigator.locks
         ? navigator.locks.request('hoooho-browser-session', { ifAvailable: true }, read)
-        : read())
+        : read(), controller.signal)
     } catch (error) {
       if (started || controller.signal.aborted) throw error
       // Some browser contexts disallow Web Locks. Never retry a started HTTP
       // request here, and never replay login, logout or record mutations.
-      session = await read()
+      session = await abortable(read(), controller.signal)
     }
+    controller.signal.throwIfAborted()
     assertCurrentRecovery(generation)
     if ('unauthenticated' in session) {
       if (state.authUser && useBrowserRecoveryState.getState().contextAccountId === state.authUser.id) {
@@ -90,6 +93,9 @@ async function refreshBrowserSessionToken(generation: number) {
     useAppStore.getState().setAuthSession(session)
     useBrowserRecoveryState.setState({ reauthenticationRequired: false })
     return session
+  } catch (error) {
+    if (controller.signal.aborted) throw new AuthApiError('连接超时，请重新连接', 'AUTH_REQUEST_TIMEOUT')
+    throw error
   } finally {
     window.clearTimeout(timeout)
     hydrationControllers.delete(controller)
@@ -147,7 +153,7 @@ export function restoreBrowserSession(_options: { transition?: boolean } = {}) {
       hydrationControllers.add(controller)
       const timeout = window.setTimeout(() => controller.abort(), 10_000)
       try {
-        const members = (await familyMemberService.list(session.token, controller.signal)).map(adaptFamilyMember)
+        const members = (await abortable(familyMemberService.list(session.token, controller.signal), controller.signal)).map(adaptFamilyMember)
         assertCurrentRecovery(generation)
         if (useAppStore.getState().authUser?.id !== session.user.id) throw new StaleSessionRecoveryError('Account changed during recovery')
         const preferred = appCache.isWritable() && previous.authUser?.id === session.user.id && previous.currentMemberId !== 'self' ? previous.currentMemberId : session.user.currentMemberId ?? ''
@@ -214,9 +220,10 @@ export function SessionBootstrap({ children }: { children: ReactNode }) {
   }, [])
   useEffect(() => { void load() }, [load])
   useEffect(() => {
-    if (!ready) return
-    const resume = () => {
+    const resume = (event: Event) => {
       if (document.visibilityState === 'hidden' || recoveryBlocked || useBrowserRecoveryState.getState().reauthenticationRequired) return
+      // The first pageshow belongs to this same load, not a new retry intent.
+      if (!ready) { if (failed && (event.type !== 'pageshow' || (event as PageTransitionEvent).persisted)) void load(); return }
       if (Date.now() - lastRecoveryAt > 30_000 || useBrowserRecoveryState.getState().phase === 'failed') void recoverBrowserSession({ transition: false })
     }
     document.addEventListener('visibilitychange', resume)
@@ -227,7 +234,7 @@ export function SessionBootstrap({ children }: { children: ReactNode }) {
       window.removeEventListener('pageshow', resume)
       window.removeEventListener('online', resume)
     }
-  }, [ready])
+  }, [ready, failed, load])
   if (!ready) return <SessionRecoveryScreen failed={failed} onRetry={() => void load()} />
   return <>{children}<SessionRecoveryNotice /></>
 }
