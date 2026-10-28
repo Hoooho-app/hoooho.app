@@ -26,10 +26,5 @@
 .hoho-dialogue-media-sources>.hoho-button{min-height:52px;justify-content:flex-start;text-align:left;font-size:var(--hoho-font-size-body)}
 .hoho-dialogue-media-sources .hoho-button__content{gap:var(--hoho-space-3);justify-content:flex-start}
 
-/* The front-desk variant keeps voice as the default, with keyboard left and camera right. */
-.hoho-dialogue-composer--frontdesk:not(.is-typing){grid-template-columns:44px minmax(0,1fr) 44px;gap:var(--hoho-space-2);padding:0;border:0;background:transparent;box-shadow:none}
-.hoho-dialogue-composer--frontdesk:not(.is-typing)>.hoho-dialogue-mode{grid-column:1;grid-row:1}
-.hoho-dialogue-composer--frontdesk:not(.is-typing)>.hoho-dialogue-hold{grid-column:2;grid-row:1;min-height:52px;background:rgb(var(--hoho-color-action));color:rgb(var(--hoho-color-action-text));border-radius:var(--hoho-radius-pill);font-size:var(--hoho-font-size-body)}
-.hoho-dialogue-composer--frontdesk:not(.is-typing)>.hoho-dialogue-photo{grid-column:3;grid-row:1}
-.hoho-dialogue-composer--frontdesk>.hoho-dialogue-mode,.hoho-dialogue-composer--frontdesk>.hoho-dialogue-photo{border:1px solid rgb(var(--hoho-color-border)/.65);background:rgb(var(--hoho-color-surface-white));color:rgb(var(--hoho-color-text-secondary))}
-.hoho-dialogue-composer--frontdesk.is-typing{background:rgb(var(--hoho-color-surface-white));box-shadow:none}
+/* Front desk uses the established left record / right keyboard and camera row. */
+.hoho-dialogue-composer--frontdesk>.hoho-dialogue-hold{background:rgb(var(--hoho-color-action));color:rgb(var(--hoho-color-action-text))}

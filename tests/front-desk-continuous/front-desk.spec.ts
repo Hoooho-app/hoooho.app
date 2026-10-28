@@ -148,7 +148,7 @@ test('private home, keyboard classifications, four direct attachment actions, da
  await expect(page.locator('.front-desk-top-entries')).toHaveCount(0)
  await page.screenshot({path:info.outputPath('front-desk-voice-home.png')})
  const before=await page.locator('.hoho-dialogue-composer').boundingBox();await page.getByRole('button',{name:'改用文字',exact:true}).click();const after=await page.locator('.hoho-dialogue-composer').boundingBox();expect(after!.height).toBe(before!.height);expect(after!.width).toBe(before!.width)
- expect(await page.locator('[aria-label="记录入口"] button').allTextContents()).toEqual(['记录症状','用药','日常','治疗复诊资料回传'])
+ expect(await page.locator('[aria-label="记录入口"] button').allTextContents()).toEqual(['记录症状','用药','日常','治疗复诊'])
  expect(await page.locator('[aria-label="记录入口"] button').evaluateAll(buttons=>buttons.map(button=>getComputedStyle(button).backgroundColor))).toEqual(['rgb(228, 243, 234)','rgb(239, 233, 248)','rgb(252, 242, 227)','rgb(228, 239, 252)'])
  await page.getByRole('button',{name:'日常',exact:true}).click();expect(await page.locator('.daily-record-options button').allTextContents()).toEqual(['喂养与饮食','睡眠','排便'])
  const dailyImages=page.locator('.daily-record-options button img')
@@ -309,7 +309,7 @@ test('a failed model still leaves a viewable raw record without false structured
 })
 
 test('blank input does not submit; punctuation remains conversation with no automatic save',async({page,request})=>{
- await page.getByRole('button',{name:'改用文字',exact:true}).click();const input=page.getByRole('textbox',{name:'对话输入'});await input.fill('   ');await expect(page.getByRole('button',{name:'发送',exact:true})).toBeDisabled()
+ await page.getByRole('button',{name:'改用文字',exact:true}).click();const input=page.getByRole('textbox',{name:'对话输入'});await input.fill('   ');await expect(page.getByRole('button',{name:'发送',exact:true})).toHaveCount(0);const callsBefore=(await(await request.get(`${control}/status`)).json()).calls;await input.press('Enter');expect((await(await request.get(`${control}/status`)).json()).calls).toBe(callsBefore);await expect(page.locator('.nurse-turn--user')).toHaveCount(0)
  await request.post(`${control}/front-reply-data`,{data:{reply:'收到，可以慢慢说。',contextId:'new',responseMode:'conversation',taskRelation:'new',subject,recordChanges:[],nextQuestion:null,requestedAction:noAction,uncertainties:[],emergency:{currentChild:false,quote:''}}})
  const job=await send(page,'。');await settle(request,job.id,job.inputRevision);const context=await(await request.get(`/api/members/${memberId}/front-desk-record`,{headers})).json();expect(context.currentRecord).toBeUndefined();expect(context.review?.items??[]).toHaveLength(0)
 })
