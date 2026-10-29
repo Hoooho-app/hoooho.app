@@ -32,6 +32,14 @@ test('home fills available height with full images clear of copy and composer', 
   expect(result.portraitBottom).toBeLessThanOrEqual(result.heroBottom + 1)
   expect(result.artBottom).toBeLessThanOrEqual(result.cardBottom + 1)
   expect(result.horizontal).toBe(false)
+  if(!result.bodyScroll){
+    const gaps=await page.locator('.front-desk-welcome--editorial').evaluate(welcome=>{
+      const r=(selector:string)=>document.querySelector(selector)!.getBoundingClientRect()
+      const hero=r('.front-desk-welcome__hero'),cards=r('.front-desk-welcome__entries'),left=r('.front-desk-welcome__guide'),right=r('.front-desk-welcome__care'),header=r('.hoho-main-header'),composer=r('.smart-record-page__footer .hoho-dialogue-composer')
+      return [hero.top-header.bottom,cards.top-hero.bottom,right.left-left.right,composer.top-cards.bottom,hero.left-r('.smart-record-page').left,r('.smart-record-page').right-hero.right]
+    })
+    for(const gap of gaps)expect(gap).toBeCloseTo(16,0)
+  }
   await expect(page.locator('.front-desk-welcome__guide img')).toHaveCSS('object-fit', 'contain')
   if (page.viewportSize()!.height >= 568) {
     expect(result.cardBottom).toBeLessThanOrEqual(result.inputTop)
