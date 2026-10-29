@@ -56,14 +56,18 @@ jobs:
           NODE
       - run: npx playwright install --with-deps chromium
       - run: npm run build
+        id: build
       - run: TZ=Asia/Shanghai npm run test:client
       - run: npm run test:help
       - run: node --test server/care-journey/service.test.mjs server/care-journey/api.test.mjs
       - run: npm run test:media
       - run: npx playwright test --config tests/frontdesk-welcome/playwright.config.ts --reporter=line --max-failures=1
       - run: npx playwright test --config tests/frontdesk-navigation/playwright.config.ts --grep 'default home|keyboard reveals|drawer uses'
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
       - run: npx playwright test --config tests/help-center/playwright.config.ts --reporter=line --max-failures=1
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
       - run: npx playwright test --config tests/help-record-tutorial/playwright.config.ts --reporter=line
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:
