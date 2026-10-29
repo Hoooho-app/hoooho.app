@@ -124,6 +124,8 @@ test('single-line black keywords, green saved tag and bright yellow pending text
   await page.getByRole('button',{name:'打开菜单',exact:true}).click()
   const row=page.locator('.drawer-history-row').first()
   await expect(row.getByText('已记录',{exact:true})).toBeVisible()
+  await expect(row.getByText('有待确认',{exact:true})).toBeVisible()
+  expect(await row.locator('.drawer-history-recorded').evaluate(node=>getComputedStyle(node).backgroundColor)).toBe('rgba(0, 0, 0, 0)')
   await expect(row.locator('.drawer-history-title')).toHaveText('小痘痘·脸上')
   for(const width of [320,375,390,430]){
     await page.setViewportSize({width,height:667})
@@ -216,11 +218,11 @@ test('deleting a loaded row refreshes pagination so no earlier conversation is s
   await page.getByRole('button',{name:'删除对话：主题0',exact:true}).click()
   await page.getByRole('dialog',{name:'删除对话',exact:true}).getByRole('button',{name:'确认删除',exact:true}).click()
   await expect(page.getByRole('dialog',{name:'删除对话',exact:true})).toBeHidden()
-  await expect(page.locator('.drawer-history-open').filter({hasText:/^主题30$/})).toHaveCount(1)
+  await expect(page.locator('.drawer-history-title').filter({hasText:/^主题30$/})).toHaveCount(1)
   await expect(page.locator('.drawer-history-open')).toHaveCount(30)
   await page.getByRole('navigation',{name:'对话记录',exact:true}).evaluate(node=>{node.scrollTop=node.scrollHeight})
   await expect(page.locator('.drawer-history-open')).toHaveCount(31)
-  expect(await page.locator('.drawer-history-open').allTextContents()).toEqual(rows.map(row=>row.title))
+  expect(await page.locator('.drawer-history-title').allTextContents()).toEqual(rows.map(row=>row.title))
 })
 
 
@@ -325,4 +327,29 @@ test('switching home conversations preserves an unsent device recording byte for
   await expect(page.getByLabel('对话输入',{exact:true})).toHaveValue('尚未发送的补充')
   const bytes=await page.evaluate(async memberId=>new Promise<number[]>((resolve,reject)=>{const open=indexedDB.open('hoooho-smart-record-drafts',1);open.onsuccess=()=>{const db=open.result,tx=db.transaction('drafts','readonly'),read=tx.objectStore('drafts').get(`home-smart:visit-test:${memberId}:new`);read.onsuccess=()=>resolve(Array.from(new Uint8Array(read.result.pendingVoice.bytes)));tx.oncomplete=()=>db.close();tx.onerror=()=>reject(tx.error)}}),memberId)
   expect(bytes).toEqual([1,4,9,16,25])
+})
+
+
+test('every conversation has a visible status even when its title contains no uncertainty',async({page})=>{
+ await page.route('**/front-desk-record/history*',route=>route.fulfill({json:{items:[{id:'u',title:'发烧',recorded:false,updatedAt:new Date().toISOString()},{id:'s',title:'咳嗽',recorded:true,updatedAt:new Date().toISOString()}],hasMore:false,nextOffset:30}}))
+ await page.getByRole('button',{name:'打开菜单',exact:true}).click()
+ const rows=page.locator('.drawer-history-row');await expect(rows).toHaveCount(2)
+ await expect(rows.filter({hasText:'发烧'}).getByText('待确认',{exact:true})).toBeVisible()
+ await expect(rows.filter({hasText:'咳嗽'}).getByText('已记录',{exact:true})).toBeVisible()
+})
+
+
+test('server resume starts while deliberately slow device reads are still pending',async({page})=>{
+ await page.addInitScript(()=>{
+  const descriptor=Object.getOwnPropertyDescriptor(IDBTransaction.prototype,'oncomplete')!
+  Object.defineProperty(IDBTransaction.prototype,'oncomplete',{configurable:true,get:descriptor.get,set(handler){descriptor.set!.call(this,function(this:IDBTransaction,event:Event){if(this.mode==='readonly'&&this.objectStoreNames.contains('drafts')){setTimeout(()=>{document.documentElement.dataset.delayedDraftRead='finished';handler?.call(this,event)},800)}else handler?.call(this,event)})}})
+ })
+ let parallel=false
+ await page.route('**/front-desk-record/contexts/'+contextId,async route=>{
+  if(route.request().method()==='POST'&&route.request().postDataJSON()?.action==='resume')parallel=await page.evaluate(()=>document.documentElement.dataset.delayedDraftRead!=='finished')
+  await route.continue()
+ })
+ await page.goto(`/nurse-station?conversation=${contextId}`)
+ await expect(page.getByRole('group',{name:'我的消息',exact:true}).getByText(original,{exact:true})).toBeVisible()
+ expect(parallel).toBe(true)
 })

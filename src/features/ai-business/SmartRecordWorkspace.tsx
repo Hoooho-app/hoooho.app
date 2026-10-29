@@ -153,13 +153,13 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
     const historyController=new AbortController();setHistoryError('')
     if(historyTarget)setReady(false)
     const openingTask=(async()=>{
-      let cancellationPending=false
-      for(const pending of await pendingCaptureCancellations(key)){const command=pending.draft.pendingRecognitionCommand,id=pending.draft.recognitionJobId;if(!command||!id)continue;try{await recognitionCommand(memberId,credentials.current,id,'discard',command.id);await captureDraft(pending.key,null)}catch{cancellationPending=true}}
-      if(cancellationPending)setError('本机草稿已清除；服务端取消尚未确认，联网后会继续同步')
       if(home&&historyTarget){
         try{const selected=await openStoredConversation({accountId,memberId,token:credentials.current,target:historyTarget,signal:historyController.signal});if(!active)return;restoredPendingInputs.current=new Set(selected.conversationTurns?.filter(turn=>turn.role!=='assistant'&&['pending','transcribing'].includes(turn.status??'')).map(turn=>turn.id));current.current=selected;setLocal(selected);setReady(true)}catch(error){if(active)setHistoryError(error instanceof Error?error.message:'对话暂未打开，请重试')}
         return
       }
+      let cancellationPending=false
+      for(const pending of await pendingCaptureCancellations(key)){const command=pending.draft.pendingRecognitionCommand,id=pending.draft.recognitionJobId;if(!command||!id)continue;try{await recognitionCommand(memberId,credentials.current,id,'discard',command.id);await captureDraft(pending.key,null)}catch{cancellationPending=true}}
+      if(cancellationPending)setError('本机草稿已清除；服务端取消尚未确认，联网后会继续同步')
       let saved=await captureDraft(key)
       if(page&&saved?.frontContextId)try{const existing=await request<FrontContext|null>(frontUrl+'/contexts/'+encodeURIComponent(saved.frontContextId),'GET');if(!existing){await deleteCaptureConversations(key,[saved.frontContextId],[saved.requestId]);saved={...freshDraft(),conversationResetAt:lastConversationDeletionAt(key),updatedAt:lastConversationDeletionAt(key)}}}catch{/* Offline originals remain available until the server confirms deletion. */}
       if(page&&!saved&&lastConversationDeletionAt(key))saved={...freshDraft(),conversationResetAt:lastConversationDeletionAt(key),updatedAt:lastConversationDeletionAt(key)}
