@@ -21,6 +21,6 @@ export function FrontDeskWelcome(_props:{memberName:string;gender?:string}) {
   },[])
   return <section ref={root} className="front-desk-welcome" aria-label="记录介绍">
     <div className="front-desk-welcome__copy"><h2>今天怎么样？</h2><p>{frontDeskGreeting()}</p></div>
-    <div className="front-desk-welcome__media"><NurseStationIdleVideo active={active&&inView} reducedMotion={reduced||(care.enabled&&care.reduceMotion)} portable/></div>
+    <div className="front-desk-welcome__media"><NurseStationIdleVideo active={active&&inView} reducedMotion={reduced||(care.enabled&&care.reduceMotion)} cutout/></div>
   </section>
 }
