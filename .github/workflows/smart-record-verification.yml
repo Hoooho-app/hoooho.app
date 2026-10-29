@@ -63,36 +63,50 @@ jobs:
           node --test server/ai/front-desk-recognition-preview.test.mjs server/ai/front-desk-upload-reading.test.mjs
           node --import ./scripts/register-node-ts-loader.mjs --test src/features/health-attachments/photoAnalysis.test.ts src/services/imageAnalysisPresentation.test.ts src/services/healthEventDetailAdapter.test.ts
       - run: npm run build
+        id: build
       - name: Verify report diagnostics and continuous page paper
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: npx playwright test --config tests/visit-sheet/presentation.config.ts
       - name: Verify private identities, four-tab navigation and draft continuity
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: npx playwright test --config tests/frontdesk-navigation/playwright.config.ts
       - name: Verify retired record dots and preserved saves across mobile pages
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: npx playwright test --config tests/record-update-removal/playwright.config.ts
       - name: Verify automatic home retention and current voice/text controls
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: npx playwright test --config tests/frontdesk-input/playwright.config.ts
       - name: Verify review-only calendar and expanded month grid
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: npx playwright test --config tests/calendar-review-only/playwright.config.ts
       - run: npx playwright test --config tests/conversation-home/pure-record.config.ts
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
       # The owner retired the visible archive-upload entry. Current manual archive
       # flows run in frontdesk-navigation/archive.spec.ts above; batch ingestion
       # compatibility remains in server/ai/business/*.test.mjs. The historical
       # profile-batch.spec.ts still exists for a release that exposes that entry.
       - run: npx playwright test --config tests/dialogue/symptom-followup.config.ts
-      - if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+      - if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: npx playwright test --config tests/dialogue/playwright.config.ts recognition-progress.spec.ts smart-record-actions.spec.ts smart-record-exit.spec.ts nursing-record.spec.ts nurse-dialogue-guidance.spec.ts --grep-invert 'saving while ASR is pending'
       - name: Verify current protocol3 front-desk mobile flows
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: npx playwright test --config tests/front-desk-continuous/playwright.config.ts
       - name: Verify OpenRouter mobile persistence and failure recovery with synthetic responses
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: VISIT_OPENROUTER_TEST=1 npx playwright test --config tests/front-desk-continuous/playwright.config.ts --project=iphone-se --grep 'processing and questions|a failed model|member switch|image-only recognition'
       - name: Verify shared upload candidates without enabling frozen tools
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: npx playwright test --config tests/upload-recognition/playwright.config.ts
       - name: Verify selective rollback draft and data compatibility
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: npx playwright test --config tests/selective-rollback/playwright.config.ts
       - run: npx playwright test --config tests/conversation-home/playwright.config.ts
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
       - run: npx playwright test --config tests/conversation-home/first-child.config.ts
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
       - run: npx playwright test --config tests/conversation-home/forest.config.ts
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:

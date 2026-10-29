@@ -76,7 +76,7 @@ test('historical long narratives use one-line core phrases and muted dates insid
  const before=await(await request.get(`/api/events/${saved.eventId}/records`,{headers})).json()
  await page.goto('/cases');const card=page.locator(`[data-case-id="${saved.eventId}"]`)
  await expect(card.locator('.case-followup-title')).toHaveText('头皮瘙痒、抓挠')
- await expect(card.locator('[data-icon="add_box"]')).toHaveCount(1)
+ await expect(card.locator('[data-icon="health_cross"]')).toHaveCount(1)
  await expect(card.locator('.case-followup-description,.case-followup-keyword,.case-followup-dates')).toHaveCount(0)
  await expect(card.locator('.case-followup-management button')).toHaveCSS('font-weight','400')
  await expect(card.getByRole('button',{name:'展开',exact:true})).toHaveCSS('font-weight','400')
