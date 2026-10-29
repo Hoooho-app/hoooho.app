@@ -69,13 +69,15 @@ jobs:
         run: npx playwright test --config tests/frontdesk-navigation/playwright.config.ts
       - name: Verify retired record dots and preserved saves across mobile pages
         run: npx playwright test --config tests/record-update-removal/playwright.config.ts
-      - name: Verify automatic home retention and direct system attachment entry
+      - name: Verify automatic home retention and current voice/text controls
         run: npx playwright test --config tests/frontdesk-input/playwright.config.ts
       - name: Verify review-only calendar and expanded month grid
         run: npx playwright test --config tests/calendar-review-only/playwright.config.ts
       - run: npx playwright test --config tests/conversation-home/pure-record.config.ts
-      - name: Verify archive upload ownership, review, save and retry with synthetic documents
-        run: npx playwright test --config tests/ai-business/playwright.config.ts profile-batch.spec.ts
+      # The owner retired the visible archive-upload entry. Current manual archive
+      # flows run in frontdesk-navigation/archive.spec.ts above; batch ingestion
+      # compatibility remains in server/ai/business/*.test.mjs. The historical
+      # profile-batch.spec.ts still exists for a release that exposes that entry.
       - run: npx playwright test --config tests/dialogue/symptom-followup.config.ts
       - if: ${{ !cancelled() }}
         run: npx playwright test --config tests/dialogue/playwright.config.ts recognition-progress.spec.ts smart-record-actions.spec.ts smart-record-exit.spec.ts nursing-record.spec.ts nurse-dialogue-guidance.spec.ts --grep-invert 'saving while ASR is pending'
