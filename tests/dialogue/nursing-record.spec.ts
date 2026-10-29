@@ -42,8 +42,10 @@ test('[legacy protocol2] specific questions, bound quick answers, refresh, unkno
   const context=await (await request.get(`/api/members/${memberId}/front-desk-record`,{headers})).json()
   expect(context.interview.turnCount).toBeLessThanOrEqual(3)
   await page.reload()
-  if(await page.getByRole('button',{name:'改用文字',exact:true}).isVisible())await page.getByRole('button',{name:'改用文字',exact:true}).click()
   await expect(page.getByLabel('回答当前问题')).toBeVisible()
+  // The recovery screen has no mode button. Inspect the mode only after the
+  // retained questionnaire is ready, then verify the exact unsent draft.
+  if(await page.getByRole('button',{name:'改用文字',exact:true}).isVisible())await page.getByRole('button',{name:'改用文字',exact:true}).click()
   await expect(page.getByLabel('对话输入')).toHaveValue('还有一段待补充')
   for(const width of [320,375,390,430]){
     await page.setViewportSize({width,height:667})
