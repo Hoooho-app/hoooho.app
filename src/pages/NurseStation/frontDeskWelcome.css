@@ -119,3 +119,10 @@ body .smart-record-home .front-desk-welcome.front-desk-welcome--editorial{displa
  .front-desk-welcome--editorial .front-desk-welcome__copy .front-desk-banner__visit-title{line-height:1.2}
  .front-desk-welcome--editorial .front-desk-welcome__hero[data-kind="visit"] .front-desk-welcome__copy p{line-height:1.4}
 }
+
+/* One rhythm for header/banner/cards/composer and the horizontal card gutter. */
+body .smart-record-home:has(.front-desk-welcome--editorial){--front-desk-layout-gap:var(--hoho-space-4)}
+body .smart-record-home .smart-record-page__body:has(>.front-desk-welcome--editorial){padding:var(--front-desk-layout-gap) var(--front-desk-layout-gap) 0}
+body .smart-record-home .front-desk-welcome.front-desk-welcome--editorial{height:100cqh;gap:var(--front-desk-layout-gap);margin:0}
+body .smart-record-home .front-desk-welcome--editorial .front-desk-welcome__entries{gap:var(--front-desk-layout-gap)}
+body .smart-record-home:has(.front-desk-welcome--editorial) .smart-record-page__footer{padding-top:var(--front-desk-layout-gap)}

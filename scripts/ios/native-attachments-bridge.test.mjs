@@ -44,6 +44,15 @@ test('the attachment capability is absent for untrusted pages and report subfram
   assert.equal(bridge(()=>({ok:true}),{main:false}).window.hooohoNativeAttachments,undefined)
 })
 
+test('appearance is main-frame only and sends opaque RGB without opening a system operation',()=>{
+  const {window,messages}=bridge(()=>({ok:true}))
+  window.hooohoNativeAppearance('#f0f4f5')
+  for(const invalid of ['red','#fff','#ffffff00','#ffffff\n'])window.hooohoNativeAppearance(invalid)
+  assert.deepEqual(messages.map(({type,color})=>({type,color})),[{type:'appearance',color:'#f0f4f5'}])
+  assert.equal(bridge(()=>({ok:true}),{main:false}).window.hooohoNativeAppearance,undefined)
+  assert.equal(bridge(()=>({ok:true}),{origin:'https://example.invalid'}).window.hooohoNativeAppearance,undefined)
+})
+
 test('media-only selection is advertised and scoped to the explicit request',async()=>{
   const {window,messages}=bridge(()=>({ok:false,cancelled:true}))
   assert.equal(window.hooohoNativeAttachments.supportsMediaOnly,true)

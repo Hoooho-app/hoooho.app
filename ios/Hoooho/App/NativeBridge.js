@@ -24,6 +24,10 @@
     void send('print', {html: document.documentElement.outerHTML}).catch(() => {});
   };
   if (window.top === window) {
+  window.hooohoNativeAppearance = color => {
+    if (typeof color !== 'string' || color.length !== 7 || !/^#[0-9a-f]{6}$/i.test(color)) return;
+    window.webkit.messageHandlers.hooohoNative.postMessage({id: crypto.randomUUID(), type: 'appearance', color});
+  };
   window.hooohoNativeAttachments = async (options = {}) => {
     const selection = await send('attachments', options.mediaOnly === true ? {mediaOnly: true} : {}, 600000);
     try {
