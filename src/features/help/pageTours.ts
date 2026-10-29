@@ -12,7 +12,7 @@ export const HELP_PAGE_TOURS: Record<string, HelpPageTour> = {
   allergy: {path:'/health-profile/allergy',paths:['/health-profile/allergy'],steps:[step('点这里，新增一条已知过敏史','没有记录不表示没有过敏；不要为了完成教程随便添加。',['.inline-profile-add'],true),step('填写已经知道的过敏对象','只记录实际已知的信息。填写后点原表单的保存；失败时内容仍留在表单，按提示重试。',['form[aria-label="新增过敏史"]'])]},
   add:{path:'/nurse-station',paths:['/nurse-station','/family/new'],steps:[
     step('点这里，先确认当前孩子','已有孩子可以切换，需要新增时点列表里的“添加孩子”。首次使用可先退出引导，沿首页提示建档。',['button[aria-label="切换记录对象"]','button[aria-label="添加记录对象"]','.first-child-setup'],true),
-    {...step('从孩子列表添加，或选择当前孩子','点“添加孩子”进入真实表单。只想切换时，选择已有孩子即可；切换后教程按新的孩子分别继续。',['[role="dialog"][aria-label="我的孩子"]','.first-child-setup'],true),interactionTarget:'[data-help-target="child-add"]'},
+    {...step('从孩子列表添加，或选择当前孩子','点“添加孩子”进入真实表单。只想切换时，选择已有孩子即可；切换后可从帮助中心重新打开操作引导。',['[role="dialog"][aria-label="我的孩子"]','.first-child-setup'],true),interactionTarget:'[data-help-target="child-add"]'},
     step('填写真实孩子信息，再保存','姓名、生日、性别和记录者关系按实际填写。点原表单的添加按钮；保存结果以页面提示为准，教程不自动创建孩子。',['[data-help-target="child-form"]','.first-child-setup'])
   ]},
   smart:{path:'/nurse-station',paths:['/nurse-station'],steps:[step('按住说，或切换文字输入','长按开始、松开结束；不方便说话可以点键盘。这里不会自动录音或发送内容。',['.hoho-dialogue-hold','button[aria-label="改用文字"]','textarea[aria-label="对话输入"]']),step('先核对文字，再确认整理','可以切换文字填写或更正。发送后核对实际文字、概述、关键词和时间；正式记录以“确认整理”后的保存结果为准。',['.hoho-dialogue-composer'])]},
