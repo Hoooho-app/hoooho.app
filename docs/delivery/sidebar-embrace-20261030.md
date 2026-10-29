@@ -19,4 +19,10 @@
 - 320/375/390/430宽度均通过头像居中、双层身份、无横向溢出和底部反馈/关于可达检查；查看320与390宽截图，轮廓连续、中央底边开放，手臂未遮内容。初版头部197.5px超出既有185px预算；收紧账户行和上下内距后原断言通过，未放宽断言。
 - 本机CJK字体不完整，姓名使用DOM与字格几何校验；浏览器模拟不代表真机字体/视觉验收，产品主人尚未验收实现效果。
 
-正式发布证据待上线后追加。
+## 正式发布回执
+
+- PR [#601](https://github.com/Hoooho-app/hoooho.app/pull/601) 已合并，运行提交 `f6203adc5c1208088ef4d341974e9d85a21534f5`。远端功能树 `ff5edce875f3a376689d36249281b92d76e3aea6` 与本地验证提交完全一致；合并同时保留主线新增的定位器发布回执。
+- 唯一健康 Railway Production 部署 `44ac9eb4-c359-4ef4-a5ce-a496c394aba1`，2026-10-30 06:36:34（Asia/Shanghai）观察到目标提交 SUCCESS。
+- 正式站只读GET核对：健康接口ok，入口 `/assets/index-WWWsfwF5.js` 内版本为目标完整SHA；侧栏模块 `assets/MainAppHeader-BGwf9tK2.js`、样式 `assets/MainAppHeader-DJ44cZE5.css` 包含环抱轮廓、小手、细线不缩放和不截获点击样式；账户模块 `index-BhEs5evI.js` 及原账户路由保留。
+- 本次更新共用网页界面，未触发原生/TestFlight打包或App Store/小程序提交。测试服务由Playwright随验证结束关闭；未留下常驻预览服务。
+- 上线已核对；实体iPhone字体和产品主人对实际观感的验收仍待进行。
