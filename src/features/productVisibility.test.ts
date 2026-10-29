@@ -5,8 +5,8 @@ import { SUPPORT_ARTICLES, EXTRA_ARTICLES, USER_MANUAL, HELP_MODULES } from '../
 
 test('temporary feature visibility covers nested routes, sharing and legacy entries', () => {
   assert.deepEqual(PRODUCT_FEATURES, { auxiliaryTools: false, careJourney: false, membership: false })
-  for (const path of ['/care-journey', '/care-journey/themes?from=home', '/care-tools/results', '/family-sharing', '/allergy-knowledge/one', '/health-profile/vaccination/plan', '/dietary-card/edit', '/food-observations', '/food-label', '/medication-reminders?reminderId=one', '/care-handoff/shared/one', '/desensitization-tests', '/nurse-station/desensitization/new', '/account/membership']) assert.equal(isProductPathVisible(path), false, path)
-  for (const path of ['/nurse-station', '/health-events', '/health-profile/allergy', '/health-profile/vaccination', '/health-profile/growth', '/visit-summary', '/recent-review', '/account/security', '/family/new', '/help']) assert.equal(isProductPathVisible(path), true, path)
+  for (const path of ['/care-journey', '/care-journey/themes?from=home', '/care-tools/results', '/family-sharing', '/health-profile/vaccination/plan', '/dietary-card/edit', '/food-observations', '/food-label', '/medication-reminders?reminderId=one', '/care-handoff/shared/one', '/desensitization-tests', '/nurse-station/desensitization/new', '/account/membership']) assert.equal(isProductPathVisible(path), false, path)
+  for (const path of ['/nurse-station', '/allergy-knowledge', '/allergy-knowledge/one', '/health-events', '/health-profile/allergy', '/health-profile/vaccination', '/health-profile/growth', '/visit-summary', '/recent-review', '/account/security', '/family/new', '/help']) assert.equal(isProductPathVisible(path), true, path)
 })
 test('help and product manager share only visible tutorials, manuals and action links', () => {
   const articles = [...SUPPORT_ARTICLES, ...EXTRA_ARTICLES]
