@@ -104,8 +104,8 @@ export function SideDrawer({ onClose, onOpenChildSheet, open, cleanChrome = true
             <span className="drawer-subject-action">{members.length ? '切换' : '添加'}<ChevronRight size={16} aria-hidden="true" /></span>
           </button>
           <svg className="drawer-embrace-art" viewBox="0 0 320 200" preserveAspectRatio="none" aria-hidden="true" focusable="false">
-            <path className="drawer-embrace-paw" d="M 1 164 L 13 164 C 35 164 43 174 43 185 C 43 195 35 199 25 199 C 10 199 1 189 1 174 Z M 319 164 L 307 164 C 285 164 277 174 277 185 C 277 195 285 199 295 199 C 310 199 319 189 319 174 Z" />
-            <path className="drawer-embrace-outline" d="M 13 164 C 35 164 43 174 43 185 C 43 195 35 199 25 199 C 10 199 1 189 1 174 V 27 C 1 12 12 1 27 1 H 293 C 308 1 319 12 319 27 V 174 C 319 189 310 199 295 199 C 285 199 277 195 277 185 C 277 174 285 164 307 164" />
+            <path className="drawer-embrace-paw" d="M 1 164 L 17 164 C 42 164 50 174 50 185 C 50 195 41 199 29 199 C 11 199 1 189 1 174 Z M 319 164 L 303 164 C 278 164 270 174 270 185 C 270 195 279 199 291 199 C 309 199 319 189 319 174 Z" />
+            <path className="drawer-embrace-outline" d="M 17 164 C 42 164 50 174 50 185 C 50 195 41 199 29 199 C 11 199 1 189 1 174 V 27 C 1 12 12 1 27 1 H 293 C 308 1 319 12 319 27 V 174 C 319 189 309 199 291 199 C 279 199 270 195 270 185 C 270 174 278 164 303 164" />
           </svg>
           </div>
         </section>

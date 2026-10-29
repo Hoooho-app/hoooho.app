@@ -66,6 +66,7 @@ test('account dominates the child selector with both avatars, private names and 
     expect(sizes.roleX).toBe(sizes.nameX)
     expect(sizes.actionX).toBeGreaterThanOrEqual(sizes.nameRight)
     expect(sizes.accountAvatar).toBeGreaterThan(sizes.childAvatar)
+    expect(sizes.childAvatar).toBeCloseTo(36, 1)
     expect(sizes.accountFont).toBeGreaterThan(sizes.childFont)
     expect(sizes.accountHeight).toBeGreaterThan(sizes.childHeight)
     expect(sizes.childHeight).toBeGreaterThanOrEqual(44)
