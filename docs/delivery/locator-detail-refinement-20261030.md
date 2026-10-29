@@ -29,3 +29,19 @@
 已看实际截图 `outputs/graphical-locator/full-375.png`、`refined-chest.png`、`refined-arm-left-front.png`、`refined-groin.png`、`refined-tags.png`。透明底在纸底上无白色矩形，局部图更清晰，已选标签仅尾部叉号。为合成账户、真实本地 API/持久化及浏览器模拟，非实体 iPhone 验收，无真实供应商调用或 Production 健康记录写入。
 
 已整合主分支 `1197984cf7831019a9ca33ef127e4531d29600dd` 的并发变更后重新验证：构建通过、815/815 客户端检查、18/18 浏览器流程（35秒）通过。仅发布 manifest 指向的9份最终透明位图，不携带中间生成副本。
+
+## 发布检查
+
+继续整合主分支 `7d45f7f2a819a34d68fc315f7d4bee22570b3035`，仅 AGENTS 追加规则冲突，双方内容完整保留；运行实现无冲突。本地构建、815/815 客户端及18/18浏览器流程（37.1秒）再次通过，发布树 `3e8fb1f2c4424720e1a0e2558937cbe3fbf1b141` 与验证快照一致。
+
+[PR607](https://github.com/Hoooho-app/hoooho.app/pull/607) 头提交 `6a35f457f707f3ff61d4797c4a4459d2f48c410e`；云端 [定位器检查40972971133](https://github.com/Hoooho-app/hoooho.app/actions/runs/40972971133) 和 [手动症状记录检查40972971057](https://github.com/Hoooho-app/hoooho.app/actions/runs/40972971057) 均 SUCCESS。合入 main 为 `53724a653582418b1ef6627c090345f72e854482`，保留同期首页相机/搜索及文档更新。
+
+## Production 回执
+
+唯一 Railway Production 部署 `d3c9f582-bc14-43b2-9f68-5032ec01c785`，目标提交 `53724a653582418b1ef6627c090345f72e854482`，于 `2026-10-29T23:30:11.572Z` 达到 SUCCESS。
+
+已在实际登录的 Chrome 中从正式地址 `https://hoooho.com/nurse-station` 进入空白手动症状表单验收。首次进入时页面发生一次刷新，重新进入后 DOM 明确加载 v3 人物图；不据此推断刷新原因。实际截图 `outputs/graphical-locator/production-refined-body.jpg` 显示人物背景与纸底融合，无白色矩形；`production-refined-chest.jpg` 显示新躯干图和左上胸选中状态。胸部七个细分区域、前置正面按钮、选中回填均观察正常。
+
+正式页面腹股沟加载 `groin-diagram.d239219a96.webp`，提供左右髋及腹股沟褶皱；手腕入口进入 `arm-front.e02efde8d9.webp`，包含肘窝/腕横纹，实际点选左腕横纹后 aria-pressed=true。部位回填后标签距输入约7.99px，只有名称和末尾移除按钮，点「移除左上胸」后清空并恢复「选择部位」。取消另一轮定位不写回临时选择。标签截图采集超时，该项以实际 DOM/操作回执为证，不冒称有截图。
+
+未填写真实症状、未调用真实AI、未点保存正式健康记录；仅关闭本次验收创建的页面，原用户页面保持。此为实际 Chrome 在线验收与自动手机宽度浏览器检查，不是实体 iPhone/Safari 验收；产品主人视觉接受仍待实际体验。本记录为文档补充，不重部署不变的应用。
