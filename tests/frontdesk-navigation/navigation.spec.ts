@@ -120,7 +120,10 @@ test('sidebar history reads a real local synthetic conversation and new conversa
   let drawer = page.getByRole('dialog', { name: '侧边栏菜单' })
   await expect(drawer.locator('.drawer-history-group button').first()).toBeVisible()
   await expect(drawer.getByRole('button', { name: '新建对话', exact: true })).toBeEnabled()
-  await drawer.getByRole('button', { name: '新建对话', exact: true }).click()
+  await page.keyboard.press('Escape')
+  const header=page.locator('.hoho-main-header')
+  await expect(header.getByRole('button',{name:'新建对话',exact:true})).toBeEnabled()
+  await header.getByRole('button',{name:'新建对话',exact:true}).click()
   await expect(page.getByRole('button', { name: '按住记录症状', exact: true })).toBeEnabled()
   await expect(page.locator('.record-entry-actions--conversation')).toHaveCount(0)
   await page.getByRole('button', { name: '打开菜单', exact: true }).click()
@@ -135,6 +138,13 @@ test('small mobile screens retain all four tabs and two-row identities without h
   await page.setViewportSize({ width: 320, height: 650 })
   await expect(page.getByRole('navigation', { name: '主要导航' }).getByRole('button')).toHaveCount(4)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+  for(const width of [320,375,390,430]){
+    await page.setViewportSize({width,height:650})
+    expect(await page.locator('.hoho-main-header').evaluate(node=>{
+      const subject=node.querySelector('.hoho-main-header__identity')!.getBoundingClientRect(),child=node.querySelector('.hoho-main-header__child')!.getBoundingClientRect(),search=node.querySelector('[aria-label="快速查找"]')!.getBoundingClientRect(),add=node.querySelector('[aria-label="新建对话"]')!.getBoundingClientRect()
+      return subject.width>0&&child.right<=search.left&&search.right<=add.left&&add.right<=window.innerWidth&&add.width>=44
+    })).toBe(true)
+  }
   await page.getByRole('button', { name: '打开菜单', exact: true }).click()
   await expect(page.locator('.drawer-identities .drawer-identity-row')).toHaveCount(2)
   expect(await page.locator('.hoho-drawer').evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true)

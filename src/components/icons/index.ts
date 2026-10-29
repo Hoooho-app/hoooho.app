@@ -176,3 +176,5 @@ export const WalletCards = createMaterialIcon('wallet')
 export const Waypoints = createMaterialIcon('person')
 export const X = createMaterialIcon('close')
 export const ZoomIn = createMaterialIcon('zoom_in')
+
+export { ConversationBubble, ConversationBubblePlus } from './ConversationBubble'

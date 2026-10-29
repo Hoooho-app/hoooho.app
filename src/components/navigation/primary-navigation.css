@@ -6,6 +6,7 @@
 .app-shell:has(.hoho-bottom-navigation--fixed){padding-bottom:calc(76px + env(safe-area-inset-bottom))}
 .hoho-bottom-navigation--embedded{flex:none}
 .hoho-main-header__identity{display:flex;align-items:center;gap:var(--hoho-space-2);min-width:0;flex:1;padding-left:44px;padding-right:44px}
+.hoho-main-header--conversation .hoho-main-header__identity{padding-right:88px}
 .hoho-main-header__identity h1{flex:none;margin:0;font-family:var(--hoho-font-family);font-size:var(--hoho-font-size-card-title);font-weight:600;white-space:nowrap}
 .hoho-main-header__child{display:flex;align-items:center;gap:var(--hoho-space-1);min-width:0;min-height:44px;padding:var(--hoho-space-1) var(--hoho-space-2);border:0;border-radius:var(--hoho-radius-pill);background:rgb(var(--hoho-color-surface-white));font-size:var(--hoho-font-size-caption);color:rgb(var(--hoho-color-text-secondary))}
 .hoho-main-header__child>span:not(:first-child){min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
