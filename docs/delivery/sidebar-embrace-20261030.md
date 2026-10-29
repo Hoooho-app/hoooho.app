@@ -38,4 +38,4 @@
 
 本轮构建及33项相关单元/契约检查通过；9条既有导航流程通过，5条账户身份流程最终通过，覆盖320/375/390/430宽度及头像36px保留、末字居中、无横向溢出、独立账户返回、孩子切换失败重试。检查320与390截图，信息与小手分离，头像未压缩。测试使用隔离合成账户及临时数据；真机字体/观感仍待主人体验。
 
-本轮正式发布证据待追加。
+本轮正式发布：PR [#603](https://github.com/Hoooho-app/hoooho.app/pull/603)，运行提交 `fe1472d53a35744f3fd4832f2e92e5dce2ddc862`，功能树 `cb3357c92535d70dfdb1cc71f66984a63760a2ff` 与本地验证一致，合并保留主线其他任务的交付文档。Railway部署 `519f5ef6-fe93-4de6-bab8-8415f16dbfd4` 于 2026/10/30 06:49:50（Asia/Shanghai）观察到 SUCCESS。正式站健康接口ok，入口 `/assets/index-DsZ-kDPK.js` 为目标完整SHA；模块 `assets/MainAppHeader-DrXzO2aG.js`、样式 `assets/MainAppHeader-Bt3OJ-3D.css` 只读核对了1.5px线宽、新浅色令牌、36px不收缩头像和靠拢的手形，账户路由保留。没有为本微调触发额外原生构建；测试服务随Playwright结束停止，真机最终观感待主人体验。
