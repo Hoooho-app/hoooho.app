@@ -220,7 +220,9 @@ test('sidebar help keeps its source through tabs, article navigation, refresh an
     await page.getByRole('dialog', { name:'侧边栏菜单' }).getByRole('button', { name:'帮助中心', exact:true }).click()
     await expect(page.getByRole('heading', { name:'先记好一件小事', exact:true })).toBeVisible()
     await page.getByRole('radio', { name:'产品说明', exact:true }).click()
+    await expect(page.getByRole('radio', { name:'产品说明', exact:true })).toBeChecked()
     await page.getByRole('radio', { name:'使用教程', exact:true }).click()
+    await expect(page.getByRole('radio', { name:'使用教程', exact:true })).toBeChecked()
     await page.getByLabel('搜索教程和问题').fill('手动')
     await page.getByRole('button', { name:'手动记一件发生的事', exact:false }).click()
     await page.reload()
@@ -232,6 +234,7 @@ test('sidebar help keeps its source through tabs, article navigation, refresh an
       await expect(page).toHaveURL(/\/help\?article=symptom$/)
     }
     await page.getByRole('button', { name:'返回', exact:true }).click()
+    await expect(page.getByLabel('搜索教程和问题')).toBeVisible()
     await page.getByRole('button', { name:'返回', exact:true }).click()
     await expect.poll(() => new URL(page.url()).pathname + new URL(page.url()).search).toBe(source)
     if (url === '/nurse-station') await expect(page.getByLabel('对话输入', { exact:true })).toHaveValue('来源页面尚未发送的内容')
