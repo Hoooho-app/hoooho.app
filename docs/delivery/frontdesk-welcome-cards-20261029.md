@@ -34,6 +34,7 @@
 - `npm run test:media`：媒体 range 与原／透明视频、海报校验通过。
 - `tests/frontdesk-welcome/playwright.config.ts`：320／390／430px 共 15 项通过，核对实页截图；涵盖真实本地文章到返回、教程焦点、未发送及附件取消、文字首气泡、刷新恢复、新建、失败、录音取消及语音提交。
 - `tests/nurse-video-cutout/playwright.config.ts`：12 项通过；`tests/frontdesk-navigation/playwright.config.ts --grep 'default home|keyboard reveals'`：2 项通过。
+- `tests/dialogue/knowledge.config.ts`：既有文章阅读、收藏、参考来源、往期与失效文章链路通过（320／375／393px）；旧“随呵护之旅隐藏”预期按本轮明确开放小知识的决定更新，保留全部阅读验收。
 - 初次浏览器运行曾在 390px 刷新后停于原有账号连接页；隔离该场景通过，之后完整 15 项重跑通过。未修改账号恢复代码，不把这次暂态归因为已证实产品缺陷。
 - 图像为产品主人确认的既有 3D 妈妈／女儿图，通过内置图像工具仅增加妈妈手持手机动作；透明 WebP 520×488、49,828 bytes，SHA-256 `18313cb789ac6b9e7861d1419a525a5eb890097fca4070eedee00311ba0139dc`。原图保留，原护士视频不变。
 
