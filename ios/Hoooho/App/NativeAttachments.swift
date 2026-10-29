@@ -70,7 +70,7 @@ final class NativeAttachmentSelection {
 }
 
 /// A UIKit action sheet and system pickers; other web file inputs stay untouched.
-final class NativeAttachments: NSObject, PHPickerViewControllerDelegate, UIImagePickerControllerDelegate, UINavigationControllerDelegate, UIDocumentPickerDelegate, UIAdaptivePresentationControllerDelegate {
+final class NativeAttachments: NSObject, PHPickerViewControllerDelegate, UIImagePickerControllerDelegate, UINavigationControllerDelegate, UIDocumentPickerDelegate, UIAdaptivePresentationControllerDelegate, UIPopoverPresentationControllerDelegate {
     private weak var owner: UIViewController?
     private let permissions: CapturePermissions
     private let selection: NativeAttachmentSelection
@@ -101,6 +101,7 @@ final class NativeAttachments: NSObject, PHPickerViewControllerDelegate, UIImage
 
     private func show(_ controller: UIViewController) {
         guard let owner, owner.view.window != nil, owner.presentedViewController == nil else { finish(error: "系统选择器暂不可用，请重试"); return }
+        controller.popoverPresentationController?.delegate = self
         owner.present(controller, animated: true) { controller.presentationController?.delegate = self }
     }
 
@@ -187,6 +188,7 @@ final class NativeAttachments: NSObject, PHPickerViewControllerDelegate, UIImage
         } catch { finish(error: error.localizedDescription) }
     }
     func presentationControllerDidDismiss(_ presentationController: UIPresentationController) { finish(cancelled: true) }
+    func popoverPresentationControllerDidDismissPopover(_ popoverPresentationController: UIPopoverPresentationController) { finish(cancelled: true) }
 
     private func finish(cancelled: Bool = false, error: String? = nil) {
         guard let completion else { return }
