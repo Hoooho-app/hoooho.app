@@ -35,7 +35,7 @@ test('clean light canvas and light surfaces cover navigation, forms and shared p
  await page.getByRole('button',{name:'打开菜单',exact:true}).click()
  await expect(page.getByRole('dialog',{name:'侧边栏菜单'}).getByText('辅助工具',{exact:true})).toHaveCount(0)
  await expect(page.getByRole('dialog',{name:'侧边栏菜单'}).getByRole('button',{name:'健康日历',exact:true})).toHaveCount(0)
- await readable(page.getByRole('dialog',{name:'侧边栏菜单'}).getByRole('button',{name:'帮助',exact:true}))
+ await readable(page.getByRole('dialog',{name:'侧边栏菜单'}).getByRole('button',{name:'反馈',exact:true}))
  await page.screenshot({path:info.outputPath('drawer-390.png')})
  await page.keyboard.press('Escape')
  for(const [entry,form] of [['记录症状','记录症状'],['喂养与饮食','喂养/饮食'],['用药','记录用药'],['治疗复诊','就诊资料']]){

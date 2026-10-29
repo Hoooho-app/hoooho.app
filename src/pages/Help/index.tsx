@@ -3,7 +3,6 @@ import { useEffect, useLayoutEffect, useRef } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { WebPageHeader } from '../../components/common'
 import { HohoButton, HohoInput, HohoSection, HohoSegmentedControl, HohoSurfaceRow } from '../../components/design-system'
-import { MainAppHeader } from '../../components/navigation'
 import { useAppStore } from '../../store/useAppStore'
 import { getArticle, searchHelpArticles } from '../../features/help/search'
 import type { HelpArticle } from '../../features/help/types'
@@ -33,7 +32,7 @@ export function HelpCenterPage(){
   const back=()=>{if(tab==='help'&&article&&articleOrigin.current){setParams(new URLSearchParams(articleOrigin.current));articleOrigin.current=''}else home()}
   useEffect(()=>{savedPaths.current[tab]=params.toString()},[params,tab])
   useLayoutEffect(()=>{if(content.current)content.current.scrollTop=0},[tab,article?.id,manual?.id,module?.id,chat])
-  return <main className="app-shell help-center help-center-v2 pb-0">{nested?<WebPageHeader title="帮助中心" onBack={back}/>:<MainAppHeader compact title="帮助中心"/>}
+  return <main className="app-shell help-center help-center-v2 pb-0">{nested?<WebPageHeader title="帮助中心" onBack={back}/>:<WebPageHeader title="帮助中心" fallback="/nurse-station"/>}
     <div className="help-center-tabs"><HohoSegmentedControl label="帮助中心栏目" options={tabs} value={tab} onChange={switchTab}/></div>
     <div className="help-content" ref={content}>
       {tab==='manual'?manual?<article className="help-detail"><p className="help-query-label">用户手册 · {HELP_MODULES.find(m=>m.id===manual.module)?.label}</p><h2>{manual.title}</h2><p className="help-conclusion">{manual.brief}</p>{[['为什么设计这个功能',manual.purpose],['什么时候用',manual.scene],['一个例子',manual.example],['你能得到什么',manual.output]].map(([title,text])=><HohoSection title={title} key={title}><p className="hoho-text-body">{text}</p></HohoSection>)}<HohoButton fullWidth onClick={()=>{savedPaths.current.manual=params.toString();openArticle(manual.helpArticleId)}}>查看操作帮助</HohoButton></article>:<>
