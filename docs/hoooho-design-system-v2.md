@@ -38,6 +38,14 @@ Hoooho V2 is quiet, trustworthy and information-first. Its product-owner-approve
 - Record subject identity: one shared compact member surface; detail pages must not nest it inside a second card.
 - Journal record actions are text-only with five 44px direct-entry targets (symptom, feeding, daily, medication and visit documents) and a centered text-only smart action. Record form saves appear in the top-right header; nested diet and sleep editors keep their own validation and submit handlers. Timeline markers align with the year separator; time-based recording reminder cards and their prefill/trigger lifecycle are retired. Explicit manual recording, routine tracks and medication reminders remain independent.
 
+### HohoSpotlightGuide · 真实控件聚焦引导
+
+用途：在已有页面或表单中，以灰黑半透明蒙版、真实透明孔和简短标签指导操作。帮助中心的手动/睡眠等记录表单、查找/档案/导出的位置引导共用；业务步骤、校验及保存回执由调用方掌握，组件不写健康数据、不克隆控件。
+
+接口包含 targets（可见控件选择器）、title/description、step/total，以及继续、上一步、退出和实际交互回调。提示挂在目标所属的原对话框中，不添加第二个模态框；Tab在目标与提示按钮中循环，Escape只先退出引导。滚动、尺寸、visualViewport及动态表单变化后重新测量；更上层的确认/附件/登录弹层出现时暂停。目标缺失时不画蒙版；极短视口优先紧凑提示，仍容纳不了时撤蒙版，让原页面保持可操作。
+
+颜色、字体、间距、圆角和阴影沿用V2 token。图解为业务层的 HelpIllustration，明确标记“操作示意”，不作为真实保存或资料成功的凭据。
+
 ## Interaction hierarchy
 
 - One primary action per view. Primary buttons may use the restrained Hoooho Green gradient; ordinary surfaces do not use large gradients.
@@ -125,10 +133,6 @@ Original photo previews opened from an existing record, reminder or upload works
 
 对话标题及图标采用正文主色；真实已保存状态使用 success 绿色的“已记录”纯文字，无背景；未保存条目显示黄色“待确认”，保存后仍有未知内容时跟随“有待确认”。对话不确定性专用 `--hoho-color-conversation-pending` 明亮橘黄色，覆盖侧栏原棕色观感；其他模块 warning 语义色不变。
 
-### HohoSpotlightGuide · 真实控件聚焦引导
+### 侧栏环抱身份区（2026-10-30）
 
-用途：在已有页面或表单中，以灰黑半透明蒙版、真实透明孔和简短标签指导操作。帮助中心的手动/睡眠等记录表单、查找/档案/导出的位置引导共用；业务步骤、校验及保存回执由调用方掌握，组件不写健康数据、不克隆控件。
-
-接口包含 targets（可见控件选择器）、title/description、step/total，以及继续、上一步、退出和实际交互回调。提示挂在目标所属的原对话框中，不添加第二个模态框；Tab在目标与提示按钮中循环，Escape只先退出引导。滚动、尺寸、visualViewport及动态表单变化后重新测量；更上层的确认/附件/登录弹层出现时暂停。目标缺失时不画蒙版；极短视口优先紧凑提示，仍容纳不了时撤蒙版，让原页面保持可操作。
-
-颜色、字体、间距、圆角和阴影沿用V2 token。图解为业务层的 HelpIllustration，明确标记“操作示意”，不作为真实保存或资料成功的凭据。
+产品主人手绘确认的账户环抱仅在侧栏使用 `identity-embrace`、`identity-outline`、`identity-subject` 三个 opt-in 颜色角色：浅绿账户、轻细连通轮廓、奶油杏色孩子栏。装饰SVG独立于功能图标库，不含交互、不读取业务状态，不推广到其他卡片；沿用现有字号、间距及圆角。

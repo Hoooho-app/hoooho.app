@@ -94,6 +94,7 @@ export function SideDrawer({ onClose, onOpenChildSheet, open, cleanChrome = true
       <button className="absolute inset-0 bg-text-primary/55" type="button" aria-label="关闭侧边栏" onClick={onClose} />
       <aside className={'hoho-drawer hoho-drawer--history' + (cleanChrome ? ' hoho-drawer--clean' : '')} ref={drawerRef} tabIndex={-1}>
         <section className="drawer-identities" aria-label="账户与记录对象">
+          <div className="drawer-embrace">
           <button type="button" className="drawer-identity-row drawer-account" aria-label="我的账户" onClick={() => { onClose(); navigate('/account', { state: { accountFrom: accountOrigin } }) }}>
             <span className="drawer-account-avatar" role="img" aria-label={`${userName}的头像`}><span className="drawer-account-avatar__glyph" aria-hidden="true">{accountAvatar}</span></span>
             <span className="drawer-account-copy"><strong>{userName}</strong><span>记录者</span></span>
@@ -104,6 +105,11 @@ export function SideDrawer({ onClose, onOpenChildSheet, open, cleanChrome = true
             <span className="drawer-subject-copy"><span className="drawer-subject-label">记录对象</span><span className="drawer-subject-detail"><strong>{members.length ? childName : '添加孩子'}</strong>{members.length > 0 && <span className="drawer-identity-meta">{recordSubjectRelationship(member)}{member.age ? ' · ' + compactIdentityAge(member.age) : ''}</span>}</span></span>
             <span className="drawer-subject-action">{members.length ? '切换' : '添加'}<ChevronRight size={16} aria-hidden="true" /></span>
           </button>
+          <svg className="drawer-embrace-art" viewBox="0 0 320 200" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+            <path className="drawer-embrace-paw" d="M 1 164 L 13 164 C 35 164 43 174 43 185 C 43 195 35 199 25 199 C 10 199 1 189 1 174 Z M 319 164 L 307 164 C 285 164 277 174 277 185 C 277 195 285 199 295 199 C 310 199 319 189 319 174 Z" />
+            <path className="drawer-embrace-outline" d="M 13 164 C 35 164 43 174 43 185 C 43 195 35 199 25 199 C 10 199 1 189 1 174 V 27 C 1 12 12 1 27 1 H 293 C 308 1 319 12 319 27 V 174 C 319 189 310 199 295 199 C 285 199 277 195 277 185 C 277 174 285 164 307 164" />
+          </svg>
+          </div>
         </section>
         <nav ref={historyScrollRef} className="drawer-conversations" aria-label="对话记录" onScroll={event => { const node = event.currentTarget; if (node.scrollHeight - node.scrollTop - node.clientHeight < 160 && !ownHistory.moreError) void ownHistory.loadMore() }}>
           <div className="drawer-conversations__heading"><h2>对话记录</h2><button type="button" disabled={conversationDisabled} onClick={startConversation} aria-label="新建对话"><ConversationBubblePlus size={20} aria-hidden="true" /><span>新建对话</span></button></div>
