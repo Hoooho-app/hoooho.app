@@ -19,6 +19,8 @@ function ScopedCoach({ account, member }: { account: string; member: string }) {
   const [, refresh] = useState(0), started = useRef('')
   const update = (next: Progress | null) => { setProgress(next); try { if (next) sessionStorage.setItem(storageKey, JSON.stringify(next)); else sessionStorage.removeItem(storageKey) } catch { /* Guidance is optional; the original page stays usable. */ } }
   useEffect(() => {
+    const owner = (location.state as { helpTourOwner?: { accountId:string; memberId:string } } | null)?.helpTourOwner
+    if (owner && (owner.accountId !== account || owner.memberId !== member)) return
     const id = new URLSearchParams(location.search).get('helpTour')
     const entry = location.key + ':' + id
     if (!id || !HELP_PAGE_TOURS[id] || started.current === entry) return
@@ -27,6 +29,8 @@ function ScopedCoach({ account, member }: { account: string; member: string }) {
     if (progress?.id === id && (!start || progress.start === start)) return
     update({ id, step: 0, paused: false, start })
   }, [location.key, location.search])
+  const owner = (location.state as { helpTourOwner?: { accountId:string; memberId:string } } | null)?.helpTourOwner
+  if (owner && (owner.accountId !== account || owner.memberId !== member)) return null
   if (!progress || !HELP_PAGE_TOURS[progress.id].paths.includes(location.pathname)) return null
   const tour = HELP_PAGE_TOURS[progress.id], current = tour.steps[progress.step]
   const end = () => {

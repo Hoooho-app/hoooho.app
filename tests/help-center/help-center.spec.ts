@@ -74,7 +74,7 @@ test('failed send preserves input and explicit retry uses same request identifie
   await expect(page.getByText('感谢你告诉我结果。',{exact:false})).toBeVisible()
 })
 test('help, manual and chat fit 320–430px mobile viewports',async({page})=>{
-  for(const width of [320,390,430]){
+  for(const width of [320,375,390,430]){
     await page.setViewportSize({width,height:844})
     for(const [name,url]of [['home','/help'],['manual','/help?tab=manual&manual=smart'],['chat','/help?view=chat']]){
       await page.goto(url)
@@ -82,6 +82,7 @@ test('help, manual and chat fit 320–430px mobile viewports',async({page})=>{
       await expect(page.getByRole('radio',{name:'产品说明',exact:true})).toBeVisible()
       expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true)
       expect(await page.locator('.help-content').evaluate(e=>e.scrollWidth<=e.clientWidth)).toBe(true)
+      if(name==='home')await page.screenshot({path:`test-results/help-center/home-top-${width}.png`,fullPage:true})
       await page.locator('.help-content').evaluate(e=>e.scrollTop=e.scrollHeight)
       await expect(page.getByRole('radio',{name:'产品说明',exact:true})).toBeInViewport()
       await page.screenshot({path:`test-results/help-center/${name}-${width}.png`,fullPage:true})

@@ -111,7 +111,7 @@ export function HelpCenterPage() {
             {article.id === 'daily' && <HohoButton variant="secondary" fullWidth onClick={() => startLesson('elimination')}>跟着记一次排便</HohoButton>}
           </>}
         </section>}
-        {!article.lesson && helpTourUrl(article.id) && <HohoButton fullWidth onClick={() => navigate(helpTourUrl(article.id)!, { state: { ...helpState, helpTourStart: crypto.randomUUID() } })}>打开页面，跟着操作</HohoButton>}
+        {!article.lesson && helpTourUrl(article.id) && <HohoButton fullWidth onClick={() => navigate(helpTourUrl(article.id)!, { state: { ...helpState, helpTourStart: crypto.randomUUID(), helpTourOwner: { accountId, memberId } } })}>打开页面，跟着操作</HohoButton>}
         <h3 className="hoho-text-card-title">{article.kind === 'product' ? '了解更多' : '怎么做'}</h3>
         <ol className="help-steps">{article.steps.map(step => <li key={step}>{step}</li>)}</ol>
         {article.result && <HohoSection title="完成后在哪里看"><p className="hoho-text-body">{article.result}</p></HohoSection>}

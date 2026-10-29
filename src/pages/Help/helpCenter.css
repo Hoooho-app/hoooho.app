@@ -53,3 +53,8 @@
 .help-detail>.help-illustration{margin-top:var(--hoho-space-5)}.help-detail>.help-conclusion{margin-top:var(--hoho-space-3);color:rgb(var(--hoho-color-text-secondary))}.help-detail>h3{margin-top:var(--hoho-space-6)}
 @media(max-width:359px){.help-featured{gap:var(--hoho-space-2)}.help-feature-copy strong{font-size:var(--hoho-font-size-body-small)}.help-feature-copy>span{font-size:11px}.help-illustration.is-small .help-mini-phone{transform:scale(.65) rotate(-4deg)}.help-product-card{grid-template-columns:100px minmax(0,1fr);gap:var(--hoho-space-3)}}
 @media(prefers-reduced-motion:reduce){.help-group>summary>svg:last-child{transition:none}}
+/* The former text directory used a blanket 32px sibling gap; each new visual section owns its spacing. */
+.help-center-v2 .help-content > :not([hidden]) ~ :not([hidden]){margin-top:var(--help-section-gap,0px);margin-bottom:0}
+.help-center-v2 .help-more-heading,.help-center-v2 .help-assistant-entry{--help-section-gap:var(--hoho-space-6)}
+.help-center-v2 .help-detail .help-visual-steps{list-style:none;margin:0;padding:var(--hoho-space-4) 0 0}
+.help-center-v2 .help-detail .help-visual-steps>li~li{margin-top:0}

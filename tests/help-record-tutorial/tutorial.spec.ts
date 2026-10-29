@@ -222,7 +222,7 @@ test('sidebar help keeps its source through tabs, article navigation, refresh an
     await page.getByRole('radio', { name:'产品说明', exact:true }).click()
     await page.getByRole('radio', { name:'使用教程', exact:true }).click()
     await page.getByLabel('搜索教程和问题').fill('手动')
-    await page.getByRole('button', { name:'手动记一件发生的事', exact:true }).click()
+    await page.getByRole('button', { name:'手动记一件发生的事', exact:false }).click()
     await page.reload()
     await expect(page.getByRole('figure', { name:'手动记一件发生的事操作示意' })).toBeVisible()
     if (url === '/health-events?day=2026-10-25') {
