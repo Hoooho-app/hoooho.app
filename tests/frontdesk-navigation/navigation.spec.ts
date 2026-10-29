@@ -30,12 +30,15 @@ test('default home has the approved headline, private header and four real navig
   await expect(page.locator('.record-entry-actions--conversation')).toHaveCount(0)
   await expect(page.getByRole('button', { name: '更多操作', exact: true })).toHaveCount(0)
   await expect(page.getByRole('button', { name: '快速查找', exact: true })).toBeVisible()
+  await expect(page.locator('.hoho-main-header').getByRole('button', { name: '新建对话', exact: true })).toHaveCount(0)
+  await expect(page.locator('.hoho-main-header [data-icon="search"]')).toHaveAttribute('data-icon-variant', 'large-lens-short-handle')
   const nav = page.getByRole('navigation', { name: '主要导航' })
   await expect(nav.getByRole('button')).toHaveText(['症状记录', '健康日历', '孩子档案', '一键整理'])
   await expect(page.locator('.front-desk-welcome__portrait')).toBeVisible()
-  const positions = await page.locator('.hoho-dialogue-composer').evaluate(root => ['.hoho-dialogue-hold','.hoho-dialogue-mode'].map(selector => root.querySelector(selector)!.getBoundingClientRect().x))
+  const positions = await page.locator('.hoho-dialogue-composer').evaluate(root => ['.hoho-dialogue-hold','.hoho-dialogue-mode','.hoho-dialogue-photo'].map(selector => root.querySelector(selector)!.getBoundingClientRect().x))
   expect(positions[0]).toBeLessThan(positions[1])
-  await expect(page.locator('.hoho-dialogue-photo')).toHaveCount(0)
+  expect(positions[1]).toBeLessThan(positions[2])
+  await expect(page.locator('.hoho-dialogue-photo')).toBeEnabled()
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
   await page.screenshot({ path: info.outputPath('home.png'), fullPage: true })
 })
@@ -44,6 +47,7 @@ test('keyboard reveals categories, voice hides them, and unsent text survives bo
   await page.getByRole('button', { name: '改用文字', exact: true }).click()
   const categories = page.locator('.record-entry-actions--conversation .record-entry-grid')
   await expect(categories.getByRole('button')).toHaveCount(4)
+  await expect(page.locator('.hoho-main-header').getByRole('button', { name: '新建对话', exact: true })).toHaveCount(0)
   await expect(categories.locator('svg, img, small')).toHaveCount(0)
   const categoryRows = await categories.getByRole('button').evaluateAll(buttons => buttons.map(button => { const rect=button.getBoundingClientRect(); return {y:rect.y,height:rect.height} }))
   expect(new Set(categoryRows.map(rect=>rect.y)).size).toBe(1)
@@ -89,6 +93,10 @@ test('bottom navigation opens the calendar, profile and existing organize sheet'
   await page.getByRole('navigation', { name: '主要导航' }).getByRole('button', { name: '健康日历', exact: true }).click()
   await expect(page).toHaveURL(/\/health-events(?:\?|$)/)
   await expect(page.getByRole('heading', { name: '健康日历', exact: true })).toBeVisible()
+  await expect(page.locator('.hoho-main-header [data-icon="search"]')).toHaveAttribute('data-icon-variant', 'large-lens-short-handle')
+  await page.getByRole('button', { name: '搜索健康日历', exact: true }).click()
+  await expect(page.locator('.journal-search-field [data-icon="search"]')).toHaveAttribute('data-icon-variant', 'large-lens-short-handle')
+  await page.goBack()
   await page.getByRole('navigation', { name: '主要导航' }).getByRole('button', { name: '孩子档案', exact: true }).click()
   await expect(page).toHaveURL(/\/health-profile$/)
   await expect(page.getByRole('navigation', { name: '档案分类', exact: true })).toBeVisible()
@@ -125,6 +133,7 @@ test('sidebar history reads a real local synthetic conversation and new conversa
   await expect(header.getByRole('button',{name:'新建对话',exact:true})).toBeEnabled()
   await header.getByRole('button',{name:'新建对话',exact:true}).click()
   await expect(page.getByRole('button', { name: '按住记录症状', exact: true })).toBeEnabled()
+  await expect(header.getByRole('button',{name:'新建对话',exact:true})).toHaveCount(0)
   await expect(page.locator('.record-entry-actions--conversation')).toHaveCount(0)
   await page.getByRole('button', { name: '打开菜单', exact: true }).click()
   drawer = page.getByRole('dialog', { name: '侧边栏菜单' })
@@ -132,18 +141,29 @@ test('sidebar history reads a real local synthetic conversation and new conversa
   await drawer.locator('.drawer-history-group button').first().click()
   await expect(page).toHaveURL(/\/nurse-station\?conversation=/)
   await expect(page.locator('.nurse-turn--user').first()).toContainText(text)
+  await expect(header.getByRole('button',{name:'新建对话',exact:true})).toBeEnabled()
+  await page.reload()
+  await expect(header.getByRole('button',{name:'新建对话',exact:true})).toBeEnabled()
 })
 
 test('small mobile screens retain all four tabs and two-row identities without horizontal overflow', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 650 })
   await expect(page.getByRole('navigation', { name: '主要导航' }).getByRole('button')).toHaveCount(4)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
-  for(const width of [320,375,390,430]){
-    await page.setViewportSize({width,height:650})
-    expect(await page.locator('.hoho-main-header').evaluate(node=>{
-      const subject=node.querySelector('.hoho-main-header__identity')!.getBoundingClientRect(),child=node.querySelector('.hoho-main-header__child')!.getBoundingClientRect(),search=node.querySelector('[aria-label="快速查找"]')!.getBoundingClientRect(),add=node.querySelector('[aria-label="新建对话"]')!.getBoundingClientRect()
-      return subject.width>0&&child.right<=search.left&&search.right<=add.left&&add.right<=window.innerWidth&&add.width>=44
-    })).toBe(true)
+  for(const active of [false,true]){
+    if(active){
+      await page.getByRole('button',{name:'改用文字',exact:true}).click()
+      await page.getByLabel('对话输入',{exact:true}).fill('今天早上开始流鼻涕')
+      await page.getByRole('button',{name:'发送',exact:true}).click()
+      await waitForNurseReply(page)
+    }
+    for(const width of [320,375,390,430]){
+      await page.setViewportSize({width,height:650})
+      expect(await page.locator('.hoho-main-header').evaluate((node,active)=>{
+        const subject=node.querySelector('.hoho-main-header__identity')!.getBoundingClientRect(),child=node.querySelector('.hoho-main-header__child')!.getBoundingClientRect(),search=node.querySelector('[aria-label="快速查找"]')!.getBoundingClientRect(),add=node.querySelector('[aria-label="新建对话"]')?.getBoundingClientRect()
+        return subject.width>0&&child.right<=search.left&&search.width>=44&&(active?!!add&&search.right<=add.left&&add.right<=window.innerWidth&&add.width>=44:!add&&search.right<=window.innerWidth)
+      },active)).toBe(true)
+    }
   }
   await page.getByRole('button', { name: '打开菜单', exact: true }).click()
   await expect(page.locator('.drawer-identities .drawer-identity-row')).toHaveCount(2)

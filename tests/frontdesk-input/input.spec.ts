@@ -26,6 +26,7 @@ test('unsent input switches without a prompt, appears in the sidebar and reopens
     await home(page);await expect(page.getByLabel('对话输入',{exact:true})).toHaveValue(text)
   }
   await page.getByRole('button',{name:'快速查找',exact:true}).click();await expect(page).toHaveURL(/quick-search/)
+  await expect(page.locator('.journal-search-field [data-icon="search"]')).toHaveAttribute('data-icon-variant','large-lens-short-handle')
   await page.goBack();await expect(page.getByLabel('对话输入',{exact:true})).toHaveValue(text)
   await page.getByRole('button',{name:'打开菜单',exact:true}).click()
   const drawer=page.getByRole('dialog',{name:'侧边栏菜单'})
@@ -89,6 +90,8 @@ test('failed voice has two compact actions on one row and retries the same task'
 })
 
 test('camera opens a system chooser directly; native cancellation retains input without opening another chooser',async({page},info)=>{
+  const add=page.locator('.hoho-main-header').getByRole('button',{name:'新建对话',exact:true})
+  await expect(add).toHaveCount(0)
   const selected=page.waitForEvent('filechooser')
   await page.getByRole('button',{name:'添加照片、视频或文件',exact:true}).click()
   const input=(await selected).element()
@@ -102,6 +105,7 @@ test('camera opens a system chooser directly; native cancellation retains input 
   await expect(page.getByLabel('对话输入')).toHaveValue('选择附件前输入的补充')
   await expect(page.locator('.nurse-turn--user')).toHaveCount(0)
   await expect(page.getByRole('alert')).toHaveCount(0)
+  await expect(add).toHaveCount(0)
   expect(extraChoosers).toBe(0)
   await page.screenshot({path:info.outputPath('attachment-cancel-keeps-input.png')})
 })
