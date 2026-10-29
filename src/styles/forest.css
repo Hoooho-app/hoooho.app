@@ -143,8 +143,6 @@ body :where(
   .continuity-form select,
   .continuity-form textarea,
   .continuity-record-entry,
-  .conversation-history-content input,
-  .conversation-history-content input[type='search'],
   .current-child-label,
   .current-child-sheet,
   .current-child-sheet__current-label,

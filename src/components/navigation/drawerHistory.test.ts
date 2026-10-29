@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { conversationTitle } from '../../../shared/conversation-title.mjs'
-import { drawerHistoryRows, type RetainedConversation } from './drawerHistory'
+import { drawerConversationLabel, drawerHistoryRows, type RetainedConversation } from './drawerHistory'
 
 test('history extracts whole source keywords, later observations and uncertainty rather than a greeting or raw first line', () => {
   const result = conversationTitle({ texts: ['你好', '我这个对话记录，脸上有个小痘痘，不确定是包包还什么'] })
@@ -28,9 +28,9 @@ test('one history destination retains the latest unsent device copy while keepin
   const rows = drawerHistoryRows(server, [retained('older', 'c', '之前补充', 2), retained('newest', 'c', '还有呢', 3)])
   assert.equal(rows.length, 1)
   assert.equal(rows[0].title, '脸上 · 小痘痘')
-  assert.match(rows[0].destination, /draft=newest&from=sidebar$/)
+  assert.match(rows[0].destination, /nurse-station\?draft=newest$/)
   assert.equal(JSON.stringify(server), original)
-  assert.match(drawerHistoryRows(server, [retained('current', 'c', '')])[0].destination, /\/conversation-history\/c\?from=sidebar$/)
+  assert.match(drawerHistoryRows(server, [retained('current', 'c', '')])[0].destination, /\/nurse-station\?conversation=c$/)
   const continued = [{ ...server[0], contextIds: ['c', 'continued'] }]
   assert.equal(drawerHistoryRows(continued, [retained('newer', 'continued', '另外补充')]).length, 1)
   assert.equal(drawerHistoryRows(continued, [retained('newer', 'continued', '另外补充')])[0].title, '脸上 · 小痘痘')
@@ -40,4 +40,13 @@ test('compact titles retain the core symptom and remove measurement or observati
   assert.equal(conversationTitle({texts:['发烧，还没量，家长观察后当前精神好']}).title,'发烧')
   assert.equal(conversationTitle({texts:['发烧，家长观察：当前精神尚可，体温还没量']}).title,'发烧')
   assert.match(conversationTitle({texts:['没有发热，今天咳嗽']}).title,/无发热.*咳嗽/)
+})
+
+test('a saved record is a separate status on the home destination, not a green conversation title',()=>{
+  const server=[{id:'saved',title:'发烧',updatedAt:new Date(1).toISOString(),recorded:true},{id:'draft',title:'待确认',updatedAt:new Date(2).toISOString(),recorded:false}]
+  const rows=drawerHistoryRows(server,[])
+  assert.equal(drawerConversationLabel('脸上 · 小痘痘 · 待确认'),'小痘痘·脸上')
+  assert.equal(rows.find(row=>row.id==='saved')?.recorded,true)
+  assert.equal(rows.find(row=>row.id==='draft')?.recorded,false)
+  assert.equal(rows.find(row=>row.id==='saved')?.destination,'/nurse-station?conversation=saved')
 })
