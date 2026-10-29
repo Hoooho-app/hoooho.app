@@ -124,3 +124,7 @@ Original photo previews opened from an existing record, reminder or upload works
 ### 侧栏对话状态色（2026-10-30）
 
 对话标题及图标采用正文主色；真实已保存状态使用 success 绿色的“已记录”纯文字，无背景；未保存条目显示黄色“待确认”，保存后仍有未知内容时跟随“有待确认”。对话不确定性专用 `--hoho-color-conversation-pending` 明亮橘黄色，覆盖侧栏原棕色观感；其他模块 warning 语义色不变。
+
+### 侧栏环抱身份区（2026-10-30）
+
+产品主人手绘确认的账户环抱仅在侧栏使用 `identity-embrace`、`identity-outline`、`identity-subject` 三个 opt-in 颜色角色：浅绿账户、轻细连通轮廓、奶油杏色孩子栏。装饰SVG独立于功能图标库，不含交互、不读取业务状态，不推广到其他卡片；沿用现有字号、间距及圆角。

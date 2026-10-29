@@ -2,7 +2,7 @@
 export const PRODUCT_FEATURES = Object.freeze({ auxiliaryTools: false, careJourney: false, membership: false })
 
 const featurePaths = {
-  auxiliaryTools: ['/dietary-card', '/food-observations', '/food-label', '/medication-reminders', '/care-handoff', '/desensitization-tests', '/nurse-station/desensitization'],
+  auxiliaryTools: ['/dietary-card', '/food-observations', '/food-label', '/medication-reminders', '/desensitization-tests', '/nurse-station/desensitization'],
   careJourney: ['/care-journey', '/care-tools', '/family-sharing', '/health-profile/vaccination/plan'],
   membership: ['/account/membership'],
 }
