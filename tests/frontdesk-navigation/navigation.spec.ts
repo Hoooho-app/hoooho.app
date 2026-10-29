@@ -79,7 +79,7 @@ test('drawer uses exactly two private identity rows and direct utility links', a
   await expect(drawer).not.toContainText('爸爸')
   await expect(drawer.locator('.drawer-utilities button')).toHaveText(['反馈', '关于'])
   await expect(drawer.getByRole('heading', { name: '对话记录', exact: true })).toBeVisible()
-  expect(await drawer.locator('.drawer-identities').evaluate(element => element.getBoundingClientRect().height)).toBeLessThan(125)
+  expect(await drawer.locator('.drawer-identities').evaluate(element => element.getBoundingClientRect().height)).toBeLessThan(185)
   await page.screenshot({ path: info.outputPath('sidebar.png'), fullPage: true })
   await page.keyboard.press('Escape')
   await expect(drawer).toHaveCount(0)
@@ -102,7 +102,7 @@ test('bottom navigation opens the calendar, profile and existing organize sheet'
 
 test('editing opens the existing account flow without rewriting the stored nickname', async ({ page, request }) => {
   await page.getByRole('button', { name: '打开菜单', exact: true }).click()
-  await page.getByRole('button', { name: '编辑我的信息', exact: true }).click()
+  await page.getByRole('button', { name: '我的账户', exact: true }).click()
   await expect(page.getByRole('button').filter({ hasText: '账户与安全' })).toBeVisible()
   const account = await request.get('/api/account/profile', { headers })
   expect((await account.json()).nickname).toBe('刘磊')

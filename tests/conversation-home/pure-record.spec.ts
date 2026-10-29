@@ -31,11 +31,11 @@ test('daily care opens while other hidden features stay closed and core records 
  await expect(drawer.getByText('产品中心',{exact:true})).toHaveCount(0)
  for(const name of ['反馈','关于'])await expect(drawer.getByRole('button',{name,exact:true})).toBeVisible()
  await expect(drawer.getByRole('button',{name:'帮助',exact:true})).toHaveCount(0)
- await drawer.getByRole('button',{name:'编辑我的信息',exact:true}).click()
- const account=page.getByRole('dialog',{name:'账户',exact:true})
+ await drawer.getByRole('button',{name:'我的账户',exact:true}).click()
+ const account=page.getByRole('main')
  await expect(account.getByText('会员状态',{exact:true})).toHaveCount(0)
  await expect(account.getByText('账户与安全',{exact:true})).toBeVisible()
- await page.keyboard.press('Escape');await page.keyboard.press('Escape')
+ await page.getByRole('button',{name:'返回',exact:true}).click()
  for(const route of ['/care-tools/results','/family-sharing','/health-profile/vaccination/plan','/food-observations','/dietary-card/edit','/food-label','/medication-reminders','/desensitization-tests','/nurse-station/desensitization/new','/care-handoff/shared/hidden-test','/account/membership']){
   await page.goto(route);await expect(page).toHaveURL(/\/nurse-station$/)
  }

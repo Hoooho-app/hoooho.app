@@ -1,5 +1,5 @@
 import { PRODUCT_FEATURES } from '../../../shared/product-visibility.mjs'
-import { ChevronRight, LogOut, ShieldCheck, Sparkles } from '../icons'
+import { ChevronRight, LogOut, Settings2, ShieldCheck, Sparkles } from '../icons'
 import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Avatar } from '../common'
@@ -13,7 +13,7 @@ export function MembershipBadge() {
   return PRODUCT_FEATURES.membership ? <span className="account-free-badge">免费版</span> : null
 }
 
-export function AccountSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function AccountOverview({ onClose = () => undefined }: { onClose?: () => void }) {
   const navigate = useNavigate()
   const location = useLocation()
   const user = useAppStore((state) => state.authUser)
@@ -46,7 +46,7 @@ export function AccountSheet({ open, onClose }: { open: boolean; onClose: () => 
   }
 
   return (
-    <BottomSheetSurface label={guest ? '登录或注册' : '账户'} onClose={onClose} open={open} title={guest ? '登录或注册' : '账户'}>
+    <>
       {guest ? (
         <div className="grid gap-4">
           <p className="hoho-text-body">只需昵称和密码即可把当前记录原地升级为正式账户。</p>
@@ -69,6 +69,7 @@ export function AccountSheet({ open, onClose }: { open: boolean; onClose: () => 
             </span>
           </div>
           <div className="settings-list">
+            <HohoSurfaceRow leading={<Settings2 size={19} />} onActivate={() => openPage('/settings')} title="设置" />
             <HohoSurfaceRow leading={<ShieldCheck size={19} />} onActivate={() => openPage('/account/security')} title="账户与安全" />
             {PRODUCT_FEATURES.membership && <HohoSurfaceRow leading={<Sparkles size={19} />} onActivate={() => openPage('/account/membership')} title="会员状态" value={<MembershipBadge />} />}
           </div>
@@ -77,6 +78,12 @@ export function AccountSheet({ open, onClose }: { open: boolean; onClose: () => 
           </button>
         </div>
       )}
-    </BottomSheetSurface>
+    </>
   )
+}
+
+export function AccountSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const user = useAppStore(state => state.authUser)
+  const guest = !user || Boolean(user.guest)
+  return <BottomSheetSurface label={guest ? '登录或注册' : '账户'} onClose={onClose} open={open} title={guest ? '登录或注册' : '账户'}><AccountOverview onClose={onClose} /></BottomSheetSurface>
 }

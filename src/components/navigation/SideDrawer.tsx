@@ -1,6 +1,6 @@
 import { BottomSheetSurface, HohoButton, HealthTag } from '../design-system'
 import { drawerConversationLabel, type DrawerHistoryRow } from './drawerHistory'
-import { ChevronRight, FileText, Trash2, Info, MessageCircle, MessageCirclePlus, Pencil, Plus, UserRound } from '../icons'
+import { ChevronRight, FileText, Trash2, Info, MessageCircle, MessageCirclePlus, Plus } from '../icons'
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Avatar } from '../common'
@@ -10,7 +10,6 @@ import { useDialogFocus } from '../../hooks/useDialogFocus'
 import { useAppStore } from '../../store/useAppStore'
 import { getCurrentPath } from './navigationState'
 import { makeFeedbackState } from '../../features/feedback/navigation'
-import { AccountSheet } from '../account/AccountSheet'
 import { accountService } from '../../services/account'
 import { useDrawerHistory } from './useDrawerHistory'
 import { compactIdentityAge, maskIdentityName, recordSubjectRelationship } from '../../utils/privateIdentity'
@@ -43,12 +42,14 @@ export function SideDrawer({ onClose, onOpenChildSheet, open, cleanChrome = true
   const authUser = useAppStore(state => state.authUser), accountProfile = useAppStore(state => state.accountProfile)
   const setAccountProfile = useAppStore(state => state.setAccountProfile)
   const accountId = authUser?.id ?? 'guest'
-  const [accountOpen, setAccountOpen] = useState(false)
   const [deleting,setDeleting]=useState<DrawerHistoryRow|null>(null),[deleteBusy,setDeleteBusy]=useState(false),[deleteError,setDeleteError]=useState('')
   useEffect(()=>{setDeleting(null);setDeleteError('')},[open,accountId,member.id])
   const ownHistory = useDrawerHistory({ open, accountId, memberId: member.id, memberName: member.name, token: authToken, hasMembers: members.length > 0 })
   const userName = authUser?.guest ? '创建正式账户' : maskIdentityName(accountProfile?.nickname || authUser?.nickname) || '我的账户'
+  const accountAvatar = authUser?.guest ? '我' : Array.from(maskIdentityName(accountProfile?.nickname || authUser?.nickname)).at(-1) || '我'
   const childName = maskIdentityName(member.name) || '记录对象'
+  const childAvatarName = Array.from(maskIdentityName(member.name)).at(-1) || '孩'
+  const accountOrigin = getCurrentPath(location.pathname, location.search, location.hash)
   usePageScrollLock(open)
   useDialogFocus(open && !deleting, drawerRef)
   useEffect(() => {
@@ -85,21 +86,21 @@ export function SideDrawer({ onClose, onOpenChildSheet, open, cleanChrome = true
     navigate(to, to === '/feedback' ? { state: makeFeedbackState(getCurrentPath(location.pathname, location.search, location.hash), '侧边栏', window.scrollY) } : undefined)
   }
   const confirmDelete=async()=>{if(!deleting||deleteBusy)return;setDeleteBusy(true);setDeleteError('');try{await ownHistory.remove(deleting);setDeleting(null)}catch(error){setDeleteError(error instanceof Error?error.message:'删除未完成，请重试')}finally{setDeleteBusy(false)}}
-  if (!open) return <AccountSheet open={accountOpen} onClose={() => setAccountOpen(false)} />
+  if (!open) return null
   return <>
     <div className="hoho-drawer-layer" role="dialog" aria-modal="true" aria-label="侧边栏菜单">
       <button className="absolute inset-0 bg-text-primary/55" type="button" aria-label="关闭侧边栏" onClick={onClose} />
       <aside className={'hoho-drawer hoho-drawer--history' + (cleanChrome ? ' hoho-drawer--clean' : '')} ref={drawerRef} tabIndex={-1}>
         <section className="drawer-identities" aria-label="账户与记录对象">
-          <button type="button" className="drawer-identity-row" aria-label="编辑我的信息" onClick={() => setAccountOpen(true)}>
-            {accountProfile?.avatar ? <Avatar name={userName} src={accountProfile.avatar} size="sm" /> : <span className="drawer-identity-avatar"><UserRound size={20} aria-hidden="true" /></span>}
-            <strong>{userName}</strong><Pencil className="drawer-identity-action" size={17} aria-hidden="true" />
+          <button type="button" className="drawer-identity-row drawer-account" aria-label="我的账户" onClick={() => { onClose(); navigate('/account', { state: { accountFrom: accountOrigin } }) }}>
+            <span className="drawer-account-avatar" role="img" aria-label={`${userName}的头像`}>{accountAvatar}</span>
+            <span className="drawer-account-copy"><strong>{userName}</strong><span>我的账户 · 记录者</span></span>
+            <ChevronRight className="drawer-identity-action" size={20} aria-hidden="true" />
           </button>
-          <button type="button" className="drawer-identity-row" aria-label={members.length ? '切换记录对象' : '添加记录对象'} onClick={() => { onClose(); onOpenChildSheet() }}>
-            {members.length ? <Avatar name={childName} src={member.avatar} size="sm" /> : <span className="drawer-identity-avatar"><Plus size={20} aria-hidden="true" /></span>}
-            <strong>{members.length ? childName : '添加孩子'}</strong>
-            {members.length > 0 && <span className="drawer-identity-meta">{recordSubjectRelationship(member)}{member.age ? ' · ' + compactIdentityAge(member.age) : ''}</span>}
-            <ChevronRight className="drawer-identity-action" size={17} aria-hidden="true" />
+          <button type="button" className="drawer-identity-row drawer-subject" aria-label={members.length ? '切换记录对象' : '添加记录对象'} onClick={() => { onClose(); onOpenChildSheet() }}>
+            {members.length ? <Avatar name={childAvatarName} src={member.avatar} size="sm" /> : <span className="drawer-identity-avatar"><Plus size={20} aria-hidden="true" /></span>}
+            <span className="drawer-subject-copy"><span className="drawer-subject-label">记录对象</span><span className="drawer-subject-detail"><strong>{members.length ? childName : '添加孩子'}</strong>{members.length > 0 && <span className="drawer-identity-meta">{recordSubjectRelationship(member)}{member.age ? ' · ' + compactIdentityAge(member.age) : ''}</span>}</span></span>
+            <span className="drawer-subject-action">{members.length ? '切换' : '添加'}<ChevronRight size={16} aria-hidden="true" /></span>
           </button>
         </section>
         <nav ref={historyScrollRef} className="drawer-conversations" aria-label="对话记录" onScroll={event => { const node = event.currentTarget; if (node.scrollHeight - node.scrollTop - node.clientHeight < 160 && !ownHistory.moreError) void ownHistory.loadMore() }}>
@@ -119,6 +120,5 @@ export function SideDrawer({ onClose, onOpenChildSheet, open, cleanChrome = true
       </aside>
     </div>
     <BottomSheetSurface open={Boolean(deleting)} title="删除这次对话？" label="删除对话" onClose={()=>{if(!deleteBusy)setDeleting(null)}} footer={<div className="drawer-delete-actions"><HohoButton variant="secondary" disabled={deleteBusy} onClick={()=>setDeleting(null)}>取消</HohoButton><HohoButton variant="danger" loading={deleteBusy} onClick={()=>void confirmDelete()}>确认删除</HohoButton></div>}><p>删除对话不会影响已保存的记录。</p>{deleteError&&<p role="alert" className="drawer-delete-error">{deleteError}</p>}</BottomSheetSurface>
-    <AccountSheet open={accountOpen} onClose={() => setAccountOpen(false)} />
   </>
 }
