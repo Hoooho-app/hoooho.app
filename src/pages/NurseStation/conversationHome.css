@@ -177,6 +177,17 @@ body .smart-record-home .front-desk-welcome{display:flex;flex-direction:column;g
 .front-desk-welcome__media{width:75%;max-width:300px;height:clamp(150px,28dvh,250px);position:relative;align-self:center}
 .front-desk-welcome__media>.idle-nurse-visual{position:relative;inset:auto;width:100%;height:100%;overflow:hidden;mix-blend-mode:multiply}
 .front-desk-welcome__media .idle-nurse-visual__idle-video{width:100%;height:100%;object-fit:contain;opacity:1;transform:none}
+/* This opt-in matte removes the studio background, including the static poster.
+   Keep the original white costumes; multiplying the whole image tints them. */
+body .front-desk-welcome__media>.idle-nurse-visual[data-cutout="true"]{background:transparent;background-image:none;mix-blend-mode:normal}
+.front-desk-welcome__media .idle-nurse-visual[data-cutout="true"]>.idle-nurse-visual__idle-video{opacity:0}
+.front-desk-welcome__media :is(.idle-nurse-visual__cutout,.idle-nurse-visual__cutout-poster){position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:contain;background:transparent;pointer-events:none}
+.idle-nurse-visual__cutout-poster{z-index:1}
+.idle-nurse-visual__cutout{z-index:2;opacity:0}
+.idle-nurse-visual[data-cutout-ready="true"]>.idle-nurse-visual__cutout{opacity:1}
+.idle-nurse-visual[data-cutout-ready="true"]>.idle-nurse-visual__cutout-poster{opacity:0}
+.idle-nurse-visual[data-reduced-motion="true"]>.idle-nurse-visual__cutout{opacity:0}
+.idle-nurse-visual[data-reduced-motion="true"]>.idle-nurse-visual__cutout-poster{opacity:1}
 .smart-record-home .record-entry-actions--conversation .record-entry-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--hoho-space-2)}
 @media(max-height:650px){.front-desk-welcome__media{height:180px}.front-desk-welcome__copy h2{font-size:var(--hoho-font-size-page-title)}body .smart-record-home .front-desk-welcome{margin-top:var(--hoho-space-2);gap:var(--hoho-space-2)}}
 
