@@ -1,3 +1,4 @@
+import {nativeAttachmentPicker} from '../../services/nativeAttachments'
 import {FrontDeskQuestionTools} from './FrontDeskQuestionTools'
 import {recognitionAcceptedInput,recoverUnreceivedTurns,applyRecognitionReceipt,recognitionInputProcessing,retainUnreceivedFailures} from './recognitionSubmission'
 import {bodyLocationLabel} from '../body-location/locatorDictionary'
@@ -7,7 +8,7 @@ import {UploadRecognitionPreview} from './UploadRecognitionPreview'
 import {startAITiming} from '../../services/aiTiming'
 import {hasVisibleConversationText} from '../../../shared/conversation-input.mjs'
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { ArrowDown, Check, LoaderCircle, Mic, Search, Stethoscope, X } from '../../components/icons'
+import { ArrowDown, Check, LoaderCircle, Search, Stethoscope, X } from '../../components/icons'
 import { useBlocker, useLocation, useNavigate } from 'react-router-dom'
 import { dismissSavedRecordGuide,savedRecordUrl, savedRecordGuides, type SavedRecordGuide } from './savedRecordGuide'
 import { BottomSheetSurface, HohoButton, DialogueComposer, Typography } from '../../components/design-system'
@@ -60,6 +61,7 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
   const [originalsNeedReview,setOriginalsNeedReview]=useState(false)
   const mounted=useRef(true),pending=useRef(false),sendLock=useRef(false),writes=useRef<Promise<unknown>>(Promise.resolve()),abort=useRef<AbortController|null>(null),camera=useRef<HTMLInputElement>(null),album=useRef<HTMLInputElement>(null)
   const videoCamera=useRef<HTMLInputElement>(null),filePicker=useRef<HTMLInputElement>(null)
+  const attachmentPicking=useRef(false)
   const [incomingVideo,setIncomingVideo]=useState<{id:string;file:File;origin:'capture'|'library'}>()
   useEffect(()=>setIncomingVideo(undefined),[accountId,memberId])
   const memberName=useAppStore(s=>s.members.find(member=>member.id===memberId)?.name)
@@ -97,6 +99,8 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
   const leaving=useRef(false),allowLeave=useRef(false),voiceBusy=useRef(false),initialization=useRef<Promise<void>>(Promise.resolve())
   const unfinished=!completed&&(hasCaptureContent(local)||Boolean(local.conversationTurns?.some(t=>t.role!=='assistant'&&t.status&&t.status!=='completed')))
   const blocker=useBlocker(({currentLocation,nextLocation})=>{
+    // Home changes are already checkpointed. Navigation never discards them.
+    if(home)return false
     // History can advance before React unmounts this workspace. Its draft
     // guard must not intercept a Back from the record page to this workspace.
     if(currentLocation.pathname!==location.pathname||currentLocation.search!==location.search)return false
@@ -426,7 +430,7 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
     document.addEventListener('visibilitychange',visibility);void poll()
     return()=>{active=false;if(timer)clearTimeout(timer);controller?.abort();document.removeEventListener('visibilitychange',visibility)}
   },[ready,key,local.recognitionJobId,local.recognitionSnapshot?.state])
-  async function discardTurn(turn:CaptureTurn){try{await request(`${frontUrl}/messages/${encodeURIComponent(turn.id)}`,'DELETE');const remaining=current.current.conversationTurns?.filter(t=>t.id!==turn.id)??[];await persist({...current.current,conversationTurns:remaining,files:current.current.files.filter(file=>!turn.fileKeys?.includes(fileIdentity(file))||remaining.some(t=>t.fileKeys?.includes(fileIdentity(file))))})}catch(e){setError(e instanceof Error?e.message:'移除未完成，请重试')}}
+  async function discardTurn(turn:CaptureTurn){try{await request(`${frontUrl}/messages/${encodeURIComponent(turn.id)}`,'DELETE');const remaining=current.current.conversationTurns?.filter(t=>t.id!==turn.id)??[];const files=current.current.files.filter(file=>!turn.fileKeys?.includes(fileIdentity(file))||remaining.some(t=>t.fileKeys?.includes(fileIdentity(file))));await persist({...current.current,conversationTurns:remaining,files,pendingVoice:files.includes(current.current.pendingVoice!)?current.current.pendingVoice:undefined})}catch(e){setError(e instanceof Error?e.message:'移除未完成，请重试')}}
   function questionTarget(){
     const value=current.current
     if(value.conversationTurns?.some(turn=>turn.role==='user'&&turn.status==='pending'&&turn.answerTo?.questionId===value.nursingInterview?.question?.id))return undefined
@@ -517,7 +521,7 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
     finally{subjectConfirming.current=false;pending.current=false;if(mounted.current)setBusy(false)}
   }
   const subjectConfirmation=subjectPending&&review?.items.length||contextSubjectPending?((contextSubjectPending?contextSubjectCanConfirm:subjectCanConfirm)?<HohoButton variant="text" size="small" disabled={busy||jobBusy||voice.busy||!!localStage||dialogueBusy} onClick={()=>void confirmSubject()}>这是{memberName||'当前孩子'}的记录</HohoButton>:<p className="hoho-text-caption" role="status">这份资料的对象与当前成员不一致，请切换到对应成员后继续。</p>):null
-  const pickFiles=(files:FileList|null,origin:'capture'|'library'='library')=>{
+  const pickFiles=(files:FileList|File[]|null,origin:'capture'|'library'='library')=>{
     if(!files?.length)return
     const selected=Array.from(files).map(file=>{
       if(file.type)return file
@@ -536,6 +540,18 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
     setLocalStage('uploading')
     const turn:CaptureTurn={continuationId:home?current.current.frontContextId:current.current.resumeContextId,...turnIntent(),id:crypto.randomUUID(),text:'',at:Date.now(),kind:'image',role:'user',fileKeys:selected.map(fileIdentity),status:'pending'}
     void persist({...current.current,rawSaveTarget:undefined,...(!page||eventId?{smartReview:current.current.smartReview?{...current.current.smartReview,state:'changed'}:undefined}:{}),files:next,conversationTurns:[...current.current.conversationTurns??[],turn]}).then(()=>submitTurn(turn)).catch(()=>undefined)
+  }
+  function chooseAttachment(){
+    const native=home?nativeAttachmentPicker():undefined
+    if(!native){filePicker.current?.click();return}
+    if(attachmentPicking.current)return
+    const requestId=current.current.requestId
+    attachmentPicking.current=true
+    void native().then(result=>{
+      if(mounted.current&&current.current.requestId===requestId&&accountId===(useAppStore.getState().authUser?.id??'guest')&&memberId===useAppStore.getState().currentMemberId)pickFiles(result.files,result.origin)
+    }).catch(reason=>{
+      if(mounted.current&&current.current.requestId===requestId&&accountId===(useAppStore.getState().authUser?.id??'guest')&&memberId===useAppStore.getState().currentMemberId&&reason?.name!=='AbortError')setError(reason instanceof Error?reason.message:'附件选择未完成，请重试')
+    }).finally(()=>{attachmentPicking.current=false})
   }
   async function acknowledgeSave(saved:SmartRecordDraft){
     const guides=savedRecordGuides(saved,memberId,memberName)
@@ -682,7 +698,7 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
       setError(e instanceof Error?e.message:'保存未完成，草稿保留，可重试');setStatus('')
     }}finally{pending.current=false;if(mounted.current)setBusy(false)}
   }
-  const conversationFooter=<DialogueComposer key={home?homeInputEpoch:undefined} variant={home?'frontdesk':'default'} onTypingChange={home?setHomeTyping:undefined} holdLabel={home?'按住记录症状':undefined} initialTyping={Boolean(local.conversationInput?.trim())} placeholder={home?'输入孩子的情况…':undefined} expandedFeedback liveTranscript={home?voice.liveText:undefined} liveStatus={voice.liveUnavailable?'实时文字暂不可用，松开后完整转写':'正在听你说'} feedbackHint={home?(voice.liveUnavailable?'录音继续，松开后整理':'边说边显示文字，松开后整理'):'松开后显示文字'} discardOnBlur={!page} directPhoto={page} text={local.conversationInput??''} onTextChange={conversationInput=>change({conversationInput})} maxLength={5000} disabled={!ready||pending.current||completed||!!resumeChoices||exitOpen||!!local.rawSavedGuide} voiceDisabled={!!local.rawSavedGuide} allowTextWhileProcessing audioLevel={voice.audioLevel} requesting={voice.state==='requesting'} listening={voice.state==='listening'} processing={voice.state==='transcribing'} onStart={()=>{void voice.start()}} onStop={voice.stop} onDiscard={voice.discard} onPhoto={source=>({camera,album,video:videoCamera,file:filePicker}[source]).current?.click()} onSend={()=>void sendText()}/>
+  const conversationFooter=<DialogueComposer key={home?homeInputEpoch:undefined} variant={home?'frontdesk':'default'} onTypingChange={home?setHomeTyping:undefined} holdLabel={home?'按住记录症状':undefined} initialTyping={Boolean(local.conversationInput?.trim())} placeholder={home?'输入孩子的情况…':undefined} expandedFeedback liveTranscript={home?voice.liveText:undefined} liveStatus={voice.liveUnavailable?'实时文字暂不可用，松开后完整转写':'正在听你说'} feedbackHint={home?(voice.liveUnavailable?'录音继续，松开后整理':'边说边显示文字，松开后整理'):'松开后显示文字'} discardOnBlur={!page} directPhoto={page} text={local.conversationInput??''} onTextChange={conversationInput=>change({conversationInput})} maxLength={5000} disabled={!ready||pending.current||completed||!!resumeChoices||exitOpen||!!local.rawSavedGuide} voiceDisabled={!!local.rawSavedGuide} allowTextWhileProcessing audioLevel={voice.audioLevel} requesting={voice.state==='requesting'} listening={voice.state==='listening'} processing={voice.state==='transcribing'} onStart={()=>{void voice.start()}} onStop={voice.stop} onDiscard={voice.discard} onPhoto={source=>home?chooseAttachment():({camera,album,video:videoCamera,file:filePicker}[source]).current?.click()} onSend={()=>void sendText()}/>
   const saveBlocked=busy||jobBusy||!!localStage||voice.busy||!canSave||!review?.items.length||!!review.documentWarnings?.length||!!review.unmappedRows?.length||review.sources?.some(s=>s.status==='uncertain')
   const reviewFooter=<div className="smart-record-review-footer">
     {subjectConfirmation}
@@ -754,6 +770,7 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
     void newConversation()
   },[home,ready,location.key,busy,dialogueBusy,jobBusy,localStage,voice.busy])
   async function openHistory(destination='/conversation-history'){
+    if(home){voice.stop();navigate(destination);return}
     if(!ready||busy||dialogueBusy||jobBusy||localStage||voice.busy||pending.current)return
     await writes.current
     if(!mounted.current||accountId!==(useAppStore.getState().authUser?.id??'guest')||memberId!==useAppStore.getState().currentMemberId)return
@@ -892,7 +909,7 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
       {!completed&&!home&&<NurseMessage role="assistant"><p>{greeting}</p></NurseMessage>}
       {timeline.map((turn,index)=><Fragment key={turn.id}>
         {home&&showConversationTime(turn.at,timeline[index-1]?.at)&&<time className="conversation-time" dateTime={conversationTime(turn.at)!.iso}>{conversationTime(turn.at)!.label}</time>}
-        {turn.savedGuide?savedBubble(turn.savedGuide):<NurseMessage conversation={home} messageId={turn.id} key={turn.id} role={turn.role??'user'} recorderName={recorderName}>{turn.text||liveVoicePreview.current.get(turn.id)?<p>{turn.text||liveVoicePreview.current.get(turn.id)}{home&&turn.role==='user'&&['pending','transcribing'].includes(turn.status??'')&&recognitionInputProcessing(job,turn.id)&&<span className="front-desk-message-loading" role="status" aria-label="正在处理这条消息"><LoaderCircle size={14} aria-hidden="true"/></span>}</p>:home&&turn.kind==='voice'?<div className="front-desk-voice-original"><Mic size={18} aria-hidden="true"/><span>{turn.status==='failed'?'语音消息':turn.status==='completed'?'语音记录':'语音消息'}</span></div>:null}{turn.operationResult?.type==='export'&&<HohoButton variant="text" size="small" onClick={()=>downloadRecord(turn)}>下载记录</HohoButton>}{turn.role==='assistant'&&!turn.operationResult&&recordActions(turn)}{home&&turn.id===latestNurse?.id&&<><FrontDeskQuestionTools memberId={memberId} interview={local.nursingInterview} progress={continuousCard?.version===(local.frontContextVersion??continuousCard?.version)?continuousCard?.informationProgress:undefined} locations={local.locations??[]} disabled={homeProcessing} onAnswer={answer=>void sendText(answer)} onLocations={locations=>void chooseBodyLocations(locations)}/>{earlyGeneration&&generationInvitation}</>}{turn.fileKeys?.map(id=>visibleMedia.current.get(id)).filter((f):f is File=>!!f&&!f.type.startsWith('audio/')).map(file=><RecordMedia key={fileIdentity(file)} file={file}/>)}{home&&turn.role==='user'&&!turn.text&&!liveVoicePreview.current.get(turn.id)&&['pending','transcribing'].includes(turn.status??'')&&recognitionInputProcessing(job,turn.id)?<span className="front-desk-message-loading" role="status" aria-label={turn.kind==='voice'?'正在转写和处理这段语音':'正在处理这条消息'}><LoaderCircle size={16} aria-hidden="true"/></span>:<>{!home&&turn.status==='transcribing'&&<p role="status">正在识别语音…</p>}{!home&&turn.status==='pending'&&!job&&<p role="status">正在提交这条消息…</p>}</>}{turn.status==='failed'&&!(job?.state==='paused'&&job.inputStates?.some(input=>input.id===turn.id))&&<>{home?<p role="alert">{turn.errorCode==='RECOGNITION_INPUT_CANCELLED'?turn.error:turn.kind==='voice'?turn.text.trim()?'文字已转出，后续处理未完成。原录音和文字都在，可以继续重试。':'语音转写未完成，原录音仍保留，可以重试或改用文字。':turn.error||job?.error?.message||'这次没接上回复，可以继续补充或保存记录。'}</p>:<p role="alert">{turn.kind==='image'?(turn.errorCode==='FRONT_IMAGE_PROCESSING_FAILED'||turn.errorCode==='FILE_READ_FAILED'?'图片处理失败':'图片对话未完成'):turn.kind==='voice'?'转写文字的对话发送未完成':'文字对话发送未完成'}：{turn.error||'连接中断'}。原内容已保留。</p>}<HohoButton variant="secondary" disabled={dialogueBusy||busy||turn.errorCode==='RECOGNITION_INPUT_CANCELLED'} onClick={()=>void retryTurn(turn).catch(()=>undefined)}>重试这条消息</HohoButton><HohoButton variant="secondary" disabled={dialogueBusy||busy} onClick={()=>void discardTurn(turn)}>移除这条未成功的消息</HohoButton>{!job&&<HohoButton variant="secondary" disabled={dialogueBusy||busy||!rawSubjectConfirmed} onClick={()=>void saveOriginal()}>先保存原话</HohoButton>}</>}</NurseMessage>}
+        {turn.savedGuide?savedBubble(turn.savedGuide):<NurseMessage conversation={home} messageId={turn.id} key={turn.id} role={turn.role??'user'} recorderName={recorderName}>{turn.text||liveVoicePreview.current.get(turn.id)?<p>{turn.text||liveVoicePreview.current.get(turn.id)}{home&&turn.role==='user'&&['pending','transcribing'].includes(turn.status??'')&&recognitionInputProcessing(job,turn.id)&&<span className="front-desk-message-loading" role="status" aria-label="正在处理这条消息"><LoaderCircle size={14} aria-hidden="true"/></span>}</p>:null}{turn.operationResult?.type==='export'&&<HohoButton variant="text" size="small" onClick={()=>downloadRecord(turn)}>下载记录</HohoButton>}{turn.role==='assistant'&&!turn.operationResult&&recordActions(turn)}{home&&turn.id===latestNurse?.id&&<><FrontDeskQuestionTools memberId={memberId} interview={local.nursingInterview} progress={continuousCard?.version===(local.frontContextVersion??continuousCard?.version)?continuousCard?.informationProgress:undefined} locations={local.locations??[]} disabled={homeProcessing} onAnswer={answer=>void sendText(answer)} onLocations={locations=>void chooseBodyLocations(locations)}/>{earlyGeneration&&generationInvitation}</>}{turn.fileKeys?.map(id=>visibleMedia.current.get(id)).filter((f):f is File=>!!f&&!f.type.startsWith('audio/')).map(file=><RecordMedia key={fileIdentity(file)} file={file}/>)}{home&&turn.role==='user'&&!turn.text&&!liveVoicePreview.current.get(turn.id)&&['pending','transcribing'].includes(turn.status??'')&&recognitionInputProcessing(job,turn.id)?<span className="front-desk-message-loading" role="status" aria-label={turn.kind==='voice'?'正在转写和处理这段语音':'正在处理这条消息'}><LoaderCircle size={16} aria-hidden="true"/></span>:<>{!home&&turn.status==='transcribing'&&<p role="status">正在识别语音…</p>}{!home&&turn.status==='pending'&&!job&&<p role="status">正在提交这条消息…</p>}</>}{turn.status==='failed'&&!(job?.state==='paused'&&job.inputStates?.some(input=>input.id===turn.id))&&<>{home?<p role="alert">{turn.errorCode==='RECOGNITION_INPUT_CANCELLED'?turn.error:turn.kind==='voice'?turn.text.trim()?'文字已转出，后续处理未完成。原录音和文字都在，可以继续重试。':'语音转写未完成，原录音仍保留，可以重试或改用文字。':turn.error||job?.error?.message||'这次没接上回复，可以继续补充或保存记录。'}</p>:<p role="alert">{turn.kind==='image'?(turn.errorCode==='FRONT_IMAGE_PROCESSING_FAILED'||turn.errorCode==='FILE_READ_FAILED'?'图片处理失败':'图片对话未完成'):turn.kind==='voice'?'转写文字的对话发送未完成':'文字对话发送未完成'}：{turn.error||'连接中断'}。原内容已保留。</p>}<div className={home?"front-desk-failed-actions":undefined}><HohoButton variant="secondary" disabled={dialogueBusy||busy||turn.errorCode==='RECOGNITION_INPUT_CANCELLED'} onClick={()=>void retryTurn(turn).catch(()=>undefined)}>{home?'重试':'重试这条消息'}</HohoButton><HohoButton variant="secondary" disabled={dialogueBusy||busy} onClick={()=>void discardTurn(turn)}>{home?'移除':'移除这条未成功的消息'}</HohoButton></div>{!job&&<HohoButton variant="secondary" disabled={dialogueBusy||busy||!rawSubjectConfirmed} onClick={()=>void saveOriginal()}>先保存原话</HohoButton>}</>}</NurseMessage>}
       </Fragment>)}
       {recoveryMessageId&&<NurseMessage conversation role="assistant" messageId={recoveryMessageId}><RecognitionProgress job={job} onCommand={type=>void taskCommand(type)} commandBusy={commandBusy||busy}/></NurseMessage>}
       {!job&&(!page||eventId)&&!!local.files.filter(f=>!f.type.startsWith('audio/')).length&&<NurseMessage conversation={home} role="user" recorderName={recorderName}>{local.files.filter(f=>!f.type.startsWith('audio/')).map((file,i)=><div key={`${file.name}:${i}`} className="dialogue-file"><span>{file.name}</span><HohoButton variant="text" aria-label={`移除图片${i+1}`} disabled={busy||voice.busy} onClick={()=>change({files:local.files.filter(f=>f!==file),smartReview:review?{...review,state:'changed'}:undefined})}><X size={16}/></HohoButton></div>)}</NurseMessage>}
@@ -921,11 +938,11 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
       await persist({...current.current,savedGuides:[...(current.current.savedGuides??[]).filter(item=>item.id!==guide.id),guide]});setError('')
     }}/>}
     {home&&<><input type="file" ref={videoCamera} aria-label="拍摄视频" accept="video/mp4,video/quicktime,video/webm" capture="environment" hidden onChange={e=>{pickFiles(e.target.files,'capture');e.currentTarget.value=''}}/>
-    <input type="file" ref={filePicker} aria-label="选择附件文件" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf,video/mp4,video/quicktime,video/webm,.pdf,.mp4,.mov,.webm" hidden onChange={e=>{pickFiles(e.target.files);e.currentTarget.value=''}}/></>}
+    <input type="file" ref={filePicker} aria-label="选择附件文件" multiple accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf,video/mp4,video/quicktime,video/webm,.pdf,.mp4,.mov,.webm" hidden onChange={e=>{pickFiles(e.target.files);e.currentTarget.value=''}}/></>}
     <input type="file" ref={camera} accept="image/jpeg,image/png,image/webp" capture="environment" hidden onChange={e=>{pickFiles(e.target.files,'capture');e.currentTarget.value=''}}/>
     <input type="file" ref={album} aria-label="从相册选择" accept={page?'image/jpeg,image/png,image/webp,image/heic,image/heif':'image/jpeg,image/png,image/webp'} hidden multiple onChange={e=>{pickFiles(e.target.files);e.currentTarget.value=''}}/>
   </>
-  const close=()=>{if(exiting)return;if(unfinished||voice.busy){voice.stop();setExitError('');setExitOpen(true)}else{allowLeave.current=true;onClose()}}
+  const close=()=>{if(home){voice.stop();onClose();return}if(exiting)return;if(unfinished||voice.busy){voice.stop();setExitError('');setExitOpen(true)}else{allowLeave.current=true;onClose()}}
   const cancelExit=()=>{if(exiting)return;setExitOpen(false);setExitError('');if(blocker.state==='blocked')blocker.reset()}
   const finishExit=async(keepDraft:boolean)=>{
     if(leaving.current)return

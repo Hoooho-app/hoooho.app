@@ -10,7 +10,7 @@ export function FrontDeskQuestionTools({interview,progress,memberId,locations,di
   const question=interview?.question
   const checks=progress??interview?.checks??[]
   return <div className="front-desk-question-tools">
-    {!!checks.length&&<ul className="front-desk-checks" aria-label="本轮询问进度">{checks.map(check=><li key={check.key} data-state={check.state}><span>{check.label}</span><span>{check.state==='answered'?'已获得':check.state==='missing'?'待补充':'待补充 · 尚未明确'}</span></li>)}</ul>}
+    {!!checks.length&&<ul className="front-desk-checks" aria-label="本轮询问进度">{checks.map(check=><li key={check.key} data-state={check.state} aria-label={`${check.label}，${check.state==='answered'?'已完成':'未完成'}`}><span className="front-desk-check-dot" aria-hidden="true"/><span>{check.label}</span></li>)}</ul>}
     {question?.inputKind==='temperature'&&<TemperatureAnswer key={question.id} disabled={disabled} onAnswer={onAnswer}/>}
     {!!question?.options.length&&question.inputKind!=='temperature'&&<div className="front-desk-question-choices" role="group" aria-label="选择回答">{question.options.map(option=><button type="button" key={option.value} disabled={disabled} onClick={()=>onAnswer(option.value)}>{option.label}</button>)}</div>}
     {interview?.bodyLocationSuggested&&<fieldset className="front-desk-location-choice" disabled={disabled}><legend>说不清位置时，可以点选部位</legend><ChildBodyLocationPicker memberId={memberId} value={locations} onChange={onLocations} buttonLabel="选择症状部位" confirmLabel="确认部位并补充到对话"/></fieldset>}

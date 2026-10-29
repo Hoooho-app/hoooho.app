@@ -24,6 +24,7 @@ jobs:
       - name: Verify build bootstrap
         run: |
           python3 -m unittest discover -s scripts/ios -p 'test_*.py'
+          node --test scripts/ios/native-attachments-bridge.test.mjs
           ruby -c ios/Hoooho/fastlane/Fastfile
       - name: Prepare Xcode project and existing brand icon
         run: bash scripts/ios/prepare.sh

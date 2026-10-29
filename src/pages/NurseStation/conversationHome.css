@@ -48,7 +48,6 @@ body header.hoho-main-header--conversation{padding-inline:var(--hoho-space-4);ba
 .nurse-turn--conversation .nurse-turn-content>p{display:flow-root}
 .smart-record-home .hoho-button:not([data-size='icon']){min-height:44px;font-size:var(--hoho-font-size-body-small)}
 .smart-record-home .smart-record-saved-actions .hoho-button{min-width:88px;min-height:44px}
-.front-desk-voice-original{display:flex;align-items:center;gap:var(--hoho-space-2);min-height:24px;font-size:var(--hoho-font-size-body)}
 .conversation-time{display:flex;align-items:center;justify-content:center;gap:var(--hoho-space-2);font-size:var(--hoho-font-size-caption);line-height:20px;color:rgb(var(--hoho-color-text-secondary));font-variant-numeric:tabular-nums;margin:var(--hoho-space-2) 0}
 .conversation-time::before,.conversation-time::after{content:'';width:24px;height:1px;background:rgb(var(--hoho-color-border))}
 .front-desk-jump-wrap{position:relative;height:0;flex:none;z-index:3}
@@ -147,9 +146,14 @@ body .smart-record-home .nurse-turn--user>.nurse-turn-content{background:rgb(var
 .front-desk-generate-invitation>button:focus-visible{outline:2px solid rgb(var(--hoho-color-primary));outline-offset:3px}
 .front-desk-generate-invitation>button.front-desk-generate-defer{color:rgb(var(--hoho-color-text-secondary));font-weight:400}
 .front-desk-question-tools{display:grid;gap:var(--hoho-space-2);margin-top:var(--hoho-space-3)}
-.front-desk-checks{display:flex;flex-wrap:wrap;gap:var(--hoho-space-2);list-style:none;margin:0;padding:0;font-size:var(--hoho-font-size-caption);color:rgb(var(--hoho-color-text-secondary))}
-.front-desk-checks li{display:flex;gap:var(--hoho-space-2)}
-.front-desk-checks li>span:last-child{color:rgb(var(--hoho-color-success))}
+.front-desk-checks{display:flex;flex-wrap:wrap;align-items:center;gap:var(--hoho-space-2) 0;list-style:none;margin:0;padding:0;font-size:var(--hoho-font-size-caption);line-height:1.6;color:rgb(var(--hoho-color-text-secondary))}
+.front-desk-checks li{display:flex;align-items:center;gap:var(--hoho-space-1);white-space:nowrap}
+.front-desk-checks li:not(:last-child)::after{content:"";width:var(--hoho-space-3);height:1px;margin-inline:var(--hoho-space-2);background:rgb(var(--hoho-color-border))}
+.front-desk-check-dot{box-sizing:border-box;flex:none;width:8px;height:8px;border:1px solid currentColor;border-radius:50%}
+.front-desk-checks li[data-state='answered']{color:rgb(var(--hoho-color-success))}
+.front-desk-checks li[data-state='answered']>.front-desk-check-dot{background:currentColor}
+.front-desk-failed-actions{display:flex;flex-wrap:nowrap;align-items:center;gap:var(--hoho-space-2);margin-top:var(--hoho-space-2)}
+.front-desk-failed-actions>.hoho-button{flex:1;min-width:0}
 .front-desk-checks-note{font-size:var(--hoho-font-size-caption);color:rgb(var(--hoho-color-text-secondary))}
 .front-desk-question-choices{display:flex;flex-wrap:wrap;gap:var(--hoho-space-2)}
 .front-desk-question-choices>button{border:1px solid rgb(var(--hoho-color-border));background:rgb(var(--hoho-color-surface-white));border-radius:var(--hoho-radius-control);padding:var(--hoho-space-2) var(--hoho-space-3);min-height:44px;font:inherit;color:rgb(var(--hoho-color-text-primary))}
@@ -187,7 +191,6 @@ body .smart-record-home .hoho-bottom-navigation{margin-top:0;background-color:rg
 .smart-record-home .front-desk-message-loading>svg{animation-duration:1.8s}
 .smart-record-home .front-desk-record-status{display:flex;align-items:center;justify-content:space-between;gap:var(--hoho-space-2);flex-wrap:wrap}
 .smart-record-home .front-desk-recorded{display:inline-flex;align-items:center;justify-content:flex-start;gap:var(--hoho-space-1)}
-.front-desk-checks li[data-state='missing']>span:last-child,.front-desk-checks li[data-state='uncertain']>span:last-child{color:rgb(var(--hoho-color-text-secondary))}
 .front-desk-temperature{display:grid;gap:var(--hoho-space-2);padding:0;margin:0;border:0;min-width:0}
 .front-desk-temperature legend{font-size:var(--hoho-font-size-body-small);margin-bottom:var(--hoho-space-2)}
 .front-desk-temperature__value{display:flex;align-items:flex-end;gap:var(--hoho-space-2)}

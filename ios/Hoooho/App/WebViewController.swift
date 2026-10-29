@@ -14,6 +14,7 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
     private var printJob: ReportPrintJob?
     private var hasLoadedPage = false
     private let capturePermissions = CapturePermissions.system()
+    private var attachmentPicker: NativeAttachments?
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -175,10 +176,27 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
 
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
         let origin = message.frameInfo.securityOrigin
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("--native-fixture"), webView.url?.isFileURL == true,
+           message.frameInfo.isMainFrame, let body = message.body as? [String: Any], body["type"] as? String == "attachments",
+           let id = body["id"] as? String, id == "native-attachment-fixture" {
+            presentAttachments(id: id); return
+        }
+        #endif
         guard NavigationPolicy.trusted(webView.url),
               origin.protocol == "https", origin.host == "hoooho.com", origin.port == 0 || origin.port == 443,
               let body = message.body as? [String: Any], let id = body["id"] as? String, id.count < 100,
               let type = body["type"] as? String else { return }
+        if message.frameInfo.isMainFrame, type == "attachments" { presentAttachments(id: id); return }
+        if message.frameInfo.isMainFrame, ["attachment_read", "attachment_release"].contains(type) {
+            guard let picker = attachmentPicker, let selectionId = body["selectionId"] as? String, selectionId == picker.selectionId else { reply(id, ok: false); return }
+            if type == "attachment_release" { picker.cleanup(); attachmentPicker = nil; reply(id, ok: true); return }
+            do {
+                guard let fileId = body["fileId"] as? String, let offset = body["offset"] as? Int else { reply(id, ok: false); return }
+                reply(id, ok: true, result: try picker.read(fileId: fileId, offset: offset))
+            } catch { reply(id, ok: false, result: ["ok": false, "error": error.localizedDescription]) }
+            return
+        }
         if type == "print" {
             guard presentedViewController == nil, printJob == nil, let html = body["html"] as? String else {
                 reply(id, ok: false, frame: message.frameInfo); return
@@ -213,8 +231,18 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
         present(sheet, animated: true)
     }
 
-    private func reply(_ id: String, ok: Bool, frame: WKFrameInfo? = nil) {
-        guard let data = try? JSONSerialization.data(withJSONObject: [id, ["ok": ok, "error": ok ? "" : "操作未完成"]]),
+    private func presentAttachments(id: String) {
+        guard presentedViewController == nil, printJob == nil, attachmentPicker?.isPicking != true else { reply(id, ok: false); return }
+        attachmentPicker?.cleanup()
+        do {
+            let picker = try NativeAttachments(owner: self, permissions: capturePermissions)
+            attachmentPicker = picker
+            picker.present { [weak self] result in self?.reply(id, ok: result["ok"] as? Bool == true, result: result) }
+        } catch { reply(id, ok: false) }
+    }
+
+    private func reply(_ id: String, ok: Bool, frame: WKFrameInfo? = nil, result: [String: Any]? = nil) {
+        guard let data = try? JSONSerialization.data(withJSONObject: [id, result ?? ["ok": ok, "error": ok ? "" : "操作未完成"]]),
               let json = String(data: data, encoding: .utf8) else { return }
         // Use the public ObjC entry point (NS_REFINED_FOR_SWIFT). The Swift wrapper
         // adds a libswiftWebKit dependency missing from the iOS 18.5 simulator layout.

@@ -88,6 +88,13 @@ export async function retainedCaptureDrafts(key: string): Promise<{ key: string;
     })
   } finally { db.close() }
 }
+
+/** Include the current autosaved conversation, even before a server receipt. */
+export async function conversationCaptureDrafts(key:string):Promise<{key:string;draft:CaptureDraft}[]> {
+  const [current,retained]=await Promise.all([captureDraft(key),retainedCaptureDrafts(key)])
+  const drafts=[...(current&&(hasCaptureContent(current)||current.conversationTurns?.length)?[{key,draft:current}]:[]),...retained]
+  return drafts.sort((a,b)=>(b.draft.updatedAt??0)-(a.draft.updatedAt??0)).filter((item,index,all)=>all.findIndex(candidate=>candidate.draft.requestId===item.draft.requestId)===index)
+}
 export function guestDraftKeys(key: string, keys: IDBValidKey[], owner: {accountId:string;memberId:string}) {
   const prefix = key.startsWith('return:') ? 'return:' : '', target = `${prefix}${owner.accountId}`
   if (owner.accountId.startsWith('guest:') || !key.startsWith(`${target}:${owner.memberId}:`)) return []
