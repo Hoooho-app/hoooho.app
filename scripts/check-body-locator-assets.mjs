@@ -21,3 +21,4 @@ for(const file of neutral.files){
 assert.equal(new Set(all.map(item=>item.id)).size,569)
 assert.equal(data.regions.length,40)
 console.log(JSON.stringify({assets:10,regions:data.regions.length,locations:all.length,boy:all.filter(i=>i.sex.includes('boy')).length,girl:all.filter(i=>i.sex.includes('girl')).length,frozenHashes:'PASS'}))
+await import('./check-locator-detail-assets.mjs')

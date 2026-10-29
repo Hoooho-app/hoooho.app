@@ -12,15 +12,17 @@ import { familyMemberService } from '../../../services/familyMembers'
 import { useAppStore } from '../../../store/useAppStore'
 import { graphicalRegionLabel, graphicalSelection } from '../../../features/body-location/graphicalLocator'
 import { LocatorStage } from './LocatorStage'
+import {BodyLocationTags} from './BodyLocationTags'
+import {removeLocationSelection} from '../../../features/body-location/selectionRemoval'
 import './child-body-location.css'
 
-interface Props { memberId:string; value:BodyLocationSelection[]; onChange:(values:BodyLocationSelection[])=>void; buttonLabel?:string; confirmLabel?:string; showCommitted?:boolean }
+interface Props { memberId:string; value:BodyLocationSelection[]; onChange:(values:BodyLocationSelection[])=>void; buttonLabel?:string; confirmLabel?:string; showCommitted?:boolean; disabled?:boolean }
 type Drawer='selected'|'discard'|'clear'|null
 function DrawerPanel({title,children,onClose,confirmation=false}:{title:string;children:ReactNode;onClose:()=>void;confirmation?:boolean}) {
   const ref=useRef<HTMLElement>(null);useDialogFocus(true,ref)
   return <div className="locator-drawer-layer"><button type="button" className="locator-drawer-backdrop" aria-label={`收起${title}`} onClick={onClose}/><section className="locator-drawer" role={confirmation?'alertdialog':'dialog'} aria-modal="true" aria-label={title} ref={ref} tabIndex={-1}><header><h3>{title}</h3><button type="button" aria-label={`关闭${title}`} onClick={onClose}><X size={20}/></button></header>{children}</section></div>
 }
-export function ChildBodyLocationPicker({memberId,value,onChange,buttonLabel,confirmLabel='完成并返回症状记录',showCommitted=true}:Props) {
+export function ChildBodyLocationPicker({memberId,value,onChange,buttonLabel,confirmLabel='完成并返回症状记录',showCommitted=true,disabled=false}:Props) {
   const token=useAppStore(s=>s.authToken??''),cached=useAppStore(s=>s.members.find(m=>m.id===memberId))
   const [profile,setProfile]=useState<{id:string;name:string;gender:unknown}|null>(null),[profileStatus,setProfileStatus]=useState<'loading'|'ready'|'error'>('loading')
   const [open,setOpen]=useState(false),[draft,setDraft]=useState<BodyLocationSelection[]>([])
@@ -102,8 +104,8 @@ export function ChildBodyLocationPicker({memberId,value,onChange,buttonLabel,con
   const toggle=(id:string)=>choose({...graphicalSelection(id,model),view:region?.zoom==='hand'?(angle==='palm'?'palm':'dorsum'):region?.zoom==='foot'?(angle==='plantar'?'sole':'front'):view})
   const confirm=()=>{if(moving.current)return;try{const result=confirmChildSelection(draft,openedMember.current,memberId);initial.current=JSON.stringify(result);onChange(result);finishExit()}catch(error){setNotice((error as Error).message)}}
   const selectedIds=draft.map(item=>item.id)
-  return <div className="child-body-picker"><button className="body-location-picker-action child-body-open" type="button" onClick={begin}>{buttonLabel??(value.length?'修改部位':'选择部位')}</button>
-    {showCommitted&&value.length>0&&<div className="child-body-committed" aria-label="已选择的症状部位">{value.map(item=><span key={childSelectionKey(item)}><Check size={15}/>{bodyLocationLabel(item)}</span>)}</div>}
+  return <div className="child-body-picker"><button className="body-location-picker-action child-body-open" disabled={disabled} type="button" onClick={begin}>{buttonLabel??(value.length?'修改部位':'选择部位')}</button>
+    {showCommitted&&<BodyLocationTags disabled={disabled} values={value} onRemove={item=>onChange(removeLocationSelection(value,item))}/>}
     {open&&createPortal(<div ref={session} className="locator-session"><BottomSheetSurface className="body-location-sheet child-body-sheet" layerClassName="child-body-layer" label="身体部位定位器" title={region?graphicalRegionLabel(region):'选择身体部位'} leading={<button type="button" className="hoho-bottom-sheet__back" aria-label={categoryId?'返回全身':'取消选择'} onClick={back}><ArrowLeft size={20}/></button>} onClose={requestClose} open size="workspace"
       footer={<div className="child-body-footer"><div className="locator-selected-line"><span aria-live="polite">{draft.length>0?bodyLocationLabel(draft.at(-1)!):''}</span>{draft.length>0&&<button type="button" onClick={()=>setDrawer('selected')}>已选 {draft.length} 处</button>}</div>{notice&&<span className="locator-notice" role="alert">{notice}</span>}<HohoButton type="button" disabled={!draft.length&&!value.length} onClick={confirm}><Check size={17}/>完成</HohoButton></div>}>
       <div className="locator-workspace">
