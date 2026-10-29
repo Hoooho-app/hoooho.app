@@ -3,13 +3,13 @@ import { test, expect } from '@playwright/test'
 async function variants(icon: ReturnType<import('@playwright/test').Page['locator']>) {
   return icon.evaluate(svg=>({outline:getComputedStyle(svg.querySelector('.hoho-icon__outline')!).display,solid:getComputedStyle(svg.querySelector('.hoho-icon__solid')!).display}))
 }
-test('all 157 original pairs render at mobile width and explicit state wins',async({page})=>{
+test('all 158 original pairs render at mobile width and explicit state wins',async({page})=>{
   await page.emulateMedia({reducedMotion:'reduce'})
   await page.goto('/tests/material-icons/fixture.html')
-  await expect(page.locator('[data-symbol]')).toHaveCount(157)
+  await expect(page.locator('[data-symbol]')).toHaveCount(158)
   for(const state of [false,true]) {
     const all=await page.locator(`[data-symbol] .hoho-icon[data-icon-selected="${state}"]`).evaluateAll(icons=>icons.map(svg=>({name:svg.getAttribute('data-icon'),box:svg.getBoundingClientRect().width,outline:getComputedStyle(svg.querySelector('.hoho-icon__outline')!).display,solid:getComputedStyle(svg.querySelector('.hoho-icon__solid')!).display,path:svg.querySelector('path')?.getAttribute('d')})))
-    expect(all).toHaveLength(157)
+    expect(all).toHaveLength(158)
     for(const icon of all){expect(icon.box,icon.name!).toBe(24);expect(icon.path?.length,icon.name!).toBeGreaterThan(10);expect(state?icon.outline:icon.solid,icon.name!).toBe('none');expect(state?icon.solid:icon.outline,icon.name!).not.toBe('none')}
   }
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(375)

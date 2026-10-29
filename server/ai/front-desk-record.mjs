@@ -19,6 +19,8 @@ import { nursingMemberContext, nursingKnowledgeFor, nursingInterview, interpretN
 import { confirmedCurrentEmergency,confirmedCurrentEmergencyQuote } from './nurse-emergency.mjs'
 import {assertFrontDeskReplySafety} from './front-desk-reply-safety.mjs'
 import { hasConversationInput } from '../../shared/conversation-input.mjs'
+import { conversationTitle } from '../../shared/conversation-title.mjs'
+import { frontDeskRecordSections, recordSectionsText } from './front-desk-record-sections.mjs'
 import {frontDeskUnderstandingSchema,normalizeFrontDeskUnderstanding,frontDeskUnderstandingContext,applyFrontDeskRecordChanges,frontDeskUnderstandingPolicy,frontDeskSubjectConfirmations} from './front-desk-understanding.mjs'
 import {planFrontDeskAction,directFrontDeskSaveRequest} from './front-desk-actions.mjs'
 import {accessibleFrontDeskTargets} from './front-desk-record-targets.mjs'
@@ -139,7 +141,7 @@ export class FrontDeskRecord {
     return context ? this.conversation(accountId, memberId, context.id) : null
   }
   async history(accountId, memberId, { query = '', offset = 0 } = {}) {
-    await this.scope(accountId, memberId)
+    const member = await this.scope(accountId, memberId)
     if (!Number.isSafeInteger(offset) || offset < 0 || offset > 100000 || typeof query !== 'string' || query.length > 100) throw fail('对话查询条件无效', 422, 'FRONT_HISTORY_INVALID')
     const data = await this.store.read(), term = query.trim().toLocaleLowerCase()
     await this.scope(accountId, memberId)
@@ -154,9 +156,14 @@ export class FrontDeskRecord {
       const ids=new Set(contexts.map(c=>c.id))
       const messages=data.messages.filter(m=>m.accountId===accountId&&m.memberId===memberId&&ids.has(m.contextId)&&m.status!=='discarded').sort(messageOrder)
       const first=messages.find(m=>m.kind!=='assistant')
-      if(!first||(term&&!messages.some(m=>m.text.toLocaleLowerCase().includes(term)||(m.files??[]).some(f=>f.name.toLocaleLowerCase().includes(term)))))return null
+      if(!first)return null
       const active=latestConversationContext(contexts)
-      return {id:root,updatedAt:contexts.reduce((last,c)=>c.updatedAt>last?c.updatedAt:last,''),title:first.text.slice(0,80)||(first.kind==='image'?'图片记录':'语音记录'),preview:(messages.at(-1)?.text??'').slice(0,160),saved:Boolean(active?.saved||active?.currentRecord),closed:Boolean(active?.closedAt),messageCount:messages.length}
+      const currentMessages=messages.filter(m=>m.contextId===active.id&&!m.retracted)
+      const recordText=active.cardEdit&&active.cardEdit.evidenceVersion===active.evidenceVersion?active.cardEdit.text:active.restoredRecord&&active.restoredRecord.evidenceVersion===active.evidenceVersion?active.restoredRecord.text:recordSectionsText(frontDeskRecordSections(active,currentMessages))
+      const retracted=active.facts?.length&&!active.facts.some(f=>f.status==='active')
+      const label=conversationTitle({recordText,texts:retracted?[]:currentMessages.filter(m=>m.kind!=='assistant').map(m=>m.text),fallback:retracted?'内容已撤回':first.kind==='image'?'图片与资料':first.kind==='voice'&&!first.text?'语音记录':'对话记录',excludeNames:[member.name]})
+      if(term&&!label.title.toLocaleLowerCase().includes(term)&&!messages.some(m=>(m.text??'').toLocaleLowerCase().includes(term)||(m.files??[]).some(f=>f.name.toLocaleLowerCase().includes(term))))return null
+      return {id:root,contextIds:[...ids],updatedAt:contexts.reduce((last,c)=>c.updatedAt>last?c.updatedAt:last,''),...label,preview:(messages.at(-1)?.text??'').slice(0,160),saved:Boolean(active?.saved||active?.currentRecord),closed:Boolean(active?.closedAt),messageCount:messages.length}
     }).filter(Boolean).sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt)||b.id.localeCompare(a.id))
     const limit = 30
     return { items: items.slice(offset, offset + limit), hasMore: items.length > offset + limit, nextOffset: offset + limit }

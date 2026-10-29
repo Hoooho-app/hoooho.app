@@ -6,6 +6,7 @@ on:
     paths:
       - 'src/pages/HealthEvents/NurseStationIdleVideo.tsx'
       - 'src/pages/NurseStation/FrontDeskWelcome.tsx'
+      - 'src/pages/NurseStation/FrontDeskBanner.tsx'
       - 'src/pages/NurseStation/conversationHome.css'
       - 'src/pages/NurseStation/frontDeskWelcome.css'
       - 'src/pages/Help/**'
@@ -14,6 +15,7 @@ on:
       - 'shared/product-visibility.mjs'
       - 'src/assets/nurse-triage/care-recording-*'
       - 'src/assets/nurse-triage/front-desk-nurse-*'
+      - 'src/assets/nurse-triage/record-archive-*'
       - 'src/assets/nurse-triage/nurse-station-cutout-*'
       - 'scripts/*nurse*'
       - 'tests/frontdesk-welcome/**'
