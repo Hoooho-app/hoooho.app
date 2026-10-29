@@ -43,7 +43,7 @@ test('approved composition uses a static nurse, left 3D guide and right daily ca
   expect(await sprout.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth === 160)).toBe(true)
   await expect(card.locator('strong')).toHaveText(/已守护 \d+ 天/)
   const before = await card.locator('strong').innerText()
-  await page.getByRole('link', { name: '今日呵护：查看任务', exact: true }).click()
+  await page.getByRole('link', { name: '今日呵护：查看呵护之旅', exact: true }).click()
   await expect(page).toHaveURL(/\/care-journey$/)
   await expect(page.getByRole('heading', { name: '呵护之旅', exact: true })).toBeVisible()
   await expect(page.getByText('共同照顾', { exact: true })).toHaveCount(0)
