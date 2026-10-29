@@ -255,3 +255,42 @@ test('find guide opens the real search and ends without claiming a saved record'
   await expect(page.getByLabel('操作引导', { exact:true })).toHaveCount(0)
   await expect(page.getByLabel('查找记录文字', { exact:true })).toHaveValue('不存在的查找词')
 })
+
+test('medication, feeding and bowel guides save real records and daily result follows the latest type', async ({ page, request }, info) => {
+  await existingChild(page)
+  const savedIds: string[] = []
+  for (const lesson of ['medication','diet','elimination'] as const) {
+    await page.goto('/help?article=' + (lesson === 'medication' ? 'medication' : 'daily'))
+    await page.getByRole('button', { name:lesson === 'elimination' ? /跟着记一次排便|改记一次排便/ : '跟着记一条', exact:lesson !== 'elimination' }).click()
+    const guide = page.getByLabel('操作引导', { exact:true })
+    await expect(guide).toBeVisible()
+    if (lesson === 'medication') {
+      await page.getByLabel('药品名称', { exact:true }).fill('教程已实际使用药品' + Date.now())
+      await guide.getByRole('button', { name:'继续', exact:true }).click()
+      await page.getByLabel('本次用量', { exact:true }).fill('1')
+      await guide.getByRole('button', { name:'继续', exact:true }).click()
+    } else if (lesson === 'diet') {
+      await guide.getByRole('button', { name:'继续', exact:true }).click()
+      await page.getByLabel('左侧手填分钟', { exact:true }).fill('5')
+      await guide.getByRole('button', { name:'继续', exact:true }).click()
+    } else {
+      await page.getByRole('button', { name:'光滑条状', exact:true }).click()
+      await guide.getByRole('button', { name:'继续看颜色', exact:true }).click()
+      await page.getByRole('button', { name:'黄色', exact:true }).click()
+      await guide.getByRole('button', { name:'继续', exact:true }).click()
+    }
+    await guide.getByRole('button', { name:'时间已核对', exact:true }).click()
+    const response = page.waitForResponse(r => new URL(r.url()).pathname === '/api/quick-records' && r.request().method() === 'POST')
+    await page.getByRole('button', { name:'保存记录', exact:true }).click()
+    const result = await (await response).json()
+    savedIds.push(result.recordId)
+    await expect(page.getByText('这次记录已保存', { exact:true })).toBeVisible()
+    await page.getByRole('button', { name:'查看刚才的记录', exact:true }).click()
+    await expect(page).toHaveURL(new RegExp('recordId=' + result.recordId))
+    const records = await (await request.get('/api/events/' + result.eventId + '/records', { headers })).json()
+    const record = records.find((r:any) => r.id === result.recordId)
+    expect(record.journal.categories).toContain(lesson)
+  }
+  expect(new Set(savedIds).size).toBe(3)
+  await page.screenshot({ path:info.outputPath('daily-latest-saved-record.png') })
+})
