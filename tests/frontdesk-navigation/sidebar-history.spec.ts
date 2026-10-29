@@ -25,7 +25,7 @@ test('sidebar uses a distinct new-conversation icon and actual source keywords; 
   await page.getByRole('button', { name: '打开菜单', exact: true }).click()
   let drawer = page.getByRole('dialog', { name: '侧边栏菜单' })
   await expect(drawer.getByRole('button', { name: '新建对话', exact: true }).locator('svg')).toHaveAttribute('data-icon', 'add_comment')
-  await expect(drawer.getByRole('button', { name: '编辑我的信息', exact: true }).locator('svg').last()).toHaveAttribute('data-icon', 'edit')
+  await expect(drawer.getByRole('button', { name: '我的账户', exact: true }).locator('svg').last()).toHaveAttribute('data-icon', 'chevron_right')
   await expect(drawer.getByRole('button', { name: /^脸上.*小痘痘.*待确认/ })).toBeVisible()
   await expect(drawer.getByRole('button', { name: '查看全部对话' })).toHaveCount(0)
   for (const width of [320, 375, 390, 430]) {

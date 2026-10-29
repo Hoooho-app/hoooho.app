@@ -39,7 +39,7 @@ test('merged help entry removes the former guide entry', () => {
 test('sidebar identities use display privacy and a user-centered member relationship', () => {
   assert.match(drawer, /maskIdentityName\(member\.name\)/)
   assert.match(drawer, /recordSubjectRelationship\(member\)/)
-  assert.match(drawer, /aria-label="编辑我的信息"/)
+  assert.match(drawer, /aria-label="我的账户"/)
   assert.doesNotMatch(drawer, /accountRelationship|产品中心|已同步/)
 })
 

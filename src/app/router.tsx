@@ -117,6 +117,7 @@ export const router = createBrowserRouter(visibleRoutes([
       { path: '/family/new', lazy: lazyPage(() => import('../pages/Family'), 'AddFamilyMemberPage') },
       { path: '/family/:memberId/edit', lazy: lazyPage(() => import('../pages/Family'), 'EditFamilyMemberPage') },
       { path: '/guide', lazy: lazyPage(() => import('../pages/Guide'), 'UsageGuidePage') },
+      { path: '/account', lazy: lazyPage(() => import('../pages/Account'), 'AccountHomePage') },
       { path: '/settings', lazy: lazyPage(() => import('../pages/Settings'), 'SettingsPage') },
       { path: '/settings/personalization', lazy: lazyPage(() => import('../pages/Settings'), 'PersonalizationSettingsPage') },
       { path: '/settings/care', lazy: lazyPage(() => import('../pages/Settings'), 'CareModeSettingsPage') },
