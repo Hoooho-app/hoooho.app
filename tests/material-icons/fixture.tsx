@@ -24,7 +24,7 @@ function Fixture() {
     <label><input type="checkbox" aria-label="复选框"/>复选</label>
     <label><input type="radio" name="choice" aria-label="单选一"/>一</label>
     <label><input type="radio" name="choice" aria-label="单选二"/>二</label>
-    <section aria-label="记录语义">{(['sleep','visit','examination','care'] as const).map(category=><JournalCategoryIcon key={category} category={category}/>)}</section>
+    <section aria-label="记录语义">{(['sleep','visit','examination','care','symptom'] as const).map(category=><JournalCategoryIcon key={category} category={category}/>)}</section>
     <section aria-label="食物"><DietaryFoodIcon food={{foodId:'apple',name:'苹果'}} group="avoid"/><DietaryFoodIcon food={{foodId:'fish',name:'鳕鱼'}} group="avoid"/><span>鳕鱼</span></section>
     <details><summary>忌口卡与导出验收</summary><DietaryCardPanel snapshot={snapshot} language="zh"/><button onClick={()=>void createDietaryCardPng(snapshot,'zh').then(blob=>setExportSrc(URL.createObjectURL(blob)))}>生成导出图片</button>{exportSrc&&<img alt="导出图片预览" src={exportSrc} style={{maxWidth:'100%'}}/>}</details>
     <section aria-label="全部原图" style={{display:'grid',gridTemplateColumns:'repeat(3,minmax(0,1fr))',gap:12}}>{(Object.keys(materialPaths) as MaterialIconName[]).map(name=><div key={name} data-symbol={name}><MaterialIcon name={name} size={24} selected={false}/><MaterialIcon name={name} size={24} selected/><small style={{display:'block',fontSize:10,overflowWrap:'anywhere'}}>{name}</small></div>)}</section>
