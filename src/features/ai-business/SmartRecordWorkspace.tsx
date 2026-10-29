@@ -77,7 +77,7 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
   const [completed,setCompleted]=useState(false)
   const [cardSnapshot,setContinuousCard]=useState<ContinuousCard|null>(null),[recordOpen,setRecordOpen]=useState(false),[viewingSavedRecord,setViewingSavedRecord]=useState(false),[checklistOpen,setChecklistOpen]=useState(false),[cardBusy,setCardBusy]=useState(false)
   const continuousCard=cardSnapshot?.contextId===local.frontContextId?cardSnapshot:null
-  const cardScope=useRef(0)
+  const cardScope=useRef(0),cardCommandLock=useRef(false)
   useEffect(()=>{cardScope.current++;setContinuousCard(null);setRecordOpen(false);setChecklistOpen(false)},[key])
   const [trackingEvent,setTrackingEvent]=useState<string|null>(null)
   const trackingLock=useRef(false)
@@ -121,7 +121,7 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
     // A floating shortcut must never occupy the saved record's action area.
     const bounds=element.getBoundingClientRect()
     const actionsAtBottom=[...element.querySelectorAll('.smart-record-saved-actions')].some(actions=>{const rect=actions.getBoundingClientRect();return rect.top<bounds.bottom&&rect.bottom>bounds.bottom-80})
-    setShowJump(!near&&!actionsAtBottom&&Boolean(current.current.conversationTurns?.length))
+    setShowJump(!near&&!actionsAtBottom&&nurseScrollAnchor.current!=='@record'&&Boolean(current.current.conversationTurns?.length))
   }
   useEffect(()=>{
     if(!home||!ready||stage!=='conversation')return
@@ -192,7 +192,7 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
       const emptyHome=home&&!local.conversationTurns?.length&&!local.savedGuides?.length
       if(recoveryMessageId)nurseScrollAnchor.current=recoveryMessageId
       else if(local.conversationTurns?.at(-1)?.role==='user')nurseScrollAnchor.current=null
-      const anchor=home&&!restore&&nurseScrollAnchor.current?[...element.querySelectorAll<HTMLElement>('[data-message-id]')].find(node=>node.dataset.messageId===nurseScrollAnchor.current):null
+      const anchor=home&&!restore&&nurseScrollAnchor.current?(nurseScrollAnchor.current==='@record'?element.querySelector<HTMLElement>('.continuous-record-card'):[...element.querySelectorAll<HTMLElement>('[data-message-id]')].find(node=>node.dataset.messageId===nurseScrollAnchor.current)):null
       followingUntil.current=performance.now()+450
       // Later progress checkpoints must retain the reply's beginning, even
       // when a small viewport cannot fit its choices and consent together.
@@ -222,6 +222,17 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
     })
     return()=>cancelAnimationFrame(frame)
   },[home,ready,stage,key,nurseReplySignature,local.returningFromRecord])
+
+  useLayoutEffect(()=>{
+    if(!home||!continuousCard?.presentation?.generated||nurseScrollAnchor.current!=='@record')return
+    const frame=requestAnimationFrame(()=>{
+      const body=scrollBody.current,target=body?.querySelector<HTMLElement>('.continuous-record-card')
+      if(!body||!target)return
+      followScroll.current=true;followingUntil.current=performance.now()+450;setShowJump(false)
+      body.scrollTo({top:body.scrollTop+target.getBoundingClientRect().top-body.getBoundingClientRect().top-12,behavior:'auto'})
+    })
+    return()=>cancelAnimationFrame(frame)
+  },[home,continuousCard?.presentation?.generated,continuousCard?.contextId,continuousCard?.evidenceVersion])
 
   async function chooseDraft(choice?:{key:string;draft:CaptureDraft}){
     if(switchingDraft.current||busy||!resumeChoices)return
@@ -795,7 +806,8 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
   }
   async function cardAction(action:string,input:Record<string,unknown>={},targetCard=continuousCard){
     const card=targetCard,epoch=workEpoch.current
-    if(!card||cardBusy)throw Error('请稍后重试')
+    if(!card||cardCommandLock.current)throw Error('请稍后重试')
+    cardCommandLock.current=true
     ++cardScope.current
     setCardBusy(true);setError('')
     try{
@@ -818,11 +830,11 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
       setContinuousCard(result)
       await persist({...current.current,frontContextVersion:result.version,...(result.recognitionJob?{recognitionJobId:result.recognitionJob.id,recognitionSnapshot:result.recognitionJob}:{})})
       return result
-    }finally{if(mounted.current)setCardBusy(false)}
+    }finally{cardCommandLock.current=false;if(mounted.current)setCardBusy(false)}
   }
   async function saveCurrentCard(){try{await cardAction('save_current',{confirmed:true});window.dispatchEvent(new Event('hoooho-data-changed'));onSaved?.('已记录')}catch(e){setError(e instanceof Error?e.message:'保存未完成，内容仍保留')}}
   async function editCurrentCard(input:{text:string;title:string;occurredAt:string;expectedVersion:number}){
-    const result=await cardAction('edit_current',input)
+    const result=await cardAction('edit_current',{...input,save:true})
     const feedback=result.feedback??{id:`edit-feedback:${result.contextId}:${result.version}`,text:'内容已修改'}
     await persist({...current.current,nursingInterview:undefined,...(result.recognitionJob?{recognitionJobId:result.recognitionJob.id,recognitionSnapshot:result.recognitionJob}:{}),conversationTurns:[...(current.current.conversationTurns??[]).filter(turn=>turn.id!==feedback.id),{...feedback,role:'assistant',at:Date.now(),status:'completed',contextId:result.contextId}]})
   }
@@ -853,10 +865,10 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
   const recordGenerated=Boolean(continuousCard?.presentation?.generated)
   useEffect(()=>{if(!recordGenerated)setRecordOpen(false)},[recordGenerated])
   const generationDeferred=local.frontGenerationDeferred?.contextId===continuousCard?.contextId&&local.frontGenerationDeferred?.evidenceVersion===continuousCard?.evidenceVersion&&local.frontGenerationDeferred?.version===continuousCard?.version
-  const generationOffer=home&&continuousCard?.presentation?.canGenerate&&!recordGenerated&&!currentCardDisabled&&!generationDeferred
-  async function generateCurrentCard(){nurseScrollAnchor.current=null;try{await cardAction('generate_current',{confirmed:true});change({frontGenerationDeferred:undefined});setViewingSavedRecord(false)}catch(e){setError(e instanceof Error?e.message:'记录单未生成，原内容仍保留')}}
+  const generationOffer=home&&job?.state!=='paused'&&continuousCard?.presentation?.canGenerate&&!recordGenerated&&!homeProcessing&&!unreceivedInput&&!generationDeferred
+  async function generateCurrentCard(){nurseScrollAnchor.current='@record';try{await cardAction('generate_current',{confirmed:true,save:true});window.dispatchEvent(new Event('hoooho-data-changed'));change({frontGenerationDeferred:undefined});setViewingSavedRecord(false)}catch(e){setError(e instanceof Error?e.message:'记录单未生成，原内容仍保留')}}
   const earlyGeneration=home&&job?.state!=='paused'&&((local.nursingInterview?.turnCount??0)>=2||Boolean(continuousCard?.uploadReading))&&local.nursingInterview?.status==='asking'&&!recordGenerated&&!generationDeferred
-  const generationInvitation=<div className="front-desk-generate-invitation" aria-label="生成记录单确认"><span>{continuousCard?.uploadReading?'先把这份资料整理成记录？':'先把已说的情况整理成症状记录？'}</span><button type="button" disabled={currentCardDisabled||!continuousCard?.presentation?.canGenerate} onClick={()=>void generateCurrentCard()}>确认整理</button><button type="button" className="front-desk-generate-defer" disabled={currentCardDisabled||!continuousCard} onClick={()=>{change({frontGenerationDeferred:{contextId:continuousCard!.contextId,evidenceVersion:continuousCard!.evidenceVersion,version:continuousCard!.version}});setHomeNotice('可以继续补充，我在听。')}}>继续补充</button></div>
+  const generationInvitation=<div className="front-desk-generate-invitation" aria-label="生成记录单确认"><span>{continuousCard?.uploadReading?'把这份资料整理并保存？':'把已说的情况整理并保存？'}</span><button type="button" aria-busy={cardBusy||undefined} disabled={currentCardDisabled||!continuousCard?.presentation?.canGenerate} onClick={()=>void generateCurrentCard()}>{cardBusy?'正在整理并保存…':'确认整理'}</button></div>
   const uploadPreview=continuousCard?.recognitionPreview??continuousCard?.uploadReading
   const currentCardProps=continuousCard?{card:continuousCard,onConfirmSubject:()=>void confirmSubject(),memberName,editDraft:local.frontCardEdit,onEditDraft:(frontCardEdit:import('./ContinuousRecordCard').ContinuousCardEdit|undefined)=>change({frontCardEdit}),disabled:currentCardDisabled,onEdit:editCurrentCard,onSave:()=>void saveCurrentCard(),onView:()=>void viewCurrentCard()}:null
   // A saved record remains reachable while its next revision is being edited.
@@ -880,7 +892,7 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
       {!completed&&!home&&<NurseMessage role="assistant"><p>{greeting}</p></NurseMessage>}
       {timeline.map((turn,index)=><Fragment key={turn.id}>
         {home&&showConversationTime(turn.at,timeline[index-1]?.at)&&<time className="conversation-time" dateTime={conversationTime(turn.at)!.iso}>{conversationTime(turn.at)!.label}</time>}
-        {turn.savedGuide?savedBubble(turn.savedGuide):<NurseMessage conversation={home} messageId={turn.id} key={turn.id} role={turn.role??'user'} recorderName={recorderName}>{turn.text||liveVoicePreview.current.get(turn.id)?<p>{turn.text||liveVoicePreview.current.get(turn.id)}</p>:home&&turn.kind==='voice'?<div className="front-desk-voice-original"><Mic size={18} aria-hidden="true"/><span>{turn.status==='failed'?'语音消息':turn.status==='completed'?'语音记录':'语音消息'}</span></div>:null}{turn.operationResult?.type==='export'&&<HohoButton variant="text" size="small" onClick={()=>downloadRecord(turn)}>下载记录</HohoButton>}{turn.role==='assistant'&&!turn.operationResult&&recordActions(turn)}{home&&turn.id===latestNurse?.id&&<><FrontDeskQuestionTools memberId={memberId} interview={local.nursingInterview} locations={local.locations??[]} disabled={homeProcessing} onAnswer={answer=>void sendText(answer)} onLocations={locations=>void chooseBodyLocations(locations)}/>{earlyGeneration&&generationInvitation}</>}{turn.fileKeys?.map(id=>visibleMedia.current.get(id)).filter((f):f is File=>!!f&&!f.type.startsWith('audio/')).map(file=><RecordMedia key={fileIdentity(file)} file={file}/>)}{home&&turn.role==='user'&&['pending','transcribing'].includes(turn.status??'')&&recognitionInputProcessing(job,turn.id)?<span className="front-desk-message-loading" role="status" aria-label={turn.kind==='voice'?'正在转写和处理这段语音':'正在处理这条消息'}><LoaderCircle size={16} aria-hidden="true"/></span>:<>{!home&&turn.status==='transcribing'&&<p role="status">正在识别语音…</p>}{!home&&turn.status==='pending'&&!job&&<p role="status">正在提交这条消息…</p>}</>}{turn.status==='failed'&&!(job?.state==='paused'&&job.inputStates?.some(input=>input.id===turn.id))&&<>{home?<p role="alert">{turn.errorCode==='RECOGNITION_INPUT_CANCELLED'?turn.error:turn.kind==='voice'?turn.text.trim()?'文字已转出，后续处理未完成。原录音和文字都在，可以继续重试。':'语音转写未完成，原录音仍保留，可以重试或改用文字。':turn.error||job?.error?.message||'这次没接上回复，可以继续补充或保存记录。'}</p>:<p role="alert">{turn.kind==='image'?(turn.errorCode==='FRONT_IMAGE_PROCESSING_FAILED'||turn.errorCode==='FILE_READ_FAILED'?'图片处理失败':'图片对话未完成'):turn.kind==='voice'?'转写文字的对话发送未完成':'文字对话发送未完成'}：{turn.error||'连接中断'}。原内容已保留。</p>}<HohoButton variant="secondary" disabled={dialogueBusy||busy||turn.errorCode==='RECOGNITION_INPUT_CANCELLED'} onClick={()=>void retryTurn(turn).catch(()=>undefined)}>重试这条消息</HohoButton><HohoButton variant="secondary" disabled={dialogueBusy||busy} onClick={()=>void discardTurn(turn)}>移除这条未成功的消息</HohoButton>{!job&&<HohoButton variant="secondary" disabled={dialogueBusy||busy||!rawSubjectConfirmed} onClick={()=>void saveOriginal()}>先保存原话</HohoButton>}</>}</NurseMessage>}
+        {turn.savedGuide?savedBubble(turn.savedGuide):<NurseMessage conversation={home} messageId={turn.id} key={turn.id} role={turn.role??'user'} recorderName={recorderName}>{turn.text||liveVoicePreview.current.get(turn.id)?<p>{turn.text||liveVoicePreview.current.get(turn.id)}{home&&turn.role==='user'&&['pending','transcribing'].includes(turn.status??'')&&recognitionInputProcessing(job,turn.id)&&<span className="front-desk-message-loading" role="status" aria-label="正在处理这条消息"><LoaderCircle size={14} aria-hidden="true"/></span>}</p>:home&&turn.kind==='voice'?<div className="front-desk-voice-original"><Mic size={18} aria-hidden="true"/><span>{turn.status==='failed'?'语音消息':turn.status==='completed'?'语音记录':'语音消息'}</span></div>:null}{turn.operationResult?.type==='export'&&<HohoButton variant="text" size="small" onClick={()=>downloadRecord(turn)}>下载记录</HohoButton>}{turn.role==='assistant'&&!turn.operationResult&&recordActions(turn)}{home&&turn.id===latestNurse?.id&&<><FrontDeskQuestionTools memberId={memberId} interview={local.nursingInterview} progress={continuousCard?.version===(local.frontContextVersion??continuousCard?.version)?continuousCard?.informationProgress:undefined} locations={local.locations??[]} disabled={homeProcessing} onAnswer={answer=>void sendText(answer)} onLocations={locations=>void chooseBodyLocations(locations)}/>{earlyGeneration&&generationInvitation}</>}{turn.fileKeys?.map(id=>visibleMedia.current.get(id)).filter((f):f is File=>!!f&&!f.type.startsWith('audio/')).map(file=><RecordMedia key={fileIdentity(file)} file={file}/>)}{home&&turn.role==='user'&&!turn.text&&!liveVoicePreview.current.get(turn.id)&&['pending','transcribing'].includes(turn.status??'')&&recognitionInputProcessing(job,turn.id)?<span className="front-desk-message-loading" role="status" aria-label={turn.kind==='voice'?'正在转写和处理这段语音':'正在处理这条消息'}><LoaderCircle size={16} aria-hidden="true"/></span>:<>{!home&&turn.status==='transcribing'&&<p role="status">正在识别语音…</p>}{!home&&turn.status==='pending'&&!job&&<p role="status">正在提交这条消息…</p>}</>}{turn.status==='failed'&&!(job?.state==='paused'&&job.inputStates?.some(input=>input.id===turn.id))&&<>{home?<p role="alert">{turn.errorCode==='RECOGNITION_INPUT_CANCELLED'?turn.error:turn.kind==='voice'?turn.text.trim()?'文字已转出，后续处理未完成。原录音和文字都在，可以继续重试。':'语音转写未完成，原录音仍保留，可以重试或改用文字。':turn.error||job?.error?.message||'这次没接上回复，可以继续补充或保存记录。'}</p>:<p role="alert">{turn.kind==='image'?(turn.errorCode==='FRONT_IMAGE_PROCESSING_FAILED'||turn.errorCode==='FILE_READ_FAILED'?'图片处理失败':'图片对话未完成'):turn.kind==='voice'?'转写文字的对话发送未完成':'文字对话发送未完成'}：{turn.error||'连接中断'}。原内容已保留。</p>}<HohoButton variant="secondary" disabled={dialogueBusy||busy||turn.errorCode==='RECOGNITION_INPUT_CANCELLED'} onClick={()=>void retryTurn(turn).catch(()=>undefined)}>重试这条消息</HohoButton><HohoButton variant="secondary" disabled={dialogueBusy||busy} onClick={()=>void discardTurn(turn)}>移除这条未成功的消息</HohoButton>{!job&&<HohoButton variant="secondary" disabled={dialogueBusy||busy||!rawSubjectConfirmed} onClick={()=>void saveOriginal()}>先保存原话</HohoButton>}</>}</NurseMessage>}
       </Fragment>)}
       {recoveryMessageId&&<NurseMessage conversation role="assistant" messageId={recoveryMessageId}><RecognitionProgress job={job} onCommand={type=>void taskCommand(type)} commandBusy={commandBusy||busy}/></NurseMessage>}
       {!job&&(!page||eventId)&&!!local.files.filter(f=>!f.type.startsWith('audio/')).length&&<NurseMessage conversation={home} role="user" recorderName={recorderName}>{local.files.filter(f=>!f.type.startsWith('audio/')).map((file,i)=><div key={`${file.name}:${i}`} className="dialogue-file"><span>{file.name}</span><HohoButton variant="text" aria-label={`移除图片${i+1}`} disabled={busy||voice.busy} onClick={()=>change({files:local.files.filter(f=>f!==file),smartReview:review?{...review,state:'changed'}:undefined})}><X size={16}/></HohoButton></div>)}</NurseMessage>}

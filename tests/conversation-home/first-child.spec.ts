@@ -81,7 +81,7 @@ test('first-child chat validates answers, previews and edits the avatar, then sa
   expect(attempts).toBe(2)
   expect(created).toMatchObject({ name: input.name, birthday: input.birthday, gender: 'male', relationship: 'child', primaryRecorderRelationship: 'mother', avatar: 'boy-age2-european' })
   await expect(page.locator('.front-desk-welcome video')).toBeVisible()
-  await expect(page.locator('.front-desk-welcome')).toContainText('我是档案员护工。')
+  await expect(page.locator('.front-desk-welcome')).toContainText('我是记录员“护护”。有任何情况直接说，我可以帮你整理清楚。')
   await expect(page.locator('.front-desk-welcome')).not.toContainText(input.name)
   await page.reload()
   await expect(page.getByRole('button', { name: '按住记录症状', exact: true })).toBeVisible()

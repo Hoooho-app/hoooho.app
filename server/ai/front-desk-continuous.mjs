@@ -1,3 +1,4 @@
+import {refreshRecordKeywords} from '../../shared/front-desk-record-format.mjs'
 import {frontRecordVersion} from './front-desk-record-targets.mjs'
 import {archiveItem} from './business/archive.mjs'
 import { randomUUID } from 'node:crypto'
@@ -8,7 +9,7 @@ import { contentFor } from './business/service.mjs'
 import { applyFrontDeskRecordChanges } from './front-desk-understanding.mjs'
 import { originals } from './front-desk-original-save.mjs'
 import { continuousPresentation } from './front-desk-presentation.mjs'
-import {frontDeskRecordSections,recordSectionsText} from './front-desk-record-sections.mjs'
+import {frontDeskRecordSections,recordSectionsText,frontDeskInformationProgress} from './front-desk-record-sections.mjs'
 import { frontDeskRecognitionPreview,frontDeskUploadReading } from './front-desk-recognition-preview.mjs'
 
 const revision = record => frontRecordVersion({type:record.type,content:record.content,occurredAt:record.occurredAt,journal:record.journal,aiProvenance:record.aiProvenance,sourceText:record.sourceText})
@@ -33,7 +34,7 @@ const owned = async (front, accountId, memberId, contextId) => {
       const record=await front.business.records.getOwnedRecord(accountId,refs[0].recordId),event=await front.business.events.get(accountId,record.eventId)
       if(event.memberId!==memberId||event.id!==refs[0].eventId)throw fail('原记录暂不可访问',404,'FRONT_ORIGINAL_UNAVAILABLE')
       binding={recordId:record.id,eventId:event.id,memberId,revision:revision(record),sourceSignature:fingerprint(messages.map(m=>[m.id,m.text,m.sourceSignature??null])),evidenceVersion:context.evidenceVersion??0,editRevision:0,at:record.createdAt,category:record.aiProvenance?.category??record.journal?.categories?.[0]??record.type,profileEntries:refs[0].profileEntries??[]}
-      restoredRecord={text:record.content,occurredAt:record.occurredAt,timePrecision:record.journal?.timePrecision??record.aiProvenance?.time?.precision??'exact',title:record.aiProvenance?.title??event.title,evidenceVersion:context.evidenceVersion??0}
+      restoredRecord={timeDefaulted:record.aiProvenance?.time?.defaulted===true,text:record.content,occurredAt:record.occurredAt,timePrecision:record.journal?.timePrecision??record.aiProvenance?.time?.precision??'exact',title:record.aiProvenance?.title??event.title,evidenceVersion:context.evidenceVersion??0}
     }
     if(context.saved&&!binding)throw fail('这次历史保存包含多条记录，请分别打开对应记录',409,'FRONT_RECORD_TARGET_AMBIGUOUS')
     const patch={continuousRecord:true,firstDescribedAt,version:context.version??1,evidenceVersion:context.evidenceVersion??0,...(binding?{saved:false,currentRecord:binding,restoredRecord,legacySavedDraftId:context.draftId,draftId:undefined,subject:{kind:'current',memberId,label:member.name,confirmed:true,confirmedBy:'selection',sources:[]}}:{})}
@@ -68,26 +69,35 @@ export async function continuousCard(front, accountId, memberId, contextId) {
   let narratedTime,narratedPrecision
   if(!explicit&&!context.occurrenceOverride)for(const message of messages){try{const time=resolveItemTime({timeText:message.text},{referenceNow:message.at,timezone:'Asia/Shanghai'});if(time.resolvedStart){narratedTime=time.resolvedStart;narratedPrecision=time.precision;break}}catch{/* The validated structured result can resolve more precise narration later. */}}
   const timePrecision=correctedTime?.resolvedStart?correctedTime.precision:edit?.evidenceVersion===context.evidenceVersion?context.occurrencePrecision??'exact':explicitItem?.time.precision??(context.occurrenceOverride?context.occurrencePrecision??'exact':restored?.timePrecision??narratedPrecision??'exact')
+  const timeDefaulted=Boolean(correctedTime?.resolvedStart?false:context.occurrenceOverride?context.occurrenceDefaulted===true:explicit||narratedTime?false:restored?restored.timeDefaulted:true)
   const occurredAt=correctedTime?.resolvedStart??(edit?.evidenceVersion===context.evidenceVersion?context.occurrenceOverride:null)??explicit??context.occurrenceOverride??restored?.occurredAt??narratedTime??context.firstDescribedAt??messages[0]?.at
   let saved=context.currentRecord??null
   if(saved){try{const record=await front.business.records.getOwnedRecord(accountId,saved.recordId);const event=await front.business.events.get(accountId,record.eventId);if(event.memberId!==memberId||record.eventId!==saved.eventId)throw Error();saved={...saved,available:true}}catch{saved={...saved,available:false}}}
-  const card={contextId,sourceSignature:fingerprint(messages.map(message=>[message.id,message.text,message.sourceSignature??null])),recordable:Boolean(items.length||edit||context.currentRecord||context.provisional||(context.facts??[]).some(f=>f.status==='active'&&f.scope!=='context')||messages.some(m=>m.status==='failed')),version:context.version,evidenceVersion:context.evidenceVersion,editRevision:context.editRevision??0,timePrecision,title:edit?.evidenceVersion===context.evidenceVersion?edit.title:items.map(i=>i.title).join('、')||restored?.title||'记录单',text,raw,occurredAt,items,saved,hasOriginals:messages.some(m=>[...m.files??[],...m.originalFiles??[],...m.voices??[]].length),checklist:context.visitChecklist??null}
+  const card={contextId,sourceSignature:fingerprint(messages.map(message=>[message.id,message.text,message.sourceSignature??null])),recordable:Boolean(items.length||edit||context.currentRecord||context.provisional||(context.facts??[]).some(f=>f.status==='active'&&f.scope!=='context')||messages.some(m=>m.status==='failed')),version:context.version,evidenceVersion:context.evidenceVersion,editRevision:context.editRevision??0,timePrecision,timeDefaulted,title:edit?.evidenceVersion===context.evidenceVersion?edit.title:items.map(i=>i.title).join('、')||restored?.title||'记录单',text,raw,occurredAt,items,saved,hasOriginals:messages.some(m=>[...m.files??[],...m.originalFiles??[],...m.voices??[]].length),checklist:context.visitChecklist??null}
   if(context.visitChecklist)card.checklist=checklistFor(card,context,member.name)
   const relevant=data.messages.filter(message=>message.accountId===accountId&&message.memberId===memberId&&(message.contextId===contextId||message.targetContextId===contextId&&['pending','transcribing'].includes(message.status))).sort((a,b)=>(a.inputAt??Date.parse(a.at))-(b.inputAt??Date.parse(b.at)))
   card.recognitionPreview=recognitionPreview
+  card.informationProgress=frontDeskInformationProgress(context,messages)
   card.uploadReading=frontDeskUploadReading(context,messages)
   card.presentation=continuousPresentation(context,relevant,card)
+  const generation=context.recordGeneration
+  if(generation?.saveRequested&&generation.pendingSave==='subject'&&generation.evidenceVersion===card.evidenceVersion&&generation.editRevision===card.editRevision&&!(saved?.available&&saved.evidenceVersion===card.evidenceVersion&&saved.editRevision===card.editRevision&&saved.sourceSignature===card.sourceSignature))card.pendingSave='subject'
   return card
 }
 
 export async function generateContinuousRecord(front,accountId,memberId,contextId,input) {
   if(input.confirmed!==true)throw fail('请确认生成记录单',422,'FRONT_GENERATION_CONFIRMATION_REQUIRED')
   return accountTransaction(front.directory,async()=>{
-    const {context}=await owned(front,accountId,memberId,contextId);assertVersion(context,input)
+    const {context,data}=await owned(front,accountId,memberId,contextId);assertVersion(context,input)
     const card=await continuousCard(front,accountId,memberId,contextId)
     if(!card.presentation.canGenerate)throw fail(card.presentation.asking?'请先回答当前问题，再生成记录单':'这段内容还在处理，请稍后生成记录单',409,'FRONT_RECORD_NOT_READY')
     checkSubject(context.subject,memberId)
-    if(!card.presentation.generated)await front.store.update(d=>({...d,contexts:d.contexts.map(c=>c.id===contextId&&c.accountId===accountId&&c.memberId===memberId?{...c,recordGeneration:{evidenceVersion:c.evidenceVersion??0,editRevision:c.editRevision??0,at:front.now().toISOString()}}:c)}))
+    const subjects=[context.subject,...sourcesFor(data,context).map(message=>message.subject),...(context.facts??[]).filter(fact=>fact.status==='active'&&fact.scope!=='context').map(fact=>fact.subject)]
+    subjects.forEach(subject=>checkSubject(subject,memberId))
+    const originalSubjectConfirmed=context.subject?.confirmedBy==='user'&&context.subject.confirmation?.originalsVersion===(context.originalsVersion??0)
+    const pendingSubject=Boolean(card.uploadReading&&!originalSubjectConfirmed)||[context.subject,...(context.facts??[]).filter(fact=>fact.status==='active'&&fact.scope!=='context').map(fact=>fact.subject)].some(subject=>subject&&(subject.kind!=='current'||subject.confirmed!==true))
+    if(input.save===true&&!pendingSubject)await writeRecord(front,accountId,memberId,contextId,{expectedVersion:context.version})
+    if(!card.presentation.generated||input.save===true)await front.store.update(d=>({...d,contexts:d.contexts.map(c=>c.id===contextId&&c.accountId===accountId&&c.memberId===memberId?{...c,recordGeneration:{evidenceVersion:c.evidenceVersion??0,editRevision:c.editRevision??0,at:front.now().toISOString(),...(input.save===true?{saveRequested:true,...(pendingSubject?{pendingSave:'subject'}:{})}:{})}}:c)}))
     return continuousCard(front,accountId,memberId,contextId)
   })
 }
@@ -127,7 +137,7 @@ async function writeRecord(front,accountId,memberId,contextId,{automatic=false,e
     const {attachment}=await front.business.attachments.createUnique({accountId,memberId,eventId:event.id,recordId:record.id,...original,analysis:{status:card.items.length?'completed':'unavailable',provider:'manual',confirmed:true,sourcePages:[]}},now)
     refs.push(attachment.id)
   }
-  record=await front.business.records.repository.update(record.id,{aiProvenance:{...record.aiProvenance,title:card.title,category,provider:card.items.length?'front-desk':'manual',confirmed:true,fields:item?.fields??[],sources:card.items.length?card.items.flatMap(item=>item.fields.flatMap(field=>field.sources??[])):card.raw?[{sourceId:`front-original:${contextId}`,page:1,quote:card.raw}]:[],notice:null,time:item?.time??{resolvedStart:card.timePrecision==='unknown'?null:occurredAt,resolvedEnd:null,precision:card.timePrecision,source:'recorded_time'},professionalSummary:item?.professionalSummary,structuredItems:card.items,originalVersions:[...new Set([...(record.aiProvenance?.originalVersions??[]),...(previousRaw&&previousRaw!==card.raw?[previousRaw]:[])])],attachmentIds:[...new Set([...(record.aiProvenance?.attachmentIds??[]),...refs])],frontContextId:contextId},caseContext:{...record.caseContext,identity:record.caseContext?.identity??'parent',confirmed:true,originalText:card.raw,timeUnknown:card.timePrecision==='unknown',attachmentIds:refs}},now)
+  record=await front.business.records.repository.update(record.id,{aiProvenance:{...record.aiProvenance,title:card.title,category,provider:card.items.length?'front-desk':'manual',confirmed:true,fields:item?.fields??[],sources:card.items.length?card.items.flatMap(item=>item.fields.flatMap(field=>field.sources??[])):card.raw?[{sourceId:`front-original:${contextId}`,page:1,quote:card.raw}]:[],notice:null,time:item?.time??{resolvedStart:card.timePrecision==='unknown'?null:occurredAt,resolvedEnd:null,precision:card.timePrecision,source:'recorded_time',defaulted:card.timeDefaulted},professionalSummary:item?.professionalSummary,structuredItems:card.items,originalVersions:[...new Set([...(record.aiProvenance?.originalVersions??[]),...(previousRaw&&previousRaw!==card.raw?[previousRaw]:[])])],attachmentIds:[...new Set([...(record.aiProvenance?.attachmentIds??[]),...refs])],frontContextId:contextId},caseContext:{...record.caseContext,identity:record.caseContext?.identity??'parent',confirmed:true,originalText:card.raw,timeUnknown:card.timePrecision==='unknown',attachmentIds:refs}},now)
   const profileData=structuredClone(await front.business.profiles.read())
   for(const item of card.items)profileData.sections=archiveItem(profileData.sections,item,{accountId,memberId,eventId:event.id,recordId:record.id,attachmentIds:refs,now})
   if(card.items.length)await front.business.profiles.update(()=>profileData)
@@ -150,15 +160,17 @@ export async function editContinuousRecord(front,accountId,memberId,contextId,in
   return accountTransaction(front.directory,async()=>{
     const {context}=await owned(front,accountId,memberId,contextId);assertVersion(context,input)
     const before=await continuousCard(front,accountId,memberId,contextId)
+    const revisedText=refreshRecordKeywords(input.text.trim())
     if(input.recognitionDraft&&(!before.recognitionPreview?.canAdopt||input.recognitionDraft.id!==before.recognitionPreview.draftId||input.recognitionDraft.version!==before.recognitionPreview.draftVersion))throw fail('识别内容已有更新，请重新核对最新内容；已编辑的文字仍保留',409,'FRONT_RECOGNITION_CHANGED')
     const occurredAt=validateOccurredAt(input.occurredAt,front.now()),occurrencePrecision=Date.parse(occurredAt)===Date.parse(before.occurredAt)?before.timePrecision:'exact',id=`edit-${randomUUID()}`,at=front.now().toISOString(),subject={kind:'current',memberId,confirmed:true,confirmedBy:'selection',label:(await front.scope(accountId,memberId)).name,sources:[]}
-    const sourceText=`${input.text.trim()}\n发生时间：${occurredAt}`
+    const sourceText=`${revisedText}\n发生时间：${occurredAt}`
     const facts=applyFrontDeskRecordChanges((context.facts??[]).map(f=>f.status==='active'?{...f,status:'superseded'}:f),[{id,type:'add',text:sourceText,scope:'record',polarity:'affirmed',subject,sources:[{messageId:id,attachmentId:null,quote:sourceText}]}],{messageId:id,contextId})
     const feedback={id:`${id}:feedback`,text:Date.parse(before.occurredAt)!==Date.parse(occurredAt)?`时间已改为${new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(occurredAt))}`:'内容已修改'}
-    await front.store.update(d=>({...d,contexts:d.contexts.map(c=>c.id===contextId&&c.accountId===accountId&&c.memberId===memberId?{...c,version:c.version+1,evidenceVersion:(c.evidenceVersion??0)+1,editRevision:(c.editRevision??0)+1,occurrenceOverride:occurredAt,occurrencePrecision,cardEdit:{messageId:id,text:input.text.trim(),title:input.title.trim()||'记录单',evidenceVersion:(c.evidenceVersion??0)+1},facts,resultKind:'candidates',decision:{organize:true},understanding:{...c.understanding,recordChangesPending:false},interview:undefined,actionPlan:undefined,pendingSaveConfirmation:undefined,updatedAt:at}:c),messages:[...d.messages,{id,accountId,memberId,contextId,kind:'text',text:sourceText,status:'completed',acceptedInput:true,inputAcceptedAt:at,at,inputAt:Date.parse(at),subject,manualCardEdit:true,files:[],voices:[]},{...feedback,accountId,memberId,contextId,kind:'assistant',status:'completed',at}]}))
+    await front.store.update(d=>({...d,contexts:d.contexts.map(c=>c.id===contextId&&c.accountId===accountId&&c.memberId===memberId?{...c,version:c.version+1,evidenceVersion:(c.evidenceVersion??0)+1,editRevision:(c.editRevision??0)+1,occurrenceOverride:occurredAt,occurrencePrecision,occurrenceDefaulted:Date.parse(occurredAt)===Date.parse(before.occurredAt)&&before.timeDefaulted,cardEdit:{messageId:id,text:revisedText,title:input.title.trim()||'记录单',evidenceVersion:(c.evidenceVersion??0)+1},facts,resultKind:'candidates',decision:{organize:true},understanding:{...c.understanding,recordChangesPending:false},interview:undefined,actionPlan:undefined,pendingSaveConfirmation:undefined,updatedAt:at}:c),messages:[...d.messages,{id,accountId,memberId,contextId,kind:'text',text:sourceText,status:'completed',acceptedInput:true,inputAcceptedAt:at,at,inputAt:Date.parse(at),subject,manualCardEdit:true,...(revisedText!==input.text.trim()?{manualInputText:input.text.trim()}:{}),files:[],voices:[]},{...feedback,accountId,memberId,contextId,kind:'assistant',status:'completed',at}]}))
     // Editing an already presented card is another explicit revision of that
     // same card. A later background extraction cannot revoke that user action.
     if(before.presentation.generated)await front.store.update(d=>({...d,contexts:d.contexts.map(c=>c.id===contextId&&c.accountId===accountId&&c.memberId===memberId?{...c,recordGeneration:{evidenceVersion:c.evidenceVersion??0,editRevision:c.editRevision??0,at:front.now().toISOString()}}:c)}))
+    if(input.save===true)await writeRecord(front,accountId,memberId,contextId)
     return {...await continuousCard(front,accountId,memberId,contextId),feedback}
   })
 }

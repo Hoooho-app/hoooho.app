@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {guideFrontDeskReply,questionTopic} from './front-desk-question-progress.mjs'
-import {frontDeskRecordSections,recordSectionsText} from './front-desk-record-sections.mjs'
+import {frontDeskRecordSections,recordSectionsText,frontDeskInformationProgress} from './front-desk-record-sections.mjs'
 const q=(id,text,target='observation')=>({id,text,target})
 const value=question=>({reply:question?`了解目前的观察。${question.text}`:'可以继续补充。',nextQuestion:question,taskRelation:'continue'})
 test('unknown comparison is not asked again in different wording; unknown location exposes the existing picker',()=>{
@@ -13,8 +13,8 @@ test('unknown comparison is not asked again in different wording; unknown locati
  assert.equal(location.interview.checks[0].state,'uncertain')
 })
 test('second question counts, relevant original choices are retained, unrelated generic questions do not collapse',()=>{
- const result=guideFrontDeskReply(value(q('skin-sensation','会痒或者疼吗？')),{previous:{turnCount:1,askedQuestionIds:['where']},knowledge:[{id:'skin-sensation',options:[{label:'暂不确定',value:'暂不确定是否痒痛。'}]}]})
- assert.equal(result.interview.turnCount,2);assert.equal(result.question.options[0].label,'暂不确定')
+ const result=guideFrontDeskReply(value(q('skin-sensation','会痒或者疼吗？')),{previous:{turnCount:1,askedQuestionIds:['where']},knowledge:[{id:'skin-sensation',options:[{label:'看到抓挠',value:'我看到孩子反复抓挠。'}]}]})
+ assert.equal(result.interview.turnCount,2);assert.equal(result.question.options[0].label,'看到抓挠')
  assert.notEqual(questionTopic(q('one','什么颜色？')).key,questionTopic(q('two','持续多久？')).key)
 })
 test('checking environment does not exclude a disease; another matter or deleted answer cannot supply progress',()=>{
@@ -46,5 +46,30 @@ test('record fallback groups only current source-backed facts; excludes concern,
  const facts=[{id:'f1',contextId:'ctx',text:'胳膊有红点',scope:'record',polarity:'affirmed',status:'active',subject,sources:[{messageId:'m1',quote:'胳膊有红点'}]},{id:'f2',contextId:'ctx',text:'担心是不是过敏',scope:'record',polarity:'concern',status:'active',subject,sources:[{messageId:'m1',quote:'担心是不是过敏'}]},{id:'f3',contextId:'ctx',text:'红点更多了',scope:'record',polarity:'affirmed',status:'superseded',subject,sources:[{messageId:'m1',quote:'红点更多了'}]}]
  const sections=frontDeskRecordSections({facts,interview:{checks:[{key:'bath-comparison',label:'洗浴前后变化',state:'uncertain',answerMessageId:'m2',answerText:messages[1].text}]}},messages)
  const text=recordSectionsText(sections)
- assert.match(text,/【情况描述】/);assert.match(text,/【暂未明确】/);assert.match(text,/胳膊有红点/);assert.doesNotMatch(text,/担心|更多|没有变化|不过敏/)
+ assert.match(text,/【情况概述】/);assert.match(text,/【待补充与核对】/);assert.match(text,/胳膊有红点/);assert.doesNotMatch(text,/担心|更多|没有变化|不过敏/)
+})
+
+test('numeric values are requested directly; unrelated observations do not complete temperature',()=>{
+ const measurement=q('fever-measurement','有没有量过具体体温？','temperature')
+ const result=guideFrontDeskReply(value(measurement),{knowledge:[{id:measurement.id,options:[{label:'已经量过',value:'已量'},{label:'还没量',value:'没量'}]}]})
+ assert.equal(result.question.inputKind,'temperature');assert.deepEqual(result.question.options,[])
+ assert.doesNotMatch(result.reply,/有没有量过/);assert.match(result.reply,/填写/)
+ const unrelated=guideFrontDeskReply(value(null),{latest:{id:'m',text:'精神和平时一样。'},effectiveQuestion:measurement})
+ assert.deepEqual(unrelated.interview.checks,[])
+ for(const text of ['还没量。','没测。','尚未测量。','已经量过。','量了20次。','量了20 次。','体温等到20点再量。','没量，估计38度。','估计38度。','猜测体温38.6℃。']){
+  const unknown=guideFrontDeskReply(value(measurement),{latest:{id:'m',text},effectiveQuestion:measurement})
+  assert.equal(unknown.question,null,text);assert.equal(unknown.interview.checks[0].state,'uncertain',text)
+ }
+ for(const text of ['38.6','测得体温 38.6℃。','体温38.6','三十八点六度','三十四点二度']){
+  const measured=guideFrontDeskReply(value(null),{latest:{id:'m',text},effectiveQuestion:measurement})
+  assert.equal(measured.interview.checks[0].state,'answered',text)
+ }
+})
+
+test('a measurement gateway in source facts or legacy checks never becomes an obtained temperature',()=>{
+ const subject={kind:'current',memberId:'child',confirmed:true}
+ const message={id:'m',kind:'text',status:'completed',text:'已经测量体温。'}
+ const context={facts:[{id:'f',text:message.text,status:'active',scope:'record',polarity:'affirmed',subject,sources:[{messageId:'m',quote:message.text}]}],interview:{checks:[{key:'temperature',label:'体温数值',state:'answered',answerMessageId:'m',answerText:message.text}]}}
+ const progress=frontDeskInformationProgress(context,[message])
+ assert.equal(progress.find(value=>value.key==='temperature').state,'uncertain')
 })

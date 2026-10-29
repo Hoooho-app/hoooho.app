@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
   pull_request:
     branches: [main]
-    paths: ['server/ai/**', 'src/features/ai-business/**', 'src/features/health-attachments/**', 'src/services/imageAnalysisPresentation*', 'src/services/healthEventDetailAdapter*', 'src/components/navigation/**', 'src/pages/HealthProfile/**', 'src/utils/privateIdentity*', 'tests/upload-recognition/**', 'tests/dialogue/**', 'tests/helpers/**', 'tests/visit-sheet/**', 'tests/nurse-frontdesk-upgrade-mobile/**', 'tests/front-desk-continuous/**', 'tests/frontdesk-navigation/**', 'tests/selective-rollback/**', 'tests/conversation-home/**', '.github/workflows/smart-record-verification.yml']
+    paths: ['shared/front-desk-record-format*', 'server/ai/**', 'src/features/ai-business/**', 'src/features/health-attachments/**', 'src/services/imageAnalysisPresentation*', 'src/services/healthEventDetailAdapter*', 'src/components/navigation/**', 'src/pages/HealthProfile/**', 'src/utils/privateIdentity*', 'tests/upload-recognition/**', 'tests/dialogue/**', 'tests/helpers/**', 'tests/visit-sheet/**', 'tests/nurse-frontdesk-upgrade-mobile/**', 'tests/front-desk-continuous/**', 'tests/frontdesk-navigation/**', 'tests/selective-rollback/**', 'tests/conversation-home/**', '.github/workflows/smart-record-verification.yml']
 permissions:
   contents: read
 concurrency:
@@ -51,7 +51,7 @@ jobs:
       - run: node --test server/events/health-event-record-service.test.mjs server/events/case-continuity-service.test.mjs server/ai/recognition-jobs.test.mjs server/ai/front-desk-record.test.mjs server/ai/front-desk-resume.test.mjs server/ai/front-desk-original-save.test.mjs server/ai/recognition-context.test.mjs server/ai/live-audio-preview.test.mjs server/ai/business/*.test.mjs
       - name: Verify explicit OpenRouter routing and existing Bailian compatibility without live calls
         run: node --test server/ai/providers/openrouter-provider.test.mjs server/ai/providers/bailian-provider.test.mjs server/help/dialogue-contract.test.mjs
-      - run: node --import ./scripts/register-node-ts-loader.mjs --test src/features/case-continuity/followupPresentation.test.ts src/features/ai-business/liveAudioPreview.test.ts src/features/ai-business/frontDeskRecord.test.ts src/features/ai-business/captureDraft.test.ts src/features/ai-business/savedRecordGuide.test.ts
+      - run: node --import ./scripts/register-node-ts-loader.mjs --test src/features/case-continuity/followupPresentation.test.ts src/features/ai-business/liveAudioPreview.test.ts src/features/ai-business/recordReading.test.ts src/features/ai-business/frontDeskRecord.test.ts src/features/ai-business/captureDraft.test.ts src/features/ai-business/savedRecordGuide.test.ts
       - run: TZ=Asia/Shanghai node --import ./scripts/register-node-ts-loader.mjs --test src/pages/NurseStation/firstChildSetupModel.test.ts
       - run: node --import ./scripts/register-node-ts-loader.mjs --test src/utils/privateIdentity.test.ts
       - run: node --test tests/dialogue/synthetic-acceptance-account.test.mjs tests/dialogue/synthetic-acceptance-cleanup.test.mjs
