@@ -128,3 +128,7 @@ Original photo previews opened from an existing record, reminder or upload works
 ### 侧栏环抱身份区（2026-10-30）
 
 产品主人手绘确认的账户环抱仅在侧栏使用 `identity-embrace`、`identity-outline`、`identity-subject` 三个 opt-in 颜色角色：浅绿账户、轻细连通轮廓、奶油杏色孩子栏。装饰SVG独立于功能图标库，不含交互、不读取业务状态，不推广到其他卡片；沿用现有字号、间距及圆角。
+
+### 共享查找图形（2026-10-30）
+
+主人指定search使用大圆短柄外形，统一由MaterialIcon读取`searchShape`，所有Search别名与直接search调用一致。保留Material尺寸档、单色、细线和已有选择切换；原search的outline/filled相同，本变体同样保持中空镜片。其余159种原图及固定来源清单不变。此单图标例外覆盖该语义的原始路径要求，不扩展到其他图标。

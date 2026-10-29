@@ -1,4 +1,5 @@
 import {openStoredConversation,type ConversationTarget} from './openStoredConversation'
+import {nativeAttachmentPicker} from '../../services/nativeAttachments'
 import {captureConversationDeleted,conversationDeletedEvent,deletionStorageKey,lastConversationDeletionAt} from './conversationDeletion'
 import {FrontDeskQuestionTools} from './FrontDeskQuestionTools'
 import {recognitionAcceptedInput,recoverUnreceivedTurns,applyRecognitionReceipt,recognitionInputProcessing,retainUnreceivedFailures} from './recognitionSubmission'
@@ -63,6 +64,7 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
   const [originalsNeedReview,setOriginalsNeedReview]=useState(false)
   const mounted=useRef(true),pending=useRef(false),sendLock=useRef(false),writes=useRef<Promise<unknown>>(Promise.resolve()),abort=useRef<AbortController|null>(null),camera=useRef<HTMLInputElement>(null),album=useRef<HTMLInputElement>(null)
   const videoCamera=useRef<HTMLInputElement>(null),filePicker=useRef<HTMLInputElement>(null)
+  const attachmentPicking=useRef(false)
   const [incomingVideo,setIncomingVideo]=useState<{id:string;file:File;origin:'capture'|'library'}>()
   useEffect(()=>setIncomingVideo(undefined),[accountId,memberId])
   const memberName=useAppStore(s=>s.members.find(member=>member.id===memberId)?.name)
@@ -550,6 +552,18 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
     const turn:CaptureTurn={continuationId:home?current.current.frontContextId:current.current.resumeContextId,...turnIntent(),id:crypto.randomUUID(),text:'',at:Date.now(),kind:'image',role:'user',fileKeys:selected.map(fileIdentity),status:'pending'}
     void persist({...current.current,rawSaveTarget:undefined,...(!page||eventId?{smartReview:current.current.smartReview?{...current.current.smartReview,state:'changed'}:undefined}:{}),files:next,conversationTurns:[...current.current.conversationTurns??[],turn]}).then(()=>submitTurn(turn)).catch(()=>undefined)
   }
+  function chooseAttachment(){
+    const native=home?nativeAttachmentPicker():undefined
+    if(!native){filePicker.current?.click();return}
+    if(attachmentPicking.current)return
+    const requestId=current.current.requestId
+    attachmentPicking.current=true
+    void native().then(result=>{
+      if(mounted.current&&current.current.requestId===requestId&&accountId===(useAppStore.getState().authUser?.id??'guest')&&memberId===useAppStore.getState().currentMemberId)pickFiles(result.files,result.origin)
+    }).catch(reason=>{
+      if(mounted.current&&current.current.requestId===requestId&&accountId===(useAppStore.getState().authUser?.id??'guest')&&memberId===useAppStore.getState().currentMemberId&&reason?.name!=='AbortError')setError(reason instanceof Error?reason.message:'附件选择未完成，请重试')
+    }).finally(()=>{attachmentPicking.current=false})
+  }
   async function acknowledgeSave(saved:SmartRecordDraft){
     const guides=savedRecordGuides(saved,memberId,memberName)
     if(!guides.length)throw new Error('保存结果尚未确认，请重试原草稿')
@@ -695,7 +709,7 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
       setError(e instanceof Error?e.message:'保存未完成，草稿保留，可重试');setStatus('')
     }}finally{pending.current=false;if(mounted.current)setBusy(false)}
   }
-  const conversationFooter=<DialogueComposer key={home?homeInputEpoch:undefined} variant={home?'frontdesk':'default'} onTypingChange={home?setHomeTyping:undefined} holdLabel={home?'按住记录症状':undefined} initialTyping={Boolean(local.conversationInput?.trim())} placeholder={home?'输入孩子的情况…':undefined} expandedFeedback liveTranscript={home?voice.liveText:undefined} liveStatus={voice.liveUnavailable?'实时文字暂不可用，松开后完整转写':'正在听你说'} feedbackHint={home?(voice.liveUnavailable?'录音继续，松开后整理':'边说边显示文字，松开后整理'):'松开后显示文字'} discardOnBlur={!page} directPhoto={page} text={local.conversationInput??''} onTextChange={conversationInput=>change({conversationInput})} maxLength={5000} disabled={!ready||pending.current||completed||!!resumeChoices||exitOpen||!!local.rawSavedGuide} voiceDisabled={!!local.rawSavedGuide} allowTextWhileProcessing audioLevel={voice.audioLevel} requesting={voice.state==='requesting'} listening={voice.state==='listening'} processing={voice.state==='transcribing'} onStart={()=>{void voice.start()}} onStop={voice.stop} onDiscard={voice.discard} onPhoto={home?undefined:source=>({camera,album,video:videoCamera,file:filePicker}[source]).current?.click()} onSend={()=>void sendText()}/>
+  const conversationFooter=<DialogueComposer key={home?homeInputEpoch:undefined} variant={home?'frontdesk':'default'} onTypingChange={home?setHomeTyping:undefined} holdLabel={home?'按住记录症状':undefined} initialTyping={Boolean(local.conversationInput?.trim())} placeholder={home?'输入孩子的情况…':undefined} expandedFeedback liveTranscript={home?voice.liveText:undefined} liveStatus={voice.liveUnavailable?'实时文字暂不可用，松开后完整转写':'正在听你说'} feedbackHint={home?(voice.liveUnavailable?'录音继续，松开后整理':'边说边显示文字，松开后整理'):'松开后显示文字'} discardOnBlur={!page} directPhoto={page} text={local.conversationInput??''} onTextChange={conversationInput=>change({conversationInput})} maxLength={5000} disabled={!ready||pending.current||completed||!!resumeChoices||exitOpen||!!local.rawSavedGuide} voiceDisabled={!!local.rawSavedGuide} allowTextWhileProcessing audioLevel={voice.audioLevel} requesting={voice.state==='requesting'} listening={voice.state==='listening'} processing={voice.state==='transcribing'} onStart={()=>{void voice.start()}} onStop={voice.stop} onDiscard={voice.discard} onPhoto={source=>home?chooseAttachment():({camera,album,video:videoCamera,file:filePicker}[source]).current?.click()} onSend={()=>void sendText()}/>
   const saveBlocked=busy||jobBusy||!!localStage||voice.busy||!canSave||!review?.items.length||!!review.documentWarnings?.length||!!review.unmappedRows?.length||review.sources?.some(s=>s.status==='uncertain')
   const reviewFooter=<div className="smart-record-review-footer">
     {subjectConfirmation}
@@ -789,7 +803,6 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
   }
   const conversationDisabled=!ready||busy||dialogueBusy||jobBusy||!!localStage||voice.busy||!!resumeChoices
   const startHomeConversation=()=>{if(conversationDisabled)return;historyTarget?navigate('/nurse-station',{state:{frontDeskNewConversation:crypto.randomUUID()}}):void newConversation()}
-  const homeActions=<><HohoButton variant="text" size="icon" aria-label="快速查找" onClick={()=>navigate('/quick-search')}><Search size={22} strokeWidth={1.8} aria-hidden="true" /></HohoButton><HohoButton variant="text" size="icon" aria-label="新建对话" disabled={conversationDisabled} onClick={startHomeConversation}><ConversationBubblePlus size={24}/></HohoButton></>
   async function openRecordEntry(category:JournalCategory,kind?:DietRecordKind){
     if(openingRecord.current)return
     openingRecord.current=true
@@ -908,6 +921,8 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
   const topEntries=home&&(hasSavedCard||hasChecklist)&&<nav className="front-desk-top-entries" aria-label="当前记录入口">{hasSavedCard&&<button type="button" data-front-entry="record" disabled={!ready||currentCardDisabled} onClick={()=>void openCurrentCard()}>症状记录单</button>}{hasChecklist&&<button type="button" data-front-entry="checklist" disabled={!ready||currentCardDisabled} onClick={()=>void openChecklist()}>就诊清单</button>}</nav>
   const processingLabel=localStage==='uploading'?'接收中':localStage==='converting'||job?.stage==='converting'||job?.stage==='transcribing'?'转写中':job?.stage==='reading'?'读图中':['organizing','publishing'].includes(job?.stage??'')?'整理中':'理解中'
   const showHomeWelcome=home&&ready&&stage==='conversation'&&!resumeChoices&&!timeline.length&&!recoveryMessageId&&!local.rawSavedGuide&&!uploadPreview&&!recordGenerated&&!generationOffer&&!error
+  const hasHomeConversation=ready&&Boolean(timeline.length||recoveryMessageId||local.rawSavedGuide||uploadPreview||recordGenerated)
+  const homeActions=<><HohoButton variant="text" size="icon" aria-label="快速查找" onClick={()=>navigate('/quick-search')}><Search size={22} aria-hidden="true" /></HohoButton>{hasHomeConversation&&<HohoButton variant="text" size="icon" aria-label="新建对话" disabled={conversationDisabled} onClick={startHomeConversation}><ConversationBubblePlus size={24}/></HohoButton>}</>
   const body=<>
     {resumeChoices ? <div className="smart-record-resume">
       <Typography variant="sectionTitle">上次还有未保存的草稿</Typography>
@@ -951,6 +966,8 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
       if(!mounted.current||useAppStore.getState().authUser?.id!==accountId||useAppStore.getState().currentMemberId!==memberId)throw new Error('记录对象已切换，保存结果保留')
       await persist({...current.current,savedGuides:[...(current.current.savedGuides??[]).filter(item=>item.id!==guide.id),guide]});setError('')
     }}/>}
+    {home&&<><input type="file" ref={videoCamera} aria-label="拍摄视频" accept="video/mp4,video/quicktime,video/webm" capture="environment" hidden onChange={e=>{pickFiles(e.target.files,'capture');e.currentTarget.value=''}}/>
+    <input type="file" ref={filePicker} aria-label="选择附件文件" multiple accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf,video/mp4,video/quicktime,video/webm,.pdf,.mp4,.mov,.webm" hidden onChange={e=>{pickFiles(e.target.files);e.currentTarget.value=''}}/></>}
     {!home&&<><input type="file" ref={camera} accept="image/jpeg,image/png,image/webp" capture="environment" hidden onChange={e=>{pickFiles(e.target.files,'capture');e.currentTarget.value=''}}/>
     <input type="file" ref={album} aria-label="从相册选择" accept={page?'image/jpeg,image/png,image/webp,image/heic,image/heif':'image/jpeg,image/png,image/webp'} hidden multiple onChange={e=>{pickFiles(e.target.files);e.currentTarget.value=''}}/></>}
   </>
