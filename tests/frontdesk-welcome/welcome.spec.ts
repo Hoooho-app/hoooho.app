@@ -18,10 +18,13 @@ test.beforeEach(async ({ page, request }) => {
   await expect(page.locator(intro)).toBeVisible()
 })
 
-test('approved composition uses a small live video, left 3D guide and right text-only real daily article', async ({ page }, info) => {
+test('approved composition uses a static nurse, left 3D guide and right text-only real daily article', async ({ page }, info) => {
   const welcome = page.locator(intro)
-  await expect(welcome.locator('.idle-nurse-visual')).toHaveAttribute('data-cutout-ready', 'true')
-  expect(await welcome.locator('.front-desk-welcome__media').evaluate(el => el.getBoundingClientRect().width)).toBeLessThanOrEqual(186)
+  await expect(welcome.locator('video, canvas')).toHaveCount(0)
+  const portrait = welcome.locator('.front-desk-welcome__portrait')
+  await expect(portrait).toHaveAttribute('alt', '戴眼镜与口罩的黑发护士，一手拿病历夹、一手拿笔')
+  expect(await portrait.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth === 480)).toBe(true)
+  await expect(portrait).toHaveCSS('object-fit', 'contain')
   await expect(welcome.locator('.front-desk-welcome__entry')).toHaveCount(2)
   const entries = await welcome.locator('.front-desk-welcome__entry').evaluateAll(nodes => nodes.map(el => ({ name: el.getAttribute('aria-label'), x: el.getBoundingClientRect().x, y: el.getBoundingClientRect().y })))
   expect(entries[0].name).toContain('怎么用护护')
@@ -48,6 +51,9 @@ test('guide opens and closes without posting; typing, refresh and cancelling att
   await guide.click()
   const sheet = page.getByRole('dialog', { name: '护护使用说明', exact: true })
   await expect(sheet).toBeVisible()
+  const layer = await page.locator('.hoho-bottom-sheet-layer').boundingBox()
+  expect(layer!.y).toBeLessThanOrEqual(1)
+  expect(layer!.height).toBeGreaterThanOrEqual(page.viewportSize()!.height - 1)
   await expect(sheet).toContainText('健康日历')
   await sheet.getByRole('button', { name: '开始记录', exact: true }).click()
   await expect(sheet).toHaveCount(0)
