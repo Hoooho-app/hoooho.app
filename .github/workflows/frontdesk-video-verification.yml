@@ -7,9 +7,15 @@ on:
       - 'src/pages/HealthEvents/NurseStationIdleVideo.tsx'
       - 'src/pages/NurseStation/FrontDeskWelcome.tsx'
       - 'src/pages/NurseStation/conversationHome.css'
+      - 'src/pages/NurseStation/frontDeskWelcome.css'
+      - 'src/features/allergy-knowledge/**'
+      - 'src/features/ai-business/SmartRecordWorkspace.tsx'
+      - 'shared/product-visibility.mjs'
+      - 'src/assets/nurse-triage/care-recording-*'
       - 'src/assets/nurse-triage/nurse-station-cutout-*'
       - 'scripts/*nurse*'
       - 'tests/nurse-video-cutout/**'
+      - 'tests/frontdesk-welcome/**'
       - '.github/workflows/frontdesk-video-verification.yml'
 permissions:
   contents: read
@@ -27,11 +33,21 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
+      - name: Use bundled media tools for voice acceptance
+        run: |
+          node --input-type=module <<'NODE'
+          import ffmpeg from '@ffmpeg-installer/ffmpeg'
+          import ffprobe from 'ffprobe-static'
+          import { dirname } from 'node:path'
+          import { appendFileSync } from 'node:fs'
+          appendFileSync(process.env.GITHUB_PATH, [dirname(ffmpeg.path), dirname(ffprobe.path), ''].join('\n'))
+          NODE
       - run: npx playwright install --with-deps chromium
       - run: npm run build
       - run: TZ=Asia/Shanghai npm run test:client
       - run: npm run test:media
       - run: npx playwright test --config tests/nurse-video-cutout/playwright.config.ts
+      - run: npx playwright test --config tests/frontdesk-welcome/playwright.config.ts
       - run: npx playwright test --config tests/frontdesk-navigation/playwright.config.ts --grep 'default home|keyboard reveals'
       - uses: actions/upload-artifact@v4
         if: always()

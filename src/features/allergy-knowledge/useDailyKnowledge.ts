@@ -2,10 +2,10 @@ import { PRODUCT_FEATURES } from '../../../shared/product-visibility.mjs'
 import { useEffect, useState } from 'react'
 import { getKnowledgeStorage, nextKnowledgeUpdate, readDailyKnowledge } from './daily'
 
-export function useDailyKnowledge(accountId: string) {
-  const [article, setArticle] = useState(() => PRODUCT_FEATURES.careJourney ? readDailyKnowledge(accountId, new Date(), getKnowledgeStorage()) : null)
+export function useDailyKnowledge(accountId: string, enabled = PRODUCT_FEATURES.careJourney) {
+  const [article, setArticle] = useState(() => enabled ? readDailyKnowledge(accountId, new Date(), getKnowledgeStorage()) : null)
   useEffect(() => {
-    if (!PRODUCT_FEATURES.careJourney) return
+    if (!enabled) { setArticle(null); return }
     let timer: number
     const refresh = () => {
       window.clearTimeout(timer)
@@ -24,6 +24,6 @@ export function useDailyKnowledge(accountId: string) {
       window.removeEventListener('focus', refresh)
       window.removeEventListener('pageshow', refresh)
     }
-  }, [accountId])
+  }, [accountId, enabled])
   return article
 }
