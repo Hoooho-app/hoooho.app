@@ -1,11 +1,11 @@
-import { CalendarDays, ClipboardList, FileText, Folder } from '../icons'
+import { CalendarDays, ClipboardList, SymptomIcon, Folder } from '../icons'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import { OrganizeSheet } from '../../features/organize/OrganizeSheet'
 import './primary-navigation.css'
 
 export const primaryDestinations = [
-  { label: '症状记录', to: '/nurse-station', icon: FileText },
+  { label: '症状记录', to: '/nurse-station', icon: SymptomIcon },
   { label: '健康日历', to: '/health-events', icon: CalendarDays },
   { label: '孩子档案', to: '/health-profile', icon: Folder },
 ] as const

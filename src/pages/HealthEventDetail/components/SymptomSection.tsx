@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Activity, CalendarDays, CircleDashed, Plus } from '../../../components/icons'
+import { SymptomIcon, CalendarDays, CircleDashed, Plus } from '../../../components/icons'
 import type { CreateHealthEventRecordInput, HealthEvent } from '../../../types'
 import { Button, Card } from '../../../components/common'
 import { HealthRecordEditorModal } from './HealthRecordEditorModal'
@@ -25,7 +25,7 @@ export function SymptomSection({ event, onAddRecord }: SymptomSectionProps) {
           <button className="hoho-health-card block w-full rounded-b-none border-primary/25 bg-gradient-to-r from-primary-soft to-success-soft text-left" data-interactive="true" onClick={() => setIsEditorOpen(true)} type="button">
             <span className="flex items-center gap-3">
               <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-primary text-surface shadow-card">
-                <Activity size={21} strokeWidth={1.8} />
+                <SymptomIcon size={21} strokeWidth={1.8} />
               </span>
               <span className="min-w-0 flex-1">
                 <h3 className="font-semibold text-primary">记录一个新情况</h3>
@@ -58,7 +58,7 @@ export function SymptomSection({ event, onAddRecord }: SymptomSectionProps) {
           <span className="block divide-y">
             {event.symptoms.map((symptom) => (
               <span className="flex gap-3 px-4 py-3" key={symptom}>
-                <Activity className="mt-0.5 shrink-0 text-primary" size={17} />
+                <SymptomIcon className="mt-0.5 shrink-0 text-primary" size={17} />
                 <span className="text-sm leading-6">{symptom}</span>
               </span>
             ))}

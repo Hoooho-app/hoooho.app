@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate,useSearchParams } from 'react-router-dom'
-import { Cross, ChevronDown } from '../../components/icons'
+import { SymptomIcon, ChevronDown } from '../../components/icons'
 import { BottomSheetSurface, HohoButton, HohoInput } from '../../components/design-system'
 import { useAppStore } from '../../store/useAppStore'
 import type { HealthEventRecordApiDto } from '../../types'
@@ -56,7 +56,7 @@ export function CaseFollowupCard({item, memberId, token, timezone, reload, onDir
   const view=item.followup, displayTitle=followupTitle(item)
   return <article className="continuity-card case-followup-card" data-case-id={id} aria-label={displayTitle}>
     <div className="case-followup-card-header">
-      <h2><Cross size={21} strokeWidth={1.8} aria-hidden/><span className="case-followup-title">{displayTitle}</span></h2>
+      <h2><SymptomIcon size={21} strokeWidth={1.8} aria-hidden/><span className="case-followup-title">{displayTitle}</span></h2>
       <div className="case-followup-management"><HohoButton aria-label={`编辑${displayTitle}`} variant="text" size="small" disabled={busy} onClick={()=>{setTitle(view.title);setManagementError('');setManagement('edit')}}>编辑</HohoButton></div>
     </div>
     {archived&&<p className="case-followup-time">{knownRecovery ? `${item.event.caseArchiveReason==='user_recovered'?'用户标记康复':'已记录康复'}：${dateText(item.event.caseRecoveryMarkedAt||item.event.recoveredAt,timezone)}` : <><span className="case-legacy-archive">历史归档</span>归档时间：{dateText(item.event.caseArchivedAt,timezone)}<span>未记录康复原因，不代表已确认康复</span></>}</p>}
