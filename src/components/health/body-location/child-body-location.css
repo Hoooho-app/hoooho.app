@@ -95,3 +95,14 @@
 .locator-drawer-actions > button { flex: 1; min-height: 44px; border: 1px solid rgb(var(--hoho-color-border)); border-radius: 12px; }
 .locator-drawer .child-body-search { flex-shrink: 0; margin: 4px 0 12px; }
 .locator-drawer button:focus-visible,.locator-callout:focus-visible { outline: 2px solid rgb(var(--hoho-color-primary)); outline-offset: -2px; }
+
+/* Approved direct-image locator: faint boundaries, controls within the picture. */
+.locator-image-controls { position:absolute; top:4px; left:50%; width:min(180px,calc(100% - 32px)); transform:translateX(-50%); z-index:1; }
+.locator-image-controls button { min-width:0; white-space:nowrap; }
+.locator-image-controls .child-body-segments { margin:0; background:rgb(var(--hoho-color-surface) / .94); }
+.locator-zone { stroke:rgb(var(--hoho-color-primary) / .045); stroke-width:.001; vector-effect:non-scaling-stroke; }
+.locator-zone[data-selected=true] { fill:rgb(var(--hoho-color-primary) / .16); stroke:rgb(var(--hoho-color-primary) / .5); stroke-width:1; }
+.locator-canvas .locator-zone:focus { outline:none; }
+.locator-zone:focus-visible { outline:none; stroke:rgb(var(--hoho-color-primary)); stroke-width:2; }
+.locator-zone:hover { fill:transparent; stroke:rgb(var(--hoho-color-primary) / .045); }
+.locator-zone[data-selected=true]:hover { fill:rgb(var(--hoho-color-primary) / .16); stroke:rgb(var(--hoho-color-primary) / .5); }

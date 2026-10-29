@@ -2,7 +2,7 @@ import { access, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 process.chdir(path.resolve(import.meta.dirname,'../..'))
-const marker=path.resolve('.codex-tmp/body-locator-shutdown')
+const marker=path.resolve(process.env.BODY_LOCATOR_SHUTDOWN_FILE ?? '.codex-tmp/body-locator-shutdown')
 await mkdir(path.dirname(marker),{recursive:true});await rm(marker,{force:true})
 setInterval(()=>void access(marker).then(()=>process.exit()).catch(()=>undefined),200)
 const dir=await mkdtemp(path.join(os.tmpdir(),'hoooho-body-locator-'))
