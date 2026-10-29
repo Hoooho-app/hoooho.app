@@ -13,12 +13,14 @@ export function careJourneyRoute(pathname) {
 }
 export async function careJourneyResult(service, accountId, route, method, input = {}, query = {}) {
   const a = route.action;
+  // Old clients cannot use retired daily tasks or start a new redemption.
+  if (['tasks/verify', 'task/verify', 'task-material', 'task-material/confirm'].includes(a)) throw new CareJourneyError('每日任务已停用', 410, 'DAILY_TASK_RETIRED');
+  if (a === 'redeem') throw new CareJourneyError('树芽兑换已停用', 410, 'EXCHANGE_RETIRED');
   if (method === 'GET' && !route.id) {
     if (a === 'overview') return service.get(accountId, query);
-    if (a === 'catalogue') return service.catalogue(accountId);
+    if (a === 'catalogue') return { items: [] };
     if (a === 'entitlements') return service.entitlements(accountId);
     if (a === 'theme') return service.getTheme(accountId);
-    if (a === 'task-material') return service.openMaterial(accountId, query);
     if (a === 'review-snapshots') return service.snapshots(accountId);
   }
   if (method === 'GET' && a === 'review-snapshots' && route.id) return service.snapshots(accountId, route.id);
@@ -27,10 +29,7 @@ export async function careJourneyResult(service, accountId, route, method, input
       ...input,
       timeZone: query.timeZone
     });
-    if (a === 'tasks/verify' || a === 'task/verify') return service.verifyTask(accountId, input);
-    if (a === 'redeem') return service.redeem(accountId, input);
     if (a === 'theme') return service.setTheme(accountId, input);
-    if (a === 'task-material/confirm') return service.confirmMaterial(accountId, input);
     if (a === 'review-snapshots') return service.createSnapshot(accountId, input);
   }
   throw new CareJourneyError('请求方法不支持', 405, 'METHOD_NOT_ALLOWED');
