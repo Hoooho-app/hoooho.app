@@ -29,7 +29,8 @@ test('unsent input switches without a prompt, appears in the sidebar and reopens
   await page.goBack();await expect(page.getByLabel('对话输入',{exact:true})).toHaveValue(text)
   await page.getByRole('button',{name:'打开菜单',exact:true}).click()
   const drawer=page.getByRole('dialog',{name:'侧边栏菜单'})
-  await drawer.locator('.drawer-history-group button').filter({hasText:text}).click()
+  // Sidebar labels are compact keywords; the opened draft must still retain the full original below.
+  await drawer.locator('.drawer-history-open').filter({hasText:'昨晚睡得不安稳'}).click()
   await expect(page).toHaveURL(/conversation-history\?draft=/)
   await expect(page.locator('.nurse-turn--user')).toContainText(text)
   await page.getByRole('button',{name:'继续此对话',exact:true}).click()

@@ -225,3 +225,9 @@ These rules apply to every task, regardless of whether it is executed directly i
 - Reuse the same checklist in any Codex handoff. Include the base commit, scope, acceptance checks and the mandatory delivery chain; do not summarize away requirements or invent extra ones.
 - Review the final diff against the scope, run the required build and relevant automated checks, and operate the changed flow in a real browser at mobile widths. Distinguish browser emulation from physical iPhone/Safari verification; report unverified checks explicitly.
 - Follow the delivery chain above. Report implementation, checks, deployment and product-owner acceptance separately. Identical process and observable acceptance criteria are required; do not promise identical code or guaranteed identical model output.
+
+## 首页今日呵护：产品主人确认 2026-10-30
+
+- 原每日小知识同尺寸区域替换为「今日呵护」，显示「已守护 X 天」和「领取小树苗」按钮；整卡进入既有 `/care-journey` 任务页，按钮独立领取每日1树芽，成功后为「今日已领取」。
+- 天数按账户累计已领取日期计算，漏签不清零；服务端回执为准，刷新/返回与任务页一致。定向开放任务路由树，其他隐藏模块/侧栏入口不随之恢复。
+- 保留欢迎横幅、左帮助卡及首条气泡后整体消失规则。本段覆盖此前首页每日文章入口的局部约定。契约见 `docs/delivery/home-today-care-20261030.md`。

@@ -20,6 +20,10 @@
 Use case: stylized-concept. Asset type: transparent 3D illustration for the Hoooho mobile homepage memory banner. Input image 1 (attached social screenshot): conceptual reference ONLY for the enormous densely layered stack of documents, NOT for its poster typography, UI, orange palette, people or claims. Input image 2 (nurse): style/material/color reference ONLY for warm polished rounded 3D, creamy white and soft mint. Create a single cohesive impressive archive: a HUGE thick cube-like stack of hundreds of thin cream paper record sheets, beautifully visible dense layered page edges, arranged into several closely packed softly rounded mint binders with staggered tabs, one subtly unfurled record sheet on top with fine embossed short line marks. The enormous density of documents must be the dominant visual; convey very long accumulated health records and rich details, not a handful of folders or a calendar. Low three-quarter isometric angle, compact broad silhouette roughly 1.2 wide : 1 high; full object visible, no crop, no detached floating objects. Premium friendly sculpted 3D, soft studio lighting, realistic delicate paper edge detail but simplified at thumbnail size, tiny soft grounding shadow. Cream papers, restrained muted mint tabs/bindings matching nurse style. Actual transparent background. No human, no text, no letters, no logo, no calendar, no magnifier, no arrows, no diagrams, no counters or cloud/security icon.
 ```
 
+## 并发主分支集成
+
+发布前主分支推进至 `07a5b46929109df2dffcdcfcbac062c221dd7959`，包含独立PR #585的今日呵护卡与任务入口。已合并并保留该更新；本次差异仍只为6个横幅相关文件，不回退右侧最新业务卡。合并后重新执行首页浏览器与构建，并以新远端精确头CI为准。
+
 ## 验证与发布
 
 本地 `npm run build` 与805项客户端检查通过；首页43个浏览器场景通过（7个重复尺寸场景跳过），2个完整中文预览（375×932、320×568）通过并实际查看截图；布局断言补充图文共同居中、边界完整与不碰撞，最终精确分支另跑对应CI。Production以提交SUCCESS及真实公开JS/CSS/图片核验为准。视觉效果待主人体验，自动检查不等于视觉验收。既有纸体字体子集的中文缺字依赖系统中文fallback；本地完整中文预览沿用仅测试的Noto字体覆盖，不提交字体或线上覆盖，不冒称已核验实体iPhone字形。
