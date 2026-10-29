@@ -14,14 +14,17 @@ test.beforeEach(async ({ page, request }) => {
     localStorage.setItem('hoooho-app', JSON.stringify({ state: { authUser: { id: 'visit-test' }, currentMemberId: memberId, members: [], profile: null }, version: 5 }))
   }, { token, memberId })
   await page.goto('/nurse-station')
-  await expect(page.getByRole('button', { name: '查看第2张：长期记录' })).toBeVisible()
+  await expect(page.locator(hero)).toBeVisible()
+  await page.waitForLoadState('networkidle')
+  await expect(page.locator('.front-desk-banner__controls, .front-desk-banner__dot, .front-desk-banner__pause')).toHaveCount(0)
 })
 
 test('both banners fill the same space with clear copy, intact art and a single-line guide', async ({ page }, info) => {
   const initial = await page.locator(hero).boundingBox()
   for (let index = 0; index < 2; index++) {
     if (index) {
-      await page.getByRole('button', { name: '查看第2张：长期记录' }).click()
+      await page.mouse.move(0, 0)
+      await page.clock.runFor(9200)
       await expect(page.locator(hero)).toHaveAttribute('data-slide', '1')
       await expect(page.locator(hero)).toHaveAttribute('data-phase', 'idle')
     }
@@ -29,15 +32,18 @@ test('both banners fill the same space with clear copy, intact art and a single-
     const geometry = await page.locator(hero).evaluate(el => {
       const rect = (selector: string) => el.querySelector(selector)!.getBoundingClientRect()
       const body = el.closest('.smart-record-page__body')!, bounds = body.getBoundingClientRect(), cards = body.querySelector('.front-desk-welcome__entries')!.getBoundingClientRect()
-      const paragraph = rect('.front-desk-welcome__copy p'), controls = rect('.front-desk-banner__controls'), art = rect('.front-desk-welcome__media')
+      const paragraph = rect('.front-desk-welcome__copy p'), art = rect('.front-desk-welcome__media'), title = rect('.front-desk-welcome__copy h2')
       const guide = body.querySelector('.front-desk-welcome__guide strong')!, style = getComputedStyle(guide)
-      return { paragraphRight: paragraph.right, artLeft: art.left, paragraphBottom: paragraph.bottom, controlsTop: controls.top, heroTop: el.getBoundingClientRect().top, heroHeight: el.getBoundingClientRect().height,
+      return { paragraphRight: paragraph.right, paragraphLeft: paragraph.left, artLeft: art.left, artRight: art.right, paragraphTop: paragraph.top, titleBottom: title.bottom, heroTop: el.getBoundingClientRect().top, heroHeight: el.getBoundingClientRect().height,
         cardBottom: cards.bottom, bodyBottom: bounds.bottom, gap: bounds.bottom - parseFloat(getComputedStyle(body).paddingBottom) - cards.bottom, scroll: body.scrollHeight > body.clientHeight,
         guideHeight: guide.getBoundingClientRect().height, guideLine: parseFloat(style.lineHeight), guideOverflow: guide.scrollWidth > guide.clientWidth,
         copyShift: getComputedStyle(el.querySelector('.front-desk-welcome__copy')!).transform }
     })
-    expect(geometry.paragraphRight).toBeLessThanOrEqual(geometry.artLeft)
-    expect(geometry.paragraphBottom).toBeLessThanOrEqual(geometry.controlsTop)
+    if (index === 0) expect(geometry.paragraphRight).toBeLessThanOrEqual(geometry.artLeft)
+    else {
+      expect(geometry.paragraphLeft).toBeGreaterThanOrEqual(geometry.artRight)
+      expect(geometry.titleBottom).toBeLessThanOrEqual(geometry.paragraphTop)
+    }
     expect(geometry.cardBottom).toBeLessThanOrEqual(geometry.bodyBottom)
     expect(geometry.gap).toBeGreaterThanOrEqual(0)
     expect(geometry.gap).toBeLessThanOrEqual(12)
@@ -50,10 +56,10 @@ test('both banners fill the same space with clear copy, intact art and a single-
   }
 })
 
-test('eight-second dwell dissolves in place and can pause, resume or be interrupted by input', async ({ page }, info) => {
+test('eight-second dwell dissolves without controls and focus or input pauses rotation', async ({ page }, info) => {
   await page.clock.pauseAt(new Date(Date.now() + 1000))
-  await page.getByRole('button', { name: '暂停自动切换介绍' }).click()
-  await page.getByRole('button', { name: '继续自动切换介绍' }).click()
+  await page.locator(hero).focus()
+  await page.getByRole('button', { name: '打开菜单', exact: true }).focus()
   await page.mouse.move(0, 0)
   const before = await page.locator(hero).boundingBox()
   await page.clock.runFor(7990)
@@ -77,11 +83,11 @@ test('eight-second dwell dissolves in place and can pause, resume or be interrup
   await page.clock.runFor(310)
   await expect(page.locator(hero)).toHaveAttribute('data-phase', 'idle')
   expect(await page.locator(hero).boundingBox()).toEqual(before)
-  await page.getByRole('button', { name: '暂停自动切换介绍' }).click()
+  await page.locator(hero).focus()
   await page.mouse.move(0, 0)
   await page.clock.runFor(20000)
   await expect(page.locator(hero)).toHaveAttribute('data-slide', '1')
-  await page.getByRole('button', { name: '继续自动切换介绍' }).click()
+  await page.getByRole('button', { name: '打开菜单', exact: true }).focus()
   await page.mouse.move(0, 0)
   await page.clock.runFor(9200)
   await expect(page.locator(hero)).toHaveAttribute('data-slide', '0')
@@ -92,14 +98,14 @@ test('eight-second dwell dissolves in place and can pause, resume or be interrup
   await expect(page.getByLabel('对话输入', { exact: true })).toHaveValue('还没发送')
 })
 
-test('reduced motion keeps the banner still and allows immediate manual selection', async ({ page }) => {
+test('reduced motion keeps a static welcome without hidden or visible controls', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' })
-  await expect(page.getByRole('button', { name: '暂停自动切换介绍' })).toHaveCount(0)
+  await page.reload()
+  await expect(page.locator(hero)).toBeVisible()
   await page.clock.runFor(20000)
   await expect(page.locator(hero)).toHaveAttribute('data-slide', '0')
-  await page.getByRole('button', { name: '查看第2张：长期记录' }).click()
-  await expect(page.locator(hero)).toHaveAttribute('data-slide', '1')
   await expect(page.locator(hero)).toHaveAttribute('data-phase', 'idle')
+  await expect(page.locator(hero).getByRole('button')).toHaveCount(0)
   await expect(page.locator('.front-desk-banner__mosaic')).toHaveCount(0)
 })
 
@@ -113,7 +119,8 @@ test('a failed archive image leaves the original introduction usable', async ({ 
 })
 
 test('a first message during dissolution unmounts the whole banner and its timer', async ({ page }) => {
-  await page.getByRole('button', { name: '查看第2张：长期记录' }).click()
+  await page.mouse.move(0, 0)
+  await page.clock.runFor(8000)
   await expect(page.locator(hero)).toHaveAttribute('data-phase', 'out')
   await page.getByRole('button', { name: '改用文字', exact: true }).click()
   await page.getByLabel('对话输入', { exact: true }).fill('今天下午发烧')
@@ -126,7 +133,7 @@ test('a first message during dissolution unmounts the whole banner and its timer
 })
 
 // Visibility is simulated explicitly; physical app/background handling is not claimed.
-test('simulated background visibility cancels pending rotation and rapid point selection keeps the last choice', async ({ page }) => {
+test('simulated background visibility stops rotation and foreground starts a fresh dwell', async ({ page }) => {
   await page.evaluate(() => {
     Object.defineProperty(document, 'hidden', { configurable: true, value: true })
     document.dispatchEvent(new Event('visibilitychange'))
@@ -137,11 +144,11 @@ test('simulated background visibility cancels pending rotation and rapid point s
     Object.defineProperty(document, 'hidden', { configurable: true, value: false })
     document.dispatchEvent(new Event('visibilitychange'))
   })
-  await page.getByRole('button', { name: '查看第2张：长期记录' }).click()
-  await expect(page.locator(hero)).toHaveAttribute('data-phase', 'out')
-  await page.getByRole('button', { name: '查看第1张：今天怎么样' }).click()
-  await page.clock.runFor(1200)
+  await page.mouse.move(0, 0)
+  await page.clock.runFor(7990)
   await expect(page.locator(hero)).toHaveAttribute('data-slide', '0')
+  await page.clock.runFor(1150)
+  await expect(page.locator(hero)).toHaveAttribute('data-slide', '1')
   await expect(page.locator(hero)).toHaveAttribute('data-phase', 'idle')
 })
 

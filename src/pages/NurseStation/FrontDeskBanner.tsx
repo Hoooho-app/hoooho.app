@@ -10,10 +10,8 @@ type Phase = 'idle' | 'out' | 'in'
 
 export function FrontDeskBanner() {
   const [current, setCurrent] = useState(0)
-  const [target, setTarget] = useState(0)
   const [phase, setPhase] = useState<Phase>('idle')
   const [ready, setReady] = useState(false)
-  const [paused, setPaused] = useState(false)
   const [hovered, setHovered] = useState(false)
   const [focused, setFocused] = useState(false)
   const [hidden, setHidden] = useState(document.hidden)
@@ -88,40 +86,28 @@ export function FrontDeskBanner() {
       return
     }
     if (phase === 'out') {
-      const timer = window.setTimeout(() => { setCurrent(target); setPhase('in') }, MOSAIC_MS)
+      const timer = window.setTimeout(() => { setCurrent(value => 1 - value); setPhase('in') }, MOSAIC_MS)
       return () => window.clearTimeout(timer)
     }
     if (phase === 'in') {
       const timer = window.setTimeout(() => setPhase('idle'), MOSAIC_MS)
       return () => window.clearTimeout(timer)
     }
-    if (paused || hovered || focused) return
-    const timer = window.setTimeout(() => { setTarget(1 - current); setPhase('out') }, HOLD_MS)
+    if (hovered || focused) return
+    const timer = window.setTimeout(() => { setPhase('out') }, HOLD_MS)
     return () => window.clearTimeout(timer)
-  }, [current, target, phase, ready, paused, hovered, focused, hidden, reduced, composerBusy])
+  }, [current, phase, ready, hovered, focused, hidden, reduced, composerBusy])
 
-  const select = (next: number) => {
-    if (!ready) return
-    if (next === current) { setTarget(current); setPhase('idle'); return }
-    setTarget(next)
-    if (reduced || composerBusy || hidden) { setCurrent(next); setPhase('idle') }
-    else setPhase('out')
-  }
-  return <div className="front-desk-welcome__hero" role="region" aria-roledescription="轮播" aria-label="护护记录介绍" aria-live="off" data-slide={current} data-phase={phase}
+  return <div className="front-desk-welcome__hero" role="region" aria-roledescription="轮播" aria-label="护护记录介绍，聚焦时暂停自动切换" tabIndex={0} aria-live="off" data-slide={current} data-phase={phase}
     onPointerEnter={event => { if (event.pointerType === 'mouse') setHovered(true) }} onPointerLeave={() => setHovered(false)}
     onFocusCapture={() => setFocused(true)} onBlurCapture={event => { if (!(event.relatedTarget instanceof Node) || !event.currentTarget.contains(event.relatedTarget)) setFocused(false) }}>
     <div className="front-desk-welcome__copy">
-      {current === 0 ? <><h2>今天怎么样？</h2><p>{frontDeskGreeting().split('。').filter(Boolean).map(sentence => <span key={sentence}>{sentence}。</span>)}</p></> : <><h2 className="front-desk-banner__trust-title">记过的，<br/>以后能回看。</h2><p><span>存好的记录，</span><span>随时去健康日历回看。</span></p></>}
+      {current === 0 ? <><h2>今天怎么样？</h2><p>{frontDeskGreeting().split('。').filter(Boolean).map(sentence => <span key={sentence}>{sentence}。</span>)}</p></> : <><h2 className="front-desk-banner__memory-title">记忆很长，慢慢记。</h2><p><span>记了很久，</span><span>也只是记忆库的一小段。</span><span>存好的记录，随时回看。</span></p></>}
     </div>
     <div className={`front-desk-welcome__media${current === 1 ? ' front-desk-banner__archive' : ''}`}>
       <img className="front-desk-welcome__portrait" src={current === 0 ? nursePortrait : recordArchive} alt={current === 0 ? '戴眼镜与口罩的黑发护士，一手拿病历夹、一手拿笔' : '按时间留存的记录页、档案夹与日历'} width={480} height={current === 0 ? 786 : 559} decoding="async" fetchPriority="high"
         onError={() => { if (current === 1) { setReady(false); setCurrent(0); setPhase('idle') } }}/>
     </div>
     {phase !== 'idle' && <div className="front-desk-banner__mosaic" aria-hidden="true">{Array.from({ length: 80 }, (_, i) => <span key={i} style={{ '--tile-delay': `${((i * 37) % 80) * 4}ms` } as CSSProperties}/>)}</div>}
-    {ready && <div className="front-desk-banner__controls" role="group" aria-label="切换首页介绍">
-      <button type="button" className="front-desk-banner__dot" aria-label="查看第1张：今天怎么样" aria-pressed={current === 0} onClick={() => select(0)}><span/></button>
-      <button type="button" className="front-desk-banner__dot" aria-label="查看第2张：长期记录" aria-pressed={current === 1} onClick={() => select(1)}><span/></button>
-      {!reduced && <button type="button" className="front-desk-banner__pause" aria-label={paused ? '继续自动切换介绍' : '暂停自动切换介绍'} onClick={() => { setPaused(!paused); if (paused) setFocused(false) }}>{paused ? '继续' : '暂停'}</button>}
-    </div>}
   </div>
 }
