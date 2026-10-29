@@ -1888,6 +1888,18 @@
       "fill": 1,
       "file": "zoom_in-fill.svg",
       "sha256": "4d6f51017c7bad79745677ec68b1118432d5c32adb1a982ee4ba02653d566a81"
+    },
+    {
+      "name": "add_comment",
+      "fill": 0,
+      "file": "add_comment.svg",
+      "sha256": "c6815e192518bc0823a82e646d9db75790dccaa26103d7f0e9d74b89bc1836a7"
+    },
+    {
+      "name": "add_comment",
+      "fill": 1,
+      "file": "add_comment-fill.svg",
+      "sha256": "c9bfd4e7f90271c0530e51b6e90f7b0421bd5010bb0860330412758bdbe166bf"
     }
   ]
 }

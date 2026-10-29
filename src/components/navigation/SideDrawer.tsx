@@ -1,4 +1,4 @@
-import { ChevronRight, FileText, Info, MessageCircle, Pencil, Plus, UserRound } from '../icons'
+import { ChevronRight, FileText, Info, MessageCircle, MessageCirclePlus, Pencil, Plus, UserRound } from '../icons'
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Avatar } from '../common'
@@ -10,8 +10,7 @@ import { getCurrentPath } from './navigationState'
 import { makeFeedbackState } from '../../features/feedback/navigation'
 import { AccountSheet } from '../account/AccountSheet'
 import { accountService } from '../../services/account'
-import { apiRequest } from '../../services/apiClient'
-import { conversationCaptureDrafts } from '../../features/ai-business/captureDraft'
+import { useDrawerHistory } from './useDrawerHistory'
 import { compactIdentityAge, maskIdentityName, recordSubjectRelationship } from '../../utils/privateIdentity'
 import './side-drawer-layout.css'
 
@@ -24,8 +23,6 @@ interface SideDrawerProps {
   onNewConversation?: () => void
   conversationDisabled?: boolean
 }
-interface HistoryRow { id: string; title: string; updatedAt: string; destination: string }
-interface ServerHistory { items: { id: string; title: string; updatedAt: string }[]; hasMore: boolean }
 const utilityLinks = [
   { label: '反馈', icon: MessageCircle, to: '/feedback' },
   { label: '关于', icon: Info, to: '/about' }
@@ -38,18 +35,24 @@ function historyGroup(at: string) {
 }
 export function SideDrawer({ onClose, onOpenChildSheet, open, cleanChrome = true, onHistoryNavigate, onNewConversation, conversationDisabled = false }: SideDrawerProps) {
   const drawerRef = useRef<HTMLElement>(null), navigate = useNavigate(), location = useLocation()
+  const historyScrollRef = useRef<HTMLElement>(null), historyEndRef = useRef<HTMLDivElement>(null)
   const member = useCurrentMember()
   const members = useAppStore(state => state.members), authToken = useAppStore(state => state.authToken)
   const authUser = useAppStore(state => state.authUser), accountProfile = useAppStore(state => state.accountProfile)
   const setAccountProfile = useAppStore(state => state.setAccountProfile)
-  const accountId = authUser?.id ?? 'guest', identity = accountId + ':' + member.id
-  const [accountOpen, setAccountOpen] = useState(false), [reload, setReload] = useState(0)
-  const [history, setHistory] = useState<{ identity: string; rows: HistoryRow[]; loading: boolean; error: boolean }>({ identity: '', rows: [], loading: false, error: false })
-  const ownHistory = history.identity === identity ? history : { identity, rows: [], loading: true, error: false }
+  const accountId = authUser?.id ?? 'guest'
+  const [accountOpen, setAccountOpen] = useState(false)
+  const ownHistory = useDrawerHistory({ open, accountId, memberId: member.id, memberName: member.name, token: authToken, hasMembers: members.length > 0 })
   const userName = authUser?.guest ? '创建正式账户' : maskIdentityName(accountProfile?.nickname || authUser?.nickname) || '我的账户'
   const childName = maskIdentityName(member.name) || '记录对象'
   usePageScrollLock(open)
   useDialogFocus(open, drawerRef)
+  useEffect(() => {
+    if (!open || !ownHistory.hasMore || ownHistory.loadingMore || ownHistory.moreError || !historyEndRef.current || typeof IntersectionObserver === 'undefined') return
+    const observer = new IntersectionObserver(entries => { if (entries.some(entry => entry.isIntersecting)) void ownHistory.loadMore() }, { root: historyScrollRef.current, rootMargin: '160px' })
+    observer.observe(historyEndRef.current)
+    return () => observer.disconnect()
+  }, [open, ownHistory.hasMore, ownHistory.loadingMore, ownHistory.moreError, ownHistory.loadMore, ownHistory.rows.length])
   useEffect(() => {
     if (!open) return
     const close = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose() }
@@ -62,35 +65,6 @@ export function SideDrawer({ onClose, onOpenChildSheet, open, cleanChrome = true
       if (useAppStore.getState().authUser?.id === accountId) setAccountProfile(profile)
     }).catch(() => undefined)
   }, [accountId, accountProfile, authToken, authUser?.guest, open, setAccountProfile])
-  useEffect(() => {
-    if (!open) return
-    if (!members.length || !authToken) { setHistory({ identity, rows: [], loading: false, error: false }); return }
-    let active = true
-    const controller = new AbortController()
-    setHistory({ identity, rows: [], loading: true, error: false })
-    const key = 'home-smart:' + accountId + ':' + member.id + ':new'
-    void Promise.allSettled([
-      apiRequest<ServerHistory>('/api/members/' + encodeURIComponent(member.id) + '/front-desk-record/history', { token: authToken, signal: controller.signal }),
-      conversationCaptureDrafts(key)
-    ]).then(([server, retained]) => {
-      if (!active || controller.signal.aborted) return
-      const saved = server.status === 'fulfilled' ? server.value.items : []
-      const rows: HistoryRow[] = saved.map(item => ({ ...item, destination: '/conversation-history/' + encodeURIComponent(item.id) }))
-      if (retained.status === 'fulfilled') for (const item of retained.value) {
-        const draft = item.draft
-        if (draft.frontContextId && saved.some(row => row.id === draft.frontContextId) && !draft.conversationInput?.trim() && !draft.pendingVoice) continue
-        const title = draft.conversationInput || draft.text || draft.conversationTurns?.find(turn => turn.role !== 'assistant' && turn.text)?.text || (draft.pendingVoice ? '语音记录' : draft.files.length ? '照片与资料草稿' : '')
-        if (title) {
-          const duplicate = item.key===key ? rows.findIndex(row=>row.id===draft.frontContextId) : -1
-          if(duplicate>=0)rows.splice(duplicate,1)
-          rows.push({ id: item.key, title: title.replace(/\s+/g, ' ').slice(0, 80), updatedAt: new Date(draft.updatedAt ?? 0).toISOString(), destination: '/conversation-history?draft=' + encodeURIComponent(item.key) })
-        }
-      }
-      rows.sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt))
-      setHistory({ identity, rows, loading: false, error: server.status === 'rejected' })
-    })
-    return () => { active = false; controller.abort() }
-  }, [accountId, authToken, identity, member.id, members.length, open, reload])
   const openHistory = (destination: string) => {
     onClose()
     if (onHistoryNavigate) onHistoryNavigate(destination)
@@ -123,16 +97,18 @@ export function SideDrawer({ onClose, onOpenChildSheet, open, cleanChrome = true
             <ChevronRight className="drawer-identity-action" size={17} aria-hidden="true" />
           </button>
         </section>
-        <nav className="drawer-conversations" aria-label="对话记录">
-          <div className="drawer-conversations__heading"><h2>对话记录</h2><button type="button" disabled={conversationDisabled} onClick={startConversation} aria-label="新建对话"><Pencil size={17} aria-hidden="true" /><span>新建对话</span></button></div>
+        <nav ref={historyScrollRef} className="drawer-conversations" aria-label="对话记录" onScroll={event => { const node = event.currentTarget; if (node.scrollHeight - node.scrollTop - node.clientHeight < 160 && !ownHistory.moreError) void ownHistory.loadMore() }}>
+          <div className="drawer-conversations__heading"><h2>对话记录</h2><button type="button" disabled={conversationDisabled} onClick={startConversation} aria-label="新建对话"><MessageCirclePlus size={20} aria-hidden="true" /><span>新建对话</span></button></div>
           {ownHistory.loading && <p role="status" className="drawer-history-notice">正在读取对话…</p>}
-          {ownHistory.error && <div className="drawer-history-notice" role="status"><span>部分对话暂未加载。</span><button type="button" onClick={() => setReload(value => value + 1)}>重试</button></div>}
-          {!ownHistory.loading && !ownHistory.error && !ownHistory.rows.length && <p className="drawer-history-notice">还没有对话记录</p>}
+          {(ownHistory.error || ownHistory.localError) && <div className="drawer-history-notice" role="status"><span>部分对话暂未加载。</span><button type="button" onClick={ownHistory.retry}>重试</button></div>}
+          {!ownHistory.loading && !ownHistory.error && !ownHistory.localError && !ownHistory.rows.length && <p className="drawer-history-notice">还没有对话记录</p>}
           {(['今天', '昨天', '更早'] as const).map(group => {
             const rows = ownHistory.rows.filter(row => historyGroup(row.updatedAt) === group)
             return rows.length ? <section className="drawer-history-group" key={group} aria-label={group}><h3>{group}</h3>{rows.map(row => <button type="button" key={row.id} onClick={() => openHistory(row.destination)}><FileText size={18} aria-hidden="true" /><span>{row.title}</span><ChevronRight size={16} aria-hidden="true" /></button>)}</section> : null
           })}
-          {!ownHistory.loading && (ownHistory.rows.length > 0 || ownHistory.error) && <button type="button" className="drawer-history-all" onClick={() => openHistory('/conversation-history')}>查看全部对话<ChevronRight size={16} aria-hidden="true" /></button>}
+          {ownHistory.loadingMore && <p className="drawer-history-notice" role="status">正在读取更多对话…</p>}
+          {ownHistory.moreError && <div className="drawer-history-notice" role="status"><span>更早对话暂未加载，已显示的对话仍保留。</span><button type="button" onClick={() => void ownHistory.loadMore()}>重试</button></div>}
+          {ownHistory.hasMore && <div ref={historyEndRef} aria-hidden="true" className="drawer-history-end" />}
         </nav>
         <footer className="drawer-utilities" aria-label="反馈与关于">{utilityLinks.map(({ label, icon: Icon, to }) => <button key={to} type="button" onClick={() => openUtility(to)}><Icon size={22} strokeWidth={1.7} aria-hidden="true" /><span>{label}</span></button>)}</footer>
       </aside>

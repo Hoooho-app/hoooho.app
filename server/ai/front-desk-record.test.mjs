@@ -236,3 +236,27 @@ test('PDF pages reach vision as rendered images while the complete original rema
  assert.equal(result.context.messages[0].files[0].dataUrl,dataUrl)
  assert.equal(result.context.messages[0].files[0].mimeType,'application/pdf')
 })
+
+test('history projects the latest valid record keywords without rewriting originals or using a stale edit',async t=>{
+ const f=await setup(t),at='2026-10-29T10:00:00.000Z',scope={accountId:'synthetic',memberId:f.member.id}
+ const messages=[{...scope,id:'hello',contextId:'root',kind:'text',text:'你好',status:'completed',at,inputAt:Date.parse(at)},{...scope,id:'observation',contextId:'next',kind:'text',text:'脸上有个小痘痘，不确定是包包还什么',status:'completed',at,inputAt:Date.parse(at)+1}]
+ await f.service.store.update(data=>({...data,contexts:[{...scope,id:'root',conversationId:'root',version:1,updatedAt:at},{...scope,id:'next',conversationId:'root',continuedFromId:'root',version:3,evidenceVersion:2,updatedAt:at,cardEdit:{evidenceVersion:2,text:'【情况概述】\n脸上小痘痘，性质不确定\n\n【关键词】\n脸上、小痘痘'}}],messages}))
+ const before=JSON.stringify(await f.service.store.read()),history=await f.service.history('synthetic',f.member.id)
+ assert.equal(history.items.length,1);assert.equal(history.items[0].id,'root');assert.deepEqual(history.items[0].contextIds,['root','next'])
+ assert.match(history.items[0].title,/脸上.*小痘痘.*待确认/);assert.doesNotMatch(history.items[0].title,/你好/);assert.equal(JSON.stringify(await f.service.store.read()),before)
+ assert.equal((await f.service.history('synthetic',f.member.id,{query:'待确认'})).items[0].id,'root')
+ await f.service.store.update(data=>({...data,contexts:data.contexts.map(c=>c.id==='next'?{...c,evidenceVersion:3,cardEdit:{evidenceVersion:2,text:'旧的发热'}}:c)}))
+ assert.doesNotMatch((await f.service.history('synthetic',f.member.id)).items[0].title,/发热/)
+})
+
+test('history does not resurrect retracted observations and keeps all 61 conversations reachable by pagination',async t=>{
+ const f=await setup(t),scope={accountId:'synthetic',memberId:f.member.id},at='2026-10-29T10:00:00.000Z'
+ const contexts=Array.from({length:61},(_,n)=>({...scope,id:'history-'+String(n).padStart(2,'0'),updatedAt:at,version:1}))
+ const messages=contexts.map(c=>({...scope,id:'message-'+c.id,contextId:c.id,kind:'text',text:'脸上小痘痘',status:'completed',at,inputAt:Date.parse(at)}))
+ contexts[0].facts=[{id:'gone',text:'咳嗽',status:'retracted'}]
+ await f.service.store.update(data=>({...data,contexts,messages}))
+ const a=await f.service.history('synthetic',f.member.id),b=await f.service.history('synthetic',f.member.id,{offset:a.nextOffset}),c=await f.service.history('synthetic',f.member.id,{offset:b.nextOffset})
+ assert.deepEqual([a.items.length,b.items.length,c.items.length],[30,30,1]);assert.equal(c.hasMore,false)
+ assert.equal(new Set([...a.items,...b.items,...c.items].map(row=>row.id)).size,61)
+ assert.equal(c.items[0].title,'内容已撤回');assert.deepEqual(c.items[0].keywords,[])
+})
