@@ -51,7 +51,7 @@ test('approved composition uses a static nurse, left 3D guide and right daily ca
   await expect(card.locator('strong')).toHaveText(before)
 })
 
-test('home guide opens help and returns without posting; unsent text and refresh retain the introduction with current input controls', async ({ page }, info) => {
+test('home guide opens help and returns without posting; unsent text and refresh retain the introduction with media entry retired', async ({ page }, info) => {
   const guide = page.getByRole('button', { name: '怎么用护护：边照顾，边记录', exact: true })
   await guide.click()
   await expect(page).toHaveURL(/\/help$/)
@@ -77,6 +77,7 @@ test('home guide opens help and returns without posting; unsent text and refresh
   await expect(input).toHaveValue('这段还没发送')
   await expect(page.locator(intro)).toBeVisible()
   await expect(page.getByRole('button', { name: '添加照片、视频或文件', exact: true })).toHaveCount(0)
+  await expect(page.locator('.smart-record-page__footer input[type="file"]')).toHaveCount(0)
   await expect(page.locator(intro)).toBeVisible()
   await expect(input).toHaveValue('这段还没发送')
 })
