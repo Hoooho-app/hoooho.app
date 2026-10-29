@@ -2,15 +2,15 @@ import { useEffect, useState, type CSSProperties } from 'react'
 import { frontDeskGreeting } from './frontDeskGreeting'
 import nursePortrait from '../../assets/nurse-triage/front-desk-nurse-glasses-20261030.webp'
 import recordArchive from '../../assets/nurse-triage/record-archive-dense-20261030.webp'
-import visitSummary from '../../assets/nurse-triage/visit-summary-banner-20261030.webp'
+import visitSummary from '../../assets/nurse-triage/visit-summary-banner-dossier-20261030.webp'
 
-const HOLD_MS = 8000
+const HOLD_MS = 10000
 const MOSAIC_MS = 560
 const motionQuery = '(prefers-reduced-motion: reduce)'
 type Phase = 'idle' | 'out' | 'in'
 const slides = [
   { kind: 'welcome', src: nursePortrait, width: 480, height: 786, alt: '戴眼镜与口罩的黑发护士，一手拿病历夹、一手拿笔' },
-  { kind: 'visit', src: visitSummary, width: 480, height: 528, alt: '零散笔记汇成一张条理清楚的就诊情况单' },
+  { kind: 'visit', src: visitSummary, width: 720, height: 541, alt: '完整档案汇集成分章节的就诊情况单，夹子无文字标识' },
   { kind: 'memory', src: recordArchive, width: 600, height: 512, alt: '密集层叠的记录文件与厚厚的记忆档案库' },
 ] as const
 
@@ -114,7 +114,7 @@ export function FrontDeskBanner() {
     onPointerEnter={event => { if (event.pointerType === 'mouse') setHovered(true) }} onPointerLeave={() => setHovered(false)}
     onFocusCapture={() => setFocused(true)} onBlurCapture={event => { if (!(event.relatedTarget instanceof Node) || !event.currentTarget.contains(event.relatedTarget)) setFocused(false) }}>
     <div className="front-desk-welcome__copy">
-      {current === 0 ? <><h2>今天怎么样？</h2><p>{frontDeskGreeting().split('。').filter(Boolean).map(sentence => <span key={sentence}>{sentence}。</span>)}</p></> : current === 1 ? <><span className="front-desk-banner__eyebrow">就诊情况单</span><h2 className="front-desk-banner__visit-title"><span>一键成单，</span><span>一次说清。</span></h2><p><span>问医生、问 AI，</span><span>不用从头讲。</span></p></> : <><h2 className="front-desk-banner__memory-title"><span>记忆很长，</span><span>不会忘。</span></h2><p>记录再多，细节也能回头找到。</p></>}
+      {current === 0 ? <><h2>今天怎么样？</h2><p>{frontDeskGreeting().split('。').filter(Boolean).map(sentence => <span key={sentence}>{sentence}。</span>)}</p></> : current === 1 ? <><span className="front-desk-banner__eyebrow">就诊情况单</span><h2 className="front-desk-banner__visit-title"><span>一键整理，</span><span>一次说清。</span></h2><p><span className="front-desk-banner__visit-full">把零散记录，整理成完整资料。</span><span className="front-desk-banner__visit-audience">问医生、问 AI，</span><span className="front-desk-banner__visit-context">带上来龙去脉。</span></p></> : <><h2 className="front-desk-banner__memory-title"><span>记忆很长，</span><span>不会忘。</span></h2><p>记录再多，细节也能回头找到。</p></>}
     </div>
     <div className={`front-desk-welcome__media${slide.kind === 'memory' ? ' front-desk-banner__archive' : slide.kind === 'visit' ? ' front-desk-banner__report' : ''}`}>
       <img className="front-desk-welcome__portrait" src={slide.src} alt={slide.alt} width={slide.width} height={slide.height} decoding="async" fetchPriority="high"

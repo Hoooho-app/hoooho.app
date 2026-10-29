@@ -24,7 +24,7 @@ test('all three banners fill the same space with clear copy, intact art and a si
   for (let index = 0; index < 3; index++) {
     if (index) {
       await page.mouse.move(0, 0)
-      await page.clock.runFor(9200)
+      await page.clock.runFor(11200)
       await expect(page.locator(hero)).toHaveAttribute('data-slide', String(index))
       await expect(page.locator(hero)).toHaveAttribute('data-phase', 'idle')
     }
@@ -35,21 +35,23 @@ test('all three banners fill the same space with clear copy, intact art and a si
       const copy = rect('.front-desk-welcome__copy')
       const paragraph = rect('.front-desk-welcome__copy p'), art = rect('.front-desk-welcome__media'), title = rect('.front-desk-welcome__copy h2')
       const guide = body.querySelector('.front-desk-welcome__guide strong')!, style = getComputedStyle(guide)
-      return { copyTop: copy.top, copyBottom: copy.bottom, titleRight: title.right, artTop: art.top, artBottom: art.bottom, heroBottom: el.getBoundingClientRect().bottom, centerDistance: Math.abs((copy.top + copy.bottom - art.top - art.bottom) / 2), paragraphRight: paragraph.right, paragraphLeft: paragraph.left, artLeft: art.left, artRight: art.right, paragraphTop: paragraph.top, titleBottom: title.bottom, heroTop: el.getBoundingClientRect().top, heroHeight: el.getBoundingClientRect().height,
+      return { stacked: getComputedStyle(el).gridTemplateColumns.split(' ').length === 1, copyTop: copy.top, copyBottom: copy.bottom, titleRight: title.right, artTop: art.top, artBottom: art.bottom, heroBottom: el.getBoundingClientRect().bottom, centerDistance: Math.abs((copy.top + copy.bottom - art.top - art.bottom) / 2), paragraphRight: paragraph.right, paragraphLeft: paragraph.left, artLeft: art.left, artRight: art.right, paragraphTop: paragraph.top, titleBottom: title.bottom, heroTop: el.getBoundingClientRect().top, heroHeight: el.getBoundingClientRect().height,
         cardBottom: cards.bottom, bodyBottom: bounds.bottom, gap: bounds.bottom - parseFloat(getComputedStyle(body).paddingBottom) - cards.bottom, scroll: body.scrollHeight > body.clientHeight,
         guideHeight: guide.getBoundingClientRect().height, guideLine: parseFloat(style.lineHeight), guideOverflow: guide.scrollWidth > guide.clientWidth,
         copyShift: getComputedStyle(el.querySelector('.front-desk-welcome__copy')!).transform }
     })
     if (index === 0) expect(geometry.paragraphRight).toBeLessThanOrEqual(geometry.artLeft)
     else {
-      if (index === 1) {
+      if (index === 1 && geometry.stacked) {
+        expect(geometry.copyBottom).toBeLessThanOrEqual(geometry.artTop)
+      } else if (index === 1) {
         expect(geometry.paragraphLeft).toBeGreaterThanOrEqual(geometry.artRight)
       } else {
         expect(geometry.paragraphRight).toBeLessThanOrEqual(geometry.artLeft)
         expect(geometry.titleRight).toBeLessThanOrEqual(geometry.artLeft)
       }
       expect(geometry.titleBottom).toBeLessThanOrEqual(geometry.paragraphTop)
-      expect(geometry.centerDistance).toBeLessThanOrEqual(1)
+      if (index !== 1 || !geometry.stacked) expect(geometry.centerDistance).toBeLessThanOrEqual(1)
       expect(geometry.copyTop).toBeGreaterThanOrEqual(geometry.heroTop)
       expect(geometry.copyBottom).toBeLessThanOrEqual(geometry.heroBottom)
       expect(geometry.artTop).toBeGreaterThanOrEqual(geometry.heroTop)
@@ -67,13 +69,13 @@ test('all three banners fill the same space with clear copy, intact art and a si
   }
 })
 
-test('eight-second dwell dissolves without controls and focus or input pauses rotation', async ({ page }, info) => {
+test('ten-second dwell dissolves without controls and focus or input pauses rotation', async ({ page }, info) => {
   await page.clock.pauseAt(new Date(Date.now() + 1000))
   await page.locator(hero).focus()
   await page.getByRole('button', { name: '打开菜单', exact: true }).focus()
   await page.mouse.move(0, 0)
   const before = await page.locator(hero).boundingBox()
-  await page.clock.runFor(7990)
+  await page.clock.runFor(9990)
   await expect(page.locator(hero)).toHaveAttribute('data-slide', '0')
   await expect(page.locator(hero)).toHaveAttribute('data-phase', 'idle')
   await page.clock.runFor(20)
@@ -100,10 +102,10 @@ test('eight-second dwell dissolves without controls and focus or input pauses ro
   await expect(page.locator(hero)).toHaveAttribute('data-slide', '1')
   await page.getByRole('button', { name: '打开菜单', exact: true }).focus()
   await page.mouse.move(0, 0)
-  await page.clock.runFor(9200)
+  await page.clock.runFor(11200)
   await expect(page.locator(hero)).toHaveAttribute('data-slide', '2')
   await expect(page.getByRole('heading', { name: '记忆很长， 不会忘。' })).toBeVisible()
-  await page.clock.runFor(9200)
+  await page.clock.runFor(11200)
   await expect(page.locator(hero)).toHaveAttribute('data-slide', '0')
   await page.getByRole('button', { name: '改用文字', exact: true }).click()
   await page.getByLabel('对话输入', { exact: true }).fill('还没发送')
@@ -135,7 +137,7 @@ test('failed product images leave the original introduction usable', async ({ pa
 
 test('a first message during dissolution unmounts the whole banner and its timer', async ({ page }) => {
   await page.mouse.move(0, 0)
-  await page.clock.runFor(8000)
+  await page.clock.runFor(10000)
   await expect(page.locator(hero)).toHaveAttribute('data-phase', 'out')
   await page.getByRole('button', { name: '改用文字', exact: true }).click()
   await page.getByLabel('对话输入', { exact: true }).fill('今天下午发烧')
@@ -160,7 +162,7 @@ test('simulated background visibility stops rotation and foreground starts a fre
     document.dispatchEvent(new Event('visibilitychange'))
   })
   await page.mouse.move(0, 0)
-  await page.clock.runFor(7990)
+  await page.clock.runFor(9990)
   await expect(page.locator(hero)).toHaveAttribute('data-slide', '0')
   await page.clock.runFor(1150)
   await expect(page.locator(hero)).toHaveAttribute('data-slide', '1')
@@ -185,9 +187,9 @@ for (const failed of ['visit', 'memory'] as const) {
     await page.reload()
     await expect(page.locator(hero)).toHaveAttribute('data-slide', '0')
     await page.mouse.move(0, 0)
-    await page.clock.runFor(9200)
+    await page.clock.runFor(11200)
     await expect(page.locator(hero)).toHaveAttribute('data-kind', failed === 'visit' ? 'memory' : 'visit')
-    await page.clock.runFor(9200)
+    await page.clock.runFor(11200)
     await expect(page.locator(hero)).toHaveAttribute('data-slide', '0')
   })
 }
@@ -201,14 +203,14 @@ test('a late visit illustration joins the next cycle without blocking the ready 
   await expect.poll(() => !!release).toBe(true)
   await page.waitForTimeout(100)
   await page.mouse.move(0, 0)
-  await page.clock.runFor(9200)
+  await page.clock.runFor(11200)
   await expect(page.locator(hero)).toHaveAttribute('data-kind', 'memory')
   const visitLoaded = page.waitForResponse(response => response.url().includes('visit-summary-banner'))
   await release!()
   await visitLoaded
   await page.waitForTimeout(100)
-  await page.clock.runFor(9200)
+  await page.clock.runFor(11200)
   await expect(page.locator(hero)).toHaveAttribute('data-kind', 'welcome')
-  await page.clock.runFor(9200)
+  await page.clock.runFor(11200)
   await expect(page.locator(hero)).toHaveAttribute('data-kind', 'visit')
 })
