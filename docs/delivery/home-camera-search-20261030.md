@@ -20,4 +20,4 @@
 - 查看首页与查找手机截图，镜片更大、柄更短，相机位于键盘右侧。所有测试使用隔离合成账户、真实本地API持久化及供应商fixture，未调用真实供应商、未写生产数据；未宣称实体iPhone/原生系统菜单实机验收。
 - 整合主线`1197984cf7831019a9ca33ef127e4531d29600dd`，保留上游6秒横幅及图片位置调整；合并无冲突，完整构建和9条导航/条件入口流程再次通过。其余已验证的附件、检索及账户逻辑没有新增运行差异。
 
-正式发布回执待追加。
+PR [#606](https://github.com/Hoooho-app/hoooho.app/pull/606) 已合并，运行提交 `7d45f7f2a819a34d68fc315f7d4bee22570b3035` 的完整树 `ba724a5edd597443e8ed1914cd544b161ad4b12c` 与本地整合验证完全相同。Railway Production部署 `af5bf031-ce70-4751-95da-4721db272e90` 于 2026/10/30 07:24:45（Asia/Shanghai）观察到SUCCESS，旧部署已REMOVED。正式站只读GET核对健康接口ok，入口 `/assets/index-BQztWfpF.js` 包含目标SHA及大圆短柄共享search图形；工作区 `assets/JournalRecordDetail-CnLoTanM.js` 和输入组件 `assets/healthOccurredAt-BAq6Xubx.js` 已包含原生附件桥接、系统file input和相机入口。新建显示状态依据同一完整源码的浏览器流程证据，不将静态资源检查说成线上写入验收。未为本次网页改动触发原生/TestFlight、App Store或小程序发布；本次临时测试服务已结束。实体手机系统菜单及产品主人最终验收仍待体验。
