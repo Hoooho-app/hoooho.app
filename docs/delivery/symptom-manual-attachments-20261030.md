@@ -26,4 +26,16 @@
 
 `JournalRecorder` 的手动症状入口显式使用本模式；共用组件的既有视频核对、内嵌病例及 AI 草稿入口不因此删除其输入能力。新原生桥接只增加可探测的 `mediaOnly` 选项；默认首页仍为既有四源、原件字节分块和可信主 frame 边界。原生媒体模式沿用本表单既有六份／单图25MB／单视频100MB限制，不把首页的单段视频规则误用到此表单。
 
-云端原生检查、main 集成、Production 核对及新 iPhone 包的实际回执待后续补齐；本地浏览器不是实体 iPhone 验收。
+云端检查、发布回执与尚未完成的验收见下；本地浏览器不是实体 iPhone 验收。
+
+## 发布回执与续接
+
+- 运行代码 [PR #577](https://github.com/Hoooho-app/hoooho.app/pull/577) 已合入 main：`51f9a5ffbc2b5286dd53dd190af11cc1d40ff799`，树为 `a2d5ddd4e0c8e81ed78d65ff8327a1889be1d1a6`，与本地实际构建、9 项手动表单及5项首页输入组合检查的树一致。
+- [PR #578](https://github.com/Hoooho-app/hoooho.app/pull/578) 保留当前首页与手动表单两段规范，处理并列新增规范的重叠；首页恢复用例先确认真正抵达目标路由，再操作返回。正文保留、侧栏、刷新和无自动提交断言未删减。合并过程没有回退首页护士与小屏布局。
+- 网页 CI [首轮](https://github.com/Hoooho-app/hoooho.app/actions/runs/40917479478)、[组合版本](https://github.com/Hoooho-app/hoooho.app/actions/runs/40921385773) 均成功。两组原生 [PR 检查](https://github.com/Hoooho-app/hoooho.app/actions/runs/40917479411) 成功，含三项症状附件菜单、取消与默认四项首页菜单、媒体原件限制和既有导出／安全区检查。发布提交的 [exact main 原生检查](https://github.com/Hoooho-app/hoooho.app/actions/runs/40921429873) 也已成功，current／oldest 两组与当前设备无签名归档均通过。
+- 唯一 Railway Production 部署 `f75a32f7-c02e-42ae-bad9-508a28878f3a` 对应上述发布提交，状态 **SUCCESS**，完成于 2026-10-30 01:28（Asia/Shanghai）。平台配置中的 `/api/health` 健康检查通过后部署才进入此状态。外部执行环境直接读取正式站返回403，不能据此声称正式站健康接口已从外部重新核验。
+- **BLOCKED_BROWSER**：连接的 Chrome 浏览器调用超时，连文档读取也未返回；没有改用其他浏览器绕过会话。线上页面的实际操作复核与新 TestFlight 上传尚未完成。本轮未触发新的 TestFlight 发布，不得把此前0.1.0（1.5.1）称作包含本次原生三项菜单的新包。此前 Apple 页面也停在身份验证失败处，浏览器恢复后需重新核对登录。
+
+续接：恢复原 Chrome Browser 连接 → 确认正式页「记录症状」布局、附件来源及取消 → 核对上述 exact main CI 成功 → 只触发一次当前 main 的 `Upload iOS to TestFlight` → 读取真实版本／构建号与 Apple 处理结果 → 登录后核对既有本人内部组「护护首轮内测」，不新增测试人员或提交外部测试／App Store 审核。实体 iPhone 的拍照、视频授权与安装体验仍由主人验收。
+
+本回执先保留在发布续接分支，待新包上传源固定后再合入，避免纯回执改动导致现有 exact main 发布检查失配；不因文档重复部署相同应用。
