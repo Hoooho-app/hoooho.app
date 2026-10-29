@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { HohoButton } from '../../components/design-system'
-import { Sprout } from '../../components/icons'
+import sproutArt from '../../assets/care-journey/two-leaf-sprout-20261030.webp'
 import { careApi } from '../../features/care-journey/api'
 import { useCareJourney } from '../../features/care-journey/useCareJourney'
 import { useAppStore } from '../../store/useAppStore'
@@ -30,7 +30,7 @@ export function FrontDeskCareCard() {
     <span className="front-desk-welcome__excerpt" role="status">{state.error ? '暂未确认，请重试' : checkedIn ? '今天的呵护已记下' : '每日领取 1 个树芽'}</span>
     <div className="front-desk-welcome__care-claim">
       <HohoButton size="small" variant="tertiary" loading={Boolean(state.busy)} disabled={state.loading || checkedIn} onClick={claim}>
-        <Sprout size={16} aria-hidden="true"/>
+        <img className="front-desk-welcome__care-sprout" src={sproutArt} width={28} height={28} alt="" aria-hidden="true"/>
         {checkedIn ? '今日已领取' : state.loading ? '正在读取' : state.error ? state.data ? '重试领取' : '重新读取' : '领取树苗'}
       </HohoButton>
     </div>
