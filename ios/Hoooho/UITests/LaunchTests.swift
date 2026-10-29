@@ -2,6 +2,27 @@ import XCTest
 import UIKit
 
 final class LaunchTests: XCTestCase {
+    func testManualSymptomMenuHasOnlyThreeMediaSources() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--native-fixture"]
+        app.launch()
+        XCTAssertTrue(app.webViews.buttons["选择症状附件"].waitForExistence(timeout: 20))
+        app.webViews.buttons["选择症状附件"].tap()
+        for label in ["照片图库", "拍照", "拍视频"] {
+            XCTAssertTrue(app.buttons[label].waitForExistence(timeout: 5))
+        }
+        XCTAssertFalse(app.buttons["选择文件"].exists)
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = "Three-manual-symptom-sources-synthetic-NOT-production"
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
+        dismissSourceMenu(app)
+        XCTAssertTrue(app.webViews.staticTexts["已取消附件选择"].waitForExistence(timeout: 5))
+        app.webViews.buttons["选择测试附件"].tap()
+        XCTAssertTrue(app.buttons["选择文件"].waitForExistence(timeout: 5), "The home menu keeps its existing file source")
+        dismissSourceMenu(app)
+    }
+
     func testAttachmentMenuHasFourSystemSourcesAndCancellationPreservesThePage() {
         let app = XCUIApplication()
         app.launchArguments = ["--native-fixture"]

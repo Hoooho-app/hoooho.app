@@ -17,7 +17,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: 25baccbb3ab9f49fd52ada71ce760bc5d8b5d38b
+          ref: 08b11b6281716566f867d2593cc45c48d79a787d
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
@@ -36,8 +36,14 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - name: Verify exact candidate and build
         run: |
-          test "$(git rev-parse HEAD)" = 25baccbb3ab9f49fd52ada71ce760bc5d8b5d38b
+          test "$(git rev-parse HEAD)" = 08b11b6281716566f867d2593cc45c48d79a787d
           npm run build
+      - run: TZ=Asia/Shanghai npm run test:client
+      - run: npm run test:media
+      - name: Verify the combined homepage guide, fluid heights and help center
+        run: npx playwright test --config tests/frontdesk-welcome/playwright.config.ts --reporter=line --max-failures=1
+      - run: npx playwright test --config tests/frontdesk-navigation/playwright.config.ts --grep 'default home|keyboard reveals|drawer uses' --reporter=line
+      - run: npx playwright test --config tests/help-center/playwright.config.ts --reporter=line
       - name: Recheck all first-child cases with the static portrait contract
         run: npx playwright test --config tests/conversation-home/first-child.config.ts --reporter=line
       - name: Check the previously unexecuted shared-page visual cases
@@ -48,5 +54,8 @@ jobs:
           name: home-help-release-check-evidence
           retention-days: 7
           path: |
+            test-results/frontdesk-welcome/
+            test-results/frontdesk-navigation/
+            test-results/help-center/
             test-results/first-child-setup/
             test-results/forest/

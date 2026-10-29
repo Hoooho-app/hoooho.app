@@ -9,7 +9,7 @@ test('symptom entry is narrative-first, optional, compact and directly saveable'
   assert.match(recorder, /category === 'symptom' \? 'symptom-form'/)
   const formSource = source.slice(source.indexOf('const form ='), source.indexOf('export function RelatedRecordsSheet'))
   const cardSource=formSource.slice(formSource.indexOf('symptom-narrative'))
-  const labels = ['症状描述', '症状部位', '补充信息', '发生时间']
+  const labels = ['症状描述', '症状部位', '补充信息', '附件', '发生时间']
   let cursor = -1
   for (const label of labels) { const next = cardSource.indexOf(label); assert.ok(next > cursor, `${label} should follow the prior field`); cursor = next }
   assert.match(source, /描述症状和变化，例如：左肘窝发红、发痒/)
@@ -23,13 +23,9 @@ test('symptom entry is narrative-first, optional, compact and directly saveable'
   assert.match(source, /暂未生成摘要，可直接保存原文/)
   assert.match(source, /暂时无法整理，可直接保存原文/)
   assert.doesNotMatch(source, /正在为：|symptom-record-member|autoFocus/)
-  assert.match(source, /DialogueComposer inputOnly directPhoto releaseLabel="松手结束"/)
-  assert.match(source, /onStart=\{\(\) => void voice\.start\(\)\}/)
-  assert.match(source, /onStop=\{voice\.stop\}/)
+  assert.match(recorder, /<SymptomRecordFlow manualEntry/)
   assert.doesNotMatch(source, /SymptomVoiceSheet|symptom-nurse-entry/)
   assert.match(formSource, /<header>.*RecordSaveAction/s)
-  assert.match(source, /symptom-record-toolbar/)
-  assert.doesNotMatch(formSource.split('symptom-record-save')[0], /记录输入方式/)
   assert.doesNotMatch(formSource, /aria-label="关闭"/)
   assert.match(source, /placeholder="例如：左肘窝"/)
   assert.match(source, /buttonLabel=\{draft\.locations\.length \? '修改' : '选择部位'\}/)
@@ -59,5 +55,5 @@ test('symptom photos use an isolated six-photo draft and structured real save', 
   assert.match(source, /photos\.payload\(\)/)
   assert.match(source, /categories: \['symptom'\], symptom: details/)
   assert.match(source, /sessionStorage\.removeItem\(draftKey\(draftScope\)\)/)
-  assert.doesNotMatch(source, /附件.*拍照.*从相册选择/s)
+  assert.match(source, /nativeAttachmentPicker\(\{mediaOnly: true\}\)/)
 })
