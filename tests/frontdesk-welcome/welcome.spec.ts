@@ -18,10 +18,13 @@ test.beforeEach(async ({ page, request }) => {
   await expect(page.locator(intro)).toBeVisible()
 })
 
-test('approved composition uses a small live video, left 3D guide and right text-only real daily article', async ({ page }, info) => {
+test('approved composition uses a static nurse, left 3D guide and right text-only real daily article', async ({ page }, info) => {
   const welcome = page.locator(intro)
-  await expect(welcome.locator('.idle-nurse-visual')).toHaveAttribute('data-cutout-ready', 'true')
-  expect(await welcome.locator('.front-desk-welcome__media').evaluate(el => el.getBoundingClientRect().width)).toBeLessThanOrEqual(186)
+  await expect(welcome.locator('video, canvas')).toHaveCount(0)
+  const portrait = welcome.locator('.front-desk-welcome__portrait')
+  await expect(portrait).toHaveAttribute('alt', '戴眼镜与口罩的黑发护士，一手拿病历夹、一手拿笔')
+  expect(await portrait.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth === 480)).toBe(true)
+  await expect(portrait).toHaveCSS('object-fit', 'contain')
   await expect(welcome.locator('.front-desk-welcome__entry')).toHaveCount(2)
   const entries = await welcome.locator('.front-desk-welcome__entry').evaluateAll(nodes => nodes.map(el => ({ name: el.getAttribute('aria-label'), x: el.getBoundingClientRect().x, y: el.getBoundingClientRect().y })))
   expect(entries[0].name).toContain('怎么用护护')
