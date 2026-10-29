@@ -956,6 +956,7 @@ async function handleApi(request, response, pathname, searchParams) {
     const accountId = await readAccountId(request), memberId = decodeRouteValue(frontRecordMatch[1])
     response.setHeader('Cache-Control', 'no-store')
     if(request.method==='GET'&&frontRecordMatch[2])sendJson(response,200,await frontDeskRecord.conversation(accountId,memberId,decodeRouteValue(frontRecordMatch[2])))
+    else if(request.method==='DELETE'&&frontRecordMatch[2])sendJson(response,200,await frontDeskRecord.deleteConversation(accountId,memberId,decodeRouteValue(frontRecordMatch[2])))
     else if (request.method === 'GET' && !frontRecordMatch[2]) sendJson(response, 200, await frontDeskRecord.latest(accountId, memberId))
     else if (request.method === 'DELETE' && !frontRecordMatch[2]) sendJson(response, 200, await frontDeskRecord.closeSession(accountId, memberId))
     else if (request.method === 'POST' && !frontRecordMatch[2]) {const input=await readJson(request,22*1024*1024);sendJson(response,200,input.kind==='legacy'?await frontDeskRecord.retainLegacy(accountId,memberId,input):await frontDeskRecord.submit(accountId,memberId,input,requestSignal(request,response)))}

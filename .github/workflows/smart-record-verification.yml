@@ -48,7 +48,7 @@ jobs:
             npx playwright install-deps chromium
             node -e "$hoho_browser_smoke"
           fi
-      - run: node --test server/events/health-event-record-service.test.mjs server/events/case-continuity-service.test.mjs server/ai/recognition-jobs.test.mjs server/ai/front-desk-record.test.mjs server/ai/front-desk-resume.test.mjs server/ai/front-desk-original-save.test.mjs server/ai/recognition-context.test.mjs server/ai/live-audio-preview.test.mjs server/ai/business/*.test.mjs
+      - run: node --test server/events/health-event-record-service.test.mjs server/events/case-continuity-service.test.mjs server/ai/recognition-jobs.test.mjs server/ai/front-desk-record.test.mjs server/ai/conversation-deletion.test.mjs server/ai/front-desk-resume.test.mjs server/ai/front-desk-original-save.test.mjs server/ai/recognition-context.test.mjs server/ai/live-audio-preview.test.mjs server/ai/business/*.test.mjs
       - name: Verify explicit OpenRouter routing and existing Bailian compatibility without live calls
         run: node --test server/ai/providers/openrouter-provider.test.mjs server/ai/providers/bailian-provider.test.mjs server/help/dialogue-contract.test.mjs
       - run: node --import ./scripts/register-node-ts-loader.mjs --test src/features/case-continuity/followupPresentation.test.ts src/features/ai-business/liveAudioPreview.test.ts src/features/ai-business/recordReading.test.ts src/features/ai-business/frontDeskRecord.test.ts src/features/ai-business/captureDraft.test.ts src/features/ai-business/savedRecordGuide.test.ts

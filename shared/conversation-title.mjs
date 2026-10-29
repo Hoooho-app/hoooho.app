@@ -17,6 +17,7 @@ export function conversationTitle({ recordText = '', texts = [], fallback = '对
   const candidates = [], seen = new Set()
   const add = (word, contextSource = source, at = contextSource.indexOf(word)) => {
     word = word.trim().replace(/^[：:\s]+|[：:\s]+$/gu, '')
+    if (/还没(?:量|测)|尚未(?:量|测)|未测|家长观察|当前精神|精神(?:尚可|好|正常)/u.test(word)) return
     if (!word || generic.test(word) || word.length > 18 || /^[\d\s]+$/u.test(word)) return
     const context = at >= 0 ? clinicalContext(contextSource, at, at + word.length) : null
     let label = word
@@ -27,10 +28,10 @@ export function conversationTitle({ recordText = '', texts = [], fallback = '对
     else if (context?.temporality === 'conditional') label += '（假设）'
     if (!seen.has(label)) { seen.add(label); candidates.push(label) }
   }
-  if (reading) for (const word of reading.keywords) if (source.includes(word)) add(word)
   // Existing assertion parsing supplies whole clinical phrases and preserves
   // their polarity; generic source phrases also cover nonclinical topics.
   for (const finding of clinicalAssertions(source)) add(finding.text, source, finding.start)
+  if (reading) for (const word of reading.keywords) if (source.includes(word)) add(word)
   for (const original of source.split(/[，,。；;！!？?\n]|但是|不过|而是/u)) {
     const clause = original.replace(/^[^：:\n]{1,12}[：:]/u, '').trim()
     if (!clause || generic.test(clause)) continue
@@ -42,9 +43,9 @@ export function conversationTitle({ recordText = '', texts = [], fallback = '对
   const selected = []
   for (const word of candidates) {
     if (selected.some(existing => existing.includes(word) || word.includes(existing))) continue
-    if (selected.length && [...selected, word].join(' · ').length > 42) continue
+    if (selected.length && [...selected, word].join(' · ').length > 24) continue
     selected.push(word)
-    if (selected.length === 3) break
+    if (selected.length === 2) break
   }
   if (selected.length && uncertainty.test(source) && !selected.some(word => /待确认|疑似|不确定/u.test(word))) selected.push('待确认')
   return { title: selected.join(' · ') || fallback, keywords: selected }
