@@ -93,9 +93,9 @@ export function SideDrawer({ onClose, onOpenChildSheet, open, cleanChrome = true
       <aside className={'hoho-drawer hoho-drawer--history' + (cleanChrome ? ' hoho-drawer--clean' : '')} ref={drawerRef} tabIndex={-1}>
         <section className="drawer-identities" aria-label="账户与记录对象">
           <button type="button" className="drawer-identity-row drawer-account" aria-label="我的账户" onClick={() => { onClose(); navigate('/account', { state: { accountFrom: accountOrigin } }) }}>
-            <span className="drawer-account-avatar" role="img" aria-label={`${userName}的头像`}>{accountAvatar}</span>
-            <span className="drawer-account-copy"><strong>{userName}</strong><span>我的账户 · 记录者</span></span>
-            <ChevronRight className="drawer-identity-action" size={20} aria-hidden="true" />
+            <span className="drawer-account-avatar" role="img" aria-label={`${userName}的头像`}><span className="drawer-account-avatar__glyph" aria-hidden="true">{accountAvatar}</span></span>
+            <span className="drawer-account-copy"><strong>{userName}</strong><span>记录者</span></span>
+            <span className="drawer-account-action">我的<ChevronRight size={20} aria-hidden="true" /></span>
           </button>
           <button type="button" className="drawer-identity-row drawer-subject" aria-label={members.length ? '切换记录对象' : '添加记录对象'} onClick={() => { onClose(); onOpenChildSheet() }}>
             {members.length ? <Avatar name={childAvatarName} src={member.avatar} size="sm" /> : <span className="drawer-identity-avatar"><Plus size={20} aria-hidden="true" /></span>}
