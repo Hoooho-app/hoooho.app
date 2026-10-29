@@ -18,6 +18,16 @@ test.beforeEach(async ({ page }) => {
   }, token)
 })
 
+test('外部样式与脚本加载前，上下边缘仍为纸底', async ({ page }) => {
+  await page.route('**/*', route => ['script', 'stylesheet'].includes(route.request().resourceType())
+    ? route.abort() : route.continue())
+  await page.goto('/nurse-station')
+  for (const node of await page.locator('html, body, #root').all()) {
+    await expect(node).toHaveCSS('background-color', paper)
+  }
+  await expect(page.locator('body')).toHaveCSS('margin', '0px')
+})
+
 test('情况单直接展示资料，后台诊断不占位；编辑、刷新与加载重试正常', async ({ page }, info) => {
   await page.route('**/api/members/child-a/visit-sheet', async route => {
     const response = await route.fetch(), body = await response.json()

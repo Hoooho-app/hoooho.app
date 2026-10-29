@@ -44,6 +44,9 @@ jobs:
                       if device.get('isAvailable') and device['name'].startswith('iPhone'):
                           phones.append((tuple(map(int,version[1].split('-'))),runtime,device))
           if not phones: raise SystemExit("No iPhone simulator available")
+          if '${{ matrix.runtime }}'=='current':
+              phones=[item for item in phones if 'SE' not in item[2]['name']]
+              if not phones: raise SystemExit('No current iPhone with a home-indicator safe area available')
           phones.sort(key=lambda item:item[0])
           version,runtime,device=phones[-1 if '${{ matrix.runtime }}'=='current' else 0]
           if '${{ matrix.runtime }}'=='current' and version[0]<26: raise SystemExit('No current iOS 26+ runtime installed')
