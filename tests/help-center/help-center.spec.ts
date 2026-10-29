@@ -13,24 +13,24 @@ async function chat(page:Page){
   await page.getByRole('button',{name:'新对话',exact:true}).click()
   await expect(page.getByRole('button',{name:'录音没有成功',exact:true})).toBeVisible()
 }
-test('home help subpage, two tabs, relevant search and existing guide redirect',async({page})=>{
+test('three help sections, relevant search and legacy guide redirect',async({page})=>{
   await page.goto('/help')
   await expect(page.getByRole('button',{name:'返回',exact:true})).toBeVisible()
   await page.getByLabel('搜索教程和问题').fill('宇宙飞船发动机')
   await expect(page.getByText('暂时没有找到相关内容。',{exact:false})).toBeVisible()
   await page.getByLabel('搜索教程和问题').fill('录音')
   await expect(page.getByText('录音没反应或转写失败怎么办？',{exact:true})).toBeVisible()
-  await page.getByRole('radio',{name:'用户手册',exact:true}).click()
-  await expect(page.getByText('认识 Hoooho 的功能',{exact:true})).toBeVisible()
-  await page.getByRole('radio',{name:'帮助',exact:true}).click()
+  await page.getByRole('radio',{name:'产品说明',exact:true}).click()
+  await expect(page.getByLabel('搜索教程和问题')).toHaveValue('录音')
+  await page.getByRole('radio',{name:'使用教程',exact:true}).click()
   await expect(page.getByLabel('搜索教程和问题')).toHaveValue('录音')
   await page.goto('/guide')
   await expect(page).toHaveURL(/\/help\?tab=manual/)
-  await page.getByText('智能记录',{exact:true}).click()
-  await expect(page.getByText('为什么设计这个功能',{exact:true})).toBeVisible()
-  await page.getByRole('button',{name:'查看操作帮助',exact:true}).click()
+  await page.getByRole('button',{name:'怎么方便，怎么记',exact:false}).click()
+  await expect(page.getByRole('heading',{name:'了解更多',exact:true})).toBeVisible()
+  await page.getByRole('button',{name:'看看怎么做',exact:true}).click()
   await expect(page.getByRole('heading',{name:'怎么做',exact:true})).toBeVisible()
-  await expect(page.getByRole('link',{name:'去智能记录',exact:true})).toHaveAttribute('href','/smart-record')
+  await expect(page.getByRole('button',{name:'跟着记一条',exact:true})).toBeVisible()
 })
 test('conversation, draft and article return survive switching; unresolved feedback survives reload',async({page})=>{
   await chat(page)
@@ -40,8 +40,8 @@ test('conversation, draft and article return survive switching; unresolved feedb
   await expect(page.getByRole('button',{name:'还没解决',exact:true})).toBeVisible()
   await page.getByRole('button',{name:'改用文字',exact:true}).click()
   await page.getByLabel('对话输入',{exact:true}).fill('补充内容尚未发送')
-  await page.getByRole('radio',{name:'用户手册',exact:true}).click()
-  await page.getByRole('radio',{name:'帮助',exact:true}).click()
+  await page.getByRole('radio',{name:'产品说明',exact:true}).click()
+  await page.getByRole('radio',{name:'使用教程',exact:true}).click()
   await expect(page.getByLabel('对话输入',{exact:true})).toHaveValue('补充内容尚未发送')
   await page.getByRole('button',{name:'录音没反应或转写失败怎么办？',exact:true}).last().click()
   await expect(page.getByRole('heading',{name:'怎么做',exact:true})).toBeVisible()
@@ -79,11 +79,11 @@ test('help, manual and chat fit 320–430px mobile viewports',async({page})=>{
     for(const [name,url]of [['home','/help'],['manual','/help?tab=manual&manual=smart'],['chat','/help?view=chat']]){
       await page.goto(url)
       if(name==='chat'){await expect(page.getByLabel('对话输入',{exact:true})).toHaveCount(0);await page.getByRole('button',{name:'改用文字',exact:true}).click();await expect(page.getByLabel('对话输入',{exact:true})).toBeVisible()}
-      await expect(page.getByRole('radio',{name:'用户手册',exact:true})).toBeVisible()
+      await expect(page.getByRole('radio',{name:'产品说明',exact:true})).toBeVisible()
       expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true)
       expect(await page.locator('.help-content').evaluate(e=>e.scrollWidth<=e.clientWidth)).toBe(true)
       await page.locator('.help-content').evaluate(e=>e.scrollTop=e.scrollHeight)
-      await expect(page.getByRole('radio',{name:'用户手册',exact:true})).toBeInViewport()
+      await expect(page.getByRole('radio',{name:'产品说明',exact:true})).toBeInViewport()
       await page.screenshot({path:`test-results/help-center/${name}-${width}.png`,fullPage:true})
     }
   }

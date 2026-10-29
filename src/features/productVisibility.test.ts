@@ -11,7 +11,9 @@ test('temporary feature visibility covers nested routes, sharing and legacy entr
 test('help and product manager share only visible tutorials, manuals and action links', () => {
   const articles = [...SUPPORT_ARTICLES, ...EXTRA_ARTICLES]
   const ids = new Set(articles.map(article => article.id))
-  for (const id of ['diet','scan','medplan']) assert.equal(ids.has(id), false)
+  for (const id of ['diet','scan','medplan','followup','collect','handoff','desensitization']) assert.equal(ids.has(id), false)
+  assert.equal(HELP_MODULES.some(module => module.id === 'follow'), false)
+  assert.doesNotMatch(JSON.stringify({ articles, USER_MANUAL, HELP_MODULES }), /看护交接|安排与跟进|任务系统|设备接入|横向对比|永久免费|永不丢失/)
   for (const article of articles) {
     for (const action of article.actions ?? []) assert.equal(isProductPathVisible(action.to), true)
     for (const id of article.relatedArticleIds ?? []) assert.ok(ids.has(id))

@@ -2,6 +2,21 @@
 .help-center-v2 .help-center-tabs { flex-shrink:0; padding: var(--hoho-space-3) var(--hoho-page-gutter) 0; }
 .help-center-v2 .help-center-tabs .hoho-record-segmented-control { width:100%; }
 .help-center-v2 .help-content { flex:1; min-height:0; overflow-y:auto; padding-inline:var(--hoho-page-gutter); }
+.help-center-v2 { background:rgb(var(--hoho-color-page-background)); }
+.help-center-v2 .help-search { min-height:0; padding-block:var(--hoho-space-5) var(--hoho-space-2); }
+.help-center-v2 .help-list { border:0; border-radius:0; background:transparent; }
+.help-center-v2 .help-detail-title { margin-top:var(--hoho-space-2); font-size:var(--hoho-font-size-page-title); line-height:var(--hoho-line-height-page-title); }
+.help-center-v2 .help-conclusion { font-size:var(--hoho-font-size-body); line-height:var(--hoho-line-height-body); }
+.help-center-v2 .help-steps { font-size:var(--hoho-font-size-body); line-height:var(--hoho-line-height-body); }
+.help-first-lessons { margin-top:var(--hoho-space-4); border-block:1px solid rgb(var(--hoho-color-border)); }
+.help-first-lessons > .hoho-surface-row > svg { flex-shrink:0; color:rgb(var(--hoho-color-primary)); }
+.help-lesson { display:grid; gap:var(--hoho-space-3); margin-top:var(--hoho-space-5); padding:var(--hoho-space-4); border:1px solid rgb(var(--hoho-color-primary-border)); border-radius:var(--hoho-radius-card); background:rgb(var(--hoho-color-primary-soft)); }
+.help-assistant-entry { display:flex; flex-wrap:wrap; align-items:center; gap:var(--hoho-space-3); margin-top:var(--hoho-space-6); padding-block:var(--hoho-space-4); border-top:1px solid rgb(var(--hoho-color-border)); }
+.help-assistant-entry > svg { flex-shrink:0; color:rgb(var(--hoho-color-primary)); }
+.help-assistant-entry > div { flex:1; min-width:0; }
+.help-assistant-entry .hoho-text-caption { margin-top:var(--hoho-space-1); }
+.help-footer-actions { display:flex; flex-wrap:wrap; gap:var(--hoho-space-3); }
+.help-center-v2 .help-center-tabs button { min-width:0; }
 .help-center-v2 .help-detail > .hoho-button { margin-top:var(--hoho-space-4); }
 .help-center-v2 .help-detail > .hoho-section { margin-top:var(--hoho-space-6); }
 .help-center-v2 .help-center-row .hoho-text-caption { white-space:normal; overflow:visible; }

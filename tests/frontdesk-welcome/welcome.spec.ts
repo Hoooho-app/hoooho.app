@@ -51,7 +51,7 @@ test('home guide opens help and returns without posting; unsent text, refresh an
   await guide.click()
   await expect(page).toHaveURL(/\/help$/)
   await expect(page.getByRole('heading', { name: '帮助中心', exact: true })).toBeVisible()
-  await page.getByRole('button', { name: /完成第一条记录$/ }).click()
+  await page.getByRole('button', { name: /手动记一件发生的事/ }).click()
   await expect(page.getByRole('heading', { name: '怎么做', exact: true })).toBeVisible()
   await page.getByRole('button', { name: '返回', exact: true }).click()
   await expect(page.getByLabel('搜索教程和问题')).toBeVisible()

@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { helpLessonFromSearch, helpLessonUrl } from '../../features/help/guidedRecord'
 import { ChildAvatar } from '../../components/common/ChildAvatar'
 import { DialogueComposer, HohoButton, HohoInput } from '../../components/design-system'
 import { ReceptionSurface } from '../../components/design-system/ReceptionSurface'
@@ -59,6 +60,7 @@ function SetupComposer({ accountId, token, field, text, typing, onTypingChange, 
 /** First-use profile collection only; no health event is created here. */
 export function FirstChildSetup({ accountId, token }: { accountId: string; token: string }) {
   const navigate = useNavigate(), viewport = useVisibleViewport()
+  const helpLesson = helpLessonFromSearch(useLocation().search)
   const [draft, setDraft] = useState<FirstChildDraft>(() => readDraft(accountId))
   const draftRef = useRef(draft); draftRef.current = draft
   const [error, setError] = useState(''), [saveError, setSaveError] = useState('')
@@ -97,7 +99,7 @@ export function FirstChildSetup({ accountId, token }: { accountId: string; token
     for (const field of childSetupFields) void captureDraft(firstChildVoiceKey(accountId, field), null).catch(() => undefined)
     const store = useAppStore.getState()
     store.addMember(adaptFamilyMember(member)); store.setCurrentMemberId(member.id)
-    navigate('/nurse-station', { replace: true })
+    navigate(helpLesson ? helpLessonUrl(helpLesson) : '/nurse-station', { replace: true })
   }
   const save = async () => {
     if (savingRef.current || !sameAccount()) return
