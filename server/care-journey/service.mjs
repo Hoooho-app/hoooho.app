@@ -7,7 +7,6 @@ import { HealthEventRepository } from '../events/repositories/health-event-repos
 import { HealthEventRecordRepository } from '../events/repositories/health-event-record-repository.mjs';
 import { UserRepository } from '../auth/repositories/user-repository.mjs';
 import { localDateKey, validTimeZone } from '../time/local-calendar.mjs';
-import { SUPPORT_ARTICLES } from '../../shared/help-center.mjs';
 const DAY = 86400000;
 const digest = x => createHash('sha256').update(JSON.stringify(x)).digest('hex');
 const requestKey = x => {
@@ -136,10 +135,10 @@ const BADGES = [{
   target: 7
 }, {
   id: 'first-journey',
-  title: '初程完成',
-  description: '累计七个完整参与日，每天两项都完成',
+  title: '三十次呵护',
+  description: '累计签到30次',
   reward: 3,
-  target: 7
+  target: 30
 }];
 const fresh = (accountId, timeZone, now) => ({
   accountId,
@@ -243,12 +242,10 @@ export class CareJourneyService {
     const date = localDateKey(this.now(), a.timeZone);
     let day = a.days.find(d => d.date === date);
     if (!day) {
-      const mode = a.days.length % 3 === 1 ? 'profile' : a.days.length % 3 === 2 ? 'knowledge' : 'record';
       day = {
         date,
         checkedIn: false,
-        taskCompleted: false,
-        mode
+        taskCompleted: false
       };
       a.days.push(day);
     }
@@ -262,23 +259,14 @@ export class CareJourneyService {
     }
   }
   async reconcile(a, facts) {
-    const day = this.day(a),
-      at = this.now().toISOString();
+    this.day(a);
+    const at = this.now().toISOString();
     this.expire(a);
-    const todayRecord = facts.records.find(r => localDateKey(new Date(r.createdAt), a.timeZone) === day.date);
-    if (todayRecord) {
-      day.taskCompleted = true;
-      day.evidence = {
-        type: 'record',
-        id: todayRecord.id
-      };
-      reward(a, 'task:' + day.date, 2, '今日任务', at);
-    }
     const progress = {
       'first-record': facts.records.length ? 1 : 0,
       'first-organized': facts.organized || a.snapshots.length ? 1 : 0,
       'seven-care': a.days.filter(d => d.checkedIn).length,
-      'first-journey': a.days.filter(d => d.checkedIn && d.taskCompleted).length
+      'first-journey': a.days.filter(d => d.checkedIn).length
     };
     for (const badge of BADGES) {
       if (progress[badge.id] >= badge.target && !a.achievements.some(b => b.id === badge.id)) {
@@ -317,12 +305,7 @@ export class CareJourneyService {
       'first-record': facts?.records.length ? 1 : 0,
       'first-organized': facts?.organized || a.snapshots.length ? 1 : 0,
       'seven-care': a.days.filter(d => d.checkedIn).length,
-      'first-journey': a.days.filter(d => d.checkedIn && d.taskCompleted).length
-    };
-    const taskTitle = {
-      record: '记录一件真实发生的照顾',
-      profile: '核对一下孩子档案',
-      knowledge: '读一条操作小知识'
+      'first-journey': a.days.filter(d => d.checkedIn).length
     };
     return {
       currency: '树芽',
@@ -336,16 +319,8 @@ export class CareJourneyService {
       today: {
         date: d.date,
         checkedIn: d.checkedIn,
-        complete: d.checkedIn && d.taskCompleted,
-        task: {
-          id: 'daily-care',
-          title: taskTitle[d.mode],
-          description: '没有新情况时，也可核对已有档案或阅读小知识；每天仅结算一个任务。',
-          path: d.mode === 'record' ? '/health-events' : d.mode === 'profile' ? '#verify-profile' : '#read-knowledge',
-          reward: 2,
-          completed: d.taskCompleted,
-          alternatives: ['profile', 'knowledge']
-        }
+        complete: d.checkedIn,
+        task: null
       },
       achievements: BADGES.map(b => ({
         ...b,
@@ -378,9 +353,8 @@ export class CareJourneyService {
       return this.state(a, f);
     });
   }
-  async verifyTask(accountId, input = {}) {
-    if (input.completed !== undefined || input.reward !== undefined) throw new CareJourneyError('任务需要核对实际完成记录');
-    return this.get(accountId, input);
+  async verifyTask() {
+    throw new CareJourneyError('每日任务已停用', 410, 'DAILY_TASK_RETIRED');
   }
   async growthEligible(accountId) {
     const today = Date.parse(localDateKey(this.now(), 'Asia/Shanghai') + 'T00:00:00Z');
@@ -527,50 +501,11 @@ export class CareJourneyService {
       return this.state(a, f);
     });
   }
-  async openMaterial(accountId, input = {}) {
-    return this.transaction(accountId, null, async (a, f) => {
-      const day = this.day(a);
-      const m = input.memberId ? await this.ownedMember(accountId, input.memberId) : f.members.find(m => !m.isSelf);
-      const type = input.type === 'knowledge' || !m ? 'knowledge' : 'profile';
-      const published = SUPPORT_ARTICLES.filter(x => x.status === 'published');
-      const article = published.find(x => x.id === 'record') ?? published[0];
-      const content = type === 'profile' ? [`姓名：${m.name}`, `出生日期：${m.birthday ?? '未填写'}`, `性别：${m.gender ?? '未填写'}`, `身高：${m.heightCm ?? '未填写'}`, `体重：${m.weightKg ?? '未填写'}`] : [article.summary ?? article.description ?? article.title, ...(article.steps ?? []), article.result ?? '', ...(article.sections ?? []).map(x => typeof x === 'string' ? x : [x.title, x.content, ...(x.steps ?? [])].filter(Boolean).join('\n'))];
-      const at = this.now().toISOString();
-      const material = {
-        id: randomUUID(),
-        type,
-        title: type === 'profile' ? '核对孩子档案' : article.title,
-        content,
-        memberId: m?.id ?? null,
-        sourceId: type === 'profile' ? m.id : article.id,
-        fingerprint: digest(type === 'profile' ? m : article),
-        date: day.date,
-        openedAt: at
-      };
-      a.materials = a.materials.filter(x => x.date === day.date).slice(-19);
-      a.materials.push(material);
-      return material;
-    });
+  async openMaterial() {
+    throw new CareJourneyError('每日任务已停用', 410, 'DAILY_TASK_RETIRED');
   }
-  async confirmMaterial(accountId, input = {}) {
-    return this.transaction(accountId, null, async (a, f) => {
-      const day = this.day(a),
-        m = a.materials.find(x => x.id === input.materialId && x.date === day.date);
-      if (!m) throw new CareJourneyError('请重新打开今日核对资料', 404, 'MATERIAL_NOT_FOUND');
-      if (this.now().getTime() - Date.parse(m.openedAt) < 3000) throw new CareJourneyError('请先阅读并核对资料', 409, 'READ_BEFORE_CONFIRM');
-      if (m.type === 'profile') {
-        const current = await this.ownedMember(accountId, m.memberId);
-        if (digest(current) !== m.fingerprint) throw new CareJourneyError('档案已有变化，请重新核对', 409, 'MATERIAL_CHANGED');
-      }
-      day.taskCompleted = true;
-      day.evidence = {
-        type: m.type,
-        id: m.sourceId
-      };
-      reward(a, 'task:' + day.date, 2, '今日任务', this.now().toISOString());
-      await this.reconcile(a, f);
-      return this.state(a, f);
-    });
+  async confirmMaterial() {
+    throw new CareJourneyError('每日任务已停用', 410, 'DAILY_TASK_RETIRED');
   }
   async runService(accountId, input, executor) {
     const key = requestKey(input.requestId),

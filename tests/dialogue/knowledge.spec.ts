@@ -43,7 +43,7 @@ test('existing knowledge article preserves saved reading on mobile after homepag
     await expect(page.getByRole('button', { name: '已收藏', exact: true })).toBeVisible()
     await page.getByRole('button', { name: '返回', exact: true }).click()
     await expect(page).toHaveURL(/\/nurse-station$/)
-    await expect(page.getByRole('link', { name: '今日呵护：查看任务', exact: true })).toBeVisible()
+    await expect(page.getByRole('link', { name: '今日呵护：查看呵护之旅', exact: true })).toBeVisible()
   }
   await page.goto('/allergy-knowledge/missing-article')
   await expect(page.getByText('这篇内容暂不可用')).toBeVisible()

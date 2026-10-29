@@ -20,6 +20,7 @@ test.beforeEach(async ({ page, request }) => {
 
 test('approved composition uses a static nurse, left 3D guide and right daily care card', async ({ page }, info) => {
   const welcome = page.locator(intro)
+  await expect(page.getByRole('button', { name: '呵护之旅', exact: true })).toHaveCount(0)
   await expect(welcome.locator('video, canvas')).toHaveCount(0)
   const portrait = welcome.locator('.front-desk-welcome__portrait')
   await expect(portrait).toHaveAttribute('alt', '戴眼镜与口罩的黑发护士，一手拿病历夹、一手拿笔')
@@ -42,7 +43,7 @@ test('approved composition uses a static nurse, left 3D guide and right daily ca
   expect(await sprout.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth === 160)).toBe(true)
   await expect(card.locator('strong')).toHaveText(/已守护 \d+ 天/)
   const before = await card.locator('strong').innerText()
-  await page.getByRole('link', { name: '今日呵护：查看任务', exact: true }).click()
+  await page.getByRole('link', { name: '今日呵护：查看呵护之旅', exact: true }).click()
   await expect(page).toHaveURL(/\/care-journey$/)
   await expect(page.getByRole('heading', { name: '呵护之旅', exact: true })).toBeVisible()
   await expect(page.getByText('共同照顾', { exact: true })).toHaveCount(0)
@@ -94,6 +95,19 @@ test('first bubble removes every intro area; restored history stays clear and an
   await expect(page.locator(intro)).toHaveCount(0)
   await expect(page.locator('.front-desk-welcome video')).toHaveCount(0)
   await expect(page.locator('.nurse-turn--assistant')).not.toHaveCount(0)
+  const careEntry = page.getByRole('button', { name: '呵护之旅', exact: true })
+  await expect(careEntry).toBeVisible()
+  await expect(careEntry.locator('img')).toHaveAttribute('src', /two-leaf-sprout/)
+  const entryBox = (await careEntry.boundingBox())!
+  const childBox = (await page.getByRole('button', { name: '切换记录对象', exact: true }).boundingBox())!
+  const searchBox = (await page.getByRole('button', { name: '快速查找', exact: true }).boundingBox())!
+  expect(entryBox.x).toBeGreaterThanOrEqual(childBox.x + childBox.width)
+  expect(entryBox.x + entryBox.width).toBeLessThanOrEqual(searchBox.x)
+  await careEntry.click()
+  await expect(page).toHaveURL(/\/care-journey$/)
+  await page.getByRole('button', { name: '返回', exact: true }).click()
+  await expect(page.locator('.nurse-turn--user')).toHaveCount(1)
+  await expect(careEntry).toBeVisible()
   await page.reload()
   await expect(page.getByRole('button', { name: '按住记录症状', exact: true })).toBeEnabled()
   await expect(page.locator('.nurse-turn--user')).toHaveCount(1)
@@ -105,6 +119,7 @@ test('first bubble removes every intro area; restored history stays clear and an
   await drawer.getByRole('button', { name: '新建对话', exact: true }).click()
   await expect(page.locator(intro)).toBeVisible()
   await expect(page.locator('.nurse-turn')).toHaveCount(0)
+  await expect(careEntry).toHaveCount(0)
 })
 
 test('failed first input keeps its retry bubble instead of returning the introduction', async ({ page, request }) => {
@@ -113,6 +128,7 @@ test('failed first input keeps its retry bubble instead of returning the introdu
   await expect(page.locator('.nurse-turn--user')).toHaveCount(1)
   await expect(page.locator(intro)).toHaveCount(0)
   await expect(page.locator('.front-desk-failed-actions')).toBeVisible()
+  await expect(page.getByRole('button', { name: '呵护之旅', exact: true })).toBeVisible()
   await expect(page.locator('.front-desk-failed-actions').getByRole('button')).toHaveText(['重试', '移除'])
 })
 

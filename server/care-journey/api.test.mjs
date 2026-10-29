@@ -126,8 +126,16 @@ test('authenticated API enforces object JSON, method and account boundary', asyn
       requestId: 'valid-id-123'
     })
   });
-  assert.equal(response.status, 409);
-  assert.equal((await response.json()).error.code, 'INSUFFICIENT_SPROUTS');
+  assert.equal(response.status, 410);
+  assert.equal((await response.json()).error.code, 'EXCHANGE_RETIRED');
+  assert.equal((await service.get('a')).balance, 1);
+  for (const [suffix, method] of [['/task/verify', 'POST'], ['/tasks/verify', 'POST'], ['/task-material', 'GET'], ['/task-material/confirm', 'POST']]) {
+    response = await request(suffix, { method, ...(method === 'POST' ? { body: '{}' } : {}) });
+    assert.equal(response.status, 410);
+    assert.equal((await response.json()).error.code, 'DAILY_TASK_RETIRED');
+  }
+  response = await request('/catalogue');
+  assert.deepEqual(await response.json(), { items: [] });
   response = await request('/check-in', {
     method: 'DELETE'
   });
