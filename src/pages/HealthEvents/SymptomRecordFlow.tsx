@@ -2,6 +2,7 @@ import { nurseApi } from '../../features/ai-nurse/api'
 import { useVisibleViewport } from '../../hooks/useVisibleViewport'
 import { useSymptomVoice } from './useSymptomVoice'
 import { RecordSaveAction } from './RecordSaveAction'
+import { GuidedRecordHint } from '../../features/help/GuidedRecordHint'
 import { NursePanel } from '../../features/ai-nurse/NursePanel'
 import { NurseNotes } from '../../features/ai-nurse/NurseNotes'
 import { mergeNurseReview } from '../../features/ai-nurse/mergeReview'
@@ -230,6 +231,7 @@ export function SymptomRecordFlow({ memberId, token, selectedDay, today, onBack,
   const form = <div className={embedded ? 'symptom-record-inline' : 'symptom-record-page-layer'} style={embedded ? undefined : { top: viewport.top, height: viewport.height, bottom: 'auto' }}><section aria-label={title} aria-modal={embedded ? undefined : true} data-keyboard={viewport.keyboard} className="symptom-record-page symptom-record-page--brand-white" role={embedded ? 'region' : 'dialog'}>
     {!embedded && <header><button aria-label="返回" disabled={saving} onClick={() => leave(onBack)} type="button"><ChevronLeft aria-hidden="true" size={24} strokeWidth={1.8} /></button><h1>{title}</h1><RecordSaveAction disabled={saving || voice.busy || attachmentPicking || nurseOpen || !!conflict || mediaSaveBlocked} saving={saving} onClick={() => void save()} label={saveFailed ? '重试' : '保存'}/></header>}
     <div className="symptom-record-scroll">
+      <GuidedRecordHint lesson="symptom"/>
       {requireAllMediaUploaded&&photos.hydrating&&<p role="status" className="symptom-draft-notice">正在恢复资料草稿…</p>}
       {requireAllMediaUploaded&&photos.restoreError&&<p role="alert" className="symptom-save-error">{photos.restoreError}<HohoButton variant="text" onClick={photos.retryRestore}>重新恢复资料</HohoButton></p>}
       {incomingMedia&&!importError&&<p role="status" className="symptom-draft-notice">正在接收视频原件…</p>}

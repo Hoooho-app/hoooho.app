@@ -139,6 +139,11 @@ test('provider receives selected tutorials rather than the entire knowledge base
   const { service } = await fixture(t, { baseUrl: 'https://example.test', fetch: async (_, init) => { body = JSON.parse(init.body); return response({ reply: '请先保留录音。', articleIds: ['mic'], choices: [], askResolved: true }) } })
   const session = await service.start('a')
   await service.turn('a', session.id, question(session, '录音后转写失败'))
-  assert.ok(body.instructions.includes(SUPPORT_ARTICLES.find(article => article.id === 'mic').steps[0]))
+  assert.ok(body.instructions.includes([...SUPPORT_ARTICLES, ...EXTRA_ARTICLES].find(article => article.id === 'mic').steps[0]))
   assert.ok(!body.instructions.includes(EXTRA_ARTICLES.find(article => article.id === 'export-data').steps[0]))
+})
+
+test('current release knowledge excludes withdrawn features even when an older help turn linked one', () => {
+  const knowledge = selectHelpKnowledge([{ role: 'assistant', text: '旧回复', articleIds: ['followup', 'collect', 'diet', 'handoff'] }, { role: 'user', text: '任务系统在哪里' }])
+  assert.doesNotMatch(JSON.stringify(knowledge), /"id":"(?:followup|collect|diet|handoff)"|安排与跟进|任务系统|看护交接/)
 })

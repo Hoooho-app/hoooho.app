@@ -16,28 +16,37 @@ import { MedicationRecordFlow } from './MedicationRecordFlow'
 import { VaccinationRecordFlow } from './VaccinationRecordFlow'
 import { VisitRecordFlow } from './VisitRecordFlow'
 import { DailyRecordScope } from './DailyRecordSettings'
+import { useAppStore } from '../../store/useAppStore'
+import { helpLessonFromSearch, readHelpSleepDraft, saveHelpSleepDraft } from '../../features/help/guidedRecord'
 import type { DailyExtras } from '../../services/dailyRecords'
 import type { ReactNode } from 'react'
 
 type RecorderScreen = 'categories' | 'daily-types' | 'diet-types' | 'diet-form' | 'sleep-form' | 'bowel-form' | 'activity-form' | 'topical-form' | 'symptom-form' | 'medication-form' | 'vaccination-form' | 'visit-form' | 'generic'
 interface RecorderHistoryEntry { id: string; screen: RecorderScreen | 'ai'; depth: number; dietKind: DietRecordKind | null }
 
-export function JournalRecorder({ memberId, token, selectedDay, today, initialCategory, initialDietKind, returnToSource = false, onClose, onConfirm, onSaved, onViewRecord }: {
+export function JournalRecorder({ memberId, token, selectedDay, today, initialCategory, initialDietKind, returnToSource = false, returnToHelp = false, onClose, onConfirm, onSaved, onViewRecord }: {
   memberId: string; token: string; selectedDay: string; today: string; onClose: () => void
   initialCategory?: JournalCategory
   initialDietKind?: DietRecordKind
   returnToSource?: boolean
+  returnToHelp?: boolean
   onConfirm: (text: string, occurredAt: string, channel: QuickRecordInputChannel, photos: QuickRecordPhotoPayload, journal: JournalMetadata, daily?: DailyExtras) => Promise<string>
   onSaved?: (message: string) => void
   onViewRecord?: (eventId: string, recordId: string) => void
 }) {
   const location = useLocation()
+  const accountId = useAppStore(state => state.authUser?.id ?? '')
+  const sleepTutorial = helpLessonFromSearch(location.search) === 'sleep'
   const nurseMedicationEntry = Boolean((location.state as { nurseMedicationEntry?: boolean } | null)?.nurseMedicationEntry)
   const initialScreen = initialCategory === 'care' ? 'topical-form' : initialCategory === 'diet' ? 'diet-form' : initialCategory === 'sleep' ? 'sleep-form' : initialCategory === 'elimination' ? 'bowel-form' : initialCategory === 'visit' ? 'visit-form' : initialCategory === 'activity' ? 'activity-form' : initialCategory === 'symptom' ? 'symptom-form' : initialCategory === 'medication' || nurseMedicationEntry ? 'medication-form' : initialCategory ? 'generic' : 'categories'
   const [screen, setScreen] = useState<RecorderScreen>(initialScreen)
   const [selected, setSelected] = useState<JournalCategory[]>([])
   const [dietKind, setDietKind] = useState<DietRecordKind | null>(() => initialDietKind ?? 'feeding')
-  const [sleepDraft, setSleepDraft] = useState<SleepDraft>(() => createSleepDraft())
+  const [sleepDraft, setSleepDraft] = useState<SleepDraft>(() => (sleepTutorial ? readHelpSleepDraft(accountId, memberId) : null) ?? createSleepDraft())
+  const updateSleepDraft = (draft: SleepDraft) => {
+    setSleepDraft(draft)
+    if (sleepTutorial) saveHelpSleepDraft(accountId, memberId, draft)
+  }
   const [saving, setSaving] = useState(false)
   const [dailyInput, setDailyInput] = useState<DailyExtras>({})
   const [dailyReady, setDailyReady] = useState(false)
@@ -58,6 +67,11 @@ export function JournalRecorder({ memberId, token, selectedDay, today, initialCa
   }
   const closeRecorder = () => {
     const current = historyEntry()
+    if (returnToHelp) {
+      if ((location.state as { helpTutorialReturn?: boolean } | null)?.helpTutorialReturn && current?.id === flowIdRef.current) window.history.go(-(current.depth + 1))
+      else onClose()
+      return
+    }
     // Pop the recorder's own entries before the parent returns to its source.
     // Browser back and the header back then share the same exit path.
     if (returnToSource && current?.id === flowIdRef.current) {
@@ -80,7 +94,7 @@ export function JournalRecorder({ memberId, token, selectedDay, today, initialCa
     else window.history.pushState({ ...window.history.state, hooohoRecorder: initial }, '', `${location.pathname}${location.search}`)
     const handlePopState = () => {
       const current = historyEntry()
-      if (current?.id !== flowIdRef.current) { onClose(); return }
+      if (current?.id !== flowIdRef.current) { if (!returnToHelp) onClose(); return }
       setScreen(current.screen === 'ai' ? 'symptom-form' : current.screen)
       setDietKind(current.dietKind)
     }
@@ -103,7 +117,7 @@ export function JournalRecorder({ memberId, token, selectedDay, today, initialCa
   if (screen === 'topical-form') return withDaily(<TopicalRecordFlow memberId={memberId} token={token} selectedDay={occurrenceDay} today={today} onBack={dailyBack} onClose={closeRecorder} onConfirm={confirmWithDaily} onSaved={onSaved ?? (() => undefined)}/>)
   if (screen === 'diet-form' && dietKind) return withDaily(<DietRecordFlow kind={dietKind} memberId={memberId} selectedDay={occurrenceDay} today={today} token={token} onBack={initialCategory ? closeRecorder : () => backOneLevel('categories')} onClose={closeRecorder} onConfirm={confirmWithDaily} onSaved={onSaved ?? (() => undefined)} />)
   if (screen === 'bowel-form') return withDaily(<BowelRecordFlow memberId={memberId} selectedDay={occurrenceDay} today={today} token={token} onBack={dailyBack} onClose={closeRecorder} onConfirm={confirmWithDaily} onSaved={onSaved ?? (() => undefined)} />)
-  if (screen === 'sleep-form') return withDaily(<SleepRecordFlow draft={sleepDraft} memberId={memberId} onDraftChange={setSleepDraft} onBack={sourceBack} onClose={closeRecorder} onConfirm={confirmWithDaily} onSaved={onSaved ?? (() => undefined)} />)
+  if (screen === 'sleep-form') return withDaily(<SleepRecordFlow draft={sleepDraft} memberId={memberId} onDraftChange={updateSleepDraft} onBack={sourceBack} onClose={closeRecorder} onConfirm={confirmWithDaily} onSaved={onSaved ?? (() => undefined)} />)
   if (screen === 'activity-form') return <OutdoorActivityRecordFlow memberId={memberId} selectedDay={occurrenceDay} today={today} token={token} onBack={dailyBack} onClose={closeRecorder} onConfirm={onConfirm} onSaved={onSaved ?? (() => undefined)} />
   if (screen === 'symptom-form') return <SymptomRecordFlow manualEntry memberId={memberId} selectedDay={occurrenceDay} today={today} token={token} onBack={sourceBack} onClose={closeRecorder} onConfirm={onConfirm} onSaved={onSaved ?? (() => undefined)} />
   if (screen === 'medication-form') return withDaily(<MedicationRecordFlow memberId={memberId} selectedDay={occurrenceDay} today={today} token={token} onBack={sourceBack} onClose={closeRecorder} onConfirm={confirmWithDaily} onSaved={onSaved ?? (() => undefined)} />)

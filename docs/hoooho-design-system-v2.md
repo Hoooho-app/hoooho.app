@@ -123,4 +123,4 @@ Original photo previews opened from an existing record, reminder or upload works
 
 ### 侧栏对话状态色（2026-10-30）
 
-对话标题及图标采用正文主色；真实已保存状态复用 `HealthTag tone="success"` 的“已记录”标签。对话不确定性专用 `--hoho-color-conversation-pending` 明亮橘黄色，覆盖侧栏原棕色观感；其他模块 warning 语义色不变。
+对话标题及图标采用正文主色；真实已保存状态使用 success 绿色的“已记录”纯文字，无背景；未保存条目显示黄色“待确认”，保存后仍有未知内容时跟随“有待确认”。对话不确定性专用 `--hoho-color-conversation-pending` 明亮橘黄色，覆盖侧栏原棕色观感；其他模块 warning 语义色不变。

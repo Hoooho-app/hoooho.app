@@ -1,4 +1,5 @@
-/* Owner-approved welcome composition; shared product tokens remain authoritative. */
+/* Owner-approved welcome composition; shared product tokens remain authoritative.
+   The editorial variant must win over generic welcome rules across lazy CSS load orders. */
 body .smart-record-home .front-desk-welcome.front-desk-welcome--editorial{display:grid;grid-template-rows:minmax(min-content,1.25fr) minmax(200px,1fr);height:calc(100cqh - var(--hoho-space-1) - var(--hoho-space-2));gap:var(--hoho-space-3);margin:var(--hoho-space-1) 0 var(--hoho-space-2)}
 .front-desk-welcome--editorial{--welcome-portrait-width:128px}
 .smart-record-home .smart-record-page__body:has(>.front-desk-welcome--editorial){container:front-desk-body / size}

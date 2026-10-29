@@ -12,6 +12,8 @@ import { useAppStore } from '../../store/useAppStore'
 import type { JournalCategory, JournalMetadata, DietRecordKind } from '../../types/journal'
 import { getLocalDateKey } from '../../utils/localCalendarDate'
 import { useJournal } from './useJournal'
+import { getChildMembers } from '../../features/family/currentChild'
+import { helpLessonArticleUrl, helpLessonFromSearch, saveHelpLessonReceipt } from '../../features/help/guidedRecord'
 import { CalendarToolbar } from '../HealthCalendar/CalendarToolbar'
 import { MonthView } from '../HealthCalendar/MonthView'
 import { DayRecordsSheet } from '../HealthCalendar/DayRecordsSheet'
@@ -50,6 +52,11 @@ function HealthEventsContent() {
   const token = useAppStore((state) => state.authToken); const currentMemberId = useAppStore((state) => state.currentMemberId); const cachedMembers = useAppStore((state) => state.members)
   const accountId = useAppStore(state=>state.authUser?.id ?? '')
   const identity = `${accountId}:${currentMemberId}`
+  const helpLesson = helpLessonFromSearch(location.search)
+  const helpStarted = useRef('')
+  const helpPageAlive = useRef(true)
+  useEffect(() => { helpPageAlive.current = true; return () => { helpPageAlive.current = false } }, [])
+  const helpPageCurrent = () => !helpLesson || (helpPageAlive.current && useAppStore.getState().authUser?.id === accountId && useAppStore.getState().currentMemberId === currentMemberId)
   const recordOrigin = location.state as { frontDeskReturn?: boolean; calendarIdentity?: string } | null
   const returnToFrontDesk = Boolean(recordOrigin?.frontDeskReturn && recordOrigin.calendarIdentity === identity)
   const { state, retry } = useHealthEventsList()
@@ -81,6 +88,19 @@ function HealthEventsContent() {
   const tutorial = Boolean((location.state as { nurseTutorial?: boolean } | null)?.nurseTutorial)
   const loadedMembers = state.status === 'success' ? state.data.members : []; const currentMember = loadedMembers.find((member) => member.id === currentMemberId) ?? cachedMembers.find((member) => member.id === currentMemberId) ?? loadedMembers[0] ?? cachedMembers[0] ?? null
   const nextActionEventId = getNurseNextActionEventId(state.status === 'success' ? state.data.events : [], currentMemberId) ?? (journalContext.memberId === currentMemberId ? journalContext.eventId : null)
+  useEffect(() => {
+    if (!helpLesson || !currentMember || currentMember.id !== currentMemberId || state.status !== 'success' || !getChildMembers(state.data.members).length) return
+    const entryKey = identity + ':' + helpLesson
+    if (helpStarted.current === entryKey) return
+    helpStarted.current = entryKey
+    submissionKeyRef.current = ''
+    setRecorderInitialCategory(helpLesson)
+    setRecorderMode('manual')
+  }, [helpLesson, identity, currentMember?.id, state.status])
+  const rememberHelpSave = (saved: { eventId: string; recordId: string }, journal: JournalMetadata) => {
+    if (!helpLesson || !journal.categories?.includes(helpLesson)) return
+    saveHelpLessonReceipt(accountId, currentMemberId, helpLesson, { ...saved, savedAt: new Date().toISOString() })
+  }
   useEffect(() => { setNextActionOpen(false); setSelectedRecord(null) }, [currentMemberId])
   useEffect(() => {
     let interval = 0
@@ -159,9 +179,11 @@ function HealthEventsContent() {
     const { duplicate } = journal.sleep?.status === 'ongoing' || journal.diet?.status === 'ongoing' ? { duplicate: null } : await quickRecordService.checkDuplicate(input, token)
     if (duplicate) return new Promise<string>((resolve, reject) => setPendingDuplicate({ duplicate, input, resolve, reject }))
     const saved = await quickRecordService.create(input, token)
+    rememberHelpSave(saved, journal)
+    if (!helpPageCurrent()) throw new Error('记录已保存到原来的孩子，当前页面已切换。')
     const savedDay = getLocalDateKey(new Date(occurredAt))!
     setSavedRecordFocus({ recordId: saved.recordId, day: savedDay, revision: Date.now(), entry: { ...journal, id: saved.recordId, eventId: saved.eventId, content, occurredAt, createdAt: new Date().toISOString(), attachmentCount: photos.photoIds.length, status: 'observing' } })
-    if (!returnToFrontDesk) navigation.change({ ...calendar, day: savedDay, month: savedDay.slice(0, 7), category: matchesCalendarGroup(journal, calendar.category) ? calendar.category : '' })
+    if (!returnToFrontDesk && !helpLesson) navigation.change({ ...calendar, day: savedDay, month: savedDay.slice(0, 7), category: matchesCalendarGroup(journal, calendar.category) ? calendar.category : '' })
     finishSave(); return '已记录'
   }
   const resolveDuplicate = async (action: 'update' | 'create', changeSummary?: string): Promise<void> => {
@@ -169,16 +191,18 @@ function HealthEventsContent() {
     const pending = pendingDuplicate; setPendingDuplicate(null)
     try {
       const saved = await quickRecordService.create({ ...pending.input, rawText: pending.input.content, content: action === 'update' && changeSummary ? changeSummary : pending.input.content, duplicateAction: action, duplicateEventId: pending.duplicate.eventId }, token)
+      if (pending.input.journal) rememberHelpSave(saved, pending.input.journal)
+      if (!helpPageCurrent()) throw new Error('记录已保存到原来的孩子，当前页面已切换。')
       const savedDay = getLocalDateKey(new Date(pending.input.occurredAt))!
       setSavedRecordFocus({ recordId: saved.recordId, day: savedDay, revision: Date.now(), entry: { ...pending.input.journal, id: saved.recordId, eventId: saved.eventId, content: action === 'update' && changeSummary ? changeSummary : pending.input.content, occurredAt: pending.input.occurredAt, createdAt: new Date().toISOString(), attachmentCount: pending.input.photoIds?.length ?? 0, status: 'observing', categories: pending.input.journal?.categories ?? ['other'] } })
-      if (!returnToFrontDesk) navigation.change({ ...calendar, day: savedDay, month: savedDay.slice(0, 7), category: matchesCalendarGroup(pending.input.journal ?? {}, calendar.category) ? calendar.category : '' })
+      if (!returnToFrontDesk && !helpLesson) navigation.change({ ...calendar, day: savedDay, month: savedDay.slice(0, 7), category: matchesCalendarGroup(pending.input.journal ?? {}, calendar.category) ? calendar.category : '' })
       finishSave(); pending.resolve(action === 'update' ? '已补充到原来的记录' : '已新增一条记录')
     } catch (error) { pending.reject(error) }
   }
   const cancelDuplicate = () => { if (!pendingDuplicate) return; const pending=pendingDuplicate; setPendingDuplicate(null); pending.reject(new Error('')) }
   const discardDuplicate = () => { if (!pendingDuplicate) return; const pending = pendingDuplicate; setPendingDuplicate(null); submissionKeyRef.current = ''; pending.resolve('已保留原来的记录') }
   const showJournalSavedNotice = () => setSavedNotice('已记下来')
-  if (state.status === 'success' && state.data.entryState.familyMemberCount === 0) return <Navigate to="/nurse-station" replace />
+  if (state.status === 'success' && (helpLesson ? !getChildMembers(state.data.members).length : state.data.entryState.familyMemberCount === 0)) return <Navigate to={helpLesson ? '/nurse-station?helpTutorial=' + helpLesson : '/nurse-station'} replace />
   if (nextActionOpen && currentMemberId) return <Navigate to="/visit-summary" />
   return <main className="hoho-health-events-page unified-health-calendar app-shell app-shell--wide relative flex flex-col overflow-hidden pb-0" data-view-mode="list" data-calendar-view={calendar.view}>
     <div className="calendar-background" ref={backgroundRef}>
@@ -193,7 +217,7 @@ function HealthEventsContent() {
     </div>
     {sheetDay && <DayRecordsSheet day={sheetDay} entries={monthRecords.get(sheetDay) ?? []} reminders={reminderDays.get(sheetDay) ?? []} onReminder={reminder => navigate(reminder.href)} suspended={Boolean(selectedRecord)} loading={journal.loading || scheduled.loading} error={journal.error || scheduled.error} onRetry={() => { journal.retry(); scheduled.retry() }} onClose={closeDaySheet} onOpen={entry => setSelectedRecord({ eventId: entry.eventId, recordId: entry.id })}/>}
     {selectedRecord && <JournalRecordDetail eventId={selectedRecord.eventId} recordId={selectedRecord.recordId} startSleepCorrection={selectedRecord.correctSleep} onChanged={changedDay => { if (changedDay && !sheetDay) setDay(changedDay); setSavedRecordFocus(changedDay && !sheetDay ? { recordId: selectedRecord.recordId, day: changedDay, revision: Date.now() } : null); setRevision(value => value + 1); void retry() }} onClose={() => { setSelectedRecord(null); const params = new URLSearchParams(location.search); if (params.has('recordId') || params.has('eventId')) { params.delete('recordId'); params.delete('eventId'); navigate(`${location.pathname}?${params}${location.hash}`, { replace: true, state: location.state }) } }}/ >}
-    {recorderMode && <JournalRecorder initialDietKind={recorderInitialDietKind} initialCategory={recorderInitialCategory} returnToSource={returnToFrontDesk} key={`recorder:${identity}:${recorderInitialCategory ?? 'none'}`} memberId={currentMemberId} selectedDay={day > today ? today : day} today={today} token={token ?? ''} onClose={() => { setRecorderMode(null); setRecorderInitialCategory(undefined); setRecorderInitialDietKind(undefined); if (returnToFrontDesk) navigate('/nurse-station', { replace: true }) }} onViewRecord={(eventId, recordId) => { setRecorderMode(null); setRecorderInitialCategory(undefined); setRecorderInitialDietKind(undefined); setSelectedRecord({ eventId, recordId }); navigate('/health-events?eventId=' + encodeURIComponent(eventId) + '&recordId=' + encodeURIComponent(recordId), { replace: true }) }} onConfirm={saveJournalRecord} onSaved={message => { setSavedNotice(message); window.setTimeout(() => setSavedNotice(''), 1800) }}/ >}
+    {recorderMode && <JournalRecorder initialDietKind={recorderInitialDietKind} initialCategory={recorderInitialCategory} returnToSource={returnToFrontDesk || Boolean(helpLesson)} returnToHelp={Boolean(helpLesson)} key={`recorder:${identity}:${recorderInitialCategory ?? 'none'}`} memberId={currentMemberId} selectedDay={day > today ? today : day} today={today} token={token ?? ''} onClose={() => { if (!helpPageCurrent()) return; setRecorderMode(null); setRecorderInitialCategory(undefined); setRecorderInitialDietKind(undefined); if (helpLesson) navigate(helpLessonArticleUrl(helpLesson), { replace: true }); else if (returnToFrontDesk) navigate('/nurse-station', { replace: true }) }} onViewRecord={(eventId, recordId) => { setRecorderMode(null); setRecorderInitialCategory(undefined); setRecorderInitialDietKind(undefined); setSelectedRecord({ eventId, recordId }); navigate('/health-events?eventId=' + encodeURIComponent(eventId) + '&recordId=' + encodeURIComponent(recordId), { replace: true }) }} onConfirm={saveJournalRecord} onSaved={message => { if (!helpPageCurrent()) return; setSavedNotice(message); window.setTimeout(() => setSavedNotice(''), 1800) }}/ >}
     {pendingDuplicate && <DuplicateRecordPrompt duplicate={pendingDuplicate.duplicate} onCancel={cancelDuplicate} onDiscard={discardDuplicate} onUpdate={changeSummary => resolveDuplicate('update', changeSummary)} onCreate={() => resolveDuplicate('create')}/>}
     {savedNotice && <div className="journal-saved-toast" aria-live="polite" role="status">{savedNotice}</div>}
     {navigation.legacyNotice && <div className="journal-saved-toast" role="status">旧类型已按全部类型显示</div>}
