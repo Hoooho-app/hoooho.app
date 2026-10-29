@@ -6,28 +6,31 @@ import UniformTypeIdentifiers
 final class NativeAttachmentSelection {
     let id = UUID().uuidString
     private let directory: URL
+    private let mediaOnly: Bool
     private(set) var files: [(id: String, url: URL, size: Int, mime: String)] = []
     private(set) var active = true
 
-    init() throws {
+    init(mediaOnly: Bool = false) throws {
+        self.mediaOnly = mediaOnly
         directory = FileManager.default.temporaryDirectory.appendingPathComponent("hoooho-attachment-" + id, isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
     }
 
     func add(_ url: URL) throws {
-        guard active, files.count < 12 else { throw failure("最多选择12份资料") }
+        guard active, files.count < (mediaOnly ? 6 : 12) else { throw failure(mediaOnly ? "最多选择6份资料" : "最多选择12份资料") }
         let size = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
         let mime = Self.mime(url.pathExtension)
         guard size > 0 else { throw failure("所选文件为空，请重新选择") }
         let video = mime.hasPrefix("video/")
+        guard !mediaOnly || mime.hasPrefix("image/") || video else { throw failure("请选择照片或视频") }
         guard ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif", "application/pdf", "video/mp4", "video/quicktime", "video/webm"].contains(mime) else {
-            throw failure("请选择照片、PDF 或 MP4、MOV、WebM 视频")
+            throw failure(mediaOnly ? "请选择照片或 MP4、MOV、WebM 视频" : "请选择照片、PDF 或 MP4、MOV、WebM 视频")
         }
-        guard !(video && !files.isEmpty), !files.contains(where: { $0.mime.hasPrefix("video/") }) else {
+        guard mediaOnly || (!(video && !files.isEmpty) && !files.contains(where: { $0.mime.hasPrefix("video/") })) else {
             throw failure("请单独选择一段视频")
         }
-        guard video ? size <= 100 * 1024 * 1024 : size + files.reduce(0, { $0 + $1.size }) <= 15 * 1024 * 1024 else {
-            throw failure(video ? "视频超过100MB，请裁剪后重新选择" : "资料总大小不能超过15MB")
+        guard video ? size <= 100 * 1024 * 1024 : mediaOnly ? size <= 25 * 1024 * 1024 : size + files.reduce(0, { $0 + $1.size }) <= 15 * 1024 * 1024 else {
+            throw failure(video ? "视频超过100MB，请裁剪后重新选择" : mediaOnly ? "照片超过25MB，请缩小后重选" : "资料总大小不能超过15MB")
         }
         let fileId = UUID().uuidString
         let folder = directory.appendingPathComponent(fileId, isDirectory: true)
@@ -74,22 +77,25 @@ final class NativeAttachments: NSObject, PHPickerViewControllerDelegate, UIImage
     private weak var owner: UIViewController?
     private let permissions: CapturePermissions
     private let selection: NativeAttachmentSelection
+    private let mediaOnly: Bool
     private var completion: (([String: Any]) -> Void)?
     private var expiry: Timer?
     private var origin = "library"
     var isPicking: Bool { completion != nil }
     var selectionId: String { selection.id }
 
-    init(owner: UIViewController, permissions: CapturePermissions) throws {
+    init(owner: UIViewController, permissions: CapturePermissions, mediaOnly: Bool = false) throws {
         self.owner = owner
         self.permissions = permissions
-        self.selection = try NativeAttachmentSelection()
+        self.mediaOnly = mediaOnly
+        self.selection = try NativeAttachmentSelection(mediaOnly: mediaOnly)
     }
 
     func present(completion: @escaping ([String: Any]) -> Void) {
         self.completion = completion
         let menu = UIAlertController(title: nil, message: nil, preferredStyle: .actionSheet)
-        let sources: [(String, () -> Void)] = [("照片图库", { self.library() }), ("拍照", { self.camera(video: false) }), ("拍视频", { self.camera(video: true) }), ("选择文件", { self.documents() })]
+        var sources: [(String, () -> Void)] = [("照片图库", { self.library() }), ("拍照", { self.camera(video: false) }), ("拍视频", { self.camera(video: true) })]
+        if !mediaOnly { sources.append(("选择文件", { self.documents() })) }
         for (title, open) in sources {
             menu.addAction(UIAlertAction(title: title, style: .default) { [weak menu] _ in menu?.dismiss(animated: true, completion: open) })
         }
@@ -112,7 +118,7 @@ final class NativeAttachments: NSObject, PHPickerViewControllerDelegate, UIImage
     private func library() {
         var configuration = PHPickerConfiguration()
         configuration.filter = .any(of: [.images, .videos])
-        configuration.selectionLimit = 12
+        configuration.selectionLimit = mediaOnly ? 6 : 12
         configuration.selection = .ordered
         configuration.preferredAssetRepresentationMode = .current
         let picker = PHPickerViewController(configuration: configuration)
@@ -121,7 +127,7 @@ final class NativeAttachments: NSObject, PHPickerViewControllerDelegate, UIImage
     }
 
     private func camera(video: Bool) {
-        guard UIImagePickerController.isSourceTypeAvailable(.camera) else { finish(error: "此设备没有可用相机，可以从图库或文件中选择"); return }
+        guard UIImagePickerController.isSourceTypeAvailable(.camera) else { finish(error: mediaOnly ? "此设备没有可用相机，可以从图库中选择" : "此设备没有可用相机，可以从图库或文件中选择"); return }
         permissions.authorize(video ? [.camera, .microphone] : [.camera]) { [weak self] allowed in
             guard let self, self.isPicking else { return }
             guard allowed else { self.finish(error: video ? "相机或麦克风未获授权，请允许后重试" : "相机未获授权，请允许后重试"); return }

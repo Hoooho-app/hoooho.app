@@ -1,0 +1,50 @@
+name: Manual symptom attachment verification
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/pages/HealthEvents/SymptomRecordFlow*'
+      - 'src/pages/HealthEvents/JournalRecorder.tsx'
+      - 'src/pages/HealthEventDetail/components/QuickRecordPhotos*'
+      - 'src/services/nativeAttachments.ts'
+      - 'tests/symptom-manual/**'
+      - '.github/workflows/symptom-manual-verification.yml'
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Use bundled media tools
+        run: |
+          node --input-type=module <<'NODE'
+          import ffmpeg from '@ffmpeg-installer/ffmpeg'
+          import ffprobe from 'ffprobe-static'
+          import {dirname} from 'node:path'
+          import {appendFileSync} from 'node:fs'
+          appendFileSync(process.env.GITHUB_PATH,[dirname(ffmpeg.path),dirname(ffprobe.path),''].join('\n'))
+          NODE
+      - run: npx playwright install --with-deps chromium
+      - run: npm run build
+      - run: TZ=Asia/Shanghai npm run test:client
+      - run: node --test scripts/ios/native-attachments-bridge.test.mjs
+      - run: npx playwright test --config tests/symptom-manual/playwright.config.ts
+      - run: npx playwright test --config tests/frontdesk-input/playwright.config.ts
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: manual-symptom-evidence
+          retention-days: 7
+          path: |
+            outputs/symptom-manual/
+            test-results/symptom-manual/
