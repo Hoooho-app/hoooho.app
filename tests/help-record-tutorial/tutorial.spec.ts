@@ -129,6 +129,7 @@ test('a new account adds the first child and resumes the requested tutorial', as
   await page.goto('/help?article=sleep')
   await page.getByRole('button', { name: '跟着记一次睡眠', exact: true }).click()
   await expect(page).toHaveURL(/\/login$/)
+  await page.locator('.hoooho-onboarding, [role="tablist"][aria-label="登录或注册"]').first().waitFor()
   const start = page.getByRole('button', { name: '开始', exact: true })
   if (await start.isVisible()) await start.click()
   await page.getByRole('tab', { name: '注册', exact: true }).click()
