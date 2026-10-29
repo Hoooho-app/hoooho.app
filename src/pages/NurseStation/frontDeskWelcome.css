@@ -21,6 +21,7 @@ body .smart-record-home .front-desk-welcome.front-desk-welcome--editorial{displa
 .front-desk-welcome__care-link{position:absolute;inset:0;z-index:2;border-radius:inherit}
 .front-desk-welcome__care-claim{position:relative;z-index:3;margin-top:auto;align-self:center;max-width:100%}
 .front-desk-welcome__care-claim .hoho-button{max-width:100%;background:rgb(var(--hoho-color-sprout-border)/.45);color:rgb(var(--hoho-color-sprout-text))}
+.front-desk-welcome__care-sprout{display:block;width:28px;height:28px;flex-shrink:0;object-fit:contain}
 @media(max-width:370px){
  .front-desk-welcome--editorial{--welcome-portrait-width:112px}
  .front-desk-welcome--editorial .front-desk-welcome__copy{padding-inline:var(--hoho-space-4)}

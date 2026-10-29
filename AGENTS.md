@@ -251,6 +251,7 @@ These rules apply to every task, regardless of whether it is executed directly i
 
 ## 首页今日呵护：产品主人确认 2026-10-30
 
+- 领取按钮使用专用的两瓣嫩叶、圆润可爱3D动画质感的小芽透明图片，不使用通用 Material 图标；此素材例外仅限本按钮，不更换全局图标库。见 `docs/delivery/care-sprout-art-20261030.md`。
 - 原每日小知识同尺寸区域替换为「今日呵护」，显示「已守护 X 天」和淡色、带小树苗图标且水平居中的「领取树苗」按钮；整卡进入既有 `/care-journey` 任务页，按钮独立领取每日1树芽，成功后为「今日已领取」。
 - 守护天数从当前孩子档案的服务端createdAt开始按自然日计算，当天第1天；不记录、不签到仍累计，切换孩子各自计算。领取状态以服务端回执为准，领取不改变守护时长。本口径覆盖此前误用签到次数的实现，见 `docs/delivery/care-days-profile-start-20261030.md`。定向开放任务路由树，其他隐藏模块/侧栏入口不随之恢复。
 - 保留欢迎横幅、左帮助卡及首条气泡后整体消失规则。本段覆盖此前首页每日文章入口的局部约定。契约见 `docs/delivery/home-today-care-20261030.md`。

@@ -83,7 +83,7 @@ test('daily claim persists across homepage, task page and refresh without duplic
   const buttonBox = (await card.getByRole('button').boundingBox())!
   expect(buttonBox.height).toBeGreaterThanOrEqual(44)
   expect(Math.abs(buttonBox.x + buttonBox.width / 2 - (cardBefore!.x + cardBefore!.width / 2))).toBeLessThan(1)
-  await expect(card.getByRole('button').locator('svg')).toHaveAttribute('data-icon', 'potted_plant')
+  await expect(card.getByRole('button').locator('img')).toHaveAttribute('src', /two-leaf-sprout/)
   expect(buttonBox.y + buttonBox.height).toBeLessThanOrEqual(cardBefore!.y + cardBefore!.height)
   await page.screenshot({ path: info.outputPath('today-care-claimed.png') })
   await page.getByRole('link', { name: '今日呵护：查看任务', exact: true }).click()
