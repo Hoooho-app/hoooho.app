@@ -1,5 +1,6 @@
-/* Owner-approved welcome composition; shared product tokens remain authoritative. */
-body .smart-record-home .front-desk-welcome--editorial{display:grid;grid-template-rows:minmax(min-content,1.25fr) minmax(200px,1fr);height:calc(100cqh - var(--hoho-space-1) - var(--hoho-space-2));gap:var(--hoho-space-3);margin:var(--hoho-space-1) 0 var(--hoho-space-2)}
+/* Owner-approved welcome composition; shared product tokens remain authoritative.
+   The editorial variant must win over generic welcome rules across lazy CSS load orders. */
+body .smart-record-home .front-desk-welcome.front-desk-welcome--editorial{display:grid;grid-template-rows:minmax(min-content,1.25fr) minmax(200px,1fr);height:calc(100cqh - var(--hoho-space-1) - var(--hoho-space-2));gap:var(--hoho-space-3);margin:var(--hoho-space-1) 0 var(--hoho-space-2)}
 .front-desk-welcome--editorial{--welcome-portrait-width:128px}
 .smart-record-home .smart-record-page__body:has(>.front-desk-welcome--editorial){container:front-desk-body / size}
 .front-desk-welcome--editorial .front-desk-welcome__hero{position:relative;isolation:isolate;overflow:hidden;display:flex;align-items:center;min-height:176px;border-radius:var(--hoho-radius-overlay);background:radial-gradient(ellipse at 72% 76%,rgb(var(--hoho-color-primary-border)/.54),rgb(var(--hoho-color-primary-soft)) 74%)}
@@ -31,7 +32,7 @@ body .smart-record-home .front-desk-welcome--editorial{display:grid;grid-templat
  .front-desk-welcome__entries{gap:var(--hoho-space-2)}
 }
 @container front-desk-body (max-height:540px){
- body .smart-record-home .front-desk-welcome--editorial{--welcome-portrait-width:104px;gap:var(--hoho-space-2)}
+ body .smart-record-home .front-desk-welcome.front-desk-welcome--editorial{--welcome-portrait-width:104px;gap:var(--hoho-space-2)}
  .front-desk-welcome--editorial .front-desk-welcome__copy{padding:var(--hoho-space-4)}
  .front-desk-welcome--editorial .front-desk-welcome__copy h2{font-size:var(--hoho-font-size-page-title)}
  .front-desk-welcome--editorial .front-desk-welcome__media{height:170px}
@@ -44,7 +45,7 @@ body .smart-record-home .front-desk-welcome--editorial{display:grid;grid-templat
  .smart-record-home .smart-record-page__body:has(>.front-desk-welcome--editorial){padding-block:var(--hoho-space-2)}
 }
 @container front-desk-body (max-height:360px){
- body .smart-record-home .front-desk-welcome--editorial{grid-template-rows:minmax(min-content,1.25fr) minmax(168px,1fr)}
+ body .smart-record-home .front-desk-welcome.front-desk-welcome--editorial{grid-template-rows:minmax(min-content,1.25fr) minmax(168px,1fr)}
  .front-desk-welcome--editorial .front-desk-welcome__hero{min-height:140px}
  .front-desk-welcome--editorial .front-desk-welcome__copy{padding:var(--hoho-space-3)}
  .front-desk-welcome--editorial .front-desk-welcome__media{height:calc(100% - var(--hoho-space-1));max-height:170px}
