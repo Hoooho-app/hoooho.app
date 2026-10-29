@@ -21,6 +21,7 @@ test('unsent input switches without a prompt, appears in the sidebar and reopens
   await type(page,text)
   for(const target of ['孩子档案','健康日历']){
     await page.getByRole('navigation',{name:'主要导航'}).getByRole('button',{name:target,exact:true}).click()
+    await expect(page).toHaveURL(target==='孩子档案'?/\/health-profile$/:/\/health-events(?:\?|$)/)
     await expect(page.getByRole('dialog',{name:'退出智能记录',exact:true})).toHaveCount(0)
     await home(page);await expect(page.getByLabel('对话输入',{exact:true})).toHaveValue(text)
   }
