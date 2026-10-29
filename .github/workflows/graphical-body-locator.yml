@@ -5,6 +5,8 @@ on:
     paths:
       - 'src/components/health/body-location/**'
       - 'src/features/body-location/**'
+      - 'public/body-locator/**'
+      - 'scripts/check-locator-detail-assets.mjs'
       - 'src/pages/HealthEvents/symptomRecordLogic*'
       - 'tests/body-locator/**'
       - '.github/workflows/graphical-body-locator.yml'

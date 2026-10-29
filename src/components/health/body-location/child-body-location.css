@@ -97,6 +97,7 @@
 .locator-drawer button:focus-visible,.locator-callout:focus-visible { outline: 2px solid rgb(var(--hoho-color-primary)); outline-offset: -2px; }
 
 /* Approved direct-image locator: faint boundaries, controls within the picture. */
+.locator-canvas { mix-blend-mode:multiply; }
 .locator-image-controls { position:absolute; top:4px; left:50%; width:min(180px,calc(100% - 32px)); transform:translateX(-50%); z-index:1; }
 .locator-image-controls button { min-width:0; white-space:nowrap; }
 .locator-image-controls .child-body-segments { margin:0; background:rgb(var(--hoho-color-surface) / .94); }

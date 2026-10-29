@@ -1,0 +1,84 @@
+// Versioned transparent cutouts and dedicated raster close-ups; original v1/v2 assets are immutable.
+export const LOCATOR_DETAIL_ASSETS = {
+  "girl-front": {
+    "asset": "/body-locator/v3/girl-front.3ab225e327.webp",
+    "width": 1024,
+    "height": 1536,
+    "hasAlpha": true,
+    "bytes": 93194,
+    "sha256": "3ab225e3276996636359842df27101a636631bf17cfdb31146ee5f76d6bf66cf",
+    "source": "exec-344731d1-3aea-4642-8db0-671e06d40c18.png"
+  },
+  "girl-back": {
+    "asset": "/body-locator/v3/girl-back.292388ca7a.webp",
+    "width": 1024,
+    "height": 1536,
+    "hasAlpha": true,
+    "bytes": 100604,
+    "sha256": "292388ca7acd636c17b7015f28eae47f59b8353105680cb695060bd843160cc0",
+    "source": "exec-d5279ddc-1078-48cc-93db-8b048f82a6fe.png"
+  },
+  "boy-front": {
+    "asset": "/body-locator/v3/boy-front.cef29ffdf4.webp",
+    "width": 1024,
+    "height": 1536,
+    "hasAlpha": true,
+    "bytes": 95166,
+    "sha256": "cef29ffdf4b708a6af922b675db041c754ea0522ceab0f78189a6e1a2087b3d4",
+    "source": "exec-0981e698-fd81-4406-b2ed-030cc3016a6a.png"
+  },
+  "boy-back": {
+    "asset": "/body-locator/v3/boy-back.9687281f5f.webp",
+    "width": 1024,
+    "height": 1536,
+    "hasAlpha": true,
+    "bytes": 97034,
+    "sha256": "9687281f5f242b64a5acef5ba6fc89f77df925bd1b71aec06e5f75df8de7e4dc",
+    "source": "exec-3d811548-6e1a-4006-ac53-3214275e3120.png"
+  },
+  "torso-atlas": {
+    "asset": "/body-locator/v3/torso-atlas.d028e74f9f.webp",
+    "width": 1254,
+    "height": 600,
+    "hasAlpha": true,
+    "bytes": 49602,
+    "sha256": "d028e74f9ffec56ef7584bf4ef8524e3605470c0f0c4d6295f9eb3a1ae7d69ff",
+    "source": "exec-09a2e1fa-b07f-4e2f-ab9c-6a9751b7c90b.png"
+  },
+  "arm-front": {
+    "asset": "/body-locator/v3/arm-front.e02efde8d9.webp",
+    "width": 1024,
+    "height": 1536,
+    "hasAlpha": true,
+    "bytes": 67158,
+    "sha256": "e02efde8d98727f37944c3d0bc647fd6419bfcca3e55e23cf6e0842dcdc2bc89",
+    "source": "exec-820290aa-b903-4ebb-a32b-203f7caad04a.png"
+  },
+  "arm-back": {
+    "asset": "/body-locator/v3/arm-back.e59a86adf3.webp",
+    "width": 1024,
+    "height": 1536,
+    "hasAlpha": true,
+    "bytes": 63984,
+    "sha256": "e59a86adf3d1e45b0f7e5b4a32c69cb0b4a912b4f8255e035039d2f7e13a595e",
+    "source": "exec-8a002852-237a-4c12-812d-c814259e06ff.png"
+  },
+  "leg-atlas": {
+    "asset": "/body-locator/v3/leg-atlas.f0361963e4.webp",
+    "width": 1448,
+    "height": 1086,
+    "hasAlpha": true,
+    "bytes": 104946,
+    "sha256": "f0361963e4cfe852918e9530053a238cf31d935ecebf26e1f8fb5d0f2b4e97f6",
+    "source": "exec-36fc203a-8f0d-468a-8e03-8b02256c3948.png"
+  },
+  "groin-diagram": {
+    "asset": "/body-locator/v3/groin-diagram.d239219a96.webp",
+    "width": 1024,
+    "height": 1024,
+    "hasAlpha": true,
+    "bytes": 13294,
+    "sha256": "d239219a9601a26845532a5860247924c65d222f0ce2794bce30d8c5708c55ea",
+    "source": "groin-source.svg"
+  }
+} as const

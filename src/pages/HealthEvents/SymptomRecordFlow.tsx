@@ -14,7 +14,9 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { BottomSheetSurface, HohoButton, StatusNotice, DialogueComposer } from '../../components/design-system'
 import { ChildBodyLocationPicker } from '../../components/health/body-location/ChildBodyLocationPicker'
-import { childSelectionKey, resolveChildModel, toChildSelection } from '../../features/body-location/childBodyCatalog'
+import {BodyLocationTags} from '../../components/health/body-location/BodyLocationTags'
+import {removeLocationAndMatchingText} from '../../features/body-location/selectionRemoval'
+import { resolveChildModel, toChildSelection } from '../../features/body-location/childBodyCatalog'
 import type { BodyLocationSelection } from '../../features/body-location'
 import type { JournalMetadata, JournalSymptomDetails, SymptomImpactLevel } from '../../types/journal'
 import { localDateTimeToIso, localDateTimeValue } from '../../utils/healthOccurredAt'
@@ -170,6 +172,16 @@ export function SymptomRecordFlow({ memberId, token, selectedDay, today, onBack,
     return () => { window.clearTimeout(timer); controller.abort() }
   }, [composing, draft.narrative, memberId, occurrence.mode, occurrence.specifiedValue, token])
   const update = <K extends keyof Draft>(key: K, value: Draft[K]) => { setDraft((current) => ({ ...current, [key]: value, nurseEditedFields: [...new Set([...(current.nurseEditedFields ?? []), key])] })); setPageError('') }
+  const removeLocation = (value: BodyLocationSelection) => {
+    locationEditedRef.current = true
+    setDraft(current => ({...current,...removeLocationAndMatchingText(current.locations,current.locationText,value),nurseEditedFields:[...new Set([...(current.nurseEditedFields??[]),'locations','locationText'])]}))
+    setPageError('')
+  }
+  const removeManualLocation = () => {
+    locationEditedRef.current = true
+    setDraft(current=>({...current,locationText:'',nurseEditedFields:[...new Set([...(current.nurseEditedFields??[]),'locations','locationText'])]}))
+    setPageError('')
+  }
   const updateNarrative = (value: string) => {
     setDraft((current) => ({ ...current, narrative: value, keywords: [], nurseEditedFields: [...new Set([...(current.nurseEditedFields ?? []), 'narrative'])] }))
     if (!composing) setRecognition(value.trim() ? 'loading' : 'idle')
@@ -225,7 +237,7 @@ export function SymptomRecordFlow({ memberId, token, selectedDay, today, onBack,
   }
   const reviewConflicts=(result:ReviewResult)=>Object.entries(result.metadata.snapshots.at(-1)?.fields??result.fields).filter(([key,value])=>typeof value==='string'&&value.length>0&&value!==draft[key as keyof Draft]&&((draft.nurseEditedFields??[]).includes(key)||(!draft.aiNurse&&Boolean(draft[key as keyof Draft]))))
   const manualLocation = draft.locationText.trim()
-  const manualLocationIsStructured = draft.locations.some((location) => location.label.trim() === manualLocation)
+  const manualLocationIsStructured = draft.locations.some((location) => location.label.trim() === manualLocation || bodyLocationLabel(location).trim() === manualLocation)
   const inlineOccurrence=embedded&&<OccurrenceTimeField model={occurrence} label="发生时间" labelIcon={<Clock3 aria-hidden="true" size={21} strokeWidth={1.8} />} onValueChange={(value) => {update('occurredAt',value||undefined);update('timeText','')}} showDateContext />
   const mediaPreviews = (photos.photos.length > 0 || photos.notice) && <div className="symptom-media-previews"><QuickRecordPhotos limit={6} model={photos} showAddButton={false} attachmentOnly={manualEntry} onApply={(text,id)=>{if(appliedMedia.current.has(id)||draftRef.current.appliedMediaIds?.includes(id))return;const next=[draftRef.current.narrative.trim(),text].filter(Boolean).join('\n');if(next.length>1000)throw new Error('补充后超过1000字，请先精简资料草稿；原正文未改变');appliedMedia.current.add(id);setDraft(current=>({...current,narrative:next,appliedMediaIds:[...(current.appliedMediaIds??[]),id]}));setFieldErrors({})}} /></div>
   const form = <div className={embedded ? 'symptom-record-inline' : 'symptom-record-page-layer'} style={embedded ? undefined : { top: viewport.top, height: viewport.height, bottom: 'auto' }}><section aria-label={title} aria-modal={embedded ? undefined : true} data-keyboard={viewport.keyboard} className="symptom-record-page symptom-record-page--brand-white" role={embedded ? 'region' : 'dialog'}>
@@ -243,7 +255,7 @@ export function SymptomRecordFlow({ memberId, token, selectedDay, today, onBack,
       </section>
       {inlineOccurrence}
       {!manualEntry && mediaPreviews}
-      <section className="symptom-card symptom-location-card"><div className="symptom-card-heading"><h2><MapPin aria-hidden="true" size={21} strokeWidth={1.8} />症状部位</h2></div><div className="symptom-location-entry"><input aria-label="手动补充症状部位" maxLength={120} onChange={(event) => { locationEditedRef.current = true; update('locationText', event.target.value) }} placeholder="例如：左肘窝" value={draft.locationText} /><ChildBodyLocationPicker memberId={memberId} showCommitted={false} buttonLabel={draft.locations.length ? '修改' : '选择部位'} confirmLabel="完成并返回症状记录" value={draft.locations} onChange={(locations) => { locationEditedRef.current = true; setDraft((current) => ({ ...current, locations, nurseEditedFields: [...new Set([...(current.nurseEditedFields ?? []), 'locations', 'locationText'])] })); setPageError('') }} /></div>{Boolean(draft.locations.length || manualLocation) && <div aria-label="已选择的症状部位" className="symptom-location-tags">{draft.locations.map((location) => <span key={childSelectionKey(location)}><Check aria-hidden="true" size={15} />{bodyLocationLabel(location)}</span>)}{manualLocation && !manualLocationIsStructured && <span><Check aria-hidden="true" size={15} />{manualLocation}</span>}</div>}</section>
+      <section className="symptom-card symptom-location-card"><div className="symptom-card-heading"><h2><MapPin aria-hidden="true" size={21} strokeWidth={1.8} />症状部位</h2></div><div className="symptom-location-entry"><input aria-label="手动补充症状部位" maxLength={120} onChange={(event) => { locationEditedRef.current = true; update('locationText', event.target.value) }} placeholder="例如：左肘窝" value={draft.locationText} /><ChildBodyLocationPicker disabled={saving} memberId={memberId} showCommitted={false} buttonLabel={draft.locations.length ? '修改' : '选择部位'} confirmLabel="完成并返回症状记录" value={draft.locations} onChange={(locations) => { locationEditedRef.current = true; setDraft((current) => ({ ...current, locations, nurseEditedFields: [...new Set([...(current.nurseEditedFields ?? []), 'locations', 'locationText'])] })); setPageError('') }} /></div><BodyLocationTags disabled={saving} className="symptom-location-tags" values={draft.locations} onRemove={removeLocation} manualValue={!manualLocationIsStructured?manualLocation:undefined} onRemoveManual={removeManualLocation}/></section>
       <section className={`symptom-card symptom-supplement-card${optionalOpen ? ' is-expanded' : ''}`}><button aria-expanded={optionalOpen} className="symptom-card-action" onClick={() => setOptionalOpen((value) => !value)} type="button"><strong><ClipboardPlus aria-hidden="true" size={21} strokeWidth={1.8} />补充信息</strong><span>{optionalOpen ? '收起' : '展开'}<ChevronDown aria-hidden="true" className={optionalOpen ? 'is-open' : ''} size={18} /></span></button>{optionalOpen && <div className="symptom-optional-fields">
         <fieldset><legend>严重程度</legend><div className="symptom-segmented-options">{impactOptions.map(([value, label]) => <button aria-pressed={draft.impactLevel === value} key={value} onClick={() => update('impactLevel', draft.impactLevel === value ? undefined : value)} type="button">{draft.impactLevel === value && <Check aria-hidden="true" size={15} />}{label}</button>)}</div></fieldset>
       </div>}</section>
