@@ -1,4 +1,3 @@
-import {useReadRecordUpdates} from '../record-updates/RecordUpdates'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate,useSearchParams } from 'react-router-dom'
 import { Cross, ChevronDown } from '../../components/icons'
@@ -19,7 +18,6 @@ export function CaseFollowupCard({item, memberId, token, timezone, reload, onDir
   const [expanded,setExpanded] = useState(false), [form,setForm] = useState<'materials'|null>(null)
   const [materialRecordId,setMaterialRecordId]=useState<string|null>(null),[materialEventId,setMaterialEventId]=useState(item.event.id)
   const [records,setRecords] = useState<HealthEventRecordApiDto[]|null>(null), [error,setError] = useState(''), [version,setVersion] = useState(0)
-  const [recordsLoadedAt,setRecordsLoadedAt]=useState(0)
   const [busy,setBusy] = useState(false), [failure,setFailure] = useState(''), [notice,setNotice] = useState('')
   const [management,setManagement]=useState<'edit'|'delete'|null>(null),[title,setTitle]=useState(item.followup.title),[managementError,setManagementError]=useState('')
   const pending = useRef(false), dirty = useRef(false), materialDirty = useRef(false)
@@ -31,10 +29,9 @@ export function CaseFollowupCard({item, memberId, token, timezone, reload, onDir
   useEffect(() => {
     if (!expanded) return
     const c=new AbortController();setError('')
-    void caseService.records(memberId,token,id,c.signal).then(data=>{if(!c.signal.aborted){setRecords(chronologicalRecords(data));setRecordsLoadedAt(Date.now())}}).catch(e=>{if(!c.signal.aborted)setError(e instanceof Error?e.message:'过程记录未能加载')})
+    void caseService.records(memberId,token,id,c.signal).then(data=>{if(!c.signal.aborted){setRecords(chronologicalRecords(data))}}).catch(e=>{if(!c.signal.aborted)setError(e instanceof Error?e.message:'过程记录未能加载')})
     return()=>c.abort()
   },[id,token,memberId,expanded,version,item.changedAt])
-  useReadRecordUpdates(expanded&&!error?records?.map(r=>r.id)??[]:[],expanded&&!error&&records?(item.sourceEventIds??[id]):[],undefined,recordsLoadedAt)
   const saved = () => { setExpanded(true);setVersion(v=>v+1);setNotice('已保存到这次情况');reload() }
   const supplement = () => { if (dirty.current && !window.confirm('当前内容尚未保存，离开后保留设备草稿，确定继续吗？')) return;navigate(`/smart-record?source=case-followup&eventId=${encodeURIComponent(id)}`, {state:{caseReturn:true,eventTitle:item.followup.title,memberId,accountId:useAppStore.getState().authUser?.id??''}}) }
   async function changeStatus() {

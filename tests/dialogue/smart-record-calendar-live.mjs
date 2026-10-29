@@ -16,7 +16,7 @@ let token=session.token,memberId
 const result={target,expectedCommit,syntheticOnly:true,modelCalls:0,checks:[],physicalIPhone:'NOT_VERIFIED'}
 async function api(path,method='GET',data){const r=await page.evaluate(async({path,method,data,token})=>{const response=await fetch(path,{method,credentials:'same-origin',headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},...(data===undefined?{}:{body:JSON.stringify(data)}),signal:AbortSignal.timeout(30000)});return {ok:response.ok,status:response.status,data:await response.json().catch(()=>null)}},{path,method,data,token});assert.ok(r.ok,`${method} ${path}: ${r.status} ${r.data?.error?.code??''}`);return r.data}
 async function notices(rows){await page.evaluate(({rows,accountId,memberId})=>localStorage.setItem('hoooho-record-updates-v1',JSON.stringify({state:{items:rows.map(r=>({accountId,memberId,at:Date.now(),label:'测试更新',...r}))},version:0})),{rows,accountId:session.accountId,memberId})}
-async function remaining(){return page.evaluate(()=>JSON.parse(localStorage.getItem('hoooho-record-updates-v1')).state.items.map(i=>i.id))}
+async function remaining(){return page.evaluate(()=>localStorage.getItem('hoooho-record-updates-v1'))}
 try{
   await page.goto(base+'/api/health');assert.equal((await api('/api/health')).status,'ok')
   const html=await page.evaluate(()=>fetch('/').then(r=>r.text())),script=html.match(/src="([^"]*assets\/index-[^"]+\.js)"/)?.[1]
@@ -37,25 +37,25 @@ try{
   await notices([...rows,profileNotice]);await page.reload()
   const day=await page.evaluate(()=>new Intl.DateTimeFormat('sv-SE').format(new Date(Date.now()-86400000)))
   const previous=page.locator(`.health-calendar__day[aria-label^="${day}"]`),today=page.locator('.health-calendar__day[aria-current="date"]')
-  await expect(today.getByRole('img',{name:'有新内容'})).toBeVisible();await expect(previous.getByRole('img',{name:'有新内容'})).toBeVisible()
+  await expect(today.getByRole('img',{name:'有新内容'})).toHaveCount(0);await expect(previous.getByRole('img',{name:'有新内容'})).toHaveCount(0)
   await expect(page.getByRole('navigation',{name:'新记录'})).toHaveCount(0)
   await previous.click();const sheet=page.locator('.calendar-day-sheet')
   await expect(sheet.locator('[data-day-record]')).toHaveCount(1);await expect(sheet.locator('time')).toHaveCount(0)
   await expect(sheet.locator('.calendar-day-summary strong')).toHaveText('牙齿是需要观察')
-  await expect.poll(remaining).toEqual(['now','profile'])
+  await expect.poll(remaining).toBeNull()
   await sheet.getByRole('button',{name:'关闭当天记录',exact:true}).click()
   await today.click();await expect(sheet.locator('[data-day-record]')).toHaveCount(1)
   const clock=now.toLocaleTimeString('zh-CN',{timeZone:'Asia/Shanghai',hour:'2-digit',minute:'2-digit',hour12:false})
   await expect(sheet.locator('time')).toHaveText(clock);await expect(sheet).not.toContainText('个附件')
   for(const width of [320,375,390]){await page.setViewportSize({width,height:667});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));assert.equal(await sheet.locator('.calendar-day-summary strong').evaluate(e=>getComputedStyle(e).whiteSpace),'nowrap')}
   await page.screenshot({path:`${out}/calendar-crud.png`})
-  result.checks.push('real CRUD and period readback','month dots follow actual dates','opening date clears without record click','single-line phrase without attachment count','320/375/390 px')
+  result.checks.push('real CRUD and period readback','month records have no new-content dots','retired badge cache discarded on startup','single-line phrase without attachment count','320/375/390 px')
   await sheet.getByRole('button',{name:'关闭当天记录',exact:true}).click()
   await notices([{...rows[0],id:'day-notice'},profileNotice]);await page.goto(base+'/health-events?view=day')
-  await expect.poll(remaining).toEqual(['profile'])
+  await expect.poll(remaining).toBeNull()
   await page.goto(base+'/health-profile/surgery');await expect(page.locator('.inline-profile-item')).toContainText('验收手术资料（虚构）')
-  await expect.poll(remaining).toEqual([]);await expect(page.getByRole('navigation',{name:'新记录'})).toHaveCount(0)
-  result.checks.push('day entry clears notices','profile section entry clears notices')
+  await expect.poll(remaining).toBeNull();await expect(page.getByRole('navigation',{name:'新记录'})).toHaveCount(0)
+  result.checks.push('day entry without notices','profile section without notices')
   assert.deepEqual(errors,[]);result.status='PASS'
 }catch(error){result.status='FAILED';result.message=error.message;await page.screenshot({path:`${out}/calendar-failure.png`}).catch(()=>{});process.exitCode=1}
 finally{if(memberId)await api(`/api/members/${memberId}`,'DELETE').then(()=>{result.cleanup='synthetic member removed'}).catch(()=>{result.cleanup='requires follow-up'});await writeFile(`${out}/calendar-acceptance.json`,JSON.stringify(result,null,2));console.log(JSON.stringify(result));await browser.close()}

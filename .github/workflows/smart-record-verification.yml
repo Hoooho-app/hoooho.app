@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
   pull_request:
     branches: [main]
-    paths: ['shared/front-desk-record-format*', 'server/ai/**', 'src/features/ai-business/**', 'src/features/health-attachments/**', 'src/services/imageAnalysisPresentation*', 'src/services/healthEventDetailAdapter*', 'src/components/navigation/**', 'src/pages/HealthProfile/**', 'src/utils/privateIdentity*', 'tests/upload-recognition/**', 'tests/dialogue/**', 'tests/helpers/**', 'tests/visit-sheet/**', 'tests/nurse-frontdesk-upgrade-mobile/**', 'tests/front-desk-continuous/**', 'tests/frontdesk-navigation/**', 'tests/selective-rollback/**', 'tests/conversation-home/**', '.github/workflows/smart-record-verification.yml']
+    paths: ['shared/front-desk-record-format*', 'server/ai/**', 'src/features/ai-business/**', 'src/features/health-attachments/**', 'src/services/imageAnalysisPresentation*', 'src/services/healthEventDetailAdapter*', 'src/components/navigation/**', 'src/pages/HealthProfile/**', 'src/utils/privateIdentity*', 'tests/upload-recognition/**', 'tests/dialogue/**', 'tests/helpers/**', 'tests/visit-sheet/**', 'tests/nurse-frontdesk-upgrade-mobile/**', 'tests/front-desk-continuous/**', 'tests/frontdesk-navigation/**', 'tests/record-update-removal/**', 'tests/selective-rollback/**', 'tests/conversation-home/**', '.github/workflows/smart-record-verification.yml']
 permissions:
   contents: read
 concurrency:
@@ -67,6 +67,8 @@ jobs:
         run: npx playwright test --config tests/visit-sheet/presentation.config.ts
       - name: Verify private identities, four-tab navigation and draft continuity
         run: npx playwright test --config tests/frontdesk-navigation/playwright.config.ts
+      - name: Verify retired record dots and preserved saves across mobile pages
+        run: npx playwright test --config tests/record-update-removal/playwright.config.ts
       - name: Verify automatic home retention and direct system attachment entry
         run: npx playwright test --config tests/frontdesk-input/playwright.config.ts
       - name: Verify review-only calendar and expanded month grid

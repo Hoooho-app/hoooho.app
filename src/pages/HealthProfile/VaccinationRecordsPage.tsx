@@ -5,7 +5,6 @@ import { WebPageHeader } from '../../components/common'
 import { HealthRecordSubjectHeader } from '../../components/health'
 import { BottomSheetSurface, HealthTag, HohoButton, HohoInput, HohoSection, HohoSegmentedControl, SproutEntry, StatusNotice } from '../../components/design-system'
 import { RecordOriginals } from '../../features/ai-business/RecordOriginals'
-import { useReadRecordUpdates } from '../../features/record-updates/RecordUpdates'
 import { apiRequest } from '../../services/apiClient'
 import { announceProfileSectionsChange, subscribeProfileSectionInvalidation } from '../../services/profileSectionStorage'
 import { useAppStore } from '../../store/useAppStore'
@@ -46,7 +45,6 @@ function VaccinationRecords({ member }: { member: Member }) {
     if (row) { row.tabIndex = -1; row.focus({ preventScroll: true }); row.scrollIntoView({ block: 'center' }) }
     else setMessage('这条记录已不存在或暂不可访问')
   }, [loading, data, focusedEntry])
-  useReadRecordUpdates(!loading && data?.rows.some(r => r.id === focusedEntry) ? [focusedEntry!] : [], [], !loading && data ? 'vaccination' : undefined)
   const [openOriginals, setOpenOriginals] = useState<string[]>([])
   const current = () => { const s = useAppStore.getState(); return s.currentMemberId === member.id && s.authUser?.id === accountId }
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; generation.current++ } }, [])

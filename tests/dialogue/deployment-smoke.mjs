@@ -33,7 +33,7 @@ try{
  await page.screenshot({path:`${out}/merge.png`})
  await sheet.getByRole('button',{name:'确认合并',exact:true}).click();await expect(sheet).toHaveCount(0)
  await expect(page.locator('.home-event-descriptions')).toContainText('皮疹伴瘙痒')
- await expect(page.getByRole('button',{name:/^症状跟进/}).getByRole('img',{name:'有新内容'})).toBeVisible()
+ await expect(page.getByRole('button',{name:/^症状跟进/}).getByRole('img',{name:'有新内容'})).toHaveCount(0)
  await page.getByRole('button',{name:/^症状跟进/}).click();await page.getByRole('button',{name:'展开',exact:true}).click()
  await expect(page.locator('.case-followup-timeline li')).toHaveCount(2)
  const cases=await api(`/api/members/${memberId}/cases`);assert.equal(cases.active.length,1);assert.equal(cases.active[0].followup.recordCount,2)

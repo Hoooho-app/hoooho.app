@@ -10,9 +10,8 @@ import { shiftJournalDate } from '../HealthEvents/timeViewModel'
 import type { JournalEntry } from '../HealthEvents/timeViewModel'
 import '../NurseStation/HomeFlows.css'
 import './calendar.css'
-import {UpdateDot} from '../../features/record-updates/RecordUpdates'
 
-export function MonthView({ month, today, day, category, entries, unreadDays=new Set(), reminders = new Map(), loading, error, onRetry, onDay }: { month: string; today: string; day: string; category: string; entries: readonly JournalEntry[]; unreadDays?:ReadonlySet<string>; reminders?: ReadonlyMap<string, readonly CalendarReminder[]>; loading: boolean; error: string; onRetry: () => void; onDay: (day: string) => void }) {
+export function MonthView({ month, today, day, category, entries, reminders = new Map(), loading, error, onRetry, onDay }: { month: string; today: string; day: string; category: string; entries: readonly JournalEntry[]; reminders?: ReadonlyMap<string, readonly CalendarReminder[]>; loading: boolean; error: string; onRetry: () => void; onDay: (day: string) => void }) {
   const dates = useMemo(() => {
     const original = calendarMonthDays(month), offset = original.findIndex(Boolean)
     return Array.from({ length: Math.ceil(original.length / 7) * 7 }, (_, index) => shiftJournalDate(`${month}-01`, index - offset))
@@ -44,7 +43,7 @@ export function MonthView({ month, today, day, category, entries, unreadDays=new
         const capacity = info.festival ? Math.max(0, limit - 1) : limit
         const visibleLimit = planned.length ? Math.max(0, capacity - 1) : capacity, hidden = Math.max(0, items.length - visibleLimit)
         return <button type="button" className="health-calendar__day" key={date} data-outside={!currentMonth} data-today={date === today} data-selected={date === day} data-weekend={index % 7 > 4} data-rest={info.rest} data-work={info.work} aria-current={date === today ? 'date' : undefined} aria-label={`${date}，${info.description}${date === today ? '，今天' : ''}，${items.length}条记录${planned.length ? `，${planned.length}项待办` : ''}`} onClick={() => onDay(date)}>
-          <span className="health-calendar__date-heading"><span className="health-calendar__date-number">{Number(date.slice(8))}</span><UpdateDot show={unreadDays.has(date)}/>{(info.rest || info.work) && <span className="health-calendar__holiday-marker">{info.work ? '班' : '休'}</span>}</span>
+          <span className="health-calendar__date-heading"><span className="health-calendar__date-number">{Number(date.slice(8))}</span>{(info.rest || info.work) && <span className="health-calendar__holiday-marker">{info.work ? '班' : '休'}</span>}</span>
           {info.festival && <span className="health-calendar__festival">{info.festival}</span>}
           <span className="health-calendar__previews">{items.slice(0, visibleLimit).map(entry => {
             const summary = presentCalendarRecord(entry)

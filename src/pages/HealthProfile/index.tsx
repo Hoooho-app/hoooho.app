@@ -1,4 +1,3 @@
-import {UpdateDot,useRecordUpdates} from '../../features/record-updates/RecordUpdates'
 import { Baby, ChevronRight, HeartPulse, Ruler, ScanLine, Scissors, ShieldPlus, Syringe, Upload, UsersRound } from '../../components/icons'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -29,7 +28,6 @@ const sections = [
 const entries = sections.flatMap(section => section.entries)
 
 export function HealthProfilePage() {
-  const updates=useRecordUpdates()
   const navigate = useNavigate()
   const { authToken: token, currentMemberId, members, authUser } = useAppStore()
   const member = members.find(item => item.id === currentMemberId) ?? null
@@ -58,7 +56,7 @@ export function HealthProfilePage() {
     <nav className="page-content health-profile-home" aria-label="档案分类">{sections.map(section => <HohoSection className="health-profile-group" title={section.title} aria-label={section.title} key={section.id}>
     <div className="health-profile-entries" data-hoho-surface="light">{section.entries.map(({ id, title, icon: Icon, path }) => <button className="health-profile-entry" disabled={!member} key={id} onClick={() => navigate(path)} type="button">
       <span className="health-profile-entry__icon"><Icon aria-hidden="true" size={22} strokeWidth={1.7} /></span>
-      <span className="health-profile-entry__text"><strong>{title}<UpdateDot show={updates.some(i=>i.destination==='profile'&&i.sectionId===id)}/></strong></span>{counts.memberId===currentMemberId&&counts.values[id]!=null&&<small className="health-profile-entry__count">{counts.values[id]?`${counts.values[id]}条`:'未记录'}</small>}<ChevronRight aria-hidden="true" size={19} strokeWidth={1.6} />
+      <span className="health-profile-entry__text"><strong>{title}</strong></span>{counts.memberId===currentMemberId&&counts.values[id]!=null&&<small className="health-profile-entry__count">{counts.values[id]?`${counts.values[id]}条`:'未记录'}</small>}<ChevronRight aria-hidden="true" size={19} strokeWidth={1.6} />
     </button>)}</div></HohoSection>)}</nav>
   </main>
 }

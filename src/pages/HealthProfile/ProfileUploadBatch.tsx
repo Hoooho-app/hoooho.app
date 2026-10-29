@@ -1,4 +1,3 @@
-import {trackSavedMutation} from '../../features/record-updates/store'
 import { CompleteImage } from '../../components/common/CompleteImage'
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
@@ -85,7 +84,6 @@ export function ProfileUploadBatch({member,token,onSaved,renderTrigger}:{member:
     let value=draftRef.current;if(!value||value.state!=='ready')throw new Error('请先成功整理资料')
     if(changes.current.size){value=await request<Draft>(`${url}/${value.id}`,'PATCH',{version:value.version,changes:[...changes.current.values()]});current(value);changes.current.clear()}
     const saved=await request<Draft>(`${url}/${value.id}/save`,'POST',{version:value.version,confirmed:true});current(saved)
-    if(owner)trackSavedMutation({accountId:accountId??'',memberId:owner.id},`${url}/${value.id}/save`,'POST',{},saved)
     setOwner(null);setFiles([]);batchId.current=crypto.randomUUID();currentReset();setNotice('资料已整理到档案');onSaved()
   })}
   async function close(){if(locked.current)return;await run(async()=>{if(recognition.current&&owner)await recognitionCommand(owner.id,credentials.current.token,recognition.current.id,'discard');else if(draftRef.current&&draftRef.current.state!=='saved')await request(`${url}/${draftRef.current.id}`,'DELETE');currentReset();batchId.current=crypto.randomUUID();setOwner(null);setFiles([]);setError('')})}
