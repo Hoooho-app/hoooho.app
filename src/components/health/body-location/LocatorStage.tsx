@@ -30,7 +30,7 @@ export function LocatorStage({model,view,region,angle,selectedIds,onRegion,onTog
   const isSelected=(z:LocatorZone)=>selected.has(z.id)
   const activate=(z:LocatorZone)=>{if(!region){onRegion(z.id);return}if(z.id.startsWith('hand_')&&z.id.endsWith('_whole')&&!z.id.match(/_(thumb|index|middle|ring|little)_/)){onRegion(z.id.replace(/_whole$/, ''));return}if(z.id.startsWith('foot_')&&z.id.endsWith('_whole')){onRegion(z.id.replace(/_whole$/, ''));return}onToggle(z.id)}
   const viewLabel=region&&(region.zoom==='hand'||region.zoom==='foot') ? localAngles(region).find(item=>item.id===angle)?.label??'' : view==='front'?'正面':'背面'
-  return <div className="locator-stage" ref={host} data-asset={visual?.asset} data-angle={visual?.angle} data-visible-entries={zones.map(z=>z.id).join(',')}>
+  return <div className="locator-stage" ref={host} data-asset={visual?.asset} data-source-bounds={visual?.bounds.join(',')} data-detail-kind={visual?.detail?.kind} data-angle={visual?.angle} data-visible-entries={zones.map(z=>z.id).join(',')}>
     {visual&&status==='ready'&&<svg className="locator-canvas" viewBox={`0 0 ${size.width} ${size.height}`} role="group" aria-label={`${model==='girl'?'女孩':model==='boy'?'男孩':'中性儿童'}${region?region.label:'全身'}${viewLabel}示意图`}>
       <svg x={ix} y={iy} width={imageW} height={imageH} viewBox={`${zx} ${zy} ${zw} ${zh}`} preserveAspectRatio="none">
         <image href={locatorAssetUrl(visual)} x={-visual.bounds[0]/visual.bounds[2]} y={-visual.bounds[1]/visual.bounds[3]} width={1/visual.bounds[2]} height={1/visual.bounds[3]} preserveAspectRatio="none"/>

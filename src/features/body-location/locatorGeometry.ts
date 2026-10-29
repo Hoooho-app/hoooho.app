@@ -35,7 +35,7 @@ export function locatorVisual(model:LocatorModel,view:ChildView,region?:ChildReg
   const bounds=region ? neutralAnchor(view,region)?.bounds : undefined
   return {asset:`neutral-${view}.png`,width:1024,height:1536,bounds:bounds??[.12,.01,.76,.965],kind:'body'}
 }
-export const locatorAssetUrl=(visual:ChildVisual)=> { const original = `/body-locator/${visual.asset.startsWith('neutral-')?'v2':'v1'}/${visual.asset.replace('assets/','')}`; return optimizedPublicImages[original] ?? original }
+export const locatorAssetUrl=(visual:ChildVisual)=> { if(visual.asset.startsWith('/body-locator/'))return visual.asset; const original = `/body-locator/${visual.asset.startsWith('neutral-')?'v2':'v1'}/${visual.asset.replace('assets/','')}`; return optimizedPublicImages[original] ?? original }
 export function bodyZone(model:LocatorModel,view:ChildView,region:ChildRegion):LocatorZone|null {
   const measured=model==='neutral'?'boy':model
   const a=model==='neutral'?neutralAnchor(view,region):regionAnchor(measured,view,region.id)

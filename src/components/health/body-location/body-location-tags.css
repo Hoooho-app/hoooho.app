@@ -1,0 +1,5 @@
+.body-location-tags.symptom-location-tags,.body-location-tags.child-body-committed { display:flex; flex-wrap:wrap; gap:var(--hoho-space-2); margin:var(--hoho-space-2) 0 0; }
+.body-location-tags > .body-location-tag { display:inline-flex; min-height:44px; max-width:100%; align-items:center; gap:0; padding:0 0 0 var(--hoho-space-3); border-radius:var(--hoho-radius-pill); background:rgb(var(--hoho-color-primary-soft)); color:rgb(var(--hoho-color-link)); font-size:var(--hoho-font-size-caption); font-weight:500; overflow-wrap:anywhere; }
+.body-location-tag > span { min-width:0; }
+.body-location-tag > button { display:grid; place-items:center; flex:0 0 44px; width:44px; height:44px; padding:0; color:inherit; background:transparent; border:0; border-radius:var(--hoho-radius-pill); }
+.body-location-tag > button:focus-visible { outline:2px solid rgb(var(--hoho-color-primary)); outline-offset:-3px; }
