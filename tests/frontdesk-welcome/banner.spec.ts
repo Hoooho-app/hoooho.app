@@ -19,13 +19,13 @@ test.beforeEach(async ({ page, request }) => {
   await expect(page.locator('.front-desk-banner__controls, .front-desk-banner__dot, .front-desk-banner__pause')).toHaveCount(0)
 })
 
-test('both banners fill the same space with clear copy, intact art and a single-line guide', async ({ page }, info) => {
+test('all three banners fill the same space with clear copy, intact art and a single-line guide', async ({ page }, info) => {
   const initial = await page.locator(hero).boundingBox()
-  for (let index = 0; index < 2; index++) {
+  for (let index = 0; index < 3; index++) {
     if (index) {
       await page.mouse.move(0, 0)
       await page.clock.runFor(9200)
-      await expect(page.locator(hero)).toHaveAttribute('data-slide', '1')
+      await expect(page.locator(hero)).toHaveAttribute('data-slide', String(index))
       await expect(page.locator(hero)).toHaveAttribute('data-phase', 'idle')
     }
     expect(await page.locator(hero).boundingBox()).toEqual(initial)
@@ -42,9 +42,13 @@ test('both banners fill the same space with clear copy, intact art and a single-
     })
     if (index === 0) expect(geometry.paragraphRight).toBeLessThanOrEqual(geometry.artLeft)
     else {
-      expect(geometry.paragraphRight).toBeLessThanOrEqual(geometry.artLeft)
+      if (index === 1) {
+        expect(geometry.paragraphLeft).toBeGreaterThanOrEqual(geometry.artRight)
+      } else {
+        expect(geometry.paragraphRight).toBeLessThanOrEqual(geometry.artLeft)
+        expect(geometry.titleRight).toBeLessThanOrEqual(geometry.artLeft)
+      }
       expect(geometry.titleBottom).toBeLessThanOrEqual(geometry.paragraphTop)
-      expect(geometry.titleRight).toBeLessThanOrEqual(geometry.artLeft)
       expect(geometry.centerDistance).toBeLessThanOrEqual(1)
       expect(geometry.copyTop).toBeGreaterThanOrEqual(geometry.heroTop)
       expect(geometry.copyBottom).toBeLessThanOrEqual(geometry.heroBottom)
@@ -97,6 +101,9 @@ test('eight-second dwell dissolves without controls and focus or input pauses ro
   await page.getByRole('button', { name: '打开菜单', exact: true }).focus()
   await page.mouse.move(0, 0)
   await page.clock.runFor(9200)
+  await expect(page.locator(hero)).toHaveAttribute('data-slide', '2')
+  await expect(page.getByRole('heading', { name: '记忆很长， 不会忘。' })).toBeVisible()
+  await page.clock.runFor(9200)
   await expect(page.locator(hero)).toHaveAttribute('data-slide', '0')
   await page.getByRole('button', { name: '改用文字', exact: true }).click()
   await page.getByLabel('对话输入', { exact: true }).fill('还没发送')
@@ -116,8 +123,9 @@ test('reduced motion keeps a static welcome without hidden or visible controls',
   await expect(page.locator('.front-desk-banner__mosaic')).toHaveCount(0)
 })
 
-test('a failed archive image leaves the original introduction usable', async ({ page }) => {
+test('failed product images leave the original introduction usable', async ({ page }) => {
   await page.route('**/*record-archive*', route => route.abort())
+  await page.route('**/*visit-summary-banner*', route => route.abort())
   await page.reload()
   await expect(page.getByRole('heading', { name: '今天怎么样？', exact: true })).toBeVisible()
   await page.clock.runFor(20000)
@@ -169,4 +177,38 @@ test('holding the keyboard record gesture pauses rotation and cancelling leaves 
   await page.keyboard.up('Space')
   await expect(page.locator(hero)).toBeVisible()
   await expect(page.locator('.nurse-turn--user')).toHaveCount(0)
+})
+
+for (const failed of ['visit', 'memory'] as const) {
+  test(`a failed ${failed} image is skipped while the other product banner keeps rotating`, async ({ page }) => {
+    await page.route(failed === 'visit' ? '**/*visit-summary-banner*' : '**/*record-archive*', route => route.abort())
+    await page.reload()
+    await expect(page.locator(hero)).toHaveAttribute('data-slide', '0')
+    await page.mouse.move(0, 0)
+    await page.clock.runFor(9200)
+    await expect(page.locator(hero)).toHaveAttribute('data-kind', failed === 'visit' ? 'memory' : 'visit')
+    await page.clock.runFor(9200)
+    await expect(page.locator(hero)).toHaveAttribute('data-slide', '0')
+  })
+}
+
+test('a late visit illustration joins the next cycle without blocking the ready memory banner', async ({ page }) => {
+  let release: (() => Promise<void>) | undefined
+  await page.route('**/*visit-summary-banner*', route => { release = () => route.continue() })
+  const memoryLoaded = page.waitForResponse(response => response.url().includes('record-archive'))
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await memoryLoaded
+  await expect.poll(() => !!release).toBe(true)
+  await page.waitForTimeout(100)
+  await page.mouse.move(0, 0)
+  await page.clock.runFor(9200)
+  await expect(page.locator(hero)).toHaveAttribute('data-kind', 'memory')
+  const visitLoaded = page.waitForResponse(response => response.url().includes('visit-summary-banner'))
+  await release!()
+  await visitLoaded
+  await page.waitForTimeout(100)
+  await page.clock.runFor(9200)
+  await expect(page.locator(hero)).toHaveAttribute('data-kind', 'welcome')
+  await page.clock.runFor(9200)
+  await expect(page.locator(hero)).toHaveAttribute('data-kind', 'visit')
 })
