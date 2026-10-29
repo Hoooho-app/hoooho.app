@@ -15,6 +15,8 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
     private var hasLoadedPage = false
     private let capturePermissions = CapturePermissions.system()
     private var attachmentPicker: NativeAttachments?
+    private var pageStatusBarStyle: UIStatusBarStyle = .darkContent
+    override var preferredStatusBarStyle: UIStatusBarStyle { pageStatusBarStyle }
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -44,7 +46,9 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
         view.addSubview(webView)
         NSLayoutConstraint.activate([
             webView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
-            webView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
+            // Web content paints through the home-indicator area; CSS safe-area
+            // padding keeps controls clear without a second native strip below it.
+            webView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
             webView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             webView.trailingAnchor.constraint(equalTo: view.trailingAnchor)
         ])
@@ -187,6 +191,21 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
               origin.protocol == "https", origin.host == "hoooho.com", origin.port == 0 || origin.port == 443,
               let body = message.body as? [String: Any], let id = body["id"] as? String, id.count < 100,
               let type = body["type"] as? String else { return }
+        if message.frameInfo.isMainFrame, type == "appearance",
+           let hex = body["color"] as? String, let color = AppAppearance.pageBackground(hex: hex) {
+            view.backgroundColor = color
+            view.window?.backgroundColor = color
+            webView.backgroundColor = color
+            webView.scrollView.backgroundColor = color
+            webView.underPageBackgroundColor = color
+            retryButton.backgroundColor = color
+            var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0, alpha: CGFloat = 0
+            if color.getRed(&red, green: &green, blue: &blue, alpha: &alpha) {
+                pageStatusBarStyle = (0.2126 * red + 0.7152 * green + 0.0722 * blue) < 0.5 ? .lightContent : .darkContent
+                setNeedsStatusBarAppearanceUpdate()
+            }
+            return
+        }
         if message.frameInfo.isMainFrame, type == "attachments" { presentAttachments(id: id, mediaOnly: body["mediaOnly"] as? Bool == true); return }
         if message.frameInfo.isMainFrame, ["attachment_read", "attachment_release"].contains(type) {
             guard let picker = attachmentPicker, let selectionId = body["selectionId"] as? String, selectionId == picker.selectionId else { reply(id, ok: false); return }

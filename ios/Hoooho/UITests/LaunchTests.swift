@@ -75,7 +75,7 @@ final class LaunchTests: XCTestCase {
         assertPaperPixel(bitmap, x: bitmap.width / 4, y: 6)
         assertPaperPixel(bitmap, x: bitmap.width * 3 / 4, y: 6)
         if window.height / window.width > 2 {
-            XCTAssertGreaterThan(window.maxY - web.maxY, 0, "The current iPhone must exercise the home-indicator safe area")
+            XCTAssertEqual(web.maxY, window.maxY, accuracy: 1, "The web page must paint all the way through the home-indicator area")
             assertPaperPixel(bitmap, x: bitmap.width / 4, y: bitmap.height - 7)
             assertPaperPixel(bitmap, x: bitmap.width * 3 / 4, y: bitmap.height - 7)
         }
