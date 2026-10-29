@@ -6,6 +6,9 @@ on:
     paths:
       - 'src/pages/HealthEvents/NurseStationIdleVideo.tsx'
       - 'src/pages/NurseStation/FrontDeskWelcome.tsx'
+      - 'src/pages/NurseStation/FrontDeskCareCard.tsx'
+      - 'src/features/care-journey/**'
+      - 'server/care-journey/**'
       - 'src/pages/NurseStation/FrontDeskBanner.tsx'
       - 'src/pages/NurseStation/conversationHome.css'
       - 'src/pages/NurseStation/frontDeskWelcome.css'
@@ -49,6 +52,7 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npm run build
       - run: TZ=Asia/Shanghai npm run test:client
+      - run: node --test server/care-journey/service.test.mjs server/care-journey/api.test.mjs
       - run: npm run test:media
       - run: npx playwright test --config tests/frontdesk-welcome/playwright.config.ts --reporter=line --max-failures=1
       - run: npx playwright test --config tests/frontdesk-navigation/playwright.config.ts --grep 'default home|keyboard reveals|drawer uses'

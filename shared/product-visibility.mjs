@@ -9,5 +9,7 @@ const featurePaths = {
 
 export function isProductPathVisible(path) {
   const pathname = path.split(/[?#]/, 1)[0].replace(/\/+$/, '') || '/'
+  // The homepage's daily care card opens the existing task tree only.
+  if (pathname === '/care-journey' || pathname.startsWith('/care-journey/')) return true
   return !Object.entries(featurePaths).some(([feature, roots]) => !PRODUCT_FEATURES[feature] && roots.some(root => pathname === root || pathname.startsWith(`${root}/`)))
 }

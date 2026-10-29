@@ -46,6 +46,8 @@ export interface CareDashboard {
     balance: number;
     reserved: number;
     lifetime: number;
+    careDays: number;
+    timeZone: string;
     level: {
         value: number;
         name: string;

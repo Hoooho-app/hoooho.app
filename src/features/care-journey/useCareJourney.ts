@@ -21,6 +21,7 @@ export function useCareJourney() {
         announceCareTheme(next.theme.active);
     }, [accountId]);
     const refresh = useCallback(async (quiet = false) => {
+        if (busyRef.current) return;
         const id = ++sequence.current;
         if (!token) {
             setLoading(false);
@@ -48,10 +49,20 @@ export function useCareJourney() {
     }, [token, accountId, memberId, accept]);
     useEffect(() => { mounted.current = true; setData(null); setLevelUp(false); void refresh(); const onFocus = () => { if (document.visibilityState === 'visible')
         void refresh(true); }; window.addEventListener('focus', onFocus); document.addEventListener('visibilitychange', onFocus); return () => { mounted.current = false; sequence.current++; window.removeEventListener('focus', onFocus); document.removeEventListener('visibilitychange', onFocus); }; }, [refresh]);
+    useEffect(() => {
+        if (!data) return;
+        const timer = window.setInterval(() => {
+            const parts = new Intl.DateTimeFormat('en-CA', { timeZone: data.timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date());
+            const part = (type: string) => parts.find(item => item.type === type)?.value;
+            if (document.visibilityState === 'visible' && `${part('year')}-${part('month')}-${part('day')}` !== data.today.date) void refresh(true);
+        }, 30000);
+        return () => window.clearInterval(timer);
+    }, [data, refresh]);
     const mutate = useCallback(async (label: string, operation: (token: string) => Promise<CareDashboard>) => {
         if (!token || busyRef.current)
             return null;
         busyRef.current = true;
+        sequence.current++;
         setBusy(label);
         setError('');
         const mutationScope = accountId;

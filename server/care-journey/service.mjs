@@ -331,6 +331,7 @@ export class CareJourneyService {
       reserved: reserved(a),
       lifetime: a.lifetime,
       totalEarned: a.lifetime,
+      careDays: a.days.filter(day => day.checkedIn).length,
       level: levelFor(a.lifetime),
       today: {
         date: d.date,
