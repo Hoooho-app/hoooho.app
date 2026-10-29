@@ -1,4 +1,4 @@
-import { LoaderCircle } from 'lucide-react'
+import { LoaderCircle } from '../icons'
 import type { ButtonHTMLAttributes, ReactNode } from 'react'
 
 export type HohoButtonVariant = 'primary' | 'secondary' | 'tertiary' | 'ghost' | 'danger' | 'text'

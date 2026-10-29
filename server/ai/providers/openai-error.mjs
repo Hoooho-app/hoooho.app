@@ -62,7 +62,7 @@ export function safeOpenAIErrorDetails(value = {}) {
     errorType,
     errorCode,
     errorMessage: safeMessage(value.errorMessage),
-    requestId: typeof value.requestId === 'string' && /^(?:req_[A-Za-z0-9_-]{1,100}|[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}|chatcmpl-[a-zA-Z0-9_-]{1,100})$/.test(value.requestId) ? value.requestId : null,
+    requestId: typeof value.requestId === 'string' && /^(?:req_[A-Za-z0-9_-]{1,100}|gen-[A-Za-z0-9_-]{1,100}|[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}|chatcmpl-[a-zA-Z0-9_-]{1,100})$/.test(value.requestId) ? value.requestId : null,
     retryAfter: safeRetryAfter(value.retryAfter),
     failureKind: value.failureKind === 'image_unavailable' && ['InvalidParameter','InternalError.Algo.InvalidParameter'].includes(errorCode) ? 'image_unavailable' : classify(errorCode, errorType, value.errorMessage)
   }

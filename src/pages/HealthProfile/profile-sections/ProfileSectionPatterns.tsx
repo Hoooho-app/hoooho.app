@@ -1,3 +1,4 @@
+import { MaterialIcon as FunctionalIcon } from '../../../components/icons'
 import { useState, type KeyboardEvent, type ReactNode } from "react";
 import {
   ChevronDown,
@@ -7,7 +8,7 @@ import {
   Plus,
   Trash2,
   Upload,
-} from "lucide-react";
+} from '../../../components/icons';
 import {
   EmptyState,
   HealthCard,
@@ -103,7 +104,7 @@ export function ProfileTagsField({
               onClick={() => onChange(tags.filter((item) => item !== tag))}
               type="button"
             >
-              {tag} ×
+              {tag} <FunctionalIcon name="close" size={16}/>
             </button>
           ))}
         </div>

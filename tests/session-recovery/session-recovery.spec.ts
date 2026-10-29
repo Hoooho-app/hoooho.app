@@ -427,7 +427,7 @@ test('an occupied lock never authenticates an expired session or exposes cached 
  expect(state.writes).toEqual([])
 })
 
-test('the phone front desk and its nurse image load with a full cache and an occupied session lock',async({page},info)=>{
+test('the phone front desk and its nurse video load with a full cache and an occupied session lock',async({page},info)=>{
  const state=await setup(page)
  await page.addInitScript(()=>{
   const write=Storage.prototype.setItem
@@ -435,10 +435,10 @@ test('the phone front desk and its nurse image load with a full cache and an occ
   void navigator.locks.request('hoooho-browser-session',()=>new Promise<void>(()=>{}))
  })
  await page.goto('/nurse-station')
- const image=page.getByRole('img',{name:'戴口罩的护士举手打招呼',exact:true})
- await expect(image).toBeVisible()
- await expect.poll(()=>image.evaluate(node=>(node as HTMLImageElement).complete&&(node as HTMLImageElement).naturalWidth>0)).toBe(true)
- await expect(page.getByRole('button',{name:'按住说话',exact:true})).toBeEnabled()
+ const video=page.locator('.front-desk-welcome video')
+ await expect(video).toBeVisible()
+ await expect.poll(()=>video.evaluate(node=>(node as HTMLVideoElement).readyState>=2&&(node as HTMLVideoElement).videoWidth>0)).toBe(true)
+ await expect(page.getByRole('button',{name:'按住记录症状',exact:true})).toBeEnabled()
  await expect(page.locator('.session-recovery-chip, .session-recovery-notice, [data-session-recovery-screen]')).toHaveCount(0)
  expect(state.sessionCalls).toBe(1);expect(state.writes).toEqual([])
  expect(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth)).toBe(false)

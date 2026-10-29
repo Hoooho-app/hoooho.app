@@ -1,6 +1,7 @@
+import { MaterialIcon as FunctionalIcon } from '../../components/icons'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { FileScan, Plus } from 'lucide-react'
+import { FileScan, Plus } from '../../components/icons'
 import { WebPageHeader } from '../../components/common'
 import { BottomSheetSurface, HohoButton, StatusNotice } from '../../components/design-system'
 import { AIBusinessComposer } from '../../features/ai-business/AIBusinessComposer'
@@ -43,7 +44,7 @@ function MemberMaterials({vaccination}:{vaccination:boolean}) {
     <h2>{vaccination?'已记录的接种':'报告、原件与上传历史'}</h2>
     {journal.loading&&<p role="status">正在加载…</p>}
     {!journal.loading&&!journal.error&&!entries.length&&<p>暂无{vaccination?'接种记录':'资料'}，可在上方补充。</p>}
-    {[...entries].sort((a,b)=>b.createdAt.localeCompare(a.createdAt)).map(entry=><button type="button" key={entry.id} onClick={()=>setSelection({eventId:entry.eventId,recordId:entry.id})}><span>{entry.vaccination?.items.map(i=>i.vaccineName).join('、')||entry.content.slice(0,90)}<small>{entry.timePrecision==='unknown'?'发生时间待确认':entry.occurredAt.slice(0,10)} · {entry.attachmentCount} 份原件</small></span><span aria-hidden="true">›</span></button>)}
+    {[...entries].sort((a,b)=>b.createdAt.localeCompare(a.createdAt)).map(entry=><button type="button" key={entry.id} onClick={()=>setSelection({eventId:entry.eventId,recordId:entry.id})}><span>{entry.vaccination?.items.map(i=>i.vaccineName).join('、')||entry.content.slice(0,90)}<small>{entry.timePrecision==='unknown'?'发生时间待确认':entry.occurredAt.slice(0,10)} · {entry.attachmentCount} 份原件</small></span><span aria-hidden="true"><FunctionalIcon name="chevron_right" size={16}/></span></button>)}
   </div>
   {selection&&<MaterialDetail key={selection.recordId} {...selection} memberId={memberId} token={token} onChanged={()=>void refresh('记录已更新')} onClose={()=>setSelection(null)}/>}
   {open&&!vaccination&&<AIBusinessComposer profileMode memberName={member?.name} memberId={memberId} token={token} initialTask="archive" onClose={()=>setOpen(false)} onSaved={message=>void refresh(message)}/>}

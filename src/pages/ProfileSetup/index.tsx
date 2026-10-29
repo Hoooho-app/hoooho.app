@@ -1,4 +1,4 @@
-import { LockKeyhole } from 'lucide-react'
+import { LockKeyhole } from '../../components/icons'
 import { FormEvent, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, Input, WebPageHeader } from '../../components/common'

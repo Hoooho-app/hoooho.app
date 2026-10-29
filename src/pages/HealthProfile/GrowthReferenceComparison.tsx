@@ -1,6 +1,6 @@
 import { PRODUCT_FEATURES } from '../../../shared/product-visibility.mjs'
 import { useEffect, useMemo, useState } from 'react'
-import { Sprout } from 'lucide-react'
+import { Sprout } from '../../components/icons'
 import { useNavigate } from 'react-router-dom'
 import { BottomSheetSurface, HohoButton, HohoSection, HohoSurfaceRow } from '../../components/design-system'
 import { calculateGrowthPosition, exactAgeInMonths, growthValueAtZScore, type GrowthReferenceId } from '../../features/health-profile/utils/childGrowthReference'

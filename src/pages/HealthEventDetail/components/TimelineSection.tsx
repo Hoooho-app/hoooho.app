@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowUpDown, ChevronRight, Clock3, Pencil, Trash2 } from 'lucide-react'
+import { ArrowUpDown, ChevronRight, Clock3, Pencil, Trash2 } from '../../../components/icons'
 import type { HealthChangeAnnotationApiDto, HealthChangeType, HealthEvent, HealthEventRecordApiDto, TimelineEntry, UpdateHealthEventRecordInput } from '../../../types'
 import { Card } from '../../../components/common'
 import { HohoButton } from '../../../components/design-system'

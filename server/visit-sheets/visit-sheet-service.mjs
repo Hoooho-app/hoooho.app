@@ -455,7 +455,7 @@ export class VisitSheetService {
       // Local report generation remains independent of AI availability. Never
       // send client-supplied report text; collect() is account/member scoped.
       const aiFingerprint = visitAISummaryFingerprint(report)
-      const reusableSummary=previous?.aiSourceFingerprint===aiFingerprint&&!previous?.aiSummaryStale&&['openai','bailian'].includes(previous?.aiSummary?.provider)&&Array.isArray(previous?.aiSummary?.keyPointEvidence)&&previous.aiSourceIds?.every(id=>available.has(id))?previous.aiSummary:null
+      const reusableSummary=previous?.aiSourceFingerprint===aiFingerprint&&!previous?.aiSummaryStale&&['openai','bailian','openrouter'].includes(previous?.aiSummary?.provider)&&Array.isArray(previous?.aiSummary?.keyPointEvidence)&&previous.aiSourceIds?.every(id=>available.has(id))?previous.aiSummary:null
       if(request.organizeCurrent){
         if(request.organizeCurrent.scopeKey!==previous?.photoKey||request.organizeCurrent.scopeKey!==report.photoKey)throw failure('目前情况已切换，请重新读取后整理',409)
         const sources=situationSources(report),fingerprint=situationFingerprint(sources)
@@ -464,7 +464,7 @@ export class VisitSheetService {
           // One existing medical-summary call, with a scoped view extension. Never overwrite user edits or source records.
           const summaryInput=visitAISummaryInput({...report,focusSourceIds:[...new Set([...report.focusSourceIds,...sources.map(s=>s.id)])]}),cleanSources=sources.map(s=>({...s,text:summaryInput.visitFacts.sources.find(f=>f.id===s.id)?.text??''}))
           const summary=await summarize({...summaryInput,currentSituationSources:cleanSources})
-          if(!['openai','bailian'].includes(summary.provider)||!summary.currentSituation)throw failure('目前情况整理暂不可用，原话和已有编辑保留',503)
+          if(!['openai','bailian','openrouter'].includes(summary.provider)||!summary.currentSituation)throw failure('目前情况整理暂不可用，原话和已有编辑保留',503)
           const latestInput=await this.collect(accountId,memberId,now),latest=buildVisitSheet(latestInput,report,now)
           if(latestInput.warnings.length||fingerprint!==situationFingerprint(situationSources(latest)))throw failure('来源已变化，请重新读取后整理；已有内容保留',409)
           report.currentSituationResults[report.photoKey]={fingerprint,value:summary.currentSituation,provider:summary.provider,model:summary.model,generatedAt:now.toISOString()}
@@ -478,7 +478,7 @@ export class VisitSheetService {
         if(cached)return {report:previous??null,stale:false,warnings:[],hasLegacy:false,updateCandidate:{id:cached.id,report:cached.report}}
         if(request.generateAI){
           const summary=reusableSummary??await summarize(visitAISummaryInput(report))
-          if(!['openai','bailian'].includes(summary.provider))throw failure('摘要暂不可用，原情况单保留',503)
+          if(!['openai','bailian','openrouter'].includes(summary.provider))throw failure('摘要暂不可用，原情况单保留',503)
           report.aiSummary={...summary,generatedAt:summary.generatedAt??now.toISOString()};report.aiSourceFingerprint=aiFingerprint;report.aiSourceIds=visitAISources(report).map(s=>s.id);report.aiSummaryStale=false
         }else if(previous?.aiSummary&&previous.aiSourceIds?.every(id=>available.has(id))){report.aiSummary=previous.aiSummary;report.aiSourceFingerprint=previous.aiSourceFingerprint;report.aiSourceIds=previous.aiSourceIds;report.aiSummaryStale=previous.aiSourceFingerprint!==aiFingerprint}
         const candidate={id:randomUUID(),accountId,memberId,requestId:request.requestId,version:previous?.version??0,report,expiresAt:new Date(now.getTime()+86400000).toISOString()}
@@ -490,7 +490,7 @@ export class VisitSheetService {
         const cached=(await this.aiCandidates.read()).candidates.find(c=>c.accountId===accountId&&c.memberId===memberId&&c.requestId===request.requestId&&c.fingerprint===aiFingerprint&&Date.parse(c.expiresAt)>now.getTime())
         const candidate=cached??{id:randomUUID(),accountId,memberId,requestId:request.requestId,fingerprint:aiFingerprint,summary:reusableSummary??await summarize(visitAISummaryInput(report)),expiresAt:new Date(now.getTime()+86400000).toISOString()}
         candidate.summary.generatedAt??=now.toISOString()
-        if(!['openai','bailian'].includes(candidate.summary.provider))throw failure('AI 摘要暂不可用',503)
+        if(!['openai','bailian','openrouter'].includes(candidate.summary.provider))throw failure('AI 摘要暂不可用',503)
         if(!cached)await this.aiCandidates.update(data=>({candidates:[...data.candidates.filter(c=>Date.parse(c.expiresAt)>now.getTime()&&!(c.accountId===accountId&&c.memberId===memberId)),candidate]}))
         return {report:previous??null,stale:false,warnings:input.warnings,hasLegacy:false,aiCandidate:{id:candidate.id,summary:candidate.summary}}
       }
@@ -505,7 +505,7 @@ export class VisitSheetService {
       if (request.generateAI) {
         if (!visitAISources(report).length) throw failure('请先补充当前成员的健康资料')
         const aiSummary = reusableSummary??await summarize(visitAISummaryInput(report))
-        if (!['openai', 'bailian'].includes(aiSummary.provider)) throw failure('AI 病情摘要暂不可用，已有事实仍可查看和导出', 503)
+        if (!['openai', 'bailian', 'openrouter'].includes(aiSummary.provider)) throw failure('AI 病情摘要暂不可用，已有事实仍可查看和导出', 503)
         report.aiSummary = { ...aiSummary, generatedAt: aiSummary.generatedAt??now.toISOString() }
         report.aiSourceFingerprint = aiFingerprint
         report.aiSourceIds = visitAISources(report).map(source => source.id)

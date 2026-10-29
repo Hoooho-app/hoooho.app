@@ -1,4 +1,4 @@
-import { LogOut } from 'lucide-react'
+import { LogOut } from '../icons'
 import { useNavigate } from 'react-router-dom'
 import { useAppStore } from '../../store/useAppStore'
 import './ops-auth.css'

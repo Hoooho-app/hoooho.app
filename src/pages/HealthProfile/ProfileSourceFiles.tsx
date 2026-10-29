@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Camera, FileText, Paperclip, X } from 'lucide-react'
+import { Camera, FileText, Paperclip, X } from '../../components/icons'
 import { HohoButton } from '../../components/design-system'
 
 export type ProfileFile = { id: string; fileName: string; mimeType: string; dataUrl: string }

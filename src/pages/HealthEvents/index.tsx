@@ -1,7 +1,7 @@
 import {useRecordUpdates,useReadDestinationUpdates} from '../../features/record-updates/RecordUpdates'
 import {useUpdateStore} from '../../features/record-updates/store'
 import {calendarUpdateDays} from '../../features/record-updates/calendarUpdates'
-import { Search, X } from 'lucide-react'
+import { Search, X } from '../../components/icons'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { HohoButton } from '../../components/design-system'
@@ -30,7 +30,6 @@ import type { QuickRecordInputChannel } from '../HealthEventDetail/components'
 import type { QuickRecordPhotoPayload } from '../HealthEventDetail/components/QuickRecordPhotos'
 import { JournalRecorder } from './JournalRecorder'
 import { JournalRecordDetail } from './JournalRecordDetail'
-import { RecordEntryActions } from './RecordEntryActions'
 import { DuplicateRecordPrompt } from './DuplicateRecordPrompt'
 import { NurseNextAction } from './NurseNextAction'
 import { getNurseNextActionEventId } from './nurseNextActionContext'
@@ -195,7 +194,7 @@ function HealthEventsContent() {
   if (nextActionOpen && currentMemberId) return <Navigate to="/visit-summary" />
   return <main className="hoho-health-events-page unified-health-calendar app-shell app-shell--wide relative flex flex-col overflow-hidden pb-0" data-view-mode="list" data-calendar-view={calendar.view}>
     <div className="calendar-background" ref={backgroundRef}>
-    <MainAppHeader title="健康日历" showInstallApp={false} action={<HohoButton size="icon" variant="ghost" aria-label="搜索健康日历" onClick={() => navigate('/health-events/search', { state: { journalReturn: { ...calendar, identity, search: location.search, hash: location.hash, scrollTop: contentRef.current?.querySelector<HTMLElement>('.journal-scroll-region')?.scrollTop ?? 0 } } })}><Search size={20}/></HohoButton>}/>
+    <MainAppHeader title="健康日历" action={<HohoButton size="icon" variant="ghost" aria-label="搜索健康日历" onClick={() => navigate('/health-events/search', { state: { journalReturn: { ...calendar, identity, search: location.search, hash: location.hash, scrollTop: contentRef.current?.querySelector<HTMLElement>('.journal-scroll-region')?.scrollTop ?? 0 } } })}><Search size={20}/></HohoButton>}/>
     <CalendarToolbar state={calendar} today={today} onChange={navigation.change}/>
     <div className="unified-calendar-content" ref={contentRef}>
       {scheduled.error && <StatusNotice tone="error" title={scheduled.error} action={<HohoButton variant="secondary" size="small" onClick={scheduled.retry}>重试提醒</HohoButton>}/>}
@@ -203,7 +202,6 @@ function HealthEventsContent() {
       <TimeView memberId={currentMemberId} token={token ?? ''} day={day} today={today} active={calendar.view === 'day'} category={calendar.category} identity={identity} journal={filteredJournal} focusRecord={savedRecordFocus} onFocusHandled={() => setSavedRecordFocus(null)} onRecordOpen={(eventId, recordId, options) => setSelectedRecord({ eventId, recordId, correctSleep: options?.correctSleep })} onRoutineRecorded={() => { setRevision(value => value + 1); void retry() }} revision={revision} onContext={setJournalContext} sortOrder={calendar.sort}/>
       {calendar.view === 'month' && <MonthView month={calendar.month} today={today} day={monthSelection} category={calendar.category} entries={filteredEntries} unreadDays={new Set(unreadDays.keys())} reminders={reminderDays} loading={journal.loading} error={journal.error} onRetry={journal.retry} onDay={value => { monthTrigger.current = document.activeElement instanceof HTMLElement ? document.activeElement : null; setMonthSelection(value); setSheetDay(value) }}/>}
     </div>
-    <footer className="journal-record-actions"><RecordEntryActions onSmartRecord={() => navigate('/smart-record?source=calendar', { state: { calendarReturn: true } })} disabled={!token || currentMember?.id !== currentMemberId} identity={identity} onRecord={(category, kind) => { submissionKeyRef.current = ''; setRecorderInitialCategory(category); setRecorderInitialDietKind(kind); setRecorderMode('manual') }}/></footer>
     </div>
     {sheetDay && <DayRecordsSheet day={sheetDay} entries={monthRecords.get(sheetDay) ?? []} reminders={reminderDays.get(sheetDay) ?? []} onReminder={reminder => navigate(reminder.href)} suspended={Boolean(selectedRecord)} loading={journal.loading || scheduled.loading} error={journal.error || scheduled.error} onRetry={() => { journal.retry(); scheduled.retry() }} onClose={closeDaySheet} onOpen={entry => setSelectedRecord({ eventId: entry.eventId, recordId: entry.id })}/>}
     {selectedRecord && <JournalRecordDetail eventId={selectedRecord.eventId} recordId={selectedRecord.recordId} startSleepCorrection={selectedRecord.correctSleep} onChanged={changedDay => { if (changedDay && !sheetDay) setDay(changedDay); setSavedRecordFocus(changedDay && !sheetDay ? { recordId: selectedRecord.recordId, day: changedDay, revision: Date.now() } : null); setRevision(value => value + 1); void retry() }} onClose={() => { setSelectedRecord(null); const params = new URLSearchParams(location.search); if (params.has('recordId') || params.has('eventId')) { params.delete('recordId'); params.delete('eventId'); navigate(`${location.pathname}?${params}${location.hash}`, { replace: true, state: location.state }) } }}/ >}

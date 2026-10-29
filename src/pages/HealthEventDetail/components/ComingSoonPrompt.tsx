@@ -1,4 +1,4 @@
-import { Info } from 'lucide-react'
+import { Info } from '../../../components/icons'
 import { useEffect, useRef } from 'react'
 import { HohoButton, ModalSurface, Typography } from '../../../components/design-system'
 import { useDialogFocus } from '../../../hooks/useDialogFocus'

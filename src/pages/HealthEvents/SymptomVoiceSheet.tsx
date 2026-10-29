@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Mic } from 'lucide-react'
+import { Mic } from '../../components/icons'
 import { BottomSheetSurface, HohoButton } from '../../components/design-system'
 import { useSymptomVoice } from './useSymptomVoice'
 export function SymptomVoiceSheet({onClose,onApply}:{onClose:()=>void;onApply:(text:string)=>boolean}) {

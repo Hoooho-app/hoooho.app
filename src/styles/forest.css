@@ -385,7 +385,6 @@ body :where(
   .inline-profile-item,
   .inline-profile-tabs button,
   .inline-profile-tabs button[aria-pressed=true],
-  .install-guide__image-window,
   .journal-category-group .journal-category-unavailable,
   .journal-category-group [aria-pressed='true'],
   .journal-entry-hub--illustrated .journal-entry-hub__item,

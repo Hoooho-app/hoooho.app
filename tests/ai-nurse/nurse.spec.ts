@@ -201,7 +201,7 @@ test('voice-first composer uses one main action, preserves unsent text across mo
  await expect(panel.getByRole('textbox')).toHaveCount(0)
  await expect(panel.getByRole('button',{name:'发送',exact:true})).toHaveCount(0)
  await expect(panel.locator('input[type=checkbox]')).toHaveCount(0)
- await expect(panel.locator('.hoho-bottom-sheet__header .lucide-stethoscope')).toBeVisible()
+ await expect(panel.locator('.hoho-bottom-sheet__header [data-icon="stethoscope"]')).toBeVisible()
  await expect(panel.locator('.hoho-bottom-sheet__footer').getByRole('button',{name:'整理到表单',exact:true})).toBeVisible()
  await expect(panel.locator('.hoho-bottom-sheet__header').getByRole('button',{name:'整理到表单',exact:true})).toHaveCount(0)
  await expect(panel.getByText('可以先整理已有内容，由你确认是否保存。',{exact:true})).toHaveCount(0)

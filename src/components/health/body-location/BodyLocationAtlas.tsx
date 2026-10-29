@@ -1,4 +1,4 @@
-import { Check } from 'lucide-react'
+import { Check } from '../../icons'
 import type { ReactNode } from 'react'
 import type { BodyLocationAtlasKey, BodyLocationLaterality, BodyLocationOption, BodyLocationView } from '../../../features/body-location'
 

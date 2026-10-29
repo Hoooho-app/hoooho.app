@@ -1,4 +1,4 @@
-import { BookmarkPlus, ChevronRight } from 'lucide-react'
+import { BookmarkPlus, ChevronRight } from '../../../components/icons'
 import { useNavigate } from 'react-router-dom'
 import { discoveryCardCopy } from '../../../features/health-information/candidatePresentation'
 import type { HealthInformationCandidateApiDto } from '../../../types'

@@ -1,4 +1,4 @@
-import { ArrowLeft, House } from 'lucide-react'
+import { ArrowLeft, House } from '../../components/icons'
 import { useNavigate } from 'react-router-dom'
 import { EmptyState, HohoButton } from '../../components/design-system'
 

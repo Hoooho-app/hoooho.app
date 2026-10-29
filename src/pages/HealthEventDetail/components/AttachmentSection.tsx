@@ -1,4 +1,4 @@
-import { FileText, Image as ImageIcon, Paperclip } from 'lucide-react'
+import { FileText, Image as ImageIcon, Paperclip } from '../../../components/icons'
 import type { HealthEvent } from '../../../types'
 import { Card } from '../../../components/common'
 

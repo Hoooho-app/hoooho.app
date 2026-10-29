@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { CalendarCheck, Ear, Eye, ScanLine, Smile } from 'lucide-react'
+import { CalendarCheck, Ear, Eye, ScanLine, Smile } from '../../components/icons'
 import { WebPageHeader } from '../../components/common'
 import { HealthRecordSubjectHeader } from '../../components/health'
 import { BottomSheetSurface, HealthCard, HealthTag, HohoButton, HohoInput, HohoSection, HohoSurfaceRow, StatusNotice } from '../../components/design-system'

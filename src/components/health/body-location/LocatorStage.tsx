@@ -1,4 +1,4 @@
-import { Check } from 'lucide-react'
+import { Check } from '../../icons'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { type ChildRegion, type ChildView } from '../../../features/body-location/childBodyCatalog'
 import { localAngles, type Bounds, type LocalAngle } from '../../../features/body-location/childBodyGeometry'

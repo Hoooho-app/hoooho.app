@@ -1,5 +1,5 @@
 import { CompleteImage } from '../../components/common/CompleteImage'
-import { Copy, Download, FileText, List } from 'lucide-react'
+import { Copy, Download, FileText, List } from '../../components/icons'
 import { VisitReading, visibleReadingCards, type ReadingEditor } from './VisitReading'
 import { VisitSubpage } from './VisitSubpage'
 import { VisitUpdatePreview } from './VisitUpdatePreview'
@@ -302,10 +302,7 @@ function VisitSheetReader({
           </StatusNotice>
         )}
         {report && !loading && (
-          <>
-            {[...new Set([...(state?.warnings??[]),...report.warnings])].map(w=><StatusNotice title={w} tone="warning" key={w}/>)}
             <VisitReading report={report} token={token} busy={loading||working} organizing={organizing} organizationError={organizationError} onOrganize={organizeCurrent} onEvidence={openEvidence} onEdit={(kind,line=0)=>{setSelectedSymptom(line);setEditorDirty(false);setEditing(kind)}} onMedia={setPhotoId} onChoose={()=>{setAttachmentPicker(true);setPhotoPicker(true)}} onMedications={()=>setMedicationOpen(true)} opened={opened}/>
-          </>
         )}
         {notice && (
           <p role="status" className="visit-muted">

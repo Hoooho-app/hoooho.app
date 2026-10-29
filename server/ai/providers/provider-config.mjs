@@ -13,8 +13,29 @@ export function boundedSetting(env, name, fallback, min, max) {
 
 export function selectedProvider(env = process.env) {
   const value = env.AI_PROVIDER ?? (env.OPENAI_API_KEY ? 'openai' : 'local')
-  if (!['openai', 'bailian', 'local'].includes(value)) throw configurationError('AI_PROVIDER 只支持 openai、bailian、local')
+  if (!['openai', 'bailian', 'openrouter', 'local'].includes(value)) throw configurationError('AI_PROVIDER 只支持 openai、bailian、openrouter、local')
   return value
+}
+
+export function openRouterConfiguration(options = {}) {
+  const env = options.env ?? process.env
+  const apiKey = options.apiKey ?? env.OPENROUTER_API_KEY
+  const model = options.model ?? env.OPENROUTER_MODEL
+  const visionModel = options.visionModel ?? (env.OPENROUTER_VISION_MODEL || model)
+  if (typeof apiKey !== 'string' || !apiKey.trim() || !model) throw configurationError('OpenRouter 尚未配置：请在后端填写 OPENROUTER_API_KEY 与 OPENROUTER_MODEL；原内容保留，仍可手动记录', 'AI_NOT_CONFIGURED')
+  // Use a fixed catalog model, never an automatic router or an implicit fallback.
+  const validModel = value => typeof value === 'string' && /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,79}\/[a-zA-Z0-9][a-zA-Z0-9._:-]{0,119}$/.test(value) && !value.startsWith('openrouter/')
+  if (![model, visionModel].every(validModel)) throw configurationError('OpenRouter 模型必须填写目录中的固定 provider/model ID，不能使用自动路由', 'AI_MODEL_INVALID')
+  const baseUrl = 'https://openrouter.ai/api/v1'
+  const configuredBase = options.baseUrl ?? env.OPENROUTER_BASE_URL ?? baseUrl
+  if (typeof configuredBase !== 'string' || configuredBase.replace(/\/$/, '') !== baseUrl) throw configurationError('OPENROUTER_BASE_URL 只能使用官方 https://openrouter.ai/api/v1 地址', 'AI_BASE_URL_INVALID')
+  return {
+    apiKey, model, visionModel, baseUrl,
+    timeoutMs: boundedSetting(env, 'OPENROUTER_TIMEOUT_MS', 60000, 1000, 120000),
+    maxOutputTokens: boundedSetting(env, 'OPENROUTER_MAX_OUTPUT_TOKENS', 8000, 3000, 16000),
+    maxImages: boundedSetting(env, 'OPENROUTER_MAX_IMAGES_PER_REQUEST', 1, 1, 12),
+    maxInputCharacters: boundedSetting(env, 'OPENROUTER_MAX_INPUT_CHARACTERS', 65000, 1000, 120000),
+  }
 }
 
 export function bailianConfiguration(options = {}) {

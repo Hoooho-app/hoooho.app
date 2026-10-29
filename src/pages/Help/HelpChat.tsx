@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { MessageSquare, Send } from 'lucide-react'
+import { MessageSquare, Send } from '../../components/icons'
 import { Link } from 'react-router-dom'
 import { HohoButton, DialogueComposer } from '../../components/design-system'
 import { useAppStore } from '../../store/useAppStore'

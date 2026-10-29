@@ -1,4 +1,4 @@
-import { ChevronRight, Plus, Trash2 } from 'lucide-react'
+import { ChevronRight, Plus, Trash2 } from '../../components/icons'
 import { FormEvent, useState } from 'react'
 import { WebPageHeader } from '../../components/common'
 import { HealthProfileActionBar, MemberIdentityCard, SmartTagInput } from '../../components/health'

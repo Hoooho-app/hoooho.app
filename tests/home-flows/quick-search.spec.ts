@@ -58,7 +58,7 @@ test('语音松开后转写自动使用同一模糊检索',async({page,request})
  await expect(page.locator('.journal-search-result')).toContainText('湿疹')
 })
 
-test('识别等待只呈现放大镜；失败不显示恢复操作且可以重新说话；结果自然接入',async({page,request},info)=>{
+test('识别等待呈现统一加载图标；失败不显示恢复操作且可以重新说话；结果自然接入',async({page,request},info)=>{
  const member=await request.post('/api/members',{headers,data:{name:'等待态验收（虚构）',relationship:'child'}});const memberId=(await member.json()).id
  await page.addInitScript(({token,memberId})=>{sessionStorage.setItem('hoooho-auth-token',token);localStorage.setItem('hoooho-app',JSON.stringify({state:{authUser:{id:'visit-test'},currentMemberId:memberId,members:[],profile:null},version:5}))},{token,memberId})
  let release:()=>void=()=>{},calls=0
@@ -78,7 +78,7 @@ test('识别等待只呈现放大镜；失败不显示恢复操作且可以重�
  await expect(page.getByText('没有找到相关记录',{exact:true})).toHaveCount(0)
  await expect(page.getByText('录音已保留',{exact:true})).toHaveCount(0)
  await expect(page.getByRole('button',{name:'重试识别',exact:true})).toHaveCount(0)
- const lens=page.locator('.quick-search-progress__lens'),before=await lens.evaluate(el=>getComputedStyle(el).transform)
+ const lens=page.locator('.quick-search-progress [data-icon="progress_activity"]'),before=await lens.evaluate(el=>getComputedStyle(el).transform)
  await page.waitForTimeout(150)
  expect(await lens.evaluate(el=>getComputedStyle(el).transform)).not.toBe(before)
  await expect(page.locator('.quick-search-progress__hint')).toContainText('识别比平时久',{timeout:10000})

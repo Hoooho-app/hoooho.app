@@ -107,7 +107,7 @@ export interface VisitSheet {
   reading?: {description:string;onset:string;change:string;other:string;sourceIds:string[];courseSourceIds:string[];height:VisitPoint|null;weight:VisitPoint|null;keywords?:string[];courseGroups?:VisitReadingGroup[];archive?:VisitArchiveGroup[];questionCandidates?:string[];contextRange?:{from:string|null;to:string|null}}
   caseDetails?: {description?:string;onset?:string;change?:string;other?:string}
   selection?: { eventIds: string[]; from?: string; to?: string; includeBackground: boolean }
-  aiSummary?: { overview: string; keyPoints: string[]; keyPointEvidence?:Array<{text:string;quote:string;sourceId:string|null;sectionId:string}>; missingInformation: string[]; provider: 'openai' | 'bailian'; model: string; generatedAt: string }
+  aiSummary?: { overview: string; keyPoints: string[]; keyPointEvidence?:Array<{text:string;quote:string;sourceId:string|null;sectionId:string}>; missingInformation: string[]; provider: 'openai' | 'bailian' | 'openrouter'; model: string; generatedAt: string }
   aiSummaryStale?: boolean
   aiSourceFingerprint?: string
   aiSourceIds?: string[]

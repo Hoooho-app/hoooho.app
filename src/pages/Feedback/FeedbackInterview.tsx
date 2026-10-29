@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { MessageSquare, X } from 'lucide-react'
+import { MessageSquare, X } from '../../components/icons'
 import { DialogueComposer, HohoButton } from '../../components/design-system'
 import { NurseMessage } from '../../features/ai-nurse/NurseMessage'
 import { useDialogueVoice } from '../../features/ai-business/useDialogueVoice'

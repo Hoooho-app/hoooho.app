@@ -12,6 +12,7 @@ test('批量原生入口、多选/追加/拍照/取消/移除、视频拒绝与�
   await page.goto('/health-profile');const pdf=await PDFDocument.create();pdf.addPage();pdf.addPage()
   let picker=page.waitForEvent('filechooser');await page.getByRole('button',{name:'上传资料',exact:true}).click();await(await picker).setFiles([await photo(),{name:'合成双页.pdf',mimeType:'application/pdf',buffer:Buffer.from(await pdf.save())}])
   const sheet=page.getByRole('dialog',{name:'上传资料'});await expect(sheet.locator('li')).toHaveCount(2)
+  await expect.poll(async()=>{const box=await sheet.boundingBox();return box!.y+box!.height}).toBeLessThanOrEqual(page.viewportSize()!.height);expect((await sheet.boundingBox())!.height).toBeGreaterThan(400)
   const before=await(await request.get('http://127.0.0.1:4198/status')).json()
   picker=page.waitForEvent('filechooser');await sheet.getByRole('button',{name:'继续添加',exact:true}).click();await(await picker).setFiles([]);await expect(sheet.locator('li')).toHaveCount(2)
   picker=page.waitForEvent('filechooser');await sheet.getByRole('button',{name:'继续拍照',exact:true}).click();await(await picker).setFiles(await photo('追加.png'));await expect(sheet.locator('li')).toHaveCount(3)
@@ -27,6 +28,10 @@ test('批量原生入口、多选/追加/拍照/取消/移除、视频拒绝与�
   await result.getByRole('button',{name:'保存到档案',exact:true}).click();await expect(page.getByText('资料已整理到档案',{exact:true})).toBeVisible()
   const saved=await(await request.get(`/api/members/empty-child/ai-drafts/${draft.id}`,{headers})).json();expect((await(await request.post(`/api/members/empty-child/ai-drafts/${draft.id}/save`,{headers,data:{version:draft.version,confirmed:true}})).json()).result).toEqual(saved.result)
   const attachments=await(await request.get(`/api/events/${saved.result.records[0].eventId}/attachments`,{headers})).json();expect(attachments.filter((f:any)=>draft.pages.some((p:any)=>p.id===`file-${f.contentHash.slice(0,24)}`)).length).toBe(2)
+  const vaccines=await(await request.get('/api/members/empty-child/profile-list/vaccination',{headers})).json();expect(vaccines.rows.length).toBeGreaterThan(0)
+  const vaccinationEntry=page.getByRole('region',{name:'儿童保健'}).getByRole('button',{name:/^疫苗接种记录/});await expect(vaccinationEntry).toContainText(`${vaccines.rows.length}条`)
+  await vaccinationEntry.click();await expect(page).toHaveURL(/\/health-profile\/vaccination$/);await expect(page.getByRole('heading',{name:'乙肝疫苗 · 第2剂',exact:true})).toBeVisible()
+  await page.getByRole('button',{name:'返回',exact:true}).click();await expect(page.getByRole('navigation',{name:'档案分类'})).toBeVisible()
 })
 test('识别失败保留资料、重试成功可核对，取消不写档案',async({page,request})=>{
   await request.get('http://127.0.0.1:4198/failure');await page.goto('/health-profile');const picker=page.waitForEvent('filechooser');await page.getByRole('button',{name:'上传资料',exact:true}).click();await(await picker).setFiles(await photo('失败可重试.png'))

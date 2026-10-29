@@ -1,7 +1,8 @@
 import { createAIProvider } from './provider-factory.mjs'
 
-// Conversation roles share the existing Beijing Bailian adapter. No alternate
-// supplier is selected if configuration is missing or an upstream call fails.
+// Preserve the existing Bailian conversation default. Only an explicit
+// OpenRouter selection changes it; missing config never falls back to Qwen.
 export function createDialogueProvider(options = {}) {
-  return createAIProvider({ ...options, env: { ...(options.env ?? process.env), AI_PROVIDER: 'bailian' } })
+  const env = options.env ?? process.env
+  return createAIProvider({ ...options, env: { ...env, AI_PROVIDER: env.AI_PROVIDER === 'openrouter' ? 'openrouter' : 'bailian' } })
 }

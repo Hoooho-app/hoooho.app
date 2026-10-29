@@ -1,7 +1,7 @@
 import { PhotoAnalysis } from '../../features/health-attachments/PhotoAnalysisPanel'
 import { sourcedPhotoFields } from '../../features/health-attachments/photoAnalysis'
 import { RecordSaveAction } from './RecordSaveAction'
-import { ArrowLeft, Camera, ChevronDown, ImagePlus, Plus, Syringe, Trash2, X } from 'lucide-react'
+import { ArrowLeft, Camera, ChevronDown, ImagePlus, Plus, Syringe, Trash2, X } from '../../components/icons'
 import { useEffect, useRef, useState } from 'react'
 import { HohoButton, HohoInput } from '../../components/design-system'
 import type { JournalMetadata, JournalVaccinationDetails, JournalVaccinationItem, VaccinationDose, VaccinationObservation, VaccinationSite } from '../../types/journal'

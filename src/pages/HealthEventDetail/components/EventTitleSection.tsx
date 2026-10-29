@@ -1,5 +1,5 @@
 import { type FormEvent, useEffect, useState } from 'react'
-import { PencilLine } from 'lucide-react'
+import { PencilLine } from '../../../components/icons'
 import { Button, Card } from '../../../components/common'
 
 interface EventTitleSectionProps {

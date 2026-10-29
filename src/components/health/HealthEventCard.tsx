@@ -1,4 +1,4 @@
-import { CheckCircle2, RotateCcw, Trash2 } from 'lucide-react'
+import { CheckCircle2, RotateCcw, Trash2 } from '../icons'
 import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { HealthEventListItemViewModel, HealthEventStage } from '../../types'

@@ -1,4 +1,4 @@
-import { ChevronRight, FileHeart, Link2 } from 'lucide-react'
+import { ChevronRight, FileHeart, Link2 } from '../../components/icons'
 import { useNavigate } from 'react-router-dom'
 import { WebPageHeader } from '../../components/common'
 import { MemberIdentityCard } from '../../components/health'

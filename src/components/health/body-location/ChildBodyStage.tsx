@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Check } from 'lucide-react'
+import { Check } from '../../icons'
 import { CHILD_REGIONS, type ChildLocation, type ChildModel, type ChildRegion, type ChildView } from '../../../features/body-location/childBodyCatalog'
 import { assetUrl, childVisual, geometryCompatible, locationPoint, projectedPoint, regionAnchor, regionPolygon, type ChildVisual, type LocalAngle, type Point } from '../../../features/body-location/childBodyGeometry'
 

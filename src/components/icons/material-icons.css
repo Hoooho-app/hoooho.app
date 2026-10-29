@@ -1,0 +1,24 @@
+@import './nativeChoices.css';
+
+.hoho-icon { display: inline-block; flex-shrink: 0; vertical-align: middle; stroke: none !important; }
+.hoho-icon > path { stroke: none !important; fill: currentColor; }
+.hoho-icon__outline { display: var(--hoho-icon-outline, inline); }
+.hoho-icon__solid { display: var(--hoho-icon-solid, none); }
+
+/* The existing business control owns selection. Pointer-down alone is not a stored selection. */
+:is(button, a, [role='tab'], [role='radio'], [role='checkbox'], label):is(
+  [aria-current='page'], [aria-current='step'], [aria-selected='true'], [aria-pressed='true'],
+  [aria-checked='true'], [data-selected='true']
+), .health-events-view-select__option[data-selected='true'] {
+  --hoho-icon-outline: none;
+  --hoho-icon-solid: inline;
+}
+.hoho-icon[data-icon-selected='true'] { --hoho-icon-outline: none; --hoho-icon-solid: inline; }
+.hoho-icon[data-icon-selected='false'] { --hoho-icon-outline: inline; --hoho-icon-solid: none; }
+/* A masked native input keeps its keyboard focus visible on the surrounding touch label. */
+label:has(> input:is([type='checkbox'], [type='radio']):not([role='switch']):focus-visible) {
+  outline: 2px solid rgb(var(--hoho-color-primary) / .6); outline-offset: 3px;
+}
+.hoho-icon[data-icon='progress_activity'] { animation: hoho-material-spin 1.1s linear infinite; }
+@keyframes hoho-material-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .hoho-icon[data-icon='progress_activity'] { animation: none; } }

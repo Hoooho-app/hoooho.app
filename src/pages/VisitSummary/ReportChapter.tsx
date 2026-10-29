@@ -1,5 +1,5 @@
 import { PRODUCT_FEATURES } from '../../../shared/product-visibility.mjs'
-import { MapPin } from 'lucide-react'
+import { MapPin } from '../../components/icons'
 import { ReadOnlyMedicationReminderCard } from '../NurseStation/MedicationReminderCard'
 import type { ReactNode } from 'react'
 import { healthProfileSections } from '../../features/health-profile/config/healthProfileSections'

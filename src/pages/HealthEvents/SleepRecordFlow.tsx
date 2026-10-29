@@ -1,5 +1,5 @@
 import { RecordSaveTarget, RecordEditorSave } from './RecordSaveAction'
-import { ArrowLeft, ChevronDown, ChevronRight, Moon, Sun } from 'lucide-react'
+import { ArrowLeft, ChevronDown, ChevronRight, Moon, Sun } from '../../components/icons'
 import { useEffect, useRef, useState, type CSSProperties, type PointerEvent } from 'react'
 import { HohoButton, HohoSegmentedControl } from '../../components/design-system'
 import { DailyRecordSettings, DailySaveText } from './DailyRecordSettings'

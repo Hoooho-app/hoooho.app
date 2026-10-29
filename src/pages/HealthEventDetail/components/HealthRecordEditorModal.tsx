@@ -1,6 +1,6 @@
 import { CompleteImage } from '../../../components/common/CompleteImage'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { CalendarDays, ImagePlus, Info, Mic, Paperclip, Sparkles, X } from 'lucide-react'
+import { CalendarDays, ImagePlus, Info, Mic, Paperclip, Sparkles, X } from '../../../components/icons'
 import { Button, Card } from '../../../components/common'
 import { BodyLocationPicker } from '../../../components/health'
 import { bodyLocationSelectionLabels, type BodyLocationSelection } from '../../../features/body-location'

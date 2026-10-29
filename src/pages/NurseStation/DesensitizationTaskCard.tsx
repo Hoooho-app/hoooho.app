@@ -1,4 +1,4 @@
-import { Archive, MoreHorizontal, RotateCcw, Trash2 } from 'lucide-react'
+import { Archive, MoreHorizontal, RotateCcw, Trash2 } from '../../components/icons'
 import { useRef } from 'react'
 import { HohoButton } from '../../components/design-system'
 import type { DesensitizationTaskDto } from '../../services/desensitizationTests'

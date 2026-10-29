@@ -91,7 +91,7 @@ test('bottom navigation opens the calendar, profile and existing organize sheet'
   await expect(page.getByRole('heading', { name: '健康日历', exact: true })).toBeVisible()
   await page.getByRole('navigation', { name: '主要导航' }).getByRole('button', { name: '孩子档案', exact: true }).click()
   await expect(page).toHaveURL(/\/health-profile$/)
-  await expect(page.getByRole('heading', { name: '孩子档案', exact: true })).toBeVisible()
+  await expect(page.getByRole('navigation', { name: '档案分类', exact: true })).toBeVisible()
   await page.getByRole('navigation', { name: '主要导航' }).getByRole('button', { name: '一键整理', exact: true }).click()
   await expect(page.getByRole('dialog', { name: '一键整理', exact: true })).toBeVisible()
   await expect(page.getByRole('dialog', { name: '一键整理', exact: true }).getByRole('button').filter({ hasText: '就诊情况单' })).toBeVisible()

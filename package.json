@@ -10,7 +10,7 @@
     "start": "node --env-file-if-exists=.env.local ./node_modules/vite/bin/vite.js --host 0.0.0.0",
     "dev": "node --env-file-if-exists=.env.local ./node_modules/vite/bin/vite.js --host 0.0.0.0",
     "start:prod": "node server/app.mjs",
-    "build": "npm run typecheck && npm run test:body-locator-assets && npm run test:avatar-assets && npm run test:image-assets && vite build --config vite.config.ts && npm run test:viewport && npm run test:auth-build && npm run test:install-app-config",
+    "build": "npm run typecheck && npm run test:icons && npm run test:body-locator-assets && npm run test:avatar-assets && npm run test:image-assets && vite build --config vite.config.ts && npm run test:viewport && npm run test:auth-build && npm run test:install-app-config",
     "test:auth-build": "node scripts/check-auth-build.mjs",
     "preview": "vite preview --host 0.0.0.0",
     "test:auth": "node --test server/auth/auth-service.test.mjs server/auth/password-auth.test.mjs server/auth/session-diagnostics.test.mjs",
@@ -72,7 +72,6 @@
     "test:avatar-assets": "node scripts/check-child-avatar-assets.mjs && node scripts/check-clay-avatar-assets.mjs",
     "test:viewport": "node scripts/check-viewport-config.mjs",
     "test:install-app-config": "node scripts/check-install-app-config.mjs",
-    "test:e2e:install-app": "playwright test --config tests/install-app/playwright.config.ts",
     "test:media": "node --test server/media-range.test.mjs && node scripts/check-nurse-media.mjs",
     "optimize:avatar-assets": "node scripts/optimize-clay-avatar-assets.mjs",
     "test:consultations": "node --test server/consultations/online-consultation-service.test.mjs",
@@ -85,7 +84,8 @@
     "test:e2e:allergy-sync": "npm run build && playwright test --config tests/allergy-global-sync/playwright.config.ts",
     "test:e2e:help": "playwright test --config tests/help-center/playwright.config.ts",
     "test:food-icons": "node scripts/check-dietary-food-icons.mjs",
-    "test:family-gateway": "node --test server/family-project/*.test.mjs"
+    "test:family-gateway": "node --test server/family-project/*.test.mjs",
+    "test:icons": "node scripts/check-material-icons.mjs"
   },
   "dependencies": {
     "@napi-rs/canvas": "0.1.100",
@@ -93,7 +93,6 @@
     "bcryptjs": "^3.0.3",
     "date-fns": "^4.1.0",
     "heic-decode": "^2.1.0",
-    "lucide-react": "^0.468.0",
     "pdf-lib": "1.17.1",
     "pdfjs-dist": "5.4.296",
     "react": "^18.3.1",

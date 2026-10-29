@@ -1,4 +1,4 @@
-import { Sprout, Sun } from 'lucide-react'
+import { Sprout, Sun } from '../../components/icons'
 import { DietaryFoodIcon } from './DietaryFoodIcon'
 import { dietaryCopy, presentDietaryCard, translateFood, type DietaryCardGroup, type DietaryCardLanguage, type DietaryCardSnapshot } from './dietaryCardModel'
 

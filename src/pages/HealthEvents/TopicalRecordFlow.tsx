@@ -1,5 +1,5 @@
 import { RecordSaveAction } from './RecordSaveAction'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft } from '../../components/icons'
 import { useEffect, useRef, useState } from 'react'
 import { HohoButton } from '../../components/design-system'
 import { ChildBodyLocationPicker } from '../../components/health/body-location/ChildBodyLocationPicker'

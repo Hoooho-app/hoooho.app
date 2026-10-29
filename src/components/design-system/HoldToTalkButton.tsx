@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
-import { Mic } from 'lucide-react'
+import { Mic } from '../icons'
 import { HohoButton } from './HohoButton'
 import './HoldToTalkButton.css'
 

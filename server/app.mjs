@@ -59,7 +59,7 @@ import { VisitSheetService } from './visit-sheets/visit-sheet-service.mjs'
 import { AIBusinessService } from './ai/business/service.mjs'
 import { CaseContinuityService } from './events/case-continuity-service.mjs'
 import { NurseService, nurseApiResult } from './ai/nurse-service.mjs'
-import {RecognitionJobs,recognitionRoute,recognitionApi} from './ai/recognition-jobs.mjs'
+import {RecognitionJobs,recognitionRoute,recognitionApi,recognitionDiagnostics} from './ai/recognition-jobs.mjs'
 import { LiveAudioPreviewService,liveAudioPreviewApiResult } from './ai/live-audio-preview.mjs'
 import { FrontDeskRecord } from './ai/front-desk-record.mjs'
 import { caseApiResult } from './events/case-api.mjs'
@@ -928,7 +928,7 @@ async function handleApi(request, response, pathname, searchParams) {
   const recognitionMatch=recognitionRoute(pathname)
   if(recognitionMatch){
     const accountId=await readAccountId(request)
-    const result=await recognitionApi(recognitionJobs,accountId,request,pathname,limit=>readJson(request,limit));response.setHeader('Cache-Control','no-store');sendJson(response,result.status??200,result.data);return true
+    const result=await recognitionApi(recognitionJobs,accountId,request,pathname,limit=>readJson(request,limit));response.recognitionDiagnostics=recognitionDiagnostics(result.data);response.setHeader('Cache-Control','no-store');sendJson(response,result.status??200,result.data);return true
   }
   const insightsMatch=/^\/api\/members\/([^/]+)\/health-insights$/.exec(pathname)
   if(insightsMatch&&request.method==='GET'){sendJson(response,200,await aiBusiness.insights(await readAccountId(request),decodeRouteValue(insightsMatch[1])));return true}
@@ -1148,7 +1148,7 @@ const server=createServer((request,response)=>{
   if(!operation)return handleRequest(request,response)
   const traceId=safeTraceId(request.headers['x-hoooho-trace-id']),started=Date.now(),signal=requestSignal(request,response)
   response.setHeader('X-Hoooho-Trace-Id',traceId)
-  const done=()=>console.info('[Hoooho AI] http phases',JSON.stringify({traceId,operation,elapsedMs:Date.now()-started,httpStatus:response.writableFinished?response.statusCode:499,commit:/^[a-f0-9]{40}$/.test(process.env.RAILWAY_GIT_COMMIT_SHA??'')?process.env.RAILWAY_GIT_COMMIT_SHA:'local'}))
+  const done=()=>console.info('[Hoooho AI] http phases',JSON.stringify({traceId,operation,elapsedMs:Date.now()-started,httpStatus:response.writableFinished?response.statusCode:499,...response.recognitionDiagnostics,commit:/^[a-f0-9]{40}$/.test(process.env.RAILWAY_GIT_COMMIT_SHA??'')?process.env.RAILWAY_GIT_COMMIT_SHA:'local'}))
   response.once('close',done)
   return withAITrace({traceId,operation,signal},()=>handleRequest(request,response))
 })

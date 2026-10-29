@@ -1,4 +1,4 @@
-import { ArrowLeft, Camera, Check, CheckCircle2, ChevronRight, CircleHelp, ClipboardPaste, FileText, FileUp, Files, FolderPlus, Hospital, Images, Link2, LoaderCircle, MessageSquareText, PencilLine, Plus, ScanText, Sparkles, Stethoscope, X } from 'lucide-react'
+import { ArrowLeft, Camera, Check, CheckCircle2, ChevronRight, CircleHelp, ClipboardPaste, FileText, FileUp, Files, FolderPlus, Hospital, Images, Link2, LoaderCircle, MessageSquareText, PencilLine, Plus, ScanText, Sparkles, Stethoscope, X } from '../../components/icons'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'

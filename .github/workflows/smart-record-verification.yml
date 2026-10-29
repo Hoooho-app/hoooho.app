@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
   pull_request:
     branches: [main]
-    paths: ['shared/front-desk-record-format*', 'server/ai/**', 'src/features/ai-business/**', 'src/features/health-attachments/**', 'src/services/imageAnalysisPresentation*', 'src/services/healthEventDetailAdapter*', 'src/components/navigation/**', 'src/utils/privateIdentity*', 'tests/upload-recognition/**', 'tests/dialogue/**', 'tests/helpers/**', 'tests/visit-sheet/**', 'tests/nurse-frontdesk-upgrade-mobile/**', 'tests/front-desk-continuous/**', 'tests/frontdesk-navigation/**', 'tests/selective-rollback/**', 'tests/conversation-home/**', '.github/workflows/smart-record-verification.yml']
+    paths: ['shared/front-desk-record-format*', 'server/ai/**', 'src/features/ai-business/**', 'src/features/health-attachments/**', 'src/services/imageAnalysisPresentation*', 'src/services/healthEventDetailAdapter*', 'src/components/navigation/**', 'src/pages/HealthProfile/**', 'src/utils/privateIdentity*', 'tests/upload-recognition/**', 'tests/dialogue/**', 'tests/helpers/**', 'tests/visit-sheet/**', 'tests/nurse-frontdesk-upgrade-mobile/**', 'tests/front-desk-continuous/**', 'tests/frontdesk-navigation/**', 'tests/selective-rollback/**', 'tests/conversation-home/**', '.github/workflows/smart-record-verification.yml']
 permissions:
   contents: read
 concurrency:
@@ -49,6 +49,8 @@ jobs:
             node -e "$hoho_browser_smoke"
           fi
       - run: node --test server/events/health-event-record-service.test.mjs server/events/case-continuity-service.test.mjs server/ai/recognition-jobs.test.mjs server/ai/front-desk-record.test.mjs server/ai/front-desk-resume.test.mjs server/ai/front-desk-original-save.test.mjs server/ai/recognition-context.test.mjs server/ai/live-audio-preview.test.mjs server/ai/business/*.test.mjs
+      - name: Verify explicit OpenRouter routing and existing Bailian compatibility without live calls
+        run: node --test server/ai/providers/openrouter-provider.test.mjs server/ai/providers/bailian-provider.test.mjs server/help/dialogue-contract.test.mjs
       - run: node --import ./scripts/register-node-ts-loader.mjs --test src/features/case-continuity/followupPresentation.test.ts src/features/ai-business/liveAudioPreview.test.ts src/features/ai-business/recordReading.test.ts src/features/ai-business/frontDeskRecord.test.ts src/features/ai-business/captureDraft.test.ts src/features/ai-business/savedRecordGuide.test.ts
       - run: TZ=Asia/Shanghai node --import ./scripts/register-node-ts-loader.mjs --test src/pages/NurseStation/firstChildSetupModel.test.ts
       - run: node --import ./scripts/register-node-ts-loader.mjs --test src/utils/privateIdentity.test.ts
@@ -61,21 +63,29 @@ jobs:
           node --test server/ai/front-desk-recognition-preview.test.mjs server/ai/front-desk-upload-reading.test.mjs
           node --import ./scripts/register-node-ts-loader.mjs --test src/features/health-attachments/photoAnalysis.test.ts src/services/imageAnalysisPresentation.test.ts src/services/healthEventDetailAdapter.test.ts
       - run: npm run build
+      - name: Verify report diagnostics and continuous page paper
+        run: npx playwright test --config tests/visit-sheet/presentation.config.ts
       - name: Verify private identities, four-tab navigation and draft continuity
         run: npx playwright test --config tests/frontdesk-navigation/playwright.config.ts
+      - name: Verify review-only calendar and expanded month grid
+        run: npx playwright test --config tests/calendar-review-only/playwright.config.ts
+      - run: npx playwright test --config tests/conversation-home/pure-record.config.ts
+      - name: Verify archive upload ownership, review, save and retry with synthetic documents
+        run: npx playwright test --config tests/ai-business/playwright.config.ts profile-batch.spec.ts
       - run: npx playwright test --config tests/dialogue/symptom-followup.config.ts
       - if: ${{ !cancelled() }}
         run: npx playwright test --config tests/dialogue/playwright.config.ts recognition-progress.spec.ts smart-record-actions.spec.ts smart-record-exit.spec.ts nursing-record.spec.ts nurse-dialogue-guidance.spec.ts --grep-invert 'saving while ASR is pending'
       - name: Verify current protocol3 front-desk mobile flows
         if: ${{ !cancelled() }}
         run: npx playwright test --config tests/front-desk-continuous/playwright.config.ts
+      - name: Verify OpenRouter mobile persistence and failure recovery with synthetic responses
+        run: VISIT_OPENROUTER_TEST=1 npx playwright test --config tests/front-desk-continuous/playwright.config.ts --project=iphone-se --grep 'processing and questions|a failed model|member switch|image-only recognition'
       - name: Verify shared upload candidates without enabling frozen tools
         run: npx playwright test --config tests/upload-recognition/playwright.config.ts
       - name: Verify selective rollback draft and data compatibility
         run: npx playwright test --config tests/selective-rollback/playwright.config.ts
       - run: npx playwright test --config tests/conversation-home/playwright.config.ts
       - run: npx playwright test --config tests/conversation-home/first-child.config.ts
-      - run: npx playwright test --config tests/conversation-home/pure-record.config.ts
       - run: npx playwright test --config tests/conversation-home/forest.config.ts
       - uses: actions/upload-artifact@v4
         if: always()
@@ -84,5 +94,7 @@ jobs:
           retention-days: 7
           path: |
             outputs/symptom-followup/
+            outputs/calendar-review-only/
+            outputs/visit-paper/
             test-results/
             playwright-report/

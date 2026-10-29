@@ -1,4 +1,4 @@
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft } from '../../components/icons'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { organizeBackTarget } from './navigation'
 import './organize.css'

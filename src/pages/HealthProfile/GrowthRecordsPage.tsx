@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Pencil, Plus, Trash2, X } from 'lucide-react'
+import { Pencil, Plus, Trash2, X } from '../../components/icons'
 import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { WebPageHeader } from '../../components/common'
 import { calculateGrowthPosition, exactAgeInMonths, heightMeasureLabel } from '../../features/health-profile/utils/childGrowthReference'

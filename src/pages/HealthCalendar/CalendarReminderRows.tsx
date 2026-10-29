@@ -1,4 +1,4 @@
-import { ChevronRight, Pill, Syringe, CalendarClock } from 'lucide-react'
+import { ChevronRight, Pill, Syringe, CalendarClock } from '../../components/icons'
 import type { CalendarReminder } from './reminders'
 
 export function CalendarReminderRows({ reminders, onOpen }: { reminders: readonly CalendarReminder[]; onOpen: (reminder: CalendarReminder) => void }) {

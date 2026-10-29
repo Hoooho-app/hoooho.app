@@ -1,4 +1,4 @@
-import { Check } from 'lucide-react'
+import { Check } from '../../../components/icons'
 import { BottomSheetSurface, HohoButton } from '../../../components/design-system'
 import type { HealthChangeAnnotationApiDto, HealthChangeType } from '../../../types'
 

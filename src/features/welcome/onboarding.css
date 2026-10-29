@@ -333,3 +333,6 @@
     scroll-behavior: auto !important;
   }
 }
+
+.hoooho-onboarding__page-button > .hoho-icon { width:16px; height:16px; opacity:.55; }
+.hoooho-onboarding__page-button[aria-current="step"] > .hoho-icon { opacity:1; }

@@ -3,24 +3,24 @@ import test from 'node:test'
 import { getDietaryFoodIcon, loadDietaryFoodIcon } from './dietaryFoodIcons.ts'
 import { foodIconAssets } from './foodIconAssets.ts'
 
-test('16 food icons resolve from stable IDs and keep both small resource sizes', () => {
-  assert.equal(Object.keys(foodIconAssets).length, 16)
+test('only the three accurate Material foods resolve and the page/export share one SVG', () => {
+  assert.equal(Object.keys(foodIconAssets).length, 3)
   for (const foodId of Object.keys(foodIconAssets)) {
     const icon = getDietaryFoodIcon({ foodId, name: 'translated display name' })
     assert.equal(icon?.id, foodId)
-    assert.match(icon!.src, new RegExp(`/webp-96/${foodId}\\.[a-f0-9]{10}\\.webp$`))
-    assert.match(getDietaryFoodIcon({ foodId, name: '' }, 144)!.src, /webp-144/)
+    assert.match(icon!.src, /\/icons\/material-v3\/[^/]+\.svg$/)
+    assert.equal(getDietaryFoodIcon({ foodId, name: '' }, 144)!.src, icon!.src)
   }
-  assert.equal(getDietaryFoodIcon({ foodId: 'lamb-mutton', name: '羊肉' })?.id, 'lamb')
-  assert.equal(getDietaryFoodIcon({ foodId: 'cod', name: 'Cod' })?.id, 'fish')
+  for (const foodId of ['orange','banana','peanut','soy','wheat','fish','shrimp','crab','beef','lamb','carrot','broccoli','tomato','lamb-mutton','cod']) {
+    assert.equal(getDietaryFoodIcon({ foodId, name: 'Apple' }), null, `${foodId} must keep its own name instead of borrowing an apple icon`)
+  }
 })
 
 test('finite historical aliases and traditional/English labels resolve exactly', () => {
-  for (const name of ['番茄', '西红柿', '西紅柿', ' Tomato ']) assert.equal(getDietaryFoodIcon({ name })?.id, 'tomato')
-  for (const name of ['橘子', '桔子', 'Orange']) assert.equal(getDietaryFoodIcon({ name })?.id, 'orange')
-  for (const name of ['蟹', '螃蟹', 'Crab']) assert.equal(getDietaryFoodIcon({ name })?.id, 'crab')
+  for (const name of ['苹果', '蘋果', ' Apple ']) assert.equal(getDietaryFoodIcon({ name })?.id, 'apple')
+  for (const name of ['牛奶', '牛乳', 'Milk']) assert.equal(getDietaryFoodIcon({ name })?.id, 'milk')
   assert.equal(getDietaryFoodIcon({ name: '雞蛋' })?.id, 'egg')
-  assert.equal(getDietaryFoodIcon({ name: '鳕鱼' })?.id, 'fish')
+  for (const name of ['鳕鱼','番茄','西红柿','西紅柿',' Tomato ','橘子','Orange','蟹','螃蟹','Crab']) assert.equal(getDietaryFoodIcon({ name }), null)
 })
 
 test('unknown food identities never infer dairy, beans or fruit from substrings', () => {

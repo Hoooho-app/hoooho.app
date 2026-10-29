@@ -1,4 +1,4 @@
-import { CircleCheck, CloudOff, LoaderCircle } from 'lucide-react'
+import { CircleCheck, CloudOff, LoaderCircle } from '../icons'
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import logoUrl from '../../assets/logo.svg'
 import { HohoButton } from '../design-system/HohoButton'

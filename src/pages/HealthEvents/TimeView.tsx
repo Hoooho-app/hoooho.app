@@ -1,4 +1,4 @@
-import { CheckCircle2, ChevronRight, Paperclip } from 'lucide-react'
+import { CheckCircle2, ChevronRight, Paperclip } from '../../components/icons'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { HohoButton, StatusNotice } from '../../components/design-system'
 import { getLocalDateKey } from '../../utils/localCalendarDate'

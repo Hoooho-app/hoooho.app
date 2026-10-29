@@ -11,6 +11,23 @@ import { MedicalSummaryError } from '../ai/medical-summary-service.mjs'
 import { normalizeMedicalSummary } from '../ai/providers/openai-provider.mjs'
 import {situationRaw,situationOutput} from '../../tests/visit-sheet/current-situation-v2.fixture.mjs'
 
+test('OpenRouter summary preview confirms and survives reopening without a second model call',async t=>{
+ const {svc,f}=await setup(t),a=f.member.accountId,m=f.member.id
+ const local=await svc.save(a,m,{requestId:'or-local',expectedVersion:0});let calls=0
+ svc.medicalSummary={generate:async input=>{
+  calls++;const section=input.sections.find(s=>s.id==='record'&&s.lines.length),quote=section.lines[0]
+  return {...normalizeMedicalSummary({overview:'合成观察',keyPoints:[{text:'合成观察',sectionId:section.id,quote}],missingInformation:[]},input),provider:'openrouter',model:'mistralai/synthetic'}
+ }}
+ const preview=await svc.save(a,m,{requestId:'or-preview',expectedVersion:local.report.version,generateAI:true,previewAI:true})
+ assert.equal(preview.aiCandidate.summary.provider,'openrouter');assert.equal((await svc.get(a,m)).report.aiSummary,undefined)
+ const request={requestId:'or-confirm',expectedVersion:local.report.version,confirmAI:preview.aiCandidate.id}
+ const saved=await svc.save(a,m,request);await svc.save(a,m,request)
+ const reopened=await svc.get(a,m)
+ assert.equal(calls,1);assert.equal(reopened.report.version,saved.report.version)
+ assert.equal(reopened.report.aiSummary.provider,'openrouter');assert.equal(reopened.report.aiSummary.model,'mistralai/synthetic')
+ assert.equal(reopened.report.aiSummary.keyPointEvidence.length,1)
+})
+
 test('旧记录只调用一次现有摘要服务，缓存真实结构、保存人工行与原话并隔离焦点',async t=>{
  const {svc,f}=await setup(t),a=f.member.accountId,m=f.member.id
  f.records=[{id:'focus',accountId:a,eventId:'event-a',type:'symptom',content:situationRaw,sourceText:situationRaw,occurredAt:'2026-10-12T00:00:00Z',updatedAt:'2026-10-12T00:00:00Z'}]

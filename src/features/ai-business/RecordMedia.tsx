@@ -1,7 +1,7 @@
 import {useEffect,useState} from 'react'
 import {HohoButton} from '../../components/design-system'
 import {fileBytes,fileDataUrl} from './draftFiles'
-import {FileText} from 'lucide-react'
+import {FileText} from '../../components/icons'
 
 /** Byte-backed thumbnails survive refresh; URLs live as long as their bubble. */
 export function RecordMedia({file}:{file:File}){

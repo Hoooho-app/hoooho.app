@@ -1,5 +1,5 @@
 import {UpdateDot,useRecordUpdates} from '../../features/record-updates/RecordUpdates'
-import { ChevronDown, Menu } from 'lucide-react'
+import { ChevronDown, Menu } from '../icons'
 import type { ReactNode } from 'react'
 import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
@@ -7,13 +7,12 @@ import { SideDrawer } from './SideDrawer'
 import { CurrentChildSheet } from './CurrentChildSheet'
 import { consumeMemberProfileRestore, getCurrentPath, readMemberProfileRestore, type MemberProfileEditOrigin } from './navigationState'
 import { useAppStore } from '../../store/useAppStore'
-import { useInstallApp } from '../../features/install-app'
 import { useCurrentMember } from '../../hooks/useCurrentMember'
 import { Avatar } from '../common/Avatar'
 import { compactIdentityAge, maskIdentityName } from '../../utils/privateIdentity'
 import { MainBottomNavigation } from './MainBottomNavigation'
 
-export function MainAppHeader({ title, compact = false, action, childSelectionRequest = 0, showInstallApp = true, conversation = false, onHistoryNavigate, onNewConversation, conversationDisabled = false }: { title: string; compact?: boolean; action?: ReactNode; childSelectionRequest?: number; showInstallApp?: boolean; conversation?: boolean; onHistoryNavigate?: (destination: string) => void; onNewConversation?: () => void; conversationDisabled?: boolean }) {
+export function MainAppHeader({ title, compact = false, action, childSelectionRequest = 0, childIdentity = false, conversation = false, onHistoryNavigate, onNewConversation, conversationDisabled = false }: { title: string; compact?: boolean; action?: ReactNode; childSelectionRequest?: number; childIdentity?: boolean; conversation?: boolean; onHistoryNavigate?: (destination: string) => void; onNewConversation?: () => void; conversationDisabled?: boolean }) {
   const updates=useRecordUpdates()
   const location = useLocation()
   const navigate = useNavigate()
@@ -24,10 +23,10 @@ export function MainAppHeader({ title, compact = false, action, childSelectionRe
   const [open, setOpen] = useState(false)
   const [childSheetOpen, setChildSheetOpen] = useState(() => Boolean(restore))
   const [notice, setNotice] = useState(accountNotice)
-  const installApp = useInstallApp()
   const member = useCurrentMember()
   const hasMembers = useAppStore(state => state.members.length > 0)
   const privateName = maskIdentityName(member.name) || '记录对象'
+  const subjectMeta = [member.gender === 'female' ? '女' : member.gender === 'male' ? '男' : '', member.age ? compactIdentityAge(member.age) : ''].filter(Boolean).join(' · ')
 
   useEffect(() => {
     if (childSelectionRequest > 0) { setOpen(false); setChildSheetOpen(true) }
@@ -72,14 +71,13 @@ export function MainAppHeader({ title, compact = false, action, childSelectionRe
 
   return (
     <>
-      <header className={`hoho-page-header hoho-main-header ${conversation ? 'hoho-main-header--conversation' : ''} relative flex shrink-0 items-center justify-center px-16 pt-[env(safe-area-inset-top)] ${compact ? 'sticky top-0 z-20 min-h-14' : 'min-h-16'}`}>
+      <header className={`hoho-page-header hoho-main-header ${conversation ? 'hoho-main-header--conversation' : ''} ${childIdentity ? 'hoho-main-header--subject' : ''} relative flex shrink-0 items-center justify-center px-16 pt-[env(safe-area-inset-top)] ${compact ? 'sticky top-0 z-20 min-h-14' : 'min-h-16'}`}>
         <button className="absolute left-3 grid h-11 w-11 place-items-center rounded-full hover:bg-primary-soft" type="button" aria-label="打开菜单" onClick={() => setOpen(true)}>
           <Menu size={24} strokeWidth={1.8} /><span className="absolute right-1 top-1"><UpdateDot show={updates.length>0}/></span>
         </button>
-        {conversation && title === '症状记录' ? <div className="hoho-main-header__identity" aria-label="当前记录对象">{hasMembers && <button className="hoho-main-header__child" type="button" aria-label="切换记录对象" onClick={() => setChildSheetOpen(true)}><Avatar name={privateName} src={member.avatar} size="sm" /><span>{privateName}{member.age ? ` · ${compactIdentityAge(member.age)}` : ''}</span><ChevronDown size={13} aria-hidden="true" /></button>}</div> : <h1 className="hoho-text-section-title w-full truncate text-center">{title}{conversation && title==='护护' && <span className="hoho-conversation-ai" aria-label="AI 助手">AI</span>}</h1>}
-        {(action || (showInstallApp && installApp.visible)) && <div className="hoho-main-header__actions absolute right-3 flex min-h-11 items-center">
+        {childIdentity ? <><h1 className="sr-only">{title}</h1><button className="hoho-main-header__subject" type="button" aria-label="切换记录对象" onClick={() => setChildSheetOpen(true)}><Avatar name={hasMembers ? privateName : ' '} src={hasMembers ? member.avatar : undefined} size="sm" /><span className="hoho-main-header__subject-copy"><strong>{hasMembers ? privateName : '选择孩子'}</strong>{hasMembers && subjectMeta && <small>{subjectMeta}</small>}</span><ChevronDown size={13} aria-hidden="true" /></button></> : conversation && title === '症状记录' ? <div className="hoho-main-header__identity" aria-label="当前记录对象">{hasMembers && <button className="hoho-main-header__child" type="button" aria-label="切换记录对象" onClick={() => setChildSheetOpen(true)}><Avatar name={privateName} src={member.avatar} size="sm" /><span>{privateName}{member.age ? ` · ${compactIdentityAge(member.age)}` : ''}</span><ChevronDown size={13} aria-hidden="true" /></button>}</div> : <h1 className="hoho-text-section-title w-full truncate text-center">{title}{conversation && title==='护护' && <span className="hoho-conversation-ai" aria-label="AI 助手">AI</span>}</h1>}
+        {action && <div className="hoho-main-header__actions absolute right-3 flex min-h-11 items-center">
           {action}
-          {showInstallApp && installApp.visible && <button aria-label="添加 Hoooho 到主屏" className="install-app-trigger" disabled={installApp.busy} onClick={() => void installApp.activate()} type="button">添加到主屏</button>}
         </div>}
       </header>
       {['/health-events', '/health-profile'].includes(location.pathname) && <MainBottomNavigation />}

@@ -1,4 +1,4 @@
-import { Check, CircleHelp, Dog, Leaf, Link2, Pill, Utensils } from 'lucide-react'
+import { Check, CircleHelp, Dog, Leaf, Link2, Pill, Utensils } from '../../../components/icons'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { BottomSheetSurface, HohoButton, HohoInput, StatusNotice } from '../../../components/design-system'
 import {

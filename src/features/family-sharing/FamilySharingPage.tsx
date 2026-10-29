@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { UsersRound } from 'lucide-react'
+import { UsersRound } from '../../components/icons'
 import { WebPageHeader } from '../../components/common/WebPageHeader'
 import { ConfirmDialog } from '../../components/design-system/ConfirmDialog'
 import { EmptyState } from '../../components/design-system/EmptyState'

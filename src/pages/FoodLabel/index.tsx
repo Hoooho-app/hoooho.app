@@ -1,6 +1,6 @@
 import { CompleteImage } from '../../components/common/CompleteImage'
 import { useEffect, useRef, useState } from 'react'
-import { LoaderCircle, Plus } from 'lucide-react'
+import { LoaderCircle, Plus } from '../../components/icons'
 import { WebPageHeader } from '../../components/common/WebPageHeader'
 import { HealthTag, HohoButton, SproutEntry } from '../../components/design-system'
 import hero from '../../assets/food-label/food-label-camera.2a7acd9819.webp'

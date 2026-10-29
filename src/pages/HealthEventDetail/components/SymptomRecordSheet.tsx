@@ -1,7 +1,7 @@
 import {RecordNarrative} from '../../../features/ai-business/RecordNarrative'
 import { NurseNotes } from '../../../features/ai-nurse/NurseNotes'
 import type { NurseMetadata } from '../../../features/ai-nurse/types'
-import { Link2, Pencil, Save, Trash2 } from 'lucide-react'
+import { Link2, Pencil, Save, Trash2 } from '../../../components/icons'
 import { useEffect, useState, type ReactNode } from 'react'
 import { BottomSheetSurface, HohoButton } from '../../../components/design-system'
 import { ChildBodyLocationPicker } from '../../../components/health/body-location/ChildBodyLocationPicker'

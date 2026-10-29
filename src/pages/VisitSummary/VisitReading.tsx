@@ -5,7 +5,7 @@ import {
   Folder,
   History,
   Pencil,
-} from "lucide-react";
+} from '../../components/icons';
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { MemberIdentity } from "../../features/organize/MemberIdentity";
 import { readingCourseGroups, questionText, questionOrdinal } from "./readingPresentation";

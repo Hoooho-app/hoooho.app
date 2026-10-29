@@ -1,5 +1,6 @@
 import { OpenAIProvider } from './openai-provider.mjs'
 import { BailianProvider } from './bailian-provider.mjs'
+import { OpenRouterProvider } from './openrouter-provider.mjs'
 import { BailianASRProvider } from './bailian-asr-provider.mjs'
 import { selectedProvider, configurationError } from './provider-config.mjs'
 
@@ -7,6 +8,7 @@ export function createAIProvider(options = {}) {
   try {
     const selected = selectedProvider(options.env)
     if (selected === 'local') return null
+    if (selected === 'openrouter') return new OpenRouterProvider(options)
     return selected === 'bailian' ? new BailianProvider(options) : new OpenAIProvider(options)
   } catch (error) {
     // Invalid AI configuration must not prevent manual records or local export.

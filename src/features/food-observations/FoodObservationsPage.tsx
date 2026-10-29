@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Eye, Sprout } from 'lucide-react';
+import { Eye, Sprout } from '../../components/icons';
 import { WebPageHeader } from '../../components/common/WebPageHeader';
 import { BottomSheetSurface, EmptyState, HealthCard, HealthTag, HohoButton, HohoInput, HohoProgress, HohoSection, HohoSurfaceRow, HohoToggle, StatusNotice } from '../../components/design-system';
 import { useAppStore } from '../../store/useAppStore';

@@ -1,6 +1,6 @@
 import { SelectedFilePreviews } from '../health-attachments/PhotoPreview'
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
-import { Camera, Keyboard, X } from 'lucide-react'
+import { Camera, Keyboard, X } from '../../components/icons'
 import { WebPageHeader } from '../../components/common'
 import { BottomSheetSurface, HohoButton, HoldToTalkButton, StatusNotice } from '../../components/design-system'
 import { ChildBodyLocationPicker } from '../../components/health/body-location/ChildBodyLocationPicker'

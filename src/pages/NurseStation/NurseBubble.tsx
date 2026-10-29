@@ -1,4 +1,4 @@
-import { BookOpen, ChevronRight, CircleCheck, FilePenLine, Files, FolderHeart, HeartHandshake, Lightbulb, Search, ShieldCheck, Sprout, Users, X } from 'lucide-react'
+import { BookOpen, ChevronRight, CircleCheck, FilePenLine, Files, FolderHeart, HeartHandshake, Lightbulb, Search, ShieldCheck, Sprout, Users, X } from '../../components/icons'
 import { useRef, useState, type CSSProperties, type PointerEvent } from 'react'
 import type { NurseBubbleModel, NurseBubbleType } from './nurseBubbles'
 

@@ -1,4 +1,4 @@
-import { Stethoscope } from 'lucide-react'
+import { Stethoscope } from '../../components/icons'
 import { nurseGreetingText } from '../../../shared/nurse-greeting.mjs'
 import { NurseMessage } from './NurseMessage'
 import type { JournalMetadata } from '../../types/journal'

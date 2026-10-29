@@ -1,5 +1,5 @@
 import { PRODUCT_FEATURES } from '../../../shared/product-visibility.mjs'
-import { ChevronRight, LogOut, ShieldCheck, Sparkles } from 'lucide-react'
+import { ChevronRight, LogOut, ShieldCheck, Sparkles } from '../icons'
 import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Avatar } from '../common'
