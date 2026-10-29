@@ -26,6 +26,25 @@
 
 实现、验证、main/Production、原生构建和实体 iPhone 验收分别记录。不得用合成 ASR 证明真实模型理解能力，也不得把网页或模拟器当实机。本轮无真实供应商调用和生产健康数据写入。
 
-本地生产构建与 806 项客户端检查通过；五项新浏览器用例全部通过，覆盖未发送文字/侧栏历史、处理中语音切页、录音过程中切页的原件字节、失败操作同行和直接系统选择/原生取消兼容。既有导航/档案 12 项及首页照片、PDF、视频、刷新/重试等 12 项通过。原生分块原件回传的四项 Node 检查及三项引导脚本检查通过；原生 Xcode/模拟器仍须使用本提交的 CI，不能由上述检查替代。
+本地生产构建与 806 项客户端检查通过；五项新浏览器用例全部通过，覆盖未发送文字/侧栏历史、处理中语音切页、录音过程中切页的原件字节、失败操作同行和直接系统选择/原生取消兼容。既有导航/档案 12 项及首页照片、PDF、视频、刷新/重试等 12 项通过。原生分块原件回传的四项 Node 检查及三项引导脚本检查通过。独立表单退出保护 7 项、iPhone SE 连续前台 33 项及冻结基线 10 项通过。
 
 旧回归用例已按用户新决定改用直接 file chooser、短按钮名以及进度节点的实际状态；独立 `/smart-record` 表单的退出确认继续保留，未将首页决定扩展为取消其他表单保护。
+
+## 发布回执
+
+运行代码经 [PR #572](https://github.com/Hoooho-app/hoooho.app/pull/572) 合入 `main`，发布提交为 `d66410726cc90d66860020417da63794882623cf`；同时保留主分支已发布的护士视频及原生全局纸底修改。
+
+| 层次 | 实际结果与证据 |
+| --- | --- |
+| 网页自动验证 | [完整 Smart record 回归](https://github.com/Hoooho-app/hoooho.app/actions/runs/40843439331) 成功，包含本轮 5 项、四种手机宽度的连续前台、图片/PDF/视频、归属、返回/刷新、失败重试与旧协议兼容；[护士视频检查](https://github.com/Hoooho-app/hoooho.app/actions/runs/40843439100) 成功 |
+| 原生自动验证 | [最终 PR 原生检查](https://github.com/Hoooho-app/hoooho.app/actions/runs/40843439120) 及[实际发布提交的原生检查](https://github.com/Hoooho-app/hoooho.app/actions/runs/40844610564) 均成功；current/oldest 两组通过 Xcode 单元与 UI 检查，包含四项菜单、取消、重开、进入系统相册再取消、启动与安全区纸底；当前组另有无签名设备归档 |
+| Production 部署 | Railway `hoooho.app` 的 production 部署 `d9142a83-f679-46a5-a111-8769a33de267` 为 SUCCESS，对应上述发布提交，完成时间 2026-10-29 16:48（Asia/Shanghai） |
+| 正式站核对 | [正式首页](https://hoooho.com/nurse-station) 实际加载；相机直接触发系统 file chooser，无网页附件弹窗；首页→健康日历→首页正常、无草稿对话框；`/api/health` 返回 `status: ok`。未向生产账户发送虚构记录或上传测试附件，含输入的完整恢复链路由隔离合成账户的真实浏览器验证 |
+| TestFlight 上传与处理 | [手动发布 #5](https://github.com/Hoooho-app/hoooho.app/actions/runs/40846158124) 成功，源码为同一 `d664107`；App `6827657377`、Bundle ID `com.hoooho.records`、版本 **0.1.0（1.5.1）**。Apple 于 2026-10-29 17:05（Asia/Shanghai）确认处理完成，沿用既有签名，不增加账号权限或签名凭证 |
+| TestFlight 分发 | **BLOCKED_AUTH**：浏览器中的 App Store Connect 返回身份验证失败，停在登录页。需主人在现有 Chrome 完成 Apple 登录，再核对本构建合规信息、测试说明及既有「护护首轮内测」组；本次未新增测试人员、未提交外部测试或 App Store 审核，不能把上传成功称为手机可安装 |
+
+iOS 18 的 `UIAlertController` 保留自己的私有 presentation delegate；附件菜单不覆盖它，系统取消 action 与 popover delegate 负责菜单取消，普通 picker 才设置公开 presentation delegate。该兼容修复已包含在以上两组原生成功结果中；不能删除该限制来统一代理设置。
+
+实体 iPhone 的相机/麦克风授权、实际拍照/拍视频及安装后完整体验仍待产品主人验收；模拟器菜单成功不代表实机验收已完成。
+
+本次发布回执与 `AGENTS.md` 的后续更新仅含文档，不改变应用二进制。已核对 Railway 仅监视运行源码与构建路径，不包含上述两份文档；无需为回执重复部署网页或上传 iOS 包。
