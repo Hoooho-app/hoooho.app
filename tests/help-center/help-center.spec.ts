@@ -13,13 +13,9 @@ async function chat(page:Page){
   await page.getByRole('button',{name:'新对话',exact:true}).click()
   await expect(page.getByRole('button',{name:'录音没有成功',exact:true})).toBeVisible()
 }
-test('single sidebar entry, two pages, relevant search and existing guide redirect',async({page})=>{
+test('home help subpage, two tabs, relevant search and existing guide redirect',async({page})=>{
   await page.goto('/help')
-  await page.getByRole('button',{name:'打开菜单'}).click()
-  await page.getByRole('button',{name:'产品中心',exact:true}).click()
-  await expect(page.getByRole('button',{name:'帮助',exact:true})).toHaveCount(1)
-  await expect(page.getByRole('button',{name:'说明',exact:true})).toHaveCount(0)
-  await page.getByRole('button',{name:'帮助',exact:true}).click()
+  await expect(page.getByRole('button',{name:'返回',exact:true})).toBeVisible()
   await page.getByLabel('搜索教程和问题').fill('宇宙飞船发动机')
   await expect(page.getByText('暂时没有找到相关内容。',{exact:false})).toBeVisible()
   await page.getByLabel('搜索教程和问题').fill('录音')
