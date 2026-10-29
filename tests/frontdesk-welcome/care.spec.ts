@@ -1,12 +1,16 @@
 import { expect, test } from '@playwright/test'
 import { TokenService } from '../../server/auth/token-service.mjs'
+import { maskIdentityName } from '../../src/utils/privateIdentity'
 
 
-test('guarded days use each child profile creation date without records or check-ins and advance across midnight', async ({ page, request }) => {
+test('guarded days use each child profile creation date without records or check-ins and advance across midnight', async ({ page, request }, info) => {
   const token = new TokenService('visit-sheet-e2e-secret', 3600000).create({ id: 'visit-test' })
   const headers = { Authorization: `Bearer ${token}` }
   const children = []
-  for (const name of ['建档甲', '建档乙']) {
+  // Mobile projects share this synthetic account; keep each pair's visible identity unique.
+  const endings = info.project.name === 'mobile-320' ? ['甲', '乙'] : info.project.name === 'mobile-390' ? ['丙', '丁'] : ['戊', '己']
+  const names = endings.map(ending => `建档${ending}`)
+  for (const name of names) {
     const response = await request.post('/api/members', { headers, data: { name, relationship: 'child', birthday: '2024-01-01', gender: 'female' } })
     expect(response.ok()).toBe(true)
     children.push(await response.json())
@@ -33,7 +37,7 @@ test('guarded days use each child profile creation date without records or check
   await page.reload()
   await expect(count).toHaveText('已守护 16 天')
   await page.getByRole('button', { name: '切换记录对象', exact: true }).click()
-  await page.getByRole('dialog', { name: '我的孩子', exact: true }).getByRole('button', { name: /切换到.*乙$/ }).click()
+  await page.getByRole('dialog', { name: '我的孩子', exact: true }).getByRole('button', { name: `切换到${maskIdentityName(names[1])}`, exact: true }).click()
   await expect(count).toHaveText('已守护 4 天')
   await page.clock.setSystemTime(new Date('2026-10-31T04:00:00Z'))
   await page.clock.fastForward(60001)
