@@ -137,7 +137,7 @@ export function useQuickRecordPhotos(memberId?: string, token?: string, limit = 
     uploadQueue.current = uploadQueue.current.then(async()=>{if(allowVideos&&item.file){await localMediaDraft.put({key:localScope+':'+item.localId,scope:localScope,localId:item.localId,file:item.file,origin:item.origin??'library',createdAt:Date.now()}).catch(()=>setNotice('当前浏览器无法保留本地原件，刷新后未上传文件需重选'));if(uploadVersionsRef.current.get(item.localId)!==version){await localMediaDraft.remove(localScope,item.localId).catch(()=>undefined);return}}await uploadItem(item,sortOrder,version)})
   }
 
-  const chooseFiles = (files: FileList | null, origin: 'capture' | 'library' = 'library') => {
+  const chooseFiles = (files: FileList | readonly File[] | null, origin: 'capture' | 'library' = 'library') => {
     if (!files?.length) return []
     const available = remainingPhotoCapacity(photosRef.current.length, limit)
     const selected = Array.from(files).slice(0, available)

@@ -11,10 +11,13 @@ const guide = read('../../pages/Guide/index.tsx')
 const help = read('../../pages/Help/index.tsx')
 const feedback = read('../../pages/Feedback/index.tsx')
 const about = read('../../pages/About/index.tsx')
+const welcome = read('../../pages/NurseStation/FrontDeskWelcome.tsx')
 
-test('primary destinations move to bottom navigation while utility destinations stay in the sidebar', () => {
+test('primary destinations stay in bottom navigation and help moves to the homepage guide', () => {
   for (const route of ['/nurse-station', '/health-events', '/health-profile']) assert.match(bottom, new RegExp(`to: '${route.replaceAll('/', '\\/')}'`))
-  for (const route of ['/help', '/feedback', '/about']) assert.match(drawer, new RegExp(`to: '${route.replaceAll('/', '\\/')}'`))
+  for (const route of ['/feedback', '/about']) assert.match(drawer, new RegExp(`to: '${route.replaceAll('/', '\\/')}'`))
+  assert.doesNotMatch(drawer, /to: '\/help'/)
+  assert.match(welcome, /navigate\('\/help'\)/)
   assert.match(header, /aria-label="打开菜单"/)
   assert.match(header, /<SideDrawer open=\{open\}/)
   assert.match(header, /compact \? 'sticky top-0 z-20 min-h-14' : 'min-h-16'/)
@@ -26,7 +29,7 @@ test('four primary actions use approved copy without a duplicated sidebar menu o
   assert.doesNotMatch(bottom, />我的</)
   assert.doesNotMatch(drawer, /label: '健康随记'|label: '健康月历'/)
   assert.doesNotMatch(drawer, /label: '设置'|to: '\/settings'/)
-  assert.match(drawer, /label: '帮助'[^\n]*to: '\/help'[\s\S]*label: '反馈'[^\n]*to: '\/feedback'[\s\S]*label: '关于'[^\n]*to: '\/about'/)
+  assert.match(drawer, /label: '反馈'[^\n]*to: '\/feedback'[\s\S]*label: '关于'[^\n]*to: '\/about'/)
 })
 
 test('merged help entry removes the former guide entry', () => {
@@ -43,7 +46,7 @@ test('sidebar identities use display privacy and a user-centered member relation
 test('top-level utility pages use the shared compact sidebar header', () => {
   assert.match(settings, /topLevel \? <MainAppHeader compact title=\{title\} \/>/)
   assert.match(guide, /Navigate to="\/help\?tab=manual" replace/)
-  assert.match(help, /<MainAppHeader compact title="帮助中心"\s*\/>/)
+  assert.match(help, /<WebPageHeader title="帮助中心" fallback="\/nurse-station"\s*\/>/)
   assert.match(feedback, /<MainAppHeader action=\{<button className="feedback-header-action"/)
   assert.match(feedback, /compact title="反馈意见" \/>/)
   assert.match(about, /<MainAppHeader compact title="关于" \/>/)

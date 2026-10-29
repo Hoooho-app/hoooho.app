@@ -43,3 +43,12 @@ test('the attachment capability is absent for untrusted pages and report subfram
   assert.equal(bridge(()=>({ok:true}),{origin:'https://hoooho.com.attacker.invalid'}).window.hooohoNativeAttachments,undefined)
   assert.equal(bridge(()=>({ok:true}),{main:false}).window.hooohoNativeAttachments,undefined)
 })
+
+test('media-only selection is advertised and scoped to the explicit request',async()=>{
+  const {window,messages}=bridge(()=>({ok:false,cancelled:true}))
+  assert.equal(window.hooohoNativeAttachments.supportsMediaOnly,true)
+  await assert.rejects(window.hooohoNativeAttachments({mediaOnly:true}),{name:'AbortError'})
+  await assert.rejects(window.hooohoNativeAttachments(),{name:'AbortError'})
+  assert.equal(messages[0].mediaOnly,true)
+  assert.equal(messages[1].mediaOnly,undefined)
+})
