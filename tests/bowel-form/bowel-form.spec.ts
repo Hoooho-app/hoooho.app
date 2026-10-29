@@ -20,7 +20,10 @@ for (const width of [375, 390, 430]) test(`bowel form follows V2 and cancels wit
     if (path === '/api/account/entry-state') body = { familyMemberCount: 1, hasValidHealthRecord: true }
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
   })
-  await page.goto('/health-events')
+  // Recording starts at the symptom page; the calendar only reviews saved data.
+  await page.goto('/nurse-station')
+  await expect(page.getByRole('heading', { name: '症状记录', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: '改用文字', exact: true }).click()
   await page.getByRole('button', { name: '日常', exact: true }).click()
   await page.getByRole('group', { name: '记录日常选项' }).getByRole('button', { name: '排便', exact: true }).click()
   const form = page.getByRole('dialog', { name: '记录排便', exact: true })
@@ -60,8 +63,11 @@ for (const width of [375, 390, 430]) test(`bowel form follows V2 and cancels wit
   await page.screenshot({ path: `outputs/bowel-form/${environment}-${width}-lower.png` })
   await form.getByRole('button', { name: '返回记录新情况', exact: true }).click()
   await expect(form).toHaveCount(0)
+  await expect(page).toHaveURL(/\/nurse-station$/)
   expect(writes).toEqual([])
   expect(errors).toEqual([])
+  const keyboard = page.getByRole('button', { name: '改用文字', exact: true })
+  if (await keyboard.isVisible()) await keyboard.click()
   await page.getByRole('button', { name: '日常', exact: true }).click()
   await page.getByRole('group', { name: '记录日常选项' }).getByRole('button', { name: '排便', exact: true }).click()
   await expect(form.locator('.bowel-shape-grid [aria-pressed=true]')).toHaveCount(2)
