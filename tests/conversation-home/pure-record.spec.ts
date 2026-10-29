@@ -21,9 +21,9 @@ async function openDiet(page:Page){
  return form
 }
 
-test('hidden features cannot load from bookmarks, navigation or help; core records remain',async({page},info)=>{
+test('daily care opens while other hidden features stay closed and core records remain',async({page},info)=>{
  const hiddenRequests:string[]=[]
- page.on('request',r=>{if(/\/api\/(care-journey|care-tools|medication-reminders|food-observations)(?:[/?]|$)/.test(r.url()))hiddenRequests.push(r.url())})
+ page.on('request',r=>{if(/\/api\/(care-tools|medication-reminders|food-observations)(?:[/?]|$)/.test(r.url()))hiddenRequests.push(r.url())})
  await page.goto('/nurse-station')
  await page.getByRole('button',{name:'打开菜单',exact:true}).click()
  const drawer=page.getByRole('dialog',{name:'侧边栏菜单'})
@@ -36,9 +36,11 @@ test('hidden features cannot load from bookmarks, navigation or help; core recor
  await expect(account.getByText('会员状态',{exact:true})).toHaveCount(0)
  await expect(account.getByText('账户与安全',{exact:true})).toBeVisible()
  await page.keyboard.press('Escape');await page.keyboard.press('Escape')
- for(const route of ['/care-journey','/care-journey/themes','/care-tools/results','/family-sharing','/health-profile/vaccination/plan','/food-observations','/dietary-card/edit','/food-label','/medication-reminders','/desensitization-tests','/nurse-station/desensitization/new','/care-handoff/shared/hidden-test','/account/membership']){
+ for(const route of ['/care-tools/results','/family-sharing','/health-profile/vaccination/plan','/food-observations','/dietary-card/edit','/food-label','/medication-reminders','/desensitization-tests','/nurse-station/desensitization/new','/care-handoff/shared/hidden-test','/account/membership']){
   await page.goto(route);await expect(page).toHaveURL(/\/nurse-station$/)
  }
+ await page.goto('/care-journey');await expect(page.getByRole('heading',{name:'呵护之旅',exact:true})).toBeVisible()
+ await page.goto('/care-journey/themes');await expect(page.getByRole('heading',{name:'界面主题',exact:true})).toBeVisible()
  await page.goto('/health-profile/growth');await expect(page.locator('.growth-reference-entry')).toHaveCount(0)
  await page.goto('/recent-review?voucher=hidden&snapshot=hidden');await expect(page.locator('.review-snapshot-tools')).toHaveCount(0)
  await page.goto('/health-events');await expect(page.locator('.journal-record-actions')).toHaveCount(0)

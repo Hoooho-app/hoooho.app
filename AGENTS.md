@@ -5,6 +5,16 @@
 - 三栏目为使用教程、产品说明、常见问题；手动记录与睡眠优先，带用户完成真实保存和查看结果。语音、图片为可选方式。
 - 只说明当前测试版已开放功能。隐藏功能、任务系统及未来规划不进入页面、检索、旧链接推荐或AI知识；不以说明改版恢复业务入口。
 - 教程按账户/孩子隔离，完成以真实保存回执为依据；失败、中断和返回可继续，示例不自动写健康数据。既有记录、账号、导出和任务业务协议不改。契约见 `docs/delivery/help-center-redesign-20261030.md`。
+## 首页记忆档案表达：产品主人确认 2026-10-30
+
+- 第二张横幅标题为“记忆很长，不会忘。”；副标题“记录再多，细节也能回头找到。”。配图为同风格3D的大体量密集文件档案，强调积累的规模与细节可查；标题与副标题左侧连排、档案右侧靠拢，覆盖旧“慢慢记”及分散的图左字右版式。
+- 这是本次横幅文案与视觉调整，底层模型上下文／检索／存储能力不变，不推导无限上下文或自动读取全部历史的技术承诺。轮播时序、无可见控件、输入暂停与首条气泡后卸载维持。见 `docs/delivery/frontdesk-deep-memory-20261030.md`。
+
+
+## 症状图标统一：产品主人确认 2026-10-30
+
+- 症状描述、症状记录导航与分类、症状跟进及症状记录卡统一使用同库 `health_cross` 医疗十字，默认空心、实际选中沿用实心规则；统一从 `SymptomIcon` / `SYMPTOM_ICON_NAME` 读取。此段覆盖此前症状使用方框加号、听诊器或波形的局部图标。
+- 使用固定 Material Rounded 300 原图，不改布局、文字或业务；部位定位、就诊、用药等独立语义保留原图标。见 `docs/delivery/symptom-icon-unification-20261030.md`。
 
 ## 侧栏对话：产品主人确认 2026-10-30
 
@@ -226,3 +236,9 @@ These rules apply to every task, regardless of whether it is executed directly i
 - Reuse the same checklist in any Codex handoff. Include the base commit, scope, acceptance checks and the mandatory delivery chain; do not summarize away requirements or invent extra ones.
 - Review the final diff against the scope, run the required build and relevant automated checks, and operate the changed flow in a real browser at mobile widths. Distinguish browser emulation from physical iPhone/Safari verification; report unverified checks explicitly.
 - Follow the delivery chain above. Report implementation, checks, deployment and product-owner acceptance separately. Identical process and observable acceptance criteria are required; do not promise identical code or guaranteed identical model output.
+
+## 首页今日呵护：产品主人确认 2026-10-30
+
+- 原每日小知识同尺寸区域替换为「今日呵护」，显示「已守护 X 天」和「领取小树苗」按钮；整卡进入既有 `/care-journey` 任务页，按钮独立领取每日1树芽，成功后为「今日已领取」。
+- 天数按账户累计已领取日期计算，漏签不清零；服务端回执为准，刷新/返回与任务页一致。定向开放任务路由树，其他隐藏模块/侧栏入口不随之恢复。
+- 保留欢迎横幅、左帮助卡及首条气泡后整体消失规则。本段覆盖此前首页每日文章入口的局部约定。契约见 `docs/delivery/home-today-care-20261030.md`。

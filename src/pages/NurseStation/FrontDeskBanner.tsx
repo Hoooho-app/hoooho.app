@@ -1,7 +1,7 @@
 import { useEffect, useState, type CSSProperties } from 'react'
 import { frontDeskGreeting } from './frontDeskGreeting'
 import nursePortrait from '../../assets/nurse-triage/front-desk-nurse-glasses-20261030.webp'
-import recordArchive from '../../assets/nurse-triage/record-archive-20261030.webp'
+import recordArchive from '../../assets/nurse-triage/record-archive-dense-20261030.webp'
 
 const HOLD_MS = 8000
 const MOSAIC_MS = 560
@@ -102,10 +102,10 @@ export function FrontDeskBanner() {
     onPointerEnter={event => { if (event.pointerType === 'mouse') setHovered(true) }} onPointerLeave={() => setHovered(false)}
     onFocusCapture={() => setFocused(true)} onBlurCapture={event => { if (!(event.relatedTarget instanceof Node) || !event.currentTarget.contains(event.relatedTarget)) setFocused(false) }}>
     <div className="front-desk-welcome__copy">
-      {current === 0 ? <><h2>今天怎么样？</h2><p>{frontDeskGreeting().split('。').filter(Boolean).map(sentence => <span key={sentence}>{sentence}。</span>)}</p></> : <><h2 className="front-desk-banner__memory-title">记忆很长，慢慢记。</h2><p><span>记了很久，</span><span>也只是记忆库的一小段。</span><span>存好的记录，随时回看。</span></p></>}
+      {current === 0 ? <><h2>今天怎么样？</h2><p>{frontDeskGreeting().split('。').filter(Boolean).map(sentence => <span key={sentence}>{sentence}。</span>)}</p></> : <><h2 className="front-desk-banner__memory-title"><span>记忆很长，</span><span>不会忘。</span></h2><p>记录再多，细节也能回头找到。</p></>}
     </div>
     <div className={`front-desk-welcome__media${current === 1 ? ' front-desk-banner__archive' : ''}`}>
-      <img className="front-desk-welcome__portrait" src={current === 0 ? nursePortrait : recordArchive} alt={current === 0 ? '戴眼镜与口罩的黑发护士，一手拿病历夹、一手拿笔' : '按时间留存的记录页、档案夹与日历'} width={480} height={current === 0 ? 786 : 559} decoding="async" fetchPriority="high"
+      <img className="front-desk-welcome__portrait" src={current === 0 ? nursePortrait : recordArchive} alt={current === 0 ? '戴眼镜与口罩的黑发护士，一手拿病历夹、一手拿笔' : '密集层叠的记录文件与厚厚的记忆档案库'} width={current === 0 ? 480 : 600} height={current === 0 ? 786 : 512} decoding="async" fetchPriority="high"
         onError={() => { if (current === 1) { setReady(false); setCurrent(0); setPhase('idle') } }}/>
     </div>
     {phase !== 'idle' && <div className="front-desk-banner__mosaic" aria-hidden="true">{Array.from({ length: 80 }, (_, i) => <span key={i} style={{ '--tile-delay': `${((i * 37) % 80) * 4}ms` } as CSSProperties}/>)}</div>}

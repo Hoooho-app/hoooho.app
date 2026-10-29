@@ -4,7 +4,7 @@ import { TokenService } from '../../server/auth/token-service.mjs'
 const token = new TokenService('visit-sheet-e2e-secret', 3600000).create({ id: 'visit-test' })
 const headers = { Authorization: `Bearer ${token}` }
 
-test('homepage daily knowledge opens the existing article and preserves saved reading on mobile', async ({ page, request }, info) => {
+test('existing knowledge article preserves saved reading on mobile after homepage replacement', async ({ page, request }, info) => {
   const response = await request.post('/api/members', { headers, data: { name: '科普验收（虚构）', relationship: 'child' } })
   const { id: memberId } = await response.json()
   await request.post(`/api/members/${memberId}/case-records`, { headers, data: { requestId: crypto.randomUUID(), text: '头皮发痒', occurredAt: new Date(Date.now() - 60000).toISOString(), files: [], journal: { categories: ['symptom'] } } })
@@ -15,13 +15,7 @@ test('homepage daily knowledge opens the existing article and preserves saved re
   await page.clock.install({ time: new Date('2026-10-17T04:00:00Z') })
   for (const size of [{ width: 320, height: 568 }, { width: 375, height: 667 }, { width: 393, height: 852 }]) {
     await page.setViewportSize(size)
-    await page.goto('/nurse-station')
-    const entry = page.getByRole('button', { name: /每日小知识：/ })
-    await expect(entry).toBeVisible()
-    expect((await entry.boundingBox())!.height).toBeGreaterThanOrEqual(44)
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
-    await page.screenshot({ path: info.outputPath(`knowledge-home-${size.width}.png`) })
-    await entry.click()
+    await page.goto('/allergy-knowledge/positive-test-and-food-avoidance')
     await expect(page.getByRole('heading', { name: '过敏检测阳性，就一定要忌口吗？', exact: true })).toBeVisible()
     await expect(page.getByText(/明天聊|明日预告/)).toHaveCount(0)
     expect((await page.locator('.allergy-knowledge-body').innerText()).length).toBeGreaterThan(600)
@@ -49,7 +43,7 @@ test('homepage daily knowledge opens the existing article and preserves saved re
     await expect(page.getByRole('button', { name: '已收藏', exact: true })).toBeVisible()
     await page.getByRole('button', { name: '返回', exact: true }).click()
     await expect(page).toHaveURL(/\/nurse-station$/)
-    await expect(entry).toBeVisible()
+    await expect(page.getByRole('link', { name: '今日呵护：查看任务', exact: true })).toBeVisible()
   }
   await page.goto('/allergy-knowledge/missing-article')
   await expect(page.getByText('这篇内容暂不可用')).toBeVisible()

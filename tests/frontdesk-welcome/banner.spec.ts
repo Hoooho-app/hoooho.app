@@ -32,17 +32,24 @@ test('both banners fill the same space with clear copy, intact art and a single-
     const geometry = await page.locator(hero).evaluate(el => {
       const rect = (selector: string) => el.querySelector(selector)!.getBoundingClientRect()
       const body = el.closest('.smart-record-page__body')!, bounds = body.getBoundingClientRect(), cards = body.querySelector('.front-desk-welcome__entries')!.getBoundingClientRect()
+      const copy = rect('.front-desk-welcome__copy')
       const paragraph = rect('.front-desk-welcome__copy p'), art = rect('.front-desk-welcome__media'), title = rect('.front-desk-welcome__copy h2')
       const guide = body.querySelector('.front-desk-welcome__guide strong')!, style = getComputedStyle(guide)
-      return { paragraphRight: paragraph.right, paragraphLeft: paragraph.left, artLeft: art.left, artRight: art.right, paragraphTop: paragraph.top, titleBottom: title.bottom, heroTop: el.getBoundingClientRect().top, heroHeight: el.getBoundingClientRect().height,
+      return { copyTop: copy.top, copyBottom: copy.bottom, titleRight: title.right, artTop: art.top, artBottom: art.bottom, heroBottom: el.getBoundingClientRect().bottom, centerDistance: Math.abs((copy.top + copy.bottom - art.top - art.bottom) / 2), paragraphRight: paragraph.right, paragraphLeft: paragraph.left, artLeft: art.left, artRight: art.right, paragraphTop: paragraph.top, titleBottom: title.bottom, heroTop: el.getBoundingClientRect().top, heroHeight: el.getBoundingClientRect().height,
         cardBottom: cards.bottom, bodyBottom: bounds.bottom, gap: bounds.bottom - parseFloat(getComputedStyle(body).paddingBottom) - cards.bottom, scroll: body.scrollHeight > body.clientHeight,
         guideHeight: guide.getBoundingClientRect().height, guideLine: parseFloat(style.lineHeight), guideOverflow: guide.scrollWidth > guide.clientWidth,
         copyShift: getComputedStyle(el.querySelector('.front-desk-welcome__copy')!).transform }
     })
     if (index === 0) expect(geometry.paragraphRight).toBeLessThanOrEqual(geometry.artLeft)
     else {
-      expect(geometry.paragraphLeft).toBeGreaterThanOrEqual(geometry.artRight)
+      expect(geometry.paragraphRight).toBeLessThanOrEqual(geometry.artLeft)
       expect(geometry.titleBottom).toBeLessThanOrEqual(geometry.paragraphTop)
+      expect(geometry.titleRight).toBeLessThanOrEqual(geometry.artLeft)
+      expect(geometry.centerDistance).toBeLessThanOrEqual(1)
+      expect(geometry.copyTop).toBeGreaterThanOrEqual(geometry.heroTop)
+      expect(geometry.copyBottom).toBeLessThanOrEqual(geometry.heroBottom)
+      expect(geometry.artTop).toBeGreaterThanOrEqual(geometry.heroTop)
+      expect(geometry.artBottom).toBeLessThanOrEqual(geometry.heroBottom)
     }
     expect(geometry.cardBottom).toBeLessThanOrEqual(geometry.bodyBottom)
     expect(geometry.gap).toBeGreaterThanOrEqual(0)
