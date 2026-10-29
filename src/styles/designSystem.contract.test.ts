@@ -49,7 +49,7 @@ test('product polish keeps shared navigation and grouped rows on one visual syst
 test('short mobile drawers reserve two compact identity rows and let history scroll independently', async () => {
   const styles = await read('../components/navigation/side-drawer-layout.css')
   const drawer = await read('../components/navigation/SideDrawer.tsx')
-  assert.equal((drawer.match(/className="drawer-identity-row"/g) ?? []).length, 2)
+  assert.equal((drawer.match(/className="drawer-identity-row(?: [^"]+)?"/g) ?? []).length, 2)
   assert.match(drawer, /<Avatar[^>]*size="sm"/)
   assert.match(drawer, /'切换记录对象'/)
   assert.doesNotMatch(drawer, />切换人物</)

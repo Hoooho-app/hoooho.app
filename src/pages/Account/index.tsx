@@ -2,10 +2,10 @@ import { ProviderBrandIcon } from '../../components/icons/ProviderBrandIcon'
 import { CompleteImage } from '../../components/common/CompleteImage'
 import { Camera, ImageUp, KeyRound, Mail, Phone, ShieldAlert, UserRound } from '../../components/icons'
 import { useEffect, useRef, useState, type ChangeEvent, type ReactNode } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { Avatar, WebPageHeader } from '../../components/common'
 import { BottomSheetSurface, HohoButton, HohoInput, HohoSurfaceRow, StatusNotice } from '../../components/design-system'
-import { MembershipBadge } from '../../components/account/AccountSheet'
+import { AccountOverview, MembershipBadge } from '../../components/account/AccountSheet'
 import { accountService, maskEmail, maskPhone } from '../../services/account'
 import { ApiRequestError } from '../../services/apiClient'
 import { useAppStore } from '../../store/useAppStore'
@@ -38,10 +38,22 @@ function Group({ title, children }: { title: string; children: ReactNode }) {
   return <section><h2 className="settings-section-label">{title}</h2><div className="settings-list">{children}</div></section>
 }
 
+export function AccountHomePage() {
+  const location = useLocation()
+  const guest = useAppStore(state => !state.authUser || Boolean(state.authUser.guest))
+  const { profile, loading, error } = useAccount()
+  const from = typeof location.state?.accountFrom === 'string' && location.state.accountFrom.startsWith('/') && !location.state.accountFrom.startsWith('/account') && !location.state.accountFrom.startsWith('//') ? location.state.accountFrom : '/nurse-station'
+  return <AccountLayout title="我的账户" fallback={from}>
+    {!guest && loading && <StatusNotice title="正在加载账户资料" />}
+    {!guest && error && <StatusNotice title={error} tone="error" action={<HohoButton variant="text" onClick={() => window.location.reload()}>重试</HohoButton>} />}
+    {(guest || profile) && <AccountOverview />}
+  </AccountLayout>
+}
+
 export function AccountSecurityPage() {
   const navigate = useNavigate()
   const { profile, loading, error } = useAccount()
-  return <AccountLayout fallback="/health-events" title="账户与安全">
+  return <AccountLayout fallback="/account" title="账户与安全">
     {loading && <StatusNotice title="正在加载账户资料" />}
     {error && <StatusNotice title={error} tone="error" />}
     {profile && <>

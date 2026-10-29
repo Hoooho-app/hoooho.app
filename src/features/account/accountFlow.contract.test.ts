@@ -13,7 +13,7 @@ test('sidebar account identity stays separate from the current child', () => {
   assert.match(drawer, /创建正式账户/)
   assert.match(drawer, /authUser\?\.nickname/)
   assert.match(drawer, /maskIdentityName\(accountProfile\?\.nickname/)
-  assert.match(drawer, /aria-label="编辑我的信息"/)
+  assert.match(drawer, /aria-label="我的账户"/)
   assert.doesNotMatch(drawer, /accountRelationship/)
 })
 

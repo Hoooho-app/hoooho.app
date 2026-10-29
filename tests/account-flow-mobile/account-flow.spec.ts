@@ -19,7 +19,7 @@ async function noHorizontalOverflow(page: import('@playwright/test').Page) {
   expect(sizes.scroll).toBeLessThanOrEqual(sizes.width)
 }
 
-test('new account enters the app and exposes its nickname in the drawer footer', async ({ page }) => {
+test('new account enters the app and opens its independent account page', async ({ page }) => {
   const nickname = `刘磊${Date.now().toString().slice(-8)}`
   await page.goto('/login')
   await page.getByPlaceholder('给自己起个昵称').fill(nickname)
@@ -30,12 +30,14 @@ test('new account enters the app and exposes its nickname in the drawer footer',
   await page.reload()
   expect(await page.evaluate(async () => (await (await fetch('/api/auth/session')).json()).user.id)).toBe(accountId)
   await page.getByRole('button', { name: '打开菜单' }).click()
-  const accountButton = page.getByRole('button', { name: new RegExp(nickname) })
-  await expect(accountButton).toContainText(nickname)
+  const accountButton = page.getByRole('button', { name: '我的账户', exact: true })
+  await expect(accountButton).toContainText(nickname[0] + '*'.repeat(nickname.length - 2) + nickname.at(-1))
   const box = await accountButton.boundingBox()
   expect(box && box.y + box.height).toBeLessThanOrEqual(page.viewportSize()!.height)
   await accountButton.click()
-  await expect(page.getByRole('dialog', { name: '账户' })).toContainText('账户与安全')
+  await expect(page).toHaveURL(/\/account$/)
+  await expect(page.getByRole('heading', { name: '我的账户', exact: true })).toBeVisible()
+  await expect(page.getByRole('main')).toContainText('账户与安全')
   await noHorizontalOverflow(page)
 })
 
