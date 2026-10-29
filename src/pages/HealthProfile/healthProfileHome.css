@@ -2,7 +2,7 @@ body:has(.health-profile-overview),body:has(.health-profile-materials){min-width
 .health-profile-overview{display:flex;flex-direction:column;min-height:100dvh}
 .health-profile-home{display:flex;flex:1;flex-direction:column;gap:var(--hoho-space-6);padding:var(--hoho-space-4)!important}
 .health-profile-group .hoho-section__header{margin-bottom:var(--hoho-space-2)}
-.health-profile-entries{overflow:hidden;border:1px solid rgb(var(--hoho-color-border));border-radius:var(--hoho-radius-card);background:rgb(var(--hoho-color-surface));background-image:var(--hoho-paper-grain),var(--hoho-paper-light)}
+.health-profile-entries{box-shadow:var(--hoho-shadow-card);overflow:hidden;border:1px solid rgb(var(--hoho-color-border));border-radius:var(--hoho-radius-card);background:rgb(var(--hoho-color-surface));background-image:var(--hoho-paper-grain),var(--hoho-paper-light)}
 .health-profile-entry{display:flex;align-items:center;gap:var(--hoho-space-3);width:100%;min-height:56px;padding:var(--hoho-space-3) var(--hoho-space-4);border:0;border-radius:0;background:transparent;text-align:left;color:rgb(var(--hoho-color-text-secondary))}
 .health-profile-entry+.health-profile-entry{border-top:1px solid rgb(var(--hoho-color-border))}
 .health-profile-entry__icon{display:grid;place-items:center;flex:0 0 32px;height:32px;color:rgb(var(--hoho-color-link))}

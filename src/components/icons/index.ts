@@ -178,3 +178,5 @@ export const X = createMaterialIcon('close')
 export const ZoomIn = createMaterialIcon('zoom_in')
 
 export { ConversationBubble, ConversationBubblePlus } from './ConversationBubble'
+
+export const TrendingUp = createMaterialIcon('trending_up')

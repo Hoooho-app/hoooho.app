@@ -18,8 +18,8 @@ for (const item of manifest.files) {
   const original = svg.match(/<path d="([^"]+)"/)[1]
   assert.equal(paths[item.name][item.fill ? 'filled' : 'outline'], original, `${item.file} must retain the original mother path`)
 }
-assert.equal(Object.keys(paths).length, 159)
-assert.equal(manifest.files.length, 318)
+assert.equal(Object.keys(paths).length, 160)
+assert.equal(manifest.files.length, 320)
 
 async function walk(directory) {
   const entries = await readdir(directory, { withFileTypes: true })

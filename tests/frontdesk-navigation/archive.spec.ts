@@ -17,11 +17,14 @@ test.beforeEach(async ({ page, request }) => {
   await expect(page.getByRole('navigation', { name: '档案分类' })).toBeVisible()
 })
 
-test('grouped archive has a leading child identity, one header upload and unobscured rows at every supported width', async ({ page }, info) => {
+test('grouped archive has a leading child identity, no upload entry and unobscured rows at every supported width', async ({ page }, info) => {
   const header = page.locator('.hoho-main-header')
   await expect(header.getByRole('button', { name: '切换记录对象' })).toContainText('合**宝')
-  await expect(header.getByRole('button', { name: '上传资料', exact: true })).toBeEnabled()
-  expect(await page.getByRole('button', { name: '上传资料', exact: true }).count()).toBe(1)
+  await expect(page.getByRole('button', { name: '上传资料', exact: true })).toHaveCount(0)
+  await expect(page.locator('input[type=file]')).toHaveCount(0)
+  await expect(header.getByRole('button')).toHaveCount(2)
+  await expect(page.getByRole('button',{name:'生长记录',exact:true}).locator('svg').first()).toHaveAttribute('data-icon','trending_up')
+  for(const card of await page.locator('.health-profile-entries').all())expect(await card.evaluate(node=>getComputedStyle(node).boxShadow)).not.toBe('none')
   await expect(page.getByRole('navigation', { name: '档案分类' }).getByRole('heading')).toHaveText(['基本资料', '健康史', '儿童保健'])
   await expect(page.getByRole('region', { name: '基本资料', exact: true }).getByRole('button')).toHaveText(['身份与出生背景', '生长记录'])
   await expect(page.getByRole('region', { name: '健康史', exact: true }).getByRole('button')).toHaveText(['过敏史未记录', '慢性病史未记录', '家族史未记录', '手术史未记录'])
@@ -33,14 +36,12 @@ test('grouped archive has a leading child identity, one header upload and unobsc
     const layout = await header.evaluate(element => {
       const menu = element.querySelector('[aria-label="打开菜单"]')!.getBoundingClientRect()
       const subject = element.querySelector('[aria-label="切换记录对象"]')!.getBoundingClientRect()
-      const upload = element.querySelector('.health-profile-upload-action')!.getBoundingClientRect()
-      return { fits: document.documentElement.scrollWidth <= innerWidth, menuRight: menu.right, subjectLeft: subject.left, subjectRight: subject.right, uploadLeft: upload.left, uploadRight: upload.right, headerRight: element.getBoundingClientRect().right, uploadHeight: upload.height }
+
+      return { fits: document.documentElement.scrollWidth <= innerWidth, menuRight: menu.right, subjectLeft: subject.left, subjectRight: subject.right,  headerRight: element.getBoundingClientRect().right }
     })
     expect(layout.fits).toBe(true)
     expect(layout.menuRight).toBeLessThanOrEqual(layout.subjectLeft)
-    expect(layout.subjectRight).toBeLessThanOrEqual(layout.uploadLeft)
-    expect(layout.uploadRight).toBeLessThanOrEqual(layout.headerRight)
-    expect(layout.uploadHeight).toBeGreaterThanOrEqual(44)
+    expect(layout.subjectRight).toBeLessThanOrEqual(layout.headerRight)
     await page.getByRole('button', { name: /^疫苗接种记录/ }).scrollIntoViewIfNeeded()
     const last = await page.getByRole('button', { name: /^疫苗接种记录/ }).boundingBox()
     const bottom = await page.getByRole('navigation', { name: '主要导航' }).boundingBox()
@@ -74,11 +75,20 @@ test('switching children updates the header and counts; installation UI is absen
   await expect(sheet).toBeVisible()
   await sheet.getByRole('button', { name: '切换到*安' }).click()
   await expect(sheet).toBeHidden()
-  await expect(page.locator('.hoho-main-header__subject')).toContainText('*安')
-  await expect(page.locator('.hoho-main-header__subject')).toContainText('男')
+  await expect(page.locator('.hoho-main-header__child')).toContainText('*安')
+  await expect(page.locator('.hoho-main-header__child')).toContainText('1岁')
   await expect(page.getByRole('region', { name: '健康史', exact: true }).getByRole('button')).toHaveText(['过敏史未记录', '慢性病史未记录', '家族史未记录', '手术史未记录'])
+  const identity=await page.locator('.hoho-main-header__child').innerText()
   for (const path of ['/health-profile', '/health-events', '/nurse-station']) {
-    await page.goto(path)
+    await page.getByRole('navigation',{name:'主要导航'}).getByRole('button',{name:path==='/health-profile'?'孩子档案':path==='/health-events'?'健康日历':'症状记录',exact:true}).click()
+    await expect.poll(()=>new URL(page.url()).pathname).toBe(path)
+    if(path==='/health-events')await expect(page.getByRole('heading',{name:'健康日历',exact:true})).toBeVisible()
+    if(path==='/nurse-station'){
+      await expect(page.getByRole('button',{name:'按住记录症状',exact:true})).toBeEnabled()
+      await expect(page.locator('.hoho-main-header__child')).toHaveText(identity)
+      await expect(page.getByRole('button',{name:'添加照片、视频或文件',exact:true})).toHaveCount(0)
+      await expect(page.locator('input[type=file]')).toHaveCount(0)
+    }
     await expect(page.getByRole('button', { name: /添加.*主屏/ })).toHaveCount(0)
     await expect(page.locator('.install-app-trigger, .install-guide-layer, .install-app-notice')).toHaveCount(0)
   }

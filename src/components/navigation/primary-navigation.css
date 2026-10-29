@@ -24,3 +24,8 @@ body .hoho-main-header--subject>button:first-child{position:relative;left:auto;f
 
 .hoho-main-header__care{display:grid;place-items:center;flex:0 0 var(--hoho-touch-target);width:var(--hoho-touch-target);height:var(--hoho-touch-target);border:0;background:transparent;border-radius:var(--hoho-radius-pill)}
 .hoho-main-header__care img{display:block;width:28px;height:28px;object-fit:contain}
+/* Shared home/archive child identity, independent of lazy page CSS. */
+body header.hoho-main-header--conversation{padding-inline:var(--hoho-space-4);background:transparent;background-image:none;border:0;box-shadow:none;min-height:64px}
+.hoho-main-header--conversation .hoho-main-header__actions{gap:0}
+.hoho-main-header--conversation .hoho-main-header__child{background:rgb(var(--hoho-color-primary-soft));border-radius:var(--hoho-radius-control);padding-inline:var(--hoho-space-3);color:rgb(var(--hoho-color-text-primary))}
+.hoho-main-header--identity-only .hoho-main-header__identity{padding-right:0}
