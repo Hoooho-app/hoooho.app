@@ -32,6 +32,6 @@ export async function createFirstChild(page: Page, input: { name: string; birthd
   const result = await response
   expect(result.ok()).toBe(true)
   const member = await result.json()
-  await expect(page.getByRole('region', { name: '记录介绍', exact: true }).locator('video')).toBeVisible()
+  await expect(page.getByRole('region', { name: '记录介绍', exact: true }).locator('.front-desk-welcome__portrait')).toBeVisible()
   return member
 }

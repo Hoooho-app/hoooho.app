@@ -1,4 +1,4 @@
-import { ChevronRight, CircleHelp, FileText, Info, MessageCircle, Pencil, Plus, UserRound } from '../icons'
+import { ChevronRight, FileText, Info, MessageCircle, Pencil, Plus, UserRound } from '../icons'
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Avatar } from '../common'
@@ -27,7 +27,6 @@ interface SideDrawerProps {
 interface HistoryRow { id: string; title: string; updatedAt: string; destination: string }
 interface ServerHistory { items: { id: string; title: string; updatedAt: string }[]; hasMore: boolean }
 const utilityLinks = [
-  { label: '帮助', icon: CircleHelp, to: '/help' },
   { label: '反馈', icon: MessageCircle, to: '/feedback' },
   { label: '关于', icon: Info, to: '/about' }
 ]
@@ -135,7 +134,7 @@ export function SideDrawer({ onClose, onOpenChildSheet, open, cleanChrome = true
           })}
           {!ownHistory.loading && (ownHistory.rows.length > 0 || ownHistory.error) && <button type="button" className="drawer-history-all" onClick={() => openHistory('/conversation-history')}>查看全部对话<ChevronRight size={16} aria-hidden="true" /></button>}
         </nav>
-        <footer className="drawer-utilities" aria-label="帮助与信息">{utilityLinks.map(({ label, icon: Icon, to }) => <button key={to} type="button" onClick={() => openUtility(to)}><Icon size={22} strokeWidth={1.7} aria-hidden="true" /><span>{label}</span></button>)}</footer>
+        <footer className="drawer-utilities" aria-label="反馈与关于">{utilityLinks.map(({ label, icon: Icon, to }) => <button key={to} type="button" onClick={() => openUtility(to)}><Icon size={22} strokeWidth={1.7} aria-hidden="true" /><span>{label}</span></button>)}</footer>
       </aside>
     </div>
     <AccountSheet open={accountOpen} onClose={() => setAccountOpen(false)} />
