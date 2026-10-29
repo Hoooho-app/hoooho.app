@@ -1,5 +1,7 @@
 # 手动记录症状与附件
 
+后续产品确认：附件改为紧凑同行加号、仅缩略图且不解析，见 [附件展示更新](symptom-attachment-thumbnails-20261030.md)。本文件其余内容保留为首版实施与发布记录。
+
 日期：2026-10-30（Asia/Shanghai）。健康仓库 `Hoooho-app/hoooho.app`，干净主分支基线 `0d19a43eab782faef3ba17c288c2f8770b58c00c`，隔离分支 `codex/symptom-manual-attachments-20261030`。旧工作区保留，新克隆不覆盖其他任务。
 
 ## 用户任务与范围

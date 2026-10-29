@@ -147,7 +147,10 @@
 
 /* The shared form has one fixed recording area; its content cards only edit facts. */
 .symptom-record-save[hidden] { display: none !important; }
-.symptom-record-page--brand-white .symptom-attachment-add { width: 100%; min-height: calc(var(--hoho-touch-target) + var(--hoho-space-4)); color: rgb(var(--hoho-color-link)); }
+.symptom-record-page--brand-white .symptom-attachments { padding-block: var(--hoho-space-2); }
+.symptom-record-page--brand-white .symptom-attachments .symptom-card-heading { flex-wrap: nowrap; margin-bottom: 0; }
+.symptom-record-page--brand-white .symptom-attachment-add { flex: none; margin-left: auto; color: rgb(var(--hoho-color-link)); }
+.symptom-record-page--brand-white .symptom-attachments .symptom-media-previews { padding-block: 0; }
 .symptom-attachment-sources { display: grid; gap: var(--hoho-space-2); }
 .symptom-attachment-sources .hoho-button { justify-content: flex-start; gap: var(--hoho-space-3); }
 .symptom-record-page--brand-white > .symptom-record-scroll:last-of-type { padding-bottom: max(var(--hoho-space-4), env(safe-area-inset-bottom)); }

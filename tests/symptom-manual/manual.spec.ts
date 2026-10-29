@@ -24,7 +24,7 @@ async function enterManual(page:Page){
   if(await keyboard.isVisible())await keyboard.click()
   await entry.click()
 }
-for(const width of [320,375,390,430])test(`manual form has one header save and centered attachments in field order at ${width}`,async({page})=>{
+for(const width of [320,375,390,430])test(`manual form has a compact attachment row with a right-aligned add action at ${width}`,async({page})=>{
   await page.setViewportSize({width,height:667})
   const form=await open(page)
   await expect(form.locator('.symptom-record-save,.symptom-record-toolbar,.hoho-dialogue-composer')).toHaveCount(0)
@@ -34,10 +34,11 @@ for(const width of [320,375,390,430])test(`manual form has one header save and c
   const order=await form.locator('.symptom-record-scroll').evaluate(el=>Array.from(el.children).map(child=>child.querySelector('h2,strong')?.textContent).filter(Boolean))
   expect(order.join('|')).toMatch(/症状描述.*症状部位.*补充信息.*附件.*发生时间/)
   const geometry=await form.getByRole('region',{name:'附件',exact:true}).evaluate(el=>{
-    const card=el.getBoundingClientRect(),button=el.querySelector('button')!.getBoundingClientRect(),icon=el.querySelector('button svg')!.getBoundingClientRect()
-    return {offset:Math.abs(card.left+card.width/2-icon.left-icon.width/2),height:button.height}
+    const card=el.getBoundingClientRect(),button=el.querySelector('button')!.getBoundingClientRect(),heading=el.querySelector('h2')!.getBoundingClientRect()
+    return {right:card.right-button.right,height:button.height,cardHeight:card.height,alignment:Math.abs(heading.top+heading.height/2-button.top-button.height/2)}
   })
-  expect(geometry.offset).toBeLessThan(2);expect(geometry.height).toBeGreaterThanOrEqual(44)
+  expect(geometry.right).toBeLessThan(20);expect(geometry.height).toBeGreaterThanOrEqual(44)
+  expect(geometry.cardHeight).toBeLessThan(68);expect(geometry.alignment).toBeLessThan(2)
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
   await mkdir('outputs/symptom-manual',{recursive:true})
   await page.screenshot({path:`outputs/symptom-manual/manual-${width}.png`})
@@ -68,14 +69,31 @@ test('three sources select the matching system input, cancellation keeps text an
 
 test('photo and video survive reopen and save failure, then persist with the manual record',async({page,request})=>{
   let form=await open(page)
+  const reviewRequests:string[]=[]
+  page.on('request',r=>{if(/\/media\/[^/]+\/review$/.test(new URL(r.url()).pathname))reviewRequests.push(r.method())})
   const narrative='合成手动附件验收：左肘窝发红、发痒'
   await form.getByLabel('哪里不舒服').fill(narrative)
   await form.getByLabel('手动补充症状部位').fill('左肘窝')
   await form.getByRole('button',{name:/补充信息/}).click();await form.getByRole('button',{name:'中度',exact:true}).click()
+  const photoUpload=page.waitForResponse(r=>r.request().method()==='POST'&&/\/media$/.test(new URL(r.url()).pathname))
   await form.getByLabel('选择照片').setInputFiles({name:'manual-photo.png',mimeType:'image/png',buffer:pixel})
+  const uploaded=await photoUpload,photoResult=await uploaded.json()
+  expect(uploaded.request().headers()['x-hoooho-media-review']).toBe('skip')
+  expect(photoResult.review).toBeUndefined()
   await expect(form.locator('.quick-record-photo[data-status="uploaded"]')).toHaveCount(1)
+  const attachment=form.getByRole('region',{name:'附件',exact:true})
+  await expect(attachment.locator('.quick-record-photos__heading,.media-item-details')).toHaveCount(0)
+  await expect(attachment.getByText(/manual-photo|原件|口述|画面|MB|已添加/)).toHaveCount(0)
+  await expect(attachment.getByRole('button',{name:'添加附件',exact:true})).toBeEnabled()
+  await mkdir('outputs/symptom-manual',{recursive:true})
+  await page.screenshot({path:'outputs/symptom-manual/manual-photo-only.png'})
+  await form.getByRole('button',{name:'查看照片 1',exact:true}).click()
+  const photoPreview=page.getByRole('dialog',{name:'照片预览',exact:true})
+  await expect(photoPreview).toBeVisible();await photoPreview.getByRole('button',{name:'关闭大图预览',exact:true}).click()
   await form.getByLabel('拍摄视频').setInputFiles('public/tutorials/recordings/create-event.webm')
   await expect(form.locator('.quick-record-photo[data-status="uploaded"]')).toHaveCount(2)
+  await expect(form.locator('.media-item-details,.quick-record-photos__heading')).toHaveCount(0)
+  expect(reviewRequests).toHaveLength(0)
   page.on('dialog',d=>void d.accept())
   await form.getByRole('button',{name:'返回',exact:true}).click()
   await page.reload();await enterManual(page)
@@ -100,6 +118,8 @@ test('photo and video survive reopen and save failure, then persist with the man
   expect(record.content).toBe(narrative);expect(record.journal.symptom.locationText).toBe('左肘窝');expect(record.journal.symptom.impactLevel).toBe('some')
   const attachments=await(await request.get(`/api/events/${result.eventId}/attachments`,{headers})).json()
   expect(attachments.filter((a:any)=>a.recordId===result.recordId)).toHaveLength(2)
+  for(const item of attachments.filter((a:any)=>a.recordId===result.recordId))expect(item.mediaReview).toBeFalsy()
+  expect(reviewRequests).toHaveLength(0)
 })
 
 test('failed attachment retries and removes without clearing manually entered text',async({page})=>{
@@ -110,7 +130,7 @@ test('failed attachment retries and removes without clearing manually entered te
   await expect(form.getByRole('button',{name:'重试上传 retry.png',exact:true})).toBeVisible()
   fail=false;await form.getByRole('button',{name:'重试上传 retry.png',exact:true}).click()
   await expect(form.locator('.quick-record-photo[data-status="uploaded"]')).toHaveCount(1)
-  await form.getByRole('button',{name:'移除资料 retry.png',exact:true}).click()
+  await form.getByRole('button',{name:'删除照片 1',exact:true}).click()
   await expect(form.locator('.quick-record-photo')).toHaveCount(0)
   await expect(form.getByLabel('哪里不舒服')).toHaveValue('合成原文不丢失')
 })

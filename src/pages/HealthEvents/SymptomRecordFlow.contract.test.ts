@@ -49,7 +49,7 @@ test('legacy related-record editor remains available outside the simplified crea
 })
 
 test('symptom photos use an isolated six-photo draft and structured real save', () => {
-  assert.match(source, /useQuickRecordPhotos\(memberId, token, 6, draftScope === memberId \? 'symptom' : `symptom:\$\{draftScope\}`, true\)/)
+  assert.match(source, /useQuickRecordPhotos\(memberId, token, 6, draftScope === memberId \? 'symptom' : `symptom:\$\{draftScope\}`, true, !manualEntry\)/)
   assert.doesNotMatch(source, /照片与附件/)
   assert.match(source, /videoInputRef/)
   assert.match(source, /photos\.payload\(\)/)

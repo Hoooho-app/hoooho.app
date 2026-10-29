@@ -8,7 +8,7 @@ import { mergeNurseReview } from '../../features/ai-nurse/mergeReview'
 import type { NurseFields, NurseMetadata } from '../../features/ai-nurse/types'
 import { useAppStore } from '../../store/useAppStore'
 import { bodyLocationLabel } from '../../../shared/body-location-label.mjs'
-import { Check, ChevronDown, ChevronLeft, Clock3, MapPin, Camera, Image, ImagePlus, Plus, Video, Cross, ClipboardPlus, X } from '../../components/icons'
+import { Check, ChevronDown, ChevronLeft, Clock3, MapPin, Camera, Image, Plus, Video, Cross, ClipboardPlus, X } from '../../components/icons'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { BottomSheetSurface, HohoButton, StatusNotice, DialogueComposer } from '../../components/design-system'
@@ -69,7 +69,7 @@ export function SymptomRecordFlow({ memberId, token, selectedDay, today, onBack,
   const cameraInputRef = useRef<HTMLInputElement>(null), videoInputRef = useRef<HTMLInputElement>(null), photoInputRef = useRef<HTMLInputElement>(null), narrativeRef = useRef<HTMLTextAreaElement>(null)
   const locationEditedRef = useRef(Boolean(draft.locationText || draft.locations.length))
   const previewVersionRef = useRef(0)
-  const photos = useQuickRecordPhotos(memberId, token, 6, draftScope === memberId ? 'symptom' : `symptom:${draftScope}`, true)
+  const photos = useQuickRecordPhotos(memberId, token, 6, draftScope === memberId ? 'symptom' : `symptom:${draftScope}`, true, !manualEntry)
   const [attachmentSourcesOpen, setAttachmentSourcesOpen] = useState(false)
   const [attachmentPicking, setAttachmentPicking] = useState(false)
   const attachmentBusy = useRef(false), attachmentGeneration = useRef(0)
@@ -226,7 +226,7 @@ export function SymptomRecordFlow({ memberId, token, selectedDay, today, onBack,
   const manualLocation = draft.locationText.trim()
   const manualLocationIsStructured = draft.locations.some((location) => location.label.trim() === manualLocation)
   const inlineOccurrence=embedded&&<OccurrenceTimeField model={occurrence} label="发生时间" labelIcon={<Clock3 aria-hidden="true" size={21} strokeWidth={1.8} />} onValueChange={(value) => {update('occurredAt',value||undefined);update('timeText','')}} showDateContext />
-  const mediaPreviews = (photos.photos.length > 0 || photos.notice) && <div className="symptom-media-previews"><QuickRecordPhotos limit={6} model={photos} showAddButton={false} onApply={(text,id)=>{if(appliedMedia.current.has(id)||draftRef.current.appliedMediaIds?.includes(id))return;const next=[draftRef.current.narrative.trim(),text].filter(Boolean).join('\n');if(next.length>1000)throw new Error('补充后超过1000字，请先精简资料草稿；原正文未改变');appliedMedia.current.add(id);setDraft(current=>({...current,narrative:next,appliedMediaIds:[...(current.appliedMediaIds??[]),id]}));setFieldErrors({})}} /></div>
+  const mediaPreviews = (photos.photos.length > 0 || photos.notice) && <div className="symptom-media-previews"><QuickRecordPhotos limit={6} model={photos} showAddButton={false} attachmentOnly={manualEntry} onApply={(text,id)=>{if(appliedMedia.current.has(id)||draftRef.current.appliedMediaIds?.includes(id))return;const next=[draftRef.current.narrative.trim(),text].filter(Boolean).join('\n');if(next.length>1000)throw new Error('补充后超过1000字，请先精简资料草稿；原正文未改变');appliedMedia.current.add(id);setDraft(current=>({...current,narrative:next,appliedMediaIds:[...(current.appliedMediaIds??[]),id]}));setFieldErrors({})}} /></div>
   const form = <div className={embedded ? 'symptom-record-inline' : 'symptom-record-page-layer'} style={embedded ? undefined : { top: viewport.top, height: viewport.height, bottom: 'auto' }}><section aria-label={title} aria-modal={embedded ? undefined : true} data-keyboard={viewport.keyboard} className="symptom-record-page symptom-record-page--brand-white" role={embedded ? 'region' : 'dialog'}>
     {!embedded && <header><button aria-label="返回" disabled={saving} onClick={() => leave(onBack)} type="button"><ChevronLeft aria-hidden="true" size={24} strokeWidth={1.8} /></button><h1>{title}</h1><RecordSaveAction disabled={saving || voice.busy || attachmentPicking || nurseOpen || !!conflict || mediaSaveBlocked} saving={saving} onClick={() => void save()} label={saveFailed ? '重试' : '保存'}/></header>}
     <div className="symptom-record-scroll">
@@ -246,9 +246,8 @@ export function SymptomRecordFlow({ memberId, token, selectedDay, today, onBack,
         <fieldset><legend>严重程度</legend><div className="symptom-segmented-options">{impactOptions.map(([value, label]) => <button aria-pressed={draft.impactLevel === value} key={value} onClick={() => update('impactLevel', draft.impactLevel === value ? undefined : value)} type="button">{draft.impactLevel === value && <Check aria-hidden="true" size={15} />}{label}</button>)}</div></fieldset>
       </div>}</section>
       {manualEntry && <section className="symptom-card symptom-attachments" aria-label="附件">
-        <div className="symptom-card-heading"><h2><ImagePlus aria-hidden="true" size={21} strokeWidth={1.8} />附件</h2></div>
+        <div className="symptom-card-heading"><h2><Image aria-hidden="true" size={21} strokeWidth={1.8} />附件</h2><HohoButton className="symptom-attachment-add" size="icon" variant="ghost" aria-label="添加附件" aria-haspopup="dialog" disabled={saving || attachmentPicking || photos.photos.length >= 6} onClick={() => void openAttachments()}><Plus aria-hidden="true" size={24} /></HohoButton></div>
         {mediaPreviews}
-        <HohoButton className="symptom-attachment-add" variant="ghost" aria-label="添加附件" aria-haspopup="dialog" disabled={saving || attachmentPicking || photos.photos.length >= 6} onClick={() => void openAttachments()}><Plus aria-hidden="true" size={28} /></HohoButton>
       </section>}
       {!embedded&&<OccurrenceTimeField model={occurrence} label="发生时间" labelIcon={<Clock3 aria-hidden="true" size={21} strokeWidth={1.8} />} onValueChange={(value) => {update('occurredAt',value||undefined);update('timeText','')}} showDateContext />}
       {draft.aiNurse && <NurseNotes value={draft.aiNurse} onChange={value => setDraft(current => ({ ...current, aiNurse: value, nurseDeletedNoteIds: [...new Set([...(current.nurseDeletedNoteIds ?? []), ...(current.aiNurse?.professionalNotes.filter(n => !value.professionalNotes.some(v => v.id === n.id)).map(n => n.id) ?? [])])] }))}/>}

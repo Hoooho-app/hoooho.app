@@ -597,7 +597,18 @@ async function handleDesensitizationTests(request, response, pathname, searchPar
 async function handleQuickRecords(request, response, pathname) {
   const mediaRoute=/^\/api\/quick-records\/([^/]+)\/media(?:\/([^/]+)\/(review|preview|poster))?$/.exec(pathname)
   if(mediaRoute){const accountId=await readAccountId(request),memberId=String(request.headers['x-hoooho-member-id']??''),draftId=decodeRouteValue(mediaRoute[1]),id=mediaRoute[2]&&decodeRouteValue(mediaRoute[2]),action=mediaRoute[3]
-    if(!id&&request.method==='POST'){const saved=await uploadSymptomMedia(quickRecordPhotos,request,accountId,draftId,memberId);if(!saved.review){try{saved.review=await symptomMediaJobs.start(accountId,memberId,draftId,saved.id)}catch(error){saved.review={audio:{status:'failed',message:'未开始整理，请主动重试'},vision:{status:'failed',message:'未开始整理，请主动重试'},code:error.code??'MEDIA_BUSY'};await quickRecordPhotos.store.update(data=>({...data,photos:data.photos.map(p=>p.id===saved.id?{...p,review:saved.review}:p)}))}}sendJson(response,201,saved)}
+    if(!id&&request.method==='POST'){
+      const saved=await uploadSymptomMedia(quickRecordPhotos,request,accountId,draftId,memberId)
+      // Manual attachments retain originals and compatible previews without content analysis.
+      if(request.headers['x-hoooho-media-review']!=='skip'&&!saved.review){
+        try{saved.review=await symptomMediaJobs.start(accountId,memberId,draftId,saved.id)}
+        catch(error){
+          saved.review={audio:{status:'failed',message:'未开始整理，请主动重试'},vision:{status:'failed',message:'未开始整理，请主动重试'},code:error.code??'MEDIA_BUSY'}
+          await quickRecordPhotos.store.update(data=>({...data,photos:data.photos.map(p=>p.id===saved.id?{...p,review:saved.review}:p)}))
+        }
+      }
+      sendJson(response,201,saved)
+    }
     else if(id&&action==='review'){if(request.method==='PATCH'){const photo=await quickRecordPhotos.getOwnedPhoto(accountId,memberId,draftId,id),input=await readJson(request);if(typeof input.text!=='string'||input.text.length>1000)throw Object.assign(new Error('核对内容过长'),{status:400});const review={...photo.review,confirmedText:input.text,confirmedAt:new Date().toISOString()};await quickRecordPhotos.store.update(data=>({...data,photos:data.photos.map(p=>p.id===id?{...p,review}:p)}));sendJson(response,200,review)}else if(request.method==='POST')sendJson(response,202,await symptomMediaJobs.start(accountId,memberId,draftId,id,(await readJson(request)).part));else if(request.method==='GET'){const photo=await quickRecordPhotos.getOwnedPhoto(accountId,memberId,draftId,id);let review=photo.review??null;if(review&&!symptomMediaJobs.active.has(id)){review={...review};for(const stage of ['audio','vision'])if(review[stage]?.status==='processing')review[stage]={status:'failed',code:'MEDIA_INTERRUPTED',message:'整理已中断，请单独重试'};}sendJson(response,200,review)}else sendJson(response,405,{error:{message:'方法不支持'}})}
     else if(id&&request.method==='GET'){const photo=await quickRecordPhotos.getOwnedPhoto(accountId,memberId,draftId,id);const key=action==='poster'?photo.posterKey:photo.previewKey;if(!key)sendJson(response,404,{error:{message:'预览尚不可用，原件仍保留'}});else{const buffer=await readFile(path.join(quickRecordPhotos.filesDirectory,path.basename(key)));setCommonHeaders(response);response.setHeader('Content-Type',action==='poster'?'image/jpeg':photo.previewMimeType??'video/mp4');response.setHeader('Cache-Control','private, no-store');response.end(buffer)}}
     else sendJson(response,405,{error:{message:'请求方法不支持'}});return true

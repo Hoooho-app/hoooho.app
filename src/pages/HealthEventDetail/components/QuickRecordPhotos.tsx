@@ -45,7 +45,7 @@ async function localVideoInfo(url:string):Promise<{duration?:number;posterUrl?:s
 
 const draftStorageKey = (memberId: string, namespace = 'default') => `hoooho-quick-record-photo-draft:${namespace}:${memberId}`
 
-export function useQuickRecordPhotos(memberId?: string, token?: string, limit = QUICK_RECORD_PHOTO_LIMIT, namespace = 'default', allowVideos = false) {
+export function useQuickRecordPhotos(memberId?: string, token?: string, limit = QUICK_RECORD_PHOTO_LIMIT, namespace = 'default', allowVideos = false, reviewMedia = true) {
   const [photos, setPhotos] = useState<QuickRecordPhotoItem[]>([])
   const accountId=useAppStore(s=>s.authUser?.id??'unauthenticated')
   const localScope=`${accountId}:${memberId}:${namespace}`
@@ -105,7 +105,7 @@ export function useQuickRecordPhotos(memberId?: string, token?: string, limit = 
     const uploadDraft=ensureDraftId()
     try {
       if(allowVideos && item.file.size > (item.mimeType?.startsWith('video/') ? 100 : 25)*1024*1024)throw new Error(item.mimeType?.startsWith('video/')?'视频超过100MB，请在相册裁剪后重选':'照片超过25MB，请缩小后重选')
-      const saved = allowVideos ? await quickRecordService.uploadMedia(uploadDraft,item.file,memberId,token,sortOrder,item.origin??'library',item.localId) : await quickRecordService.uploadPhoto(ensureDraftId(), { memberId, ...await prepareHealthImage(item.file), sortOrder }, token)
+      const saved = allowVideos ? await quickRecordService.uploadMedia(uploadDraft,item.file,memberId,token,sortOrder,item.origin??'library',item.localId,reviewMedia) : await quickRecordService.uploadPhoto(ensureDraftId(), { memberId, ...await prepareHealthImage(item.file), sortOrder }, token)
       if (!live.current || uploadVersionsRef.current.get(item.localId) !== version) {if(!allowVideos||saved.uploadId===item.localId)void quickRecordService.deletePhoto(uploadDraft,saved.id,memberId,token).catch(()=>undefined);return}
       let previewUrl=item.previewUrl,posterUrl:string|undefined
       if(allowVideos){try{previewUrl=URL.createObjectURL(await quickRecordService.mediaPreview(uploadDraft,saved.id,memberId,token));if(saved.mimeType.startsWith('video/'))posterUrl=URL.createObjectURL(await quickRecordService.mediaPreview(uploadDraft,saved.id,memberId,token,true))}catch{/* original/fallback remains visible */}}
@@ -231,7 +231,7 @@ export function useQuickRecordPhotos(memberId?: string, token?: string, limit = 
   })
 
   useEffect(()=>{
-    if(!allowVideos||!memberId||!token)return
+    if(!allowVideos||!reviewMedia||!memberId||!token)return
     let active=true
     const poller=createSerialPoller(async signal=>{
       for(const item of photosRef.current.filter(p=>p.status==='uploaded'&&p.serverId&&(!p.review||[p.review.audio?.status,p.review.vision?.status].includes('processing')))){
@@ -245,14 +245,14 @@ export function useQuickRecordPhotos(memberId?: string, token?: string, limit = 
     const visibility=()=>{if(document.hidden)poller.pause();else poller.start()}
     document.addEventListener('visibilitychange',visibility);visibility()
     return()=>{active=false;poller.stop();document.removeEventListener('visibilitychange',visibility)}
-  },[allowVideos,memberId,token])
+  },[allowVideos,reviewMedia,memberId,token])
   const refreshReview=async(localId:string)=>{const item=photosRef.current.find(p=>p.localId===localId);if(!item?.serverId||!memberId||!token)return;const scope=localScope;try{const review=await quickRecordService.mediaReview(ensureDraftId(),item.serverId,memberId,token);if(live.current&&scopeRef.current===scope)setPhotos(current=>current.map(p=>p.localId===localId?{...p,review:review??p.review,reviewFetchError:undefined}:p))}catch{if(live.current&&scopeRef.current===scope)setPhotos(current=>current.map(p=>p.localId===localId?{...p,reviewFetchError:'状态更新失败，已有结果保留；请重试加载'}:p))}}
   const retryReview=async(localId:string,part:string)=>{const item=photosRef.current.find(p=>p.localId===localId);if(!item?.serverId||!memberId||!token)return;try{const review=await quickRecordService.mediaReview(ensureDraftId(),item.serverId,memberId,token,part);if(live.current)setPhotos(current=>current.map(p=>p.localId===localId?{...p,review:review??undefined}:p))}catch(e){setNotice(e instanceof Error?e.message:'整理重试失败')}}
   const confirmReview=async(localId:string,text:string)=>{const item=photosRef.current.find(p=>p.localId===localId);if(!item?.serverId||!memberId||!token)throw new Error('资料尚未上传');const scope=localScope;const review=await quickRecordService.confirmMedia(ensureDraftId(),item.serverId,memberId,token,text);if(!live.current||scopeRef.current!==scope||!photosRef.current.some(p=>p.localId===localId))throw new Error('资料已移除或人物已切换，未应用到正文');if(live.current)setPhotos(current=>current.map(p=>p.localId===localId?{...p,review}:p))}
   return { hydrating,restoreError,retryRestore:()=>setRestoreAttempt(n=>n+1),refreshReview,retryReview,confirmReview,adoptPending,allowVideos, photos, notice, previewIndex, setPreviewIndex, chooseFiles, retry, remove, cancel, clearAfterSave: clearLocal, payload, blocked: hasUnreadyPhotos(photos) }
 }
 
-export function QuickRecordPhotos({ model, limit = QUICK_RECORD_PHOTO_LIMIT, showAddButton = true, onApply, onChooseFiles }: { model: ReturnType<typeof useQuickRecordPhotos>; limit?: number; showAddButton?: boolean; onApply?: (text:string,id:string)=>void; onChooseFiles?: (files:FileList|null)=>void }) {
+export function QuickRecordPhotos({ model, limit = QUICK_RECORD_PHOTO_LIMIT, showAddButton = true, attachmentOnly = false, onApply, onChooseFiles }: { model: ReturnType<typeof useQuickRecordPhotos>; limit?: number; showAddButton?: boolean; attachmentOnly?: boolean; onApply?: (text:string,id:string)=>void; onChooseFiles?: (files:FileList|null)=>void }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const lightboxRef = useRef<HTMLDivElement>(null)
   const { photos, notice, previewIndex } = model
@@ -268,18 +268,18 @@ export function QuickRecordPhotos({ model, limit = QUICK_RECORD_PHOTO_LIMIT, sho
   }, [model, selected])
   return <>
     <div className="quick-record-photos" data-empty={photos.length === 0}>
-      <div className="quick-record-photos__heading"><strong>{model.allowVideos ? '已添加资料' : '上传照片'}</strong><span>{photos.length}/{limit}</span></div>
+      {!attachmentOnly && <div className="quick-record-photos__heading"><strong>{model.allowVideos ? '已添加资料' : '上传照片'}</strong><span>{photos.length}/{limit}</span></div>}
       <div className="quick-record-photos__rail">
         {photos.map((photo, index) => <div className="quick-record-photo" data-status={photo.status} key={photo.localId}>
-          <button aria-label={`查看${photo.mimeType?.startsWith('video/') ? '视频' : '照片'} ${index + 1}`} className="quick-record-photo__preview" onClick={() => model.setPreviewIndex(index)} type="button">{photo.mimeType?.startsWith('video/') ? photo.posterUrl ? <span className="media-video-thumb"><MediaImage url={photo.posterUrl} name="视频封面"/><span><FunctionalIcon name="play_arrow" size={16}/> {photo.duration?`${Math.round(photo.duration)}秒`:"视频"}</span></span> : <span className="media-fallback"><FunctionalIcon name="play_arrow" size={16}/> 视频<br/>{photo.duration?`${Math.round(photo.duration)}秒`:photo.name}<br/>{photo.size?`${(photo.size/1024/1024).toFixed(1)}MB`:''}</span> : <MediaImage url={photo.previewUrl} name={photo.name} />}</button>
+          <button aria-label={`查看${photo.mimeType?.startsWith('video/') ? '视频' : '照片'} ${index + 1}`} className="quick-record-photo__preview" onClick={() => model.setPreviewIndex(index)} type="button">{photo.mimeType?.startsWith('video/') ? photo.posterUrl ? <span className="media-video-thumb"><MediaImage url={photo.posterUrl} name="视频封面"/><span><FunctionalIcon name="play_arrow" size={16}/> {!attachmentOnly && (photo.duration?`${Math.round(photo.duration)}秒`:"视频")}</span></span> : <span className="media-fallback"><FunctionalIcon name="play_arrow" size={16}/>{!attachmentOnly && <>视频<br/>{photo.duration?`${Math.round(photo.duration)}秒`:photo.name}<br/>{photo.size?`${(photo.size/1024/1024).toFixed(1)}MB`:''}</>}</span> : <MediaImage url={photo.previewUrl} name={photo.name} compact={attachmentOnly} />}</button>
           {photo.status === 'uploading' && <span aria-label="上传中" className="quick-record-photo__status"><LoaderCircle className="is-spinning" size={17} /></span>}
-          {!model.allowVideos && photo.status === 'failed' && <div className="quick-record-photo__failed"><span>上传失败</span><button aria-label={`重试上传 ${photo.name}`} onClick={() => model.retry(photo.localId)} type="button"><RotateCcw size={14} />重试</button><button aria-label={`移除上传失败的照片 ${photo.name}`} onClick={() => model.remove(photo.localId)} type="button"><X size={14} />移除</button></div>}
+          {(!model.allowVideos || attachmentOnly) && photo.status === 'failed' && <div className="quick-record-photo__failed"><span>上传失败</span><button aria-label={`重试上传 ${photo.name}`} onClick={() => model.retry(photo.localId)} type="button"><RotateCcw size={14} />重试</button><button aria-label={`移除上传失败的照片 ${photo.name}`} onClick={() => model.remove(photo.localId)} type="button"><X size={14} />移除</button></div>}
           {photo.status !== 'failed' && <button aria-label={`删除${photo.mimeType?.startsWith('video/') ? '视频' : '照片'} ${index + 1}`} className="quick-record-photo__delete" onClick={() => model.remove(photo.localId)} type="button"><X size={13} /></button>}
         </div>)}
         {showAddButton && photos.length < limit && <button aria-label={photos.length ? '继续上传照片' : '上传照片'} className="quick-record-photo-add" onClick={() => inputRef.current?.click()} type="button"><ImagePlus aria-hidden="true" size={25} strokeWidth={1.7} /></button>}
       </div>
       {showAddButton && <input ref={inputRef} accept="image/jpeg,image/png,image/webp" hidden multiple onChange={(event) => { (onChooseFiles ?? model.chooseFiles)(event.target.files); event.currentTarget.value = '' }} type="file" />}
-      {model.allowVideos && <div className="media-item-details">{photos.map((p,i)=><MediaItemDetails key={p.localId} item={p} index={i} model={model} onApply={onApply} />)}</div>}
+      {model.allowVideos && !attachmentOnly && <div className="media-item-details">{photos.map((p,i)=><MediaItemDetails key={p.localId} item={p} index={i} model={model} onApply={onApply} />)}</div>}
       {notice && <p className="quick-record-photo-notice" role="status">{notice}</p>}
       {!model.allowVideos && model.blocked && <p className="quick-record-photo-error" role="alert">{photos.some((photo) => photo.status === 'failed') ? (model.allowVideos ? '有资料上传失败，请重试或移除' : '有照片上传失败，请重试或移除') : (model.allowVideos ? '资料上传中，请稍候' : '照片上传中，请稍候')}</p>}
     </div>
@@ -293,7 +293,7 @@ export function QuickRecordPhotos({ model, limit = QUICK_RECORD_PHOTO_LIMIT, sho
   </>
 }
 
-function MediaImage({url,name}:{url:string;name:string}){const [failed,setFailed]=useState(false);useEffect(()=>setFailed(false),[url]);return failed?<span className="media-fallback" role="status">{name} · 图片预览不可用，原件与上传状态请见资料列表</span>:<CompleteImage alt={name} src={url} onError={()=>setFailed(true)} />}
+function MediaImage({url,name,compact=false}:{url:string;name:string;compact?:boolean}){const [failed,setFailed]=useState(false);useEffect(()=>setFailed(false),[url]);return failed?<span className="media-fallback" role="status">{compact?'预览不可用':`${name} · 图片预览不可用，原件与上传状态请见资料列表`}</span>:<CompleteImage alt={name} src={url} onError={()=>setFailed(true)} />}
 function MediaPlayer({url}:{url:string}){const ref=useRef<HTMLVideoElement>(null),[state,setState]=useState('loading');useEffect(()=>{const video=ref.current;return()=>{video?.pause();video?.removeAttribute('src');video?.load()}},[]);return <div className="media-player">{state==='loading'&&<p role="status">正在加载视频…</p>}{state==='error'&&<p role="alert">视频无法播放或格式不兼容，请重新选择H.264 MP4。原件仍保留。</p>}<video ref={ref} controls playsInline preload="metadata" onLoadedData={()=>setState('ready')} onError={()=>setState('error')} src={url}/></div>}
 function MediaItemDetails({item,index,model,onApply}:{item:QuickRecordPhotoItem;index:number;model:ReturnType<typeof useQuickRecordPhotos>;onApply?: (text:string,id:string)=>void}){
  const review=item.review,[text,setText]=useState(''),[edited,setEdited]=useState(false),[error,setError]=useState(''),[applying,setApplying]=useState(false)
