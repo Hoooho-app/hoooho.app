@@ -1,6 +1,6 @@
 import { BottomSheetSurface, HohoButton } from '../design-system'
 import { drawerConversationLabel, type DrawerHistoryRow } from './drawerHistory'
-import { ChevronRight, ConversationBubble, Trash2, Info, MessageCircle, ConversationBubblePlus, Plus } from '../icons'
+import { ChevronRight, ConversationBubble, Trash2, Info, CircleHelp, MessageCircle, ConversationBubblePlus, Plus } from '../icons'
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Avatar } from '../common'
@@ -9,6 +9,7 @@ import { usePageScrollLock } from '../../hooks/usePageScrollLock'
 import { useDialogFocus } from '../../hooks/useDialogFocus'
 import { useAppStore } from '../../store/useAppStore'
 import { getCurrentPath } from './navigationState'
+import { makeHelpState } from '../../features/help/navigation'
 import { makeFeedbackState } from '../../features/feedback/navigation'
 import { accountService } from '../../services/account'
 import { useDrawerHistory } from './useDrawerHistory'
@@ -25,6 +26,7 @@ interface SideDrawerProps {
   conversationDisabled?: boolean
 }
 const utilityLinks = [
+  { label: '帮助中心', icon: CircleHelp, to: '/help' },
   { label: '反馈', icon: MessageCircle, to: '/feedback' },
   { label: '关于', icon: Info, to: '/about' }
 ]
@@ -83,7 +85,7 @@ export function SideDrawer({ onClose, onOpenChildSheet, open, cleanChrome = true
   }
   const openUtility = (to: string) => {
     onClose()
-    navigate(to, to === '/feedback' ? { state: makeFeedbackState(getCurrentPath(location.pathname, location.search, location.hash), '侧边栏', window.scrollY) } : undefined)
+    navigate(to, to === '/help' ? { state: makeHelpState(getCurrentPath(location.pathname, location.search, location.hash), accountId, member.id) } : to === '/feedback' ? { state: makeFeedbackState(getCurrentPath(location.pathname, location.search, location.hash), '侧边栏', window.scrollY) } : undefined)
   }
   const confirmDelete=async()=>{if(!deleting||deleteBusy)return;setDeleteBusy(true);setDeleteError('');try{await ownHistory.remove(deleting);setDeleting(null)}catch(error){setDeleteError(error instanceof Error?error.message:'删除未完成，请重试')}finally{setDeleteBusy(false)}}
   if (!open) return null
@@ -116,7 +118,7 @@ export function SideDrawer({ onClose, onOpenChildSheet, open, cleanChrome = true
           {ownHistory.moreError && <div className="drawer-history-notice" role="status"><span>更早对话暂未加载，已显示的对话仍保留。</span><button type="button" onClick={() => void ownHistory.loadMore()}>重试</button></div>}
           {ownHistory.hasMore && <div ref={historyEndRef} aria-hidden="true" className="drawer-history-end" />}
         </nav>
-        <footer className="drawer-utilities" aria-label="反馈与关于">{utilityLinks.map(({ label, icon: Icon, to }) => <button key={to} type="button" onClick={() => openUtility(to)}><Icon size={22} strokeWidth={1.7} aria-hidden="true" /><span>{label}</span></button>)}</footer>
+        <footer className="drawer-utilities" aria-label="帮助、反馈与关于">{utilityLinks.map(({ label, icon: Icon, to }) => <button key={to} type="button" onClick={() => openUtility(to)}><Icon size={22} strokeWidth={1.7} aria-hidden="true" /><span>{label}</span></button>)}</footer>
       </aside>
     </div>
     <BottomSheetSurface open={Boolean(deleting)} title="删除这次对话？" label="删除对话" onClose={()=>{if(!deleteBusy)setDeleting(null)}} footer={<div className="drawer-delete-actions"><HohoButton variant="secondary" disabled={deleteBusy} onClick={()=>setDeleting(null)}>取消</HohoButton><HohoButton variant="danger" loading={deleteBusy} onClick={()=>void confirmDelete()}>确认删除</HohoButton></div>}><p>删除对话不会影响已保存的记录。</p>{deleteError&&<p role="alert" className="drawer-delete-error">{deleteError}</p>}</BottomSheetSurface>

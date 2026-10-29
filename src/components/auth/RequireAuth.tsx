@@ -3,12 +3,14 @@ import { useAppStore } from '../../store/useAppStore'
 import { recoverBrowserSession } from './SessionBootstrap'
 import { useBrowserRecoveryState } from '../../services/browserRecoveryState'
 import { SessionRecoveryScreen } from './SessionRecoveryView'
+import { HelpPageCoachLoader } from '../../features/help/HelpPageCoachLoader'
 import { SessionExpiredDialog } from './SessionExpiredDialog'
 
 export function RequireAuth() {
   const token = useAppStore((state) => state.authToken)
   const authStatus = useAppStore((state) => state.authStatus)
   const accountId = useAppStore((state) => state.authUser?.id)
+  const memberId = useAppStore(state => state.currentMemberId)
   const { contextAccountId, reauthenticationRequired, phase } = useBrowserRecoveryState()
   const location = useLocation()
 
@@ -18,5 +20,5 @@ export function RequireAuth() {
     return <Navigate to="/login" replace state={{ from: `${location.pathname}${location.search}${location.hash}` }} />
   }
 
-  return <><div className="session-protected-page" key={accountId} aria-hidden={reauthenticationRequired || undefined}><Outlet /></div>{reauthenticationRequired && <SessionExpiredDialog />}</>
+  return <><div className="session-protected-page" key={accountId} aria-hidden={reauthenticationRequired || undefined}><Outlet /><HelpPageCoachLoader key={accountId + ":" + memberId}/></div>{reauthenticationRequired && <SessionExpiredDialog />}</>
 }

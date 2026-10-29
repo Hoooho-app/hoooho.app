@@ -152,7 +152,7 @@ export function CurrentChildSheet({ onAdd, onClose, onEdit, open }: CurrentChild
           {error && <p className="current-child-sheet__error" role="alert">{error}</p>}
         </div>
         <footer className="current-child-sheet__footer">
-          <button type="button" onClick={onAdd}><Plus aria-hidden="true" size={20} strokeWidth={1.9} />添加孩子</button>
+          <button data-help-target="child-add" type="button" onClick={onAdd}><Plus aria-hidden="true" size={20} strokeWidth={1.9} />添加孩子</button>
         </footer>
       </section>
     </div>, document.body

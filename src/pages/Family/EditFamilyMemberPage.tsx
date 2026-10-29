@@ -306,7 +306,7 @@ export function EditFamilyMemberPage({ create = false, onCreated }: {
   return <main className="app-shell flex min-h-dvh flex-col bg-surface pb-0">
     {create ? <WebPageHeader title="添加家庭成员" fallback={APP_HOME_PATH} /> : <WebPageHeader title="编辑孩子资料" fallback={APP_HOME_PATH} onBack={() => leaveEditor(true)} />}
     {loading ? <p className="py-20 text-center text-sm text-text-secondary">正在加载孩子资料…</p> : (create || sourceMember) && draft && previewConfig ? (
-      <form className="flex flex-1 flex-col px-4 pb-[max(12px,env(safe-area-inset-bottom))] pt-2" onSubmit={save}>
+      <form data-help-target="child-form" className="flex flex-1 flex-col px-4 pb-[max(12px,env(safe-area-inset-bottom))] pt-2" onSubmit={save}>
         <div className="mx-auto w-full max-w-sm">
           <FamilyAvatarEditor
             childProfile

@@ -1,0 +1,19 @@
+.hoho-spotlight { position:fixed; inset:0; z-index:180; pointer-events:none; color:rgb(var(--hoho-color-text-primary)); }
+.hoho-spotlight-mask { position:fixed; inset:0; overflow:visible; pointer-events:none; }
+.hoho-spotlight-mask path { fill:rgb(var(--hoho-color-scrim)/.42); pointer-events:fill; }
+.hoho-spotlight-mask .hoho-spotlight-ring { fill:none; stroke:rgb(var(--hoho-color-surface-white)); stroke-width:2; pointer-events:none; }
+.hoho-spotlight-panel { position:fixed; left:var(--guide-left); top:var(--guide-top); width:var(--guide-width); max-height:calc(100dvh - 24px); overflow:auto; padding:var(--hoho-space-4); background:rgb(var(--hoho-color-surface)); border:1px solid rgb(var(--hoho-color-border)); border-radius:var(--hoho-radius-card); box-shadow:var(--hoho-shadow-floating); pointer-events:auto; }
+.hoho-spotlight-panel h2 { margin:var(--hoho-space-1) 0 var(--hoho-space-2); outline:none; }
+.hoho-spotlight-panel > p { font-size:var(--hoho-font-size-body-small); line-height:var(--hoho-line-height-body); }
+.hoho-spotlight-meta { display:flex; justify-content:space-between; align-items:center; gap:var(--hoho-space-2); font-size:var(--hoho-font-size-caption); color:rgb(var(--hoho-color-text-secondary)); }
+.hoho-spotlight-meta .hoho-button { min-height:32px; padding:0 var(--hoho-space-1); }
+.hoho-spotlight-actions { display:flex; align-items:center; justify-content:flex-end; flex-wrap:wrap; gap:var(--hoho-space-2); margin-top:var(--hoho-space-3); }
+.hoho-spotlight-actions .hoho-button { min-height:44px; }
+.hoho-spotlight.is-compact .hoho-spotlight-panel { padding:var(--hoho-space-2) var(--hoho-space-3); }
+.hoho-spotlight.is-compact .hoho-spotlight-meta { float:right; }
+.hoho-spotlight.is-compact .hoho-spotlight-meta > span { display:none; }
+.hoho-spotlight.is-compact .hoho-spotlight-panel h2 { font-size:var(--hoho-font-size-body-small); margin-block:var(--hoho-space-1); }
+.hoho-spotlight.is-compact .hoho-spotlight-panel > p { display:none; }
+.hoho-spotlight.is-compact .hoho-spotlight-actions { margin-top:var(--hoho-space-1); }
+.hoho-spotlight.is-waiting .hoho-spotlight-panel { top:auto; bottom:max(var(--hoho-space-3),env(safe-area-inset-bottom)); }
+@media(prefers-reduced-motion:reduce) { .hoho-spotlight * { scroll-behavior:auto; } }
