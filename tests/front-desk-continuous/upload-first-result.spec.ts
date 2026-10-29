@@ -15,7 +15,7 @@ async function fixture(request:APIRequestContext,content:string,attachmentId:str
 async function settled(request:APIRequestContext,id:string){let job:any;await expect.poll(async()=>{job=await(await request.get(`${base}${memberId}/recognition-jobs/${encodeURIComponent(id)}`,{headers})).json();return ['ready','needs_review','failed'].includes(job.state)}).toBe(true);expect(job.state,JSON.stringify(job.error)).not.toBe('failed');return job}
 async function send(page:Page,content:string){await page.getByRole('button',{name:'改用文字',exact:true}).click();await page.getByRole('textbox',{name:'对话输入',exact:true}).fill(content);const ack=page.waitForResponse(r=>r.url().endsWith('/recognition-jobs')&&r.request().method()==='POST');await page.getByRole('button',{name:'发送',exact:true}).click();return(await ack).json()}
 async function photo(){const bytes=await sharp({create:{width:120,height:160,channels:3,background:'#dadada'}}).png().toBuffer(),dataUrl=`data:image/png;base64,${bytes.toString('base64')}`;return {bytes,attachmentId:`file-${fingerprint(dataUrl).slice(0,24)}`}}
-async function upload(page:Page,bytes:Buffer){const posted=page.waitForResponse(r=>r.url().endsWith('/recognition-jobs')&&r.request().method()==='POST');await page.getByRole('button',{name:'添加照片、视频或文件'}).click();const chooser=page.waitForEvent('filechooser');await page.getByRole('button',{name:'传照片',exact:true}).click();await(await chooser).setFiles({name:'合成收费单.png',mimeType:'image/png',buffer:bytes});return posted}
+async function upload(page:Page,bytes:Buffer){const posted=page.waitForResponse(r=>r.url().endsWith('/recognition-jobs')&&r.request().method()==='POST');const chooser=page.waitForEvent('filechooser');await page.getByRole('button',{name:'添加照片、视频或文件'}).click();await(await chooser).setFiles({name:'合成收费单.png',mimeType:'image/png',buffer:bytes});return posted}
 test.beforeEach(async({page,request})=>{
  const response=await request.post('/api/members',{headers,data:{name:'合成孩子',relationship:'child',birthday:'2024-01-01'}});expect(response.ok()).toBe(true);memberId=(await response.json()).id
  await request.post('/api/auth/current-member',{headers,data:{memberId}});await request.get(`${control}/success`);await request.get(`${control}/delay?ms=80`);await request.post(`${control}/draft-data`,{data:{items:null}})
@@ -41,7 +41,7 @@ test('rejected image cannot borrow an older task ACK; legacy pending image recov
  let uploads=0;page.on('request',r=>{if(r.method()==='POST'&&r.url().includes('/recognition-assets'))uploads++})
  const rejected=await upload(page,bytes);expect(rejected.status()).toBe(409)
  const rejectedInput=rejected.request().postDataJSON().input
- await expect(page.getByRole('button',{name:'重试这条消息',exact:true})).toBeVisible()
+ await expect(page.getByRole('button',{name:'重试',exact:true})).toBeVisible()
  await expect(page.getByRole('status',{name:'正在处理这条消息'})).toHaveCount(0)
  // Wait for the client recovery GET before changing interception. Disabling
  // Chromium interception while that GET starts can strand it in the harness.
@@ -58,11 +58,11 @@ test('rejected image cannot borrow an older task ACK; legacy pending image recov
   throw Error('Synthetic legacy draft not found')
  },{memberId,inputId:rejectedInput.id})
  const before=(await(await request.get(`${control}/status`)).json()).calls
- await page.reload();await expect(page.getByRole('button',{name:'重试这条消息',exact:true})).toBeVisible()
+ await page.reload();await expect(page.getByRole('button',{name:'重试',exact:true})).toBeVisible()
  await expect(page.getByRole('img',{name:'合成收费单.png',exact:true})).toBeVisible()
  expect((await(await request.get(`${control}/status`)).json()).calls).toBe(before)
  const posted=page.waitForResponse(r=>r.url().endsWith('/recognition-jobs')&&r.request().method()==='POST')
- await page.getByRole('button',{name:'重试这条消息',exact:true}).click();const retried=await posted;expect(retried.ok()).toBe(true)
+ await page.getByRole('button',{name:'重试',exact:true}).click();const retried=await posted;expect(retried.ok()).toBe(true)
  const body=retried.request().postDataJSON();expect(body.id).not.toBe(older.id);expect(body.input.id).toBe(rejectedInput.id);expect(body.input.assetIds).toEqual(rejectedInput.assetIds)
  expect(body.input.contextId).toBeUndefined();expect(body.input.answerTo).toBeUndefined();expect(uploads).toBe(1)
  const done=await settled(request,(await retried.json()).id)
@@ -139,9 +139,9 @@ test('lost image ACK recovers the exact accepted input without duplicate uploads
  let posts=0
  await page.route('**/recognition-jobs',async route=>{if(route.request().method()!=='POST')return route.continue();posts++;await route.fetch();await route.abort('failed')})
  const before=(await(await request.get(`${control}/status`)).json()).calls
- await page.getByRole('button',{name:'添加照片、视频或文件'}).click();const chooser=page.waitForEvent('filechooser');await page.getByRole('button',{name:'传照片',exact:true}).click();await(await chooser).setFiles({name:'合成收费单.png',mimeType:'image/png',buffer:bytes})
+ const chooser=page.waitForEvent('filechooser');await page.getByRole('button',{name:'添加照片、视频或文件'}).click();await(await chooser).setFiles({name:'合成收费单.png',mimeType:'image/png',buffer:bytes})
  await expect(page.getByRole('region',{name:'资料识别结果'})).toContainText('合成检查甲')
- await expect(page.getByRole('button',{name:'重试这条消息',exact:true})).toHaveCount(0)
+ await expect(page.getByRole('button',{name:'重试',exact:true})).toHaveCount(0)
  expect(posts).toBe(1);expect((await(await request.get(`${control}/status`)).json()).calls).toBe(before+1)
 })
 
@@ -154,9 +154,9 @@ test('an accepted image cancelled before ACK recovery stays cancelled and is nev
   const cancelled=await request.post(`${base}${memberId}/recognition-jobs/${job.id}/commands`,{headers,data:{id:'synthetic-cancel-before-recovery',type:'discard'}});expect(cancelled.ok()).toBe(true)
   await route.abort('failed')
  })
- await page.getByRole('button',{name:'添加照片、视频或文件'}).click();const chooser=page.waitForEvent('filechooser');await page.getByRole('button',{name:'传照片',exact:true}).click();await(await chooser).setFiles({name:'合成收费单.png',mimeType:'image/png',buffer:bytes})
+ const chooser=page.waitForEvent('filechooser');await page.getByRole('button',{name:'添加照片、视频或文件'}).click();await(await chooser).setFiles({name:'合成收费单.png',mimeType:'image/png',buffer:bytes})
  await expect(page.getByText('这条输入已取消，原件仍保留；请选择新的资料继续。',{exact:true})).toBeVisible()
- await expect(page.getByRole('button',{name:'重试这条消息',exact:true})).toBeDisabled()
+ await expect(page.getByRole('button',{name:'重试',exact:true})).toBeDisabled()
  expect(posts).toBe(1)
 })
 
@@ -190,7 +190,7 @@ test('a transcribed but cancelled voice stays cancelled and a new document can s
  await page.keyboard.up('Space')
  await expect(page.getByText('这条输入已取消，原件仍保留；请选择新的资料继续。',{exact:true})).toBeVisible()
  await expect(page.getByRole('status',{name:'正在转写和处理这段语音'})).toHaveCount(0)
- await expect(page.getByRole('button',{name:'重试这条消息',exact:true})).toBeDisabled()
+ await expect(page.getByRole('button',{name:'重试',exact:true})).toBeDisabled()
  await page.unroute('**/recognition-jobs',loseCancelledVoiceAck)
  const before=(await(await request.get(`${control}/status`)).json()).asrCalls
  const {bytes,attachmentId}=await photo();await fixture(request,text,attachmentId)

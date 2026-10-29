@@ -11,7 +11,7 @@ import { makeFeedbackState } from '../../features/feedback/navigation'
 import { AccountSheet } from '../account/AccountSheet'
 import { accountService } from '../../services/account'
 import { apiRequest } from '../../services/apiClient'
-import { retainedCaptureDrafts } from '../../features/ai-business/captureDraft'
+import { conversationCaptureDrafts } from '../../features/ai-business/captureDraft'
 import { compactIdentityAge, maskIdentityName, recordSubjectRelationship } from '../../utils/privateIdentity'
 import './side-drawer-layout.css'
 
@@ -72,7 +72,7 @@ export function SideDrawer({ onClose, onOpenChildSheet, open, cleanChrome = true
     const key = 'home-smart:' + accountId + ':' + member.id + ':new'
     void Promise.allSettled([
       apiRequest<ServerHistory>('/api/members/' + encodeURIComponent(member.id) + '/front-desk-record/history', { token: authToken, signal: controller.signal }),
-      retainedCaptureDrafts(key)
+      conversationCaptureDrafts(key)
     ]).then(([server, retained]) => {
       if (!active || controller.signal.aborted) return
       const saved = server.status === 'fulfilled' ? server.value.items : []
@@ -80,8 +80,12 @@ export function SideDrawer({ onClose, onOpenChildSheet, open, cleanChrome = true
       if (retained.status === 'fulfilled') for (const item of retained.value) {
         const draft = item.draft
         if (draft.frontContextId && saved.some(row => row.id === draft.frontContextId) && !draft.conversationInput?.trim() && !draft.pendingVoice) continue
-        const title = draft.conversationInput || draft.text || draft.conversationTurns?.find(turn => turn.role !== 'assistant' && turn.text)?.text || (draft.files.length ? '照片与资料草稿' : '')
-        if (title) rows.push({ id: item.key, title: title.replace(/\s+/g, ' ').slice(0, 80), updatedAt: new Date(draft.updatedAt ?? 0).toISOString(), destination: '/conversation-history?draft=' + encodeURIComponent(item.key) })
+        const title = draft.conversationInput || draft.text || draft.conversationTurns?.find(turn => turn.role !== 'assistant' && turn.text)?.text || (draft.pendingVoice ? '语音记录' : draft.files.length ? '照片与资料草稿' : '')
+        if (title) {
+          const duplicate = item.key===key ? rows.findIndex(row=>row.id===draft.frontContextId) : -1
+          if(duplicate>=0)rows.splice(duplicate,1)
+          rows.push({ id: item.key, title: title.replace(/\s+/g, ' ').slice(0, 80), updatedAt: new Date(draft.updatedAt ?? 0).toISOString(), destination: '/conversation-history?draft=' + encodeURIComponent(item.key) })
+        }
       }
       rows.sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt))
       setHistory({ identity, rows, loading: false, error: server.status === 'rejected' })
@@ -89,7 +93,6 @@ export function SideDrawer({ onClose, onOpenChildSheet, open, cleanChrome = true
     return () => { active = false; controller.abort() }
   }, [accountId, authToken, identity, member.id, members.length, open, reload])
   const openHistory = (destination: string) => {
-    if (conversationDisabled) return
     onClose()
     if (onHistoryNavigate) onHistoryNavigate(destination)
     else navigate(destination)
@@ -128,9 +131,9 @@ export function SideDrawer({ onClose, onOpenChildSheet, open, cleanChrome = true
           {!ownHistory.loading && !ownHistory.error && !ownHistory.rows.length && <p className="drawer-history-notice">还没有对话记录</p>}
           {(['今天', '昨天', '更早'] as const).map(group => {
             const rows = ownHistory.rows.filter(row => historyGroup(row.updatedAt) === group)
-            return rows.length ? <section className="drawer-history-group" key={group} aria-label={group}><h3>{group}</h3>{rows.map(row => <button type="button" key={row.id} disabled={conversationDisabled} onClick={() => openHistory(row.destination)}><FileText size={18} aria-hidden="true" /><span>{row.title}</span><ChevronRight size={16} aria-hidden="true" /></button>)}</section> : null
+            return rows.length ? <section className="drawer-history-group" key={group} aria-label={group}><h3>{group}</h3>{rows.map(row => <button type="button" key={row.id} onClick={() => openHistory(row.destination)}><FileText size={18} aria-hidden="true" /><span>{row.title}</span><ChevronRight size={16} aria-hidden="true" /></button>)}</section> : null
           })}
-          {!ownHistory.loading && (ownHistory.rows.length > 0 || ownHistory.error) && <button type="button" className="drawer-history-all" disabled={conversationDisabled} onClick={() => openHistory('/conversation-history')}>查看全部对话<ChevronRight size={16} aria-hidden="true" /></button>}
+          {!ownHistory.loading && (ownHistory.rows.length > 0 || ownHistory.error) && <button type="button" className="drawer-history-all" onClick={() => openHistory('/conversation-history')}>查看全部对话<ChevronRight size={16} aria-hidden="true" /></button>}
         </nav>
         <footer className="drawer-utilities" aria-label="帮助与信息">{utilityLinks.map(({ label, icon: Icon, to }) => <button key={to} type="button" onClick={() => openUtility(to)}><Icon size={22} strokeWidth={1.7} aria-hidden="true" /><span>{label}</span></button>)}</footer>
       </aside>

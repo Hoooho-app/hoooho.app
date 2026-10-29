@@ -28,7 +28,7 @@ test.beforeEach(async({page,request})=>{
 })
 
 // Current home conversation/card/follow-up contracts are exercised by tests/front-desk-continuous.
-test('record entries preserve an existing conversation without exit prompts and external pages still guard drafts',async({page,request})=>{
+test('home navigation and record entries retain the conversation without exit prompts',async({page,request})=>{
  await typeText(page,'昨天脸颊有点红')
  await page.getByRole('button',{name:'发送',exact:true}).click()
  await waitForNurseReply(page)
@@ -44,8 +44,7 @@ test('record entries preserve an existing conversation without exit prompts and 
  await expect(page.getByLabel('对话输入')).toHaveValue('这句补充还没有发送')
  expect((await(await request.get(`/api/members/${memberId}/front-desk-record`,{headers})).json()).id).toBe(context.id)
  await page.getByRole('button',{name:'快速查找',exact:true}).click()
- await expect(page.getByRole('dialog',{name:'退出智能记录',exact:true})).toBeVisible()
- await page.getByRole('button',{name:'保存草稿并退出',exact:true}).click()
+ await expect(page.getByRole('dialog',{name:'退出智能记录',exact:true})).toHaveCount(0)
  await expect(page).toHaveURL(/quick-search/)
  await page.goto('/nurse-station')
  await expect(page.getByLabel('对话输入')).toHaveValue('这句补充还没有发送')
@@ -93,12 +92,11 @@ test('new conversation survives reload and exposes submitted originals and unsen
  expect(await page.evaluate(()=>(window as any).__speechCalls)).toBe(0)
 })
 
-test('leaving with unsent input keeps the existing draft guard and restores the input',async({page})=>{
+test('leaving with unsent input switches directly and restores the input',async({page})=>{
  await typeText(page,'尚未提交的观察，先查一下资料')
  await page.getByRole('button',{name:'快速查找',exact:true}).click()
  const dialog=page.getByRole('dialog',{name:'退出智能记录'})
- await expect(dialog).toBeVisible()
- await dialog.getByRole('button',{name:'保存草稿并退出',exact:true}).click()
+ await expect(dialog).toHaveCount(0)
  await expect(page).toHaveURL(/quick-search/)
  await page.goBack()
  await expect(page.getByLabel('对话输入')).toHaveValue('尚未提交的观察，先查一下资料')
@@ -111,11 +109,11 @@ test('failed recording survives refresh, retries and remains readable after a ne
  await hold.focus();await page.keyboard.down('Space')
  await expect(page.getByRole('button',{name:'正在录音，松开即结束',exact:true})).toBeVisible()
  await page.waitForTimeout(650);await page.keyboard.up('Space')
- await expect(page.getByRole('button',{name:/^重试$|^重试未完成的转写$/})).toBeVisible()
+ await expect(page.locator('.front-desk-failed-actions').getByRole('button',{name:'重试',exact:true})).toBeVisible()
  await page.reload()
- await expect(page.getByRole('button',{name:/^重试$|^重试未完成的转写$/})).toBeVisible()
+ await expect(page.locator('.front-desk-failed-actions').getByRole('button',{name:'重试',exact:true})).toBeVisible()
  await request.get('http://127.0.0.1:4198/success')
- await page.getByRole('button',{name:/^重试$|^重试未完成的转写$/}).click()
+ await page.locator('.front-desk-failed-actions').getByRole('button',{name:'重试',exact:true}).click()
  await finishNursingQuestions(page)
  await expect(page.getByRole('region',{name:'当前记录单'}).getByRole('status',{name:'记录已保存'})).toBeVisible()
  await startNew(page)
@@ -139,7 +137,6 @@ test('camera retains the original image upload and feeding label opens its origi
  const png=await sharp({create:{width:96,height:96,channels:3,background:'#eeccaa'}}).png().toBuffer()
  const chooser=page.waitForEvent('filechooser')
  await page.getByRole('button',{name:'添加照片、视频或文件',exact:true}).click()
- await page.getByRole('button',{name:'传照片',exact:true}).click()
  await(await chooser).setFiles({name:'合成观察.png',mimeType:'image/png',buffer:png})
  await finishNursingQuestions(page)
  const card=page.getByRole('region',{name:'当前记录单'}),recognition=card.getByRole('region',{name:'资料识别结果'})
@@ -214,16 +211,14 @@ test('compact sidebar and clean light canvas carry through the shared health pag
  }
 })
 
-test('one camera exposes four native sources and a blank PDF retains its original without a false candidate',async({page,request})=>{
+test('one camera directly opens the system chooser and a blank PDF retains its original without a false candidate',async({page,request})=>{
+ const picker=page.waitForEvent('filechooser')
  await page.getByRole('button',{name:'添加照片、视频或文件',exact:true}).click()
- const sheet=page.getByRole('dialog',{name:'添加附件',exact:true})
- for(const name of ['传照片','拍照片','拍视频','选择文件'])await expect(sheet.getByRole('button',{name,exact:true})).toBeVisible()
- const capture=page.waitForEvent('filechooser');await sheet.getByRole('button',{name:'拍视频',exact:true}).click()
- const video=await capture;expect(await video.element().getAttribute('capture')).toBe('environment');expect(await video.element().getAttribute('accept')).toContain('video/mp4')
- await page.getByRole('button',{name:'添加照片、视频或文件',exact:true}).click()
- const picker=page.waitForEvent('filechooser');await page.getByRole('button',{name:'选择文件',exact:true}).click()
+ await expect(page.getByRole('dialog',{name:'添加附件',exact:true})).toHaveCount(0)
+ const chosen=await picker
+ expect(await chosen.element().getAttribute('accept')).toContain('video/mp4')
  const pdf=await PDFDocument.create();pdf.addPage([120,180])
- await(await picker).setFiles({name:'虚构就诊原件.pdf',mimeType:'application/pdf',buffer:Buffer.from(await pdf.save())})
+ await chosen.setFiles({name:'虚构就诊原件.pdf',mimeType:'application/pdf',buffer:Buffer.from(await pdf.save())})
  const original=page.getByRole('group',{name:'PDF原件：虚构就诊原件.pdf',exact:true})
  await expect(original.getByRole('link',{name:'查看原件',exact:true})).toHaveAttribute('href',/^blob:/)
  // This PDF has an actually blank page. Retention is not successful clinical
@@ -248,8 +243,7 @@ test('video uploads and saves its real original without replacing the current co
  const temp=mkdtempSync(path.join(tmpdir(),'hoho-video-home-')),videoPath=path.join(temp,'synthetic.mp4')
  try{
   execFileSync(ffmpeg.path,['-loglevel','error','-f','lavfi','-i','color=c=red:s=160x120:r=10','-t','1','-c:v','libx264','-pix_fmt','yuv420p',videoPath])
-  await page.getByRole('button',{name:'添加照片、视频或文件',exact:true}).click()
-  const picker=page.waitForEvent('filechooser');await page.getByRole('button',{name:'拍视频',exact:true}).click()
+  const picker=page.waitForEvent('filechooser');await page.getByRole('button',{name:'添加照片、视频或文件',exact:true}).click()
   await(await picker).setFiles({name:'虚构视频.mp4',mimeType:'video/mp4',buffer:readFileSync(videoPath)})
   const recorder=page.getByRole('dialog',{name:'核对视频记录',exact:true})
   await expect(recorder).toBeVisible()
@@ -288,8 +282,7 @@ test('video uploads and saves its real original without replacing the current co
 
 test('failed video keeps its original across refresh and cannot save before attachment recovery',async({page})=>{
  await page.route('**/api/quick-records/*/media',route=>route.abort('failed'))
- await page.getByRole('button',{name:'添加照片、视频或文件',exact:true}).click()
- const picker=page.waitForEvent('filechooser');await page.getByRole('button',{name:'拍视频',exact:true}).click()
+ const picker=page.waitForEvent('filechooser');await page.getByRole('button',{name:'添加照片、视频或文件',exact:true}).click()
  await(await picker).setFiles({name:'保留失败原件.mp4',mimeType:'video/mp4',buffer:Buffer.from('synthetic upload interrupted')})
  const recorder=page.getByRole('dialog',{name:'核对视频记录',exact:true})
  await expect(recorder.getByRole('button',{name:'重试上传 保留失败原件.mp4',exact:true})).toBeVisible()

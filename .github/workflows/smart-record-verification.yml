@@ -67,6 +67,8 @@ jobs:
         run: npx playwright test --config tests/visit-sheet/presentation.config.ts
       - name: Verify private identities, four-tab navigation and draft continuity
         run: npx playwright test --config tests/frontdesk-navigation/playwright.config.ts
+      - name: Verify automatic home retention and direct system attachment entry
+        run: npx playwright test --config tests/frontdesk-input/playwright.config.ts
       - name: Verify review-only calendar and expanded month grid
         run: npx playwright test --config tests/calendar-review-only/playwright.config.ts
       - run: npx playwright test --config tests/conversation-home/pure-record.config.ts
@@ -94,6 +96,7 @@ jobs:
           retention-days: 7
           path: |
             outputs/symptom-followup/
+            outputs/frontdesk-input/
             outputs/calendar-review-only/
             outputs/visit-paper/
             test-results/
