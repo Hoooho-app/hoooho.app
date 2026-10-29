@@ -34,7 +34,8 @@ test('account dominates the child selector with both avatars, private names and 
   await menu(page)
   await expect(drawer(page).locator('.drawer-account-avatar')).toHaveText('磊')
   await expect(drawer(page).locator('.drawer-account')).toContainText('*磊')
-  await expect(drawer(page).locator('.drawer-account')).toContainText('我的账户 · 记录者')
+  await expect(drawer(page).locator('.drawer-account-copy>span')).toHaveText('记录者')
+  await expect(drawer(page).locator('.drawer-account-action')).toHaveText('我的')
   await expect(drawer(page).locator('.drawer-subject')).toContainText('刘*一')
   await expect(drawer(page).locator('.drawer-subject')).toContainText('女儿 · 2岁')
   await expect(drawer(page).locator('.drawer-subject img')).toBeVisible()
@@ -46,9 +47,24 @@ test('account dominates the child selector with both avatars, private names and 
       const rect = (selector: string) => root.querySelector(selector)!.getBoundingClientRect()
       const font = (selector: string) => parseFloat(getComputedStyle(root.querySelector(selector)!).fontSize)
       return { accountAvatar: rect('.drawer-account-avatar').width, childAvatar: rect('.drawer-subject>:first-child').width,
+        glyphX: rect('.drawer-account-avatar__glyph').x + rect('.drawer-account-avatar__glyph').width / 2,
+        glyphY: rect('.drawer-account-avatar__glyph').y + rect('.drawer-account-avatar__glyph').height / 2,
+        circleX: rect('.drawer-account-avatar').x + rect('.drawer-account-avatar').width / 2,
+        circleY: rect('.drawer-account-avatar').y + rect('.drawer-account-avatar').height / 2,
+        nameBottom: rect('.drawer-account-copy strong').bottom, roleTop: rect('.drawer-account-copy>span').top,
+        nameX: rect('.drawer-account-copy strong').x, roleX: rect('.drawer-account-copy>span').x,
+        actionX: rect('.drawer-account-action').x, nameRight: rect('.drawer-account-copy').right,
+        glyphLineHeight: getComputedStyle(root.querySelector('.drawer-account-avatar__glyph')!).lineHeight,
+        glyphFontSize: getComputedStyle(root.querySelector('.drawer-account-avatar__glyph')!).fontSize,
         accountFont: font('.drawer-account strong'), childFont: font('.drawer-subject strong'), accountHeight: rect('.drawer-account').height,
         childHeight: rect('.drawer-subject').height, fits: Array.from(root.querySelectorAll('.hoho-drawer,.drawer-identities,.drawer-subject,.drawer-subject-detail')).every(node => node.scrollWidth <= node.clientWidth) }
     })
+    expect(Math.abs(sizes.glyphX - sizes.circleX)).toBeLessThanOrEqual(0.5)
+    expect(Math.abs(sizes.glyphY - sizes.circleY)).toBeLessThanOrEqual(0.5)
+    expect(sizes.glyphLineHeight).toBe(sizes.glyphFontSize)
+    expect(sizes.roleTop).toBeGreaterThanOrEqual(sizes.nameBottom)
+    expect(sizes.roleX).toBe(sizes.nameX)
+    expect(sizes.actionX).toBeGreaterThanOrEqual(sizes.nameRight)
     expect(sizes.accountAvatar).toBeGreaterThan(sizes.childAvatar)
     expect(sizes.accountFont).toBeGreaterThan(sizes.childFont)
     expect(sizes.accountHeight).toBeGreaterThan(sizes.childHeight)
