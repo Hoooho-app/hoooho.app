@@ -53,6 +53,8 @@
   --hoho-color-text-weak: 101 112 104;
   --hoho-color-success: 42 120 82;
   --hoho-color-warning: 166 105 34;
+  /* Owner-requested brighter yellow for conversation uncertainty only. */
+  --hoho-color-conversation-pending: 235 176 0;
   /* Food facts are distinct from personal uncertainty; no global warning change. */
   --hoho-color-food-common-surface: 255 239 222;
   --hoho-color-food-possible-surface: 255 248 203;

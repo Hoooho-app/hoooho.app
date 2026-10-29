@@ -99,6 +99,8 @@ test('previewing tutorials and withdrawn links never creates records or exposes 
     await expect(page.getByText('这篇旧说明已更新，请从当前教程查找操作方法。', { exact: true })).toBeVisible()
     await expect(page.getByRole('link', { name: /正在跟进|看护交接|任务/ })).toHaveCount(0)
   }
+  await page.goto('/help?tab=manual&manual=symptom')
+  await expect(page.getByRole('button', { name: '跟着记一条', exact: true })).toBeVisible()
   expect(writes).toBe(0)
 })
 

@@ -14,12 +14,13 @@ body .hoho-drawer.hoho-drawer--history{display:flex;flex-direction:column;width:
 .drawer-history-end{height:1px}
 .drawer-history-group h3{margin:var(--hoho-space-2) 0 var(--hoho-space-1);font-size:var(--hoho-font-size-caption);font-weight:400;color:rgb(var(--hoho-color-text-secondary))}
 .drawer-history-row{display:flex;align-items:center;min-width:0}
-.drawer-history-open{display:flex;align-items:center;gap:var(--hoho-space-1);min-width:0;flex:1;min-height:44px;padding:var(--hoho-space-2) var(--hoho-space-1);border:0;border-radius:var(--hoho-radius-small);background:transparent;text-align:left;font-size:var(--hoho-font-size-body-small);color:rgb(var(--hoho-color-success))}
+.drawer-history-open{display:flex;align-items:center;gap:var(--hoho-space-1);min-width:0;flex:1;min-height:44px;padding:var(--hoho-space-2) var(--hoho-space-1);border:0;border-radius:var(--hoho-radius-small);background:transparent;text-align:left;font-size:var(--hoho-font-size-body-small);color:rgb(var(--hoho-color-text-primary))}
 .drawer-history-open:hover,.drawer-history-delete:hover{background:rgb(var(--hoho-color-primary-soft))}
 .drawer-history-title{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.drawer-history-pending{flex:none;color:rgb(var(--hoho-color-warning));font-size:var(--hoho-font-size-caption);white-space:nowrap}
+.drawer-history-pending{flex:none;color:rgb(var(--hoho-color-conversation-pending));font-size:var(--hoho-font-size-caption);white-space:nowrap}
+.drawer-history-recorded{flex:none;padding:0 var(--hoho-space-1);font-size:var(--hoho-font-size-caption);white-space:nowrap}
 .drawer-history-open>svg{flex:none}
-.drawer-history-delete{display:grid;place-items:center;flex:0 0 44px;min-height:44px;padding:0;border:0;border-radius:var(--hoho-radius-small);background:transparent;color:rgb(var(--hoho-color-text-secondary))}
+.drawer-history-delete{display:grid;place-items:center;flex:0 0 44px;min-height:44px;padding:0;border:0;border-radius:var(--hoho-radius-small);background:transparent;color:rgb(var(--hoho-color-text-primary))}
 .drawer-history-delete:disabled{opacity:.45}
 .drawer-delete-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--hoho-space-3)}
 .drawer-delete-error{color:rgb(var(--hoho-color-error));margin-top:var(--hoho-space-2)}

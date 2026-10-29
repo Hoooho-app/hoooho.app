@@ -1,4 +1,4 @@
-import { BookOpen, MessageSquare, Moon, NotebookPen } from '../../components/icons'
+import { BookOpen, MessageSquare, Moon, SymptomIcon } from '../../components/icons'
 import { useEffect, useLayoutEffect, useRef } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { WebPageHeader } from '../../components/common'
@@ -26,7 +26,8 @@ export function HelpCenterPage() {
   const rawTab = params.get('tab')
   const tab: Tab = rawTab === 'product' || rawTab === 'manual' ? 'product' : rawTab === 'faq' ? 'faq' : 'tutorials'
   const legacyManual = USER_MANUAL.find(item => item.id === params.get('manual'))
-  const articleId = params.get('article') ?? legacyManual?.articleId ?? ''
+  const legacyArticles: Record<string, string> = { family: 'add', profile: 'profile', growth: 'growth', symptom: 'symptom', daily: 'daily', allergy: 'allergy', summary: 'summary' }
+  const articleId = params.get('article') ?? legacyManual?.articleId ?? legacyArticles[params.get('manual') ?? ''] ?? ''
   const article = getArticle(articleId)
   const module = HELP_MODULES.find(item => item.id === params.get('module'))
   const chat = params.get('view') === 'chat'
@@ -94,8 +95,8 @@ export function HelpCenterPage() {
       </article> : module ? <HohoSection title={module.label} description={module.description}>{rows(module.articleIds)}</HohoSection> : nested ? <HohoSection title="看看当前可以怎么用"><p className="hoho-text-body">这篇旧说明已更新，请从当前教程查找操作方法。</p><HohoButton onClick={home}>查看当前教程</HohoButton></HohoSection> : query.trim() ? <HohoSection title={'搜索结果 · ' + results.length + ' 篇'}>{rows(results.map(result => result.article.id))}{!results.length && <p className="hoho-text-body">暂时没有找到相关内容。试试“手动记录”“睡眠”或“导出”，也可以问使用助手。</p>}<HohoButton variant="text" onClick={() => update(tab === 'tutorials' ? {} : { tab }, true)}>清空搜索</HohoButton></HohoSection> : tab === 'tutorials' ? <>
         <HohoSection title="先记下一件小事" description="手动填写就能记，不必每次拍照，也不必每次说话。">
           <div className="help-first-lessons">
-            {[['symptom', NotebookPen, '手动记一件发生的事', '填情况、核对时间，保存后再找到它'], ['sleep', Moon, '记一次睡眠', '记下入睡与醒来，跨夜也能补记']].map(([id, Icon, title, description]) => {
-              const Leading = Icon as typeof NotebookPen
+            {[['symptom', SymptomIcon, '手动记一件发生的事', '填情况、核对时间，保存后再找到它'], ['sleep', Moon, '记一次睡眠', '记下入睡与醒来，跨夜也能补记']].map(([id, Icon, title, description]) => {
+              const Leading = Icon as typeof SymptomIcon
               return <HohoSurfaceRow className="help-center-row" key={id as string} leading={<Leading size={24}/>} title={title as string} description={description as string} onActivate={() => openArticle(id as string)}/>
             })}
           </div>

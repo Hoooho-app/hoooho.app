@@ -52,3 +52,13 @@ test('deletion enforces account/member ownership and leaves a busy conversation 
  assert.deepEqual(await f.front.store.read(),before)
  f.front.inFlight.clear();assert.equal((await f.front.deleteConversation('owner',f.member.id,'root')).deleted,true)
 })
+
+test('history recorded status requires a real saved record and disappears when that record is removed',async t=>{
+ const f=await fixture(t)
+ assert.equal((await f.front.history('owner',f.member.id)).items[0].recorded,false)
+ await f.front.saveOriginal('owner',f.member.id,'root',{confirmed:true,expectedContextVersion:1})
+ assert.equal((await f.front.history('owner',f.member.id)).items[0].recorded,true)
+ const [record]=await f.business.records.repository.findByAccountId('owner')
+ await f.business.records.repository.delete(record.id)
+ assert.equal((await f.front.history('owner',f.member.id)).items[0].recorded,false)
+})
