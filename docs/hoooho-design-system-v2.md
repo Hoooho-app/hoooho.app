@@ -120,3 +120,7 @@ Original photo previews opened from an existing record, reminder or upload works
 睡眠统一 `bedtime`，醒来 `sunny`，就诊 `stethoscope`，检查 `lab_research`，关注 `favorite`。身体部位的入口统一人形 `person` 与准确部位标签，精确位置仍由原人体图表达。Apple 登录与绑定共用真实品牌轮廓，微信和 QQ 为单独品牌资产，不制造品牌的空心／实心变体。
 
 食物小图与导出采用同库准确母版：苹果 `nutrition`、牛奶 `local_drink`、鸡蛋 `egg`。缺少准确图形的13种食物只展示完整名称，不借其他食物代替。此段替代早期图片食物图标及自绘功能图标的约定，其他页面结构、数据和业务保持既有边界。任务与验证见 [全局图标替换契约](design/global-material-icons-v3-20261029.md)。
+
+### 侧栏对话状态色（2026-10-30）
+
+对话标题及图标采用正文主色；真实已保存状态复用 `HealthTag tone="success"` 的“已记录”标签。对话不确定性专用 `--hoho-color-conversation-pending` 明亮橘黄色，覆盖侧栏原棕色观感；其他模块 warning 语义色不变。

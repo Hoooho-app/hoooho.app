@@ -127,7 +127,7 @@ test('sidebar history reads a real local synthetic conversation and new conversa
   drawer = page.getByRole('dialog', { name: '侧边栏菜单' })
   await expect(drawer.locator('.drawer-history-group button').first()).toBeVisible()
   await drawer.locator('.drawer-history-group button').first().click()
-  await expect(page).toHaveURL(/\/conversation-history\//)
+  await expect(page).toHaveURL(/\/nurse-station\?conversation=/)
   await expect(page.locator('.nurse-turn--user').first()).toContainText(text)
 })
 

@@ -144,6 +144,7 @@ export class FrontDeskRecord {
     const member = await this.scope(accountId, memberId)
     if (!Number.isSafeInteger(offset) || offset < 0 || offset > 100000 || typeof query !== 'string' || query.length > 100) throw fail('对话查询条件无效', 422, 'FRONT_HISTORY_INVALID')
     const data = await this.store.read(), term = query.trim().toLocaleLowerCase()
+    const savedRecords=this.business.records?.repository?await this.business.records.repository.findByAccountId(accountId):[]
     await this.scope(accountId, memberId)
     // One history row per conversation, even after several formal saves.
     const groups=new Map()
@@ -163,7 +164,8 @@ export class FrontDeskRecord {
       const retracted=active.facts?.length&&!active.facts.some(f=>f.status==='active')
       const label=conversationTitle({recordText,texts:retracted?[]:currentMessages.filter(m=>m.kind!=='assistant').map(m=>m.text),fallback:retracted?'内容已撤回':first.kind==='image'?'图片与资料':first.kind==='voice'&&!first.text?'语音记录':'对话记录',excludeNames:[member.name]})
       if(term&&!label.title.toLocaleLowerCase().includes(term)&&!messages.some(m=>(m.text??'').toLocaleLowerCase().includes(term)||(m.files??[]).some(f=>f.name.toLocaleLowerCase().includes(term))))return null
-      return {id:root,contextIds:[...ids],updatedAt:contexts.reduce((last,c)=>c.updatedAt>last?c.updatedAt:last,''),...label,preview:(messages.at(-1)?.text??'').slice(0,160),saved:Boolean(active?.saved||active?.currentRecord),closed:Boolean(active?.closedAt),messageCount:messages.length}
+      const recorded=contexts.some(context=>[...(context.saved?context.recordResult?.records??[]:[]),...(context.currentRecord?[context.currentRecord]:[])].some(ref=>savedRecords.some(record=>record.id===ref.recordId&&record.eventId===ref.eventId)))
+      return {recorded,id:root,contextIds:[...ids],updatedAt:contexts.reduce((last,c)=>c.updatedAt>last?c.updatedAt:last,''),...label,preview:(messages.at(-1)?.text??'').slice(0,160),saved:Boolean(active?.saved||active?.currentRecord),closed:Boolean(active?.closedAt),messageCount:messages.length}
     }).filter(Boolean).sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt)||b.id.localeCompare(a.id))
     const limit = 30
     return { items: items.slice(offset, offset + limit), hasMore: items.length > offset + limit, nextOffset: offset + limit, deletedContextIds:data.contexts.filter(c=>c.accountId===accountId&&c.memberId===memberId&&c.conversationDeletedAt).map(c=>c.id) }
