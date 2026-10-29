@@ -33,3 +33,14 @@
 - 集成复测曾因共享测试服务器退出产生 `ERR_CONNECTION_REFUSED`；改用本测试独立端口4397与独立临时数据，重新复测4项全部通过，没有降低产品断言。
 - GitHub 推送两次被自动审批拒绝：首次称外部仓库目的地/公开发布授权未确认；核对现有公开仓库及既有背景修复授权后，第二次仍拒绝本轮推送。未改用其他工具绕过，未创建PR、未合入main、未触发本轮Production或TestFlight发布。
 - 当前交付状态：本地实现与网页验证完成；发布 BLOCKED。Swift/Xcode/iPhone模拟器检查尚未执行，需推送获准后由原生CI验证；新iPhone包未上传、实体手机未验收。不将本地修复称为已上线。
+
+## 授权后发布回执（2026-10-30，Asia/Shanghai）
+
+负责人明确回复「允许」后继续发布，并要求「插队更新」。以下进展取代上节获准前的 BLOCKED 状态。
+
+- 修复已由 PR #595 合入 main，提交 `4e7204e30e63ece2988ae9bcd60d2892d5e1fe94`。Railway Production 部署 `0ea5c18b-3169-49c0-bf16-4f34fb429bb0` 为 SUCCESS，单实例在线、数据卷保留。线上首页、健康日历、孩子档案以及一键整理弹层开关的边缘颜色/主题同步已核对；未写入健康测试数据。
+- 本轮安装包锁定 main 当时提交 `4d8f654d129f9b7779d0b08b8bfefa83709062eb`，包含上述修复。持续发生的网页/文档提交不改变这次安装包源码。原生检查使用同一 SHA 的固定分支 `codex/testflight-edge-release-20261030`，没有改变发布门禁。
+- 精确源码原生 CI：[run 40964923569](https://github.com/Hoooho-app/hoooho.app/actions/runs/40964923569) SUCCESS。iOS 18.5 / iPhone 16 Pro 与 iOS 26.2 / iPhone 16 Plus 各通过 14 项单元、3 项 UI 测试；当前系统设备 archive 成功。包含安全区边缘像素和网页底部铺满检查；不代表实体 iPhone 验收。
+- 上传：[run 40964607765](https://github.com/Hoooho-app/hoooho.app/actions/runs/40964607765)，attempt 2，job `123771401491`。首次尝试按既有精确源码原生门禁停止，检查通过后重试同一运行，门禁、Apple 账号及现有签名检查均通过。没有绕过门禁，也未重复上传已接受的构建。
+- App Store Connect 已显示 `0.1.0 (1.8.2)`，上传时间为 06:34，当前状态 **Processing**。上传成功和 Apple 处理完成分开记录；目前不能宣称 TestFlight 可安装。
+- 后续待同一构建完成 Apple 处理后：补齐 What to Test、按实际实现完成合规信息、加入既有「护护首轮内测」并核对 Testing。沿用既有测试者，不新增邀请、不提交 App Store 正式审核。实体设备安装和上下背景体验仍待本人验收。
