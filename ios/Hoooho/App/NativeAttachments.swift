@@ -102,7 +102,11 @@ final class NativeAttachments: NSObject, PHPickerViewControllerDelegate, UIImage
     private func show(_ controller: UIViewController) {
         guard let owner, owner.view.window != nil, owner.presentedViewController == nil else { finish(error: "系统选择器暂不可用，请重试"); return }
         controller.popoverPresentationController?.delegate = self
-        owner.present(controller, animated: true) { controller.presentationController?.delegate = self }
+        owner.present(controller, animated: true) {
+            // iOS 18 reserves UIAlertController's private presentation delegate.
+            // Its cancel action/popover delegate already owns menu dismissal.
+            if !(controller is UIAlertController) { controller.presentationController?.delegate = self }
+        }
     }
 
     private func library() {
