@@ -1,4 +1,4 @@
-import { MaterialIcon, type IconProps, type MaterialIconName } from '../../components/icons'
+import { MaterialIcon, SYMPTOM_ICON_NAME, type IconProps, type MaterialIconName } from '../../components/icons'
 import type { DietRecordKind } from '../../types/journal'
 import type { JournalCategory } from './timeViewModel'
 
@@ -14,7 +14,7 @@ export function JournalDietIcon({ kind, ...props }: IconProps & { kind?: DietRec
 }
 const icons: Partial<Record<JournalCategory, MaterialIconName>> = {
   sleep: 'bedtime', elimination: 'gastroenterology', activity: 'person', emotion: 'sentiment_satisfied', social: 'group',
-  symptom: 'add_box', measurement: 'thermometer', growth: 'child_care', injury: 'healing', medication: 'pill',
+  symptom: SYMPTOM_ICON_NAME, measurement: 'thermometer', growth: 'child_care', injury: 'healing', medication: 'pill',
   care: 'volunteer_activism', vaccination: 'syringe', environment: 'eco', visit: 'stethoscope', examination: 'lab_research', other: 'pending'
 }
 export function JournalCategoryIcon({ category, dietKind, ...props }: IconProps & { category: JournalCategory; dietKind?: DietRecordKind }) {

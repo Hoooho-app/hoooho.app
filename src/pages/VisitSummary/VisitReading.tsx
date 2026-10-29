@@ -1,7 +1,7 @@
 import {
   ChevronDown,
   CircleHelp,
-  Cross,
+  SymptomIcon,
   Folder,
   History,
   Pencil,
@@ -141,7 +141,7 @@ export function VisitReading({
       {card(
         "overview",
         "目前情况",
-        <Cross size={19} />,
+        <SymptomIcon size={19} />,
         "current",
         "",
         <CurrentSituation key={`${report.memberId}:${report.currentSituation?.scopeKey ?? report.photoKey}`} report={report} token={token} busy={busy} onEdit={onEdit} onChoose={onChoose} onMedia={onMedia} organizing={organizing} organizationError={organizationError} onOrganize={onOrganize}/>,

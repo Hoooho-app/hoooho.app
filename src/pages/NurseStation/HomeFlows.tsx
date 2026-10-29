@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { OrganizeSheet } from '../../features/organize/OrganizeSheet'
 import { useNavigate } from 'react-router-dom'
-import { ArrowUpRight, NotebookText, Stethoscope } from '../../components/icons'
+import { ArrowUpRight, NotebookText, SymptomIcon } from '../../components/icons'
 import { HealthCard, HohoButton, Typography } from '../../components/design-system'
 import { useCases } from '../../features/case-continuity/useCases'
 import { useAppStore } from '../../store/useAppStore'
@@ -23,7 +23,7 @@ export function HomeFlows({ nurseVisual }: { nurseVisual: ReactNode }) {
       <HealthCard className="home-flow-card home-symptom-followup" role="region" aria-label="症状事件">
         <span className="home-paper-fold" aria-hidden="true" />
         <header>
-          <div className="home-followup-heading"><Stethoscope size={18} strokeWidth={1.8} aria-hidden="true" /><Typography variant="sectionTitle">症状事件</Typography></div>
+          <div className="home-followup-heading"><SymptomIcon size={18} strokeWidth={1.8} aria-hidden="true" /><Typography variant="sectionTitle">症状事件</Typography></div>
           <Typography variant="caption" className="home-followup-count">{symptoms.length} 项</Typography>
         </header>
         {symptoms.length ? <ul className="home-event-descriptions" aria-label="症状简述">{symptoms.slice(0, 1).map(item => { const preview = symptomPreview(item, data?.timezone); return <li key={item.event.id}><span className="home-symptom-title">{item.followup.title}</span>{preview.description && <p className="home-symptom-description">{preview.description}</p>}{preview.latest && <div className="home-symptom-meta"><span>最近记录：<time dateTime={item.followup.latestOccurredAt!}>{preview.latest}</time></span></div>}</li> })}</ul> : <Typography variant="caption">暂无跟进症状</Typography>}

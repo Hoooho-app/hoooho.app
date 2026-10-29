@@ -1900,6 +1900,18 @@
       "fill": 1,
       "file": "add_comment-fill.svg",
       "sha256": "c9bfd4e7f90271c0530e51b6e90f7b0421bd5010bb0860330412758bdbe166bf"
+    },
+    {
+      "name": "health_cross",
+      "fill": 0,
+      "file": "health_cross.svg",
+      "sha256": "e5b200113321f4264446b098a6ddc3e4a023087a043e763931d2ac09eb65e947"
+    },
+    {
+      "name": "health_cross",
+      "fill": 1,
+      "file": "health_cross-fill.svg",
+      "sha256": "059f0362fd9e3884f4c7d47f01765feb0075db0f44d6565d6ce940102266b6f1"
     }
   ]
 }
