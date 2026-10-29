@@ -23,6 +23,14 @@ async function send(page:import('@playwright/test').Page,text:string){
   await waitForNurseReply(page)
 }
 
+async function restoreQuestionInputMode(page:import('@playwright/test').Page){
+  // The recovery shell has no mode button. Inspect the mode once the retained
+  // questionnaire is ready, then verify the exact unsent draft in each case.
+  await expect(page.getByLabel('回答当前问题')).toBeVisible()
+  const keyboard=page.getByRole('button',{name:'改用文字',exact:true})
+  if(await keyboard.isVisible())await keyboard.click()
+}
+
 test('[legacy protocol2] specific questions, bound quick answers, refresh, unknown stop and professional save',async({page,request},info)=>{
   const legacy=await useLegacyFrontProtocol(page)
   await send(page,'身上有点东西，老挠')
@@ -42,10 +50,7 @@ test('[legacy protocol2] specific questions, bound quick answers, refresh, unkno
   const context=await (await request.get(`/api/members/${memberId}/front-desk-record`,{headers})).json()
   expect(context.interview.turnCount).toBeLessThanOrEqual(3)
   await page.reload()
-  await expect(page.getByLabel('回答当前问题')).toBeVisible()
-  // The recovery screen has no mode button. Inspect the mode only after the
-  // retained questionnaire is ready, then verify the exact unsent draft.
-  if(await page.getByRole('button',{name:'改用文字',exact:true}).isVisible())await page.getByRole('button',{name:'改用文字',exact:true}).click()
+  await restoreQuestionInputMode(page)
   await expect(page.getByLabel('对话输入')).toHaveValue('还有一段待补充')
   for(const width of [320,375,390,430]){
     await page.setViewportSize({width,height:667})
@@ -138,9 +143,8 @@ test('restored protocol2 question remains bound when the current client sends pr
   await page.getByLabel('对话输入').fill('刷新后仍保留的未提交内容')
   await legacy.release()
   await page.reload()
-  if(await page.getByRole('button',{name:'改用文字',exact:true}).isVisible())await page.getByRole('button',{name:'改用文字',exact:true}).click()
+  await restoreQuestionInputMode(page)
   await expect(page.getByLabel('对话输入')).toHaveValue('刷新后仍保留的未提交内容')
-  await expect(page.getByLabel('回答当前问题')).toBeVisible()
   const sent=page.waitForRequest(r=>r.method()==='POST'&&new URL(r.url()).pathname.endsWith('/recognition-jobs'))
   await send(page,'左手臂')
   const body=(await sent).postDataJSON()
