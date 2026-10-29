@@ -18,14 +18,14 @@ function neutralAnchor(view:ChildView,region:ChildRegion) {
   return {anchor:[x,y] as Point,bounds:[Math.max(0,x-w*1.7),Math.max(0,y-h*1.7),Math.min(1,w*3.4),Math.min(1,h*3.4)] as Bounds,size:[w,h] as Point}
 }
 /** Paths and their centroids use the same cropped-image coordinates (0..1). */
-function curved(id:string,label:string,points:Point[]):LocatorZone {
+export function curved(id:string,label:string,points:Point[]):LocatorZone {
   const xs=points.map(p=>p[0]),ys=points.map(p=>p[1]),minX=Math.min(...xs),minY=Math.min(...ys),maxX=Math.max(...xs),maxY=Math.max(...ys)
   const mid=(a:Point,b:Point)=>[(a[0]+b[0])/2,(a[1]+b[1])/2] as const
   const start=mid(points.at(-1)!,points[0])
   const path=`M ${start.join(' ')} `+points.map((p,i)=>`Q ${p.join(' ')} ${mid(p,points[(i+1)%points.length]).join(' ')}`).join(' ')+' Z'
   return {id,label,path,point:[(minX+maxX)/2,(minY+maxY)/2],bounds:[minX,minY,maxX-minX,maxY-minY]}
 }
-function oval(id:string,label:string,x:number,y:number,w:number,h:number,tilt=0) {
+export function oval(id:string,label:string,x:number,y:number,w:number,h:number,tilt=0) {
   return curved(id,label,[[x-w-tilt,y-h*.7],[x-tilt,y-h],[x+w-tilt,y-h*.7],[x+w+tilt,y+h*.65],[x+tilt,y+h],[x-w+tilt,y+h*.65]])
 }
 export function locatorVisual(model:LocatorModel,view:ChildView,region?:ChildRegion,angle?:LocalAngle):ChildVisual|null {
