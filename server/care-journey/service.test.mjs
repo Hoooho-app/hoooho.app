@@ -94,29 +94,19 @@ test('care days count all claimed dates past badge targets without resetting on 
   assert.equal((await s.checkIn('owner')).careDays, 10);
   assert.equal((await s.get('other')).careDays, 0);
 });
-test('client cannot claim a task; only an owned formal record awards once', async t => {
-  const {
-    s,
-    m,
-    now
-  } = await setup(t);
-  await assert.rejects(s.verifyTask('owner', {
-    completed: true
-  }), e => e.status === 400);
-  assert.equal((await s.get('owner')).today.task.completed, false);
-  const wrong = await s.members.create({
-    accountId: 'other',
-    name: '另一个孩子'
-  }, now());
-  await record(s, wrong, now(), 'other');
-  assert.equal((await s.get('owner')).balance, 0);
+test('daily tasks are retired and a record can only earn its existing achievement', async t => {
+  const { s, m, now } = await setup(t);
+  await assert.rejects(s.verifyTask('owner', { completed: true }), e => e.code === 'DAILY_TASK_RETIRED');
+  assert.equal((await s.get('owner')).today.task, null);
   await record(s, m, now());
-  const r = await s.get('owner');
-  assert.equal(r.balance, 3);
-  assert.equal(r.today.task.completed, true);
-  assert.equal(r.achievements[0].earned, true);
-  assert.equal((await s.get('owner')).balance, 3);
+  const state = await s.get('owner');
+  assert.equal(state.balance, 1);
+  assert.equal(state.today.task, null);
+  assert.equal(state.achievements[0].earned, true);
+  assert.equal(state.ledger.some(row => row.key.startsWith('task:')), false);
+  assert.equal((await s.get('owner')).balance, 1);
 });
+
 test('future facts and cross-account event linkage never reward', async t => {
   const {
     s,
@@ -143,59 +133,37 @@ test('future facts and cross-account event linkage never reward', async t => {
   }, now());
   assert.equal((await s.get('owner')).balance, 0);
 });
-test('profile or knowledge review completes without manufacturing a health fact', async t => {
-  const {
-    s,
-    m,
-    tick
-  } = await setup(t);
-  const material = await s.openMaterial('owner', {
-    memberId: m.id
-  });
-  await assert.rejects(s.confirmMaterial('other', {
-    materialId: material.id
-  }), e => e.status === 404);
-  await assert.rejects(s.confirmMaterial('owner', {
-    materialId: material.id
-  }), e => e.code === 'READ_BEFORE_CONFIRM');
-  tick(3100);
-  const r = await s.confirmMaterial('owner', {
-    materialId: material.id
-  });
-  assert.equal(r.balance, 2);
-  assert.equal(r.today.task.completed, true);
+test('retired material operations cannot create rewards or health records', async t => {
+  const { s, m } = await setup(t);
+  await assert.rejects(s.openMaterial('owner', { memberId: m.id }), e => e.code === 'DAILY_TASK_RETIRED');
+  await assert.rejects(s.confirmMaterial('owner', { materialId: 'old-material' }), e => e.code === 'DAILY_TASK_RETIRED');
+  assert.equal((await s.get('owner')).balance, 0);
   assert.equal((await s.records.findByAccountId('owner')).length, 0);
-  assert.equal((await s.confirmMaterial('owner', {
-    materialId: material.id
-  })).balance, 2);
 });
-test('stale or previous-day material cannot claim today reward', async t => {
-  const {
-    s,
-    m,
-    tick,
-    next,
-    now
-  } = await setup(t);
-  const old = await s.openMaterial('owner', {
-    memberId: m.id
-  });
-  await s.members.update(m.id, {
-    name: '新名字'
-  }, now());
-  tick(3100);
-  await assert.rejects(s.confirmMaterial('owner', {
-    materialId: old.id
-  }), e => e.code === 'MATERIAL_CHANGED');
-  const current = await s.openMaterial('owner', {
-    memberId: m.id
-  });
+
+test('old task receipts, balance and achievements survive without new task rewards', async t => {
+  const { s, next, now } = await setup(t);
+  await s.checkIn('owner');
+  await s.store.update(data => ({ ...data, accounts: data.accounts.map(a => ({ ...a, wallet: 29, lifetime: 60,
+    achievements: [{ id: 'first-journey', achievedAt: now().toISOString() }],
+    days: a.days.map(d => ({ ...d, taskCompleted: true })),
+    materials: [{ id: 'old-material', date: a.days[0].date }]
+  })) }));
+  const before = await s.get('owner');
+  assert.equal(before.balance, 29);
+  assert.equal(before.lifetime, 60);
+  assert.equal(before.level.value, 3);
+  assert.equal(before.achievements.find(x => x.id === 'first-journey').earned, true);
   next(1);
-  await assert.rejects(s.confirmMaterial('owner', {
-    materialId: current.id
-  }), e => e.code === 'MATERIAL_NOT_FOUND');
+  const state = await s.checkIn('owner');
+  assert.equal(state.balance, 30);
+  assert.equal(state.lifetime, 61);
+  assert.equal(state.today.complete, true);
+  assert.equal(state.today.task, null);
+  assert.equal(state.ledger.filter(x => x.key.startsWith('badge:first-journey')).length, 0);
 });
-test('seven complete participation days yield 21 daily plus badges, no repeated grants', async t => {
+
+test('check-ins alone advance seven and thirty care achievements without daily tasks', async t => {
   const {
     s,
     m,
@@ -208,10 +176,17 @@ test('seven complete participation days yield 21 daily plus badges, no repeated 
     if (i < 6) next(1);
   }
   const r = await s.get('owner');
-  assert.equal(r.lifetime, 28);
+  assert.equal(r.lifetime, 11);
   assert.equal(r.achievements.find(a => a.id === 'seven-care').progress, 7);
-  assert.equal(r.achievements.find(a => a.id === 'first-journey').earned, true);
-  assert.equal((await s.get('owner')).lifetime, 28);
+  assert.equal(r.achievements.find(a => a.id === 'first-journey').earned, false);
+  assert.equal((await s.get('owner')).lifetime, 11);
+  next(1);
+  await earn(s, next, 23);
+  const grown = await s.get('owner');
+  assert.equal(grown.careDays, 30);
+  assert.equal(grown.achievements.find(a => a.id === 'first-journey').earned, true);
+  assert.equal(grown.lifetime, 37);
+  assert.equal((await s.get('owner')).lifetime, 37);
 });
 test('theme redemption is atomic, permanent, idempotent and does not lower level', async t => {
   const {
@@ -439,6 +414,6 @@ test('lightweight theme read checks ownership and does not scan health records',
   });
   await assert.rejects(s.getTheme('unknown'), e => e.status === 401);
 });
-test('unconfirmed external drafts never count as a real record or task',async t=>{const {s,m,now}=await setup(t);const row=await record(s,m,now());await s.records.update(row.id,{caseContext:{identity:'external_ai'}},now());const state=await s.get('owner');assert.equal(state.today.task.completed,false);assert.equal(state.achievements[0].earned,false);assert.equal(state.balance,0)})
+test('unconfirmed external drafts never count as a real record or task',async t=>{const {s,m,now}=await setup(t);const row=await record(s,m,now());await s.records.update(row.id,{caseContext:{identity:'external_ai'}},now());const state=await s.get('owner');assert.equal(state.today.task,null);assert.equal(state.achievements[0].earned,false);assert.equal(state.balance,0)})
 test('growth purchase checks authoritative current age and cannot bypass catalogue gate',async t=>{const {s,m,next,now}=await setup(t,{enabledProducts:['growth-comparison']});await earn(s,next,31);await s.members.update(m.id,{birthday:'2025-01-01'},now());assert.equal((await s.catalogue('owner')).items.find(p=>p.id==='growth-comparison').available,false);const before=(await s.get('owner')).balance;await assert.rejects(s.redeem('owner',{productId:'growth-comparison',requestId:'too-young-growth'}),e=>e.code==='GROWTH_NOT_APPLICABLE');assert.equal((await s.get('owner')).balance,before);await s.members.update(m.id,{birthday:'2023-01-01'},now());assert.equal((await s.catalogue('owner')).items.find(p=>p.id==='growth-comparison').available,true);await s.redeem('owner',{productId:'growth-comparison',requestId:'valid-growth-age'});assert.equal((await s.get('owner')).owned.some(p=>p.productId==='growth-comparison'),true)})
 test('child deleted during service or mismatched result releases reserve without storing result',async t=>{const {s,m,next}=await setup(t,{enabledProducts:['food-comparison']});await earn(s,next,10);const before=(await s.get('owner')).balance;await assert.rejects(s.runService('owner',{productId:'food-comparison',requestId:'mismatch-service',memberId:m.id},async()=>({valid:true,memberId:'foreign'})),e=>e.code==='SERVICE_MEMBER_MISMATCH');assert.equal((await s.get('owner')).balance,before);await assert.rejects(s.runService('owner',{productId:'food-comparison',requestId:'removed-child-service',memberId:m.id},async()=>{await s.members.delete(m.id);return {valid:true,memberId:m.id}}),e=>e.status===404);const account=(await s.store.read()).accounts.find(a=>a.accountId==='owner');assert.equal(account.reservations.some(r=>r.result),false);assert.equal((await s.get('owner')).balance,before)})

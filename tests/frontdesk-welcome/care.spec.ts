@@ -86,9 +86,9 @@ test('daily claim persists across homepage, task page and refresh without duplic
   await expect(card.getByRole('button').locator('img')).toHaveAttribute('src', /two-leaf-sprout/)
   expect(buttonBox.y + buttonBox.height).toBeLessThanOrEqual(cardBefore!.y + cardBefore!.height)
   await page.screenshot({ path: info.outputPath('today-care-claimed.png') })
-  await page.getByRole('link', { name: '今日呵护：查看任务', exact: true }).click()
+  await page.getByRole('link', { name: '今日呵护：查看呵护之旅', exact: true }).click()
   await expect(page).toHaveURL(/\/care-journey$/)
-  await expect(page.getByRole('button', { name: '已呵护', exact: true })).toBeDisabled()
+  await expect(page.getByRole('button', { name: '今日已领取', exact: true })).toBeDisabled()
   await expect(page.getByText('共同照顾', { exact: true })).toHaveCount(0)
   await page.goBack()
   await page.reload()
@@ -97,4 +97,45 @@ test('daily claim persists across homepage, task page and refresh without duplic
   const duplicate = await request.post('/api/care-journey/check-in', { headers, data: {} })
   expect(duplicate.ok()).toBe(true)
   expect((await duplicate.json()).balance).toBe(after.balance)
+})
+
+test('care journey contains only claim, growth and achievements; retired routes and APIs cannot reward or charge', async ({ page, request }, info) => {
+  const token = new TokenService('visit-sheet-e2e-secret', 3600000).create({ id: 'visit-test' })
+  const headers = { Authorization: `Bearer ${token}` }
+  const member = await request.post('/api/members', { headers, data: { name: '签到验收', relationship: 'child', birthday: '2024-01-01', gender: 'female' } })
+  const memberId = (await member.json()).id
+  await page.addInitScript(({ token, memberId }) => {
+    sessionStorage.setItem('hoooho-auth-token', token)
+    localStorage.setItem('hoooho-app', JSON.stringify({ state: { authUser: { id: 'visit-test' }, currentMemberId: memberId, members: [], profile: null }, version: 5 }))
+  }, { token, memberId })
+  await page.goto('/care-journey')
+  await expect(page.getByRole('heading', { name: '呵护之旅', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: '今日领取', exact: true })).toBeVisible()
+  const sprout = page.getByAltText('两片嫩叶的3D小树芽')
+  expect(await sprout.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth === 160)).toBe(true)
+  await expect(page.getByText(/树芽兑换|今日任务|每日任务|我的树芽|每一份|两件小事|消费|核对已有/)).toHaveCount(0)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  await page.screenshot({ path: info.outputPath('care-simple-checkin.png') })
+  await page.getByRole('button', { name: /Lv\./ }).click()
+  await expect(page.getByRole('heading', { name: '成长等级', exact: true })).toBeVisible()
+  await expect(page.getByText('300 树芽', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: '返回', exact: true }).click()
+  await page.getByRole('button', { name: /我的成就/ }).click()
+  await expect(page.getByRole('heading', { name: '我的成就', exact: true })).toBeVisible()
+  await expect(page.getByText('累计签到30次', { exact: true })).toBeVisible()
+  await expect(page.getByText(/今日任务|兑换|回响|值得纪念/)).toHaveCount(0)
+  const before = await (await request.get('/api/care-journey', { headers })).json()
+  for (const path of ['exchange', 'themes', 'sprouts']) {
+    await page.goto(`/care-journey/${path}`)
+    await expect(page).toHaveURL(/\/care-journey$/)
+    await expect(page.getByRole('heading', { name: '呵护之旅', exact: true })).toBeVisible()
+  }
+  for (const path of ['redeem', 'task/verify', 'task-material/confirm']) {
+    const response = await request.post(`/api/care-journey/${path}`, { headers, data: { productId: 'theme-mist-blue', requestId: 'retired-check', materialId: 'old' } })
+    expect(response.status()).toBe(410)
+  }
+  const after = await (await request.get('/api/care-journey', { headers })).json()
+  expect(after.balance).toBe(before.balance)
+  expect(after.lifetime).toBe(before.lifetime)
+  expect(after.today.task).toBeNull()
 })

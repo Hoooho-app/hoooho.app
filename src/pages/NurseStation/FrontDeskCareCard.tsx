@@ -24,7 +24,7 @@ export function FrontDeskCareCard() {
     else void state.mutate('check-in', careApi.checkIn)
   }
   return <article className="front-desk-welcome__entry front-desk-welcome__care" aria-label="今日呵护">
-    <Link className="front-desk-welcome__care-link" to="/care-journey" aria-label="今日呵护：查看任务"/>
+    <Link className="front-desk-welcome__care-link" to="/care-journey" aria-label="今日呵护：查看呵护之旅"/>
     <span className="front-desk-welcome__eyebrow">今日呵护</span>
     <strong>已守护 {getGuardedDays(createdAt, now)} 天</strong>
     <span className="front-desk-welcome__excerpt" role="status">{state.error ? '暂未确认，请重试' : checkedIn ? '今天的呵护已记下' : '每日领取 1 个树芽'}</span>

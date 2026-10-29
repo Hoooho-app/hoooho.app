@@ -121,14 +121,14 @@ export function HelpCenterPage() {
       </article> : module ? <HohoSection title={module.label} description={module.description}>{rows(module.articleIds)}</HohoSection> : nested ? <HohoSection title="看看当前可以怎么用"><p className="hoho-text-body">这篇旧说明已更新，请从当前教程查找操作方法。</p><HohoButton onClick={home}>查看当前教程</HohoButton></HohoSection> : query.trim() ? <HohoSection title={'搜索结果 · ' + results.length + ' 篇'}>{rows(results.map(result => result.article.id))}{!results.length && <p className="hoho-text-body">暂时没有找到相关内容。试试“手动记录”“睡眠”或“导出”，也可以问使用助手。</p>}<HohoButton variant="text" onClick={() => update(tab === 'tutorials' ? {} : { tab }, true)}>清空搜索</HohoButton></HohoSection> : tab === 'tutorials' ? <>
         <div className="help-intro"><span className="help-eyebrow">从这里开始</span><h2>先记好一件小事</h2><p>不用记住步骤。读一眼图解，<br/>再让护护指着页面，陪你做一遍。</p></div>
         <div className="help-featured" aria-label="入门教程">
-          {['symptom', 'sleep'].map((id, i) => { const item = getArticle(id)!; return <button key={id} className="help-feature-card" onClick={() => openArticle(id)} type="button"><HelpIllustration article={item} compact/><span className="help-feature-copy"><small>入门 {i + 1}</small><strong>{id === 'sleep' ? '记一次睡眠' : '手动记一件事'}</strong><span>{id === 'sleep' ? '入睡、醒来，跨夜也能补记' : '写情况、核对时间，再保存'}</span><b>看图解 · 跟着做 <ChevronRight size={15}/></b></span></button> })}
+          {['symptom', 'sleep'].map((id, i) => { const item = getArticle(id)!; return <button key={id} className="help-feature-card" onClick={() => openArticle(id)} type="button"><HelpIllustration article={item} compact/><span className="help-feature-copy"><small>入门 {i + 1}</small><strong>{id === 'sleep' ? '记一次睡眠' : '手动记一件事'}</strong><span>{id === 'sleep' ? '入睡、醒来，跨夜也能补记' : '填写情况，核对时间'}</span><b>看图解 · 跟着做 <ChevronRight size={15}/></b></span></button> })}
         </div>
         <div className="help-more-heading"><h2 className="hoho-text-section-title">接下来想做什么？</h2><p className="hoho-text-caption">展开一项，找到对应的图解和操作引导。</p></div>
         {[
           { title:'记好日常', text:'喂养、排便、用药与补记时间', icon:FileText, ids:['daily','medication','change-record-time'] },
           { title:'找回和带走记录', text:'查找、修改、就诊情况单与导出', icon:Search, ids:['find','delete-record','summary','html','prompt','review'] },
           { title:'补充孩子档案', text:'孩子、生长测量与长期背景', icon:UserRound, ids:['add','profile','growth','allergy'] },
-          { title:'说话或使用图片', text:'语音是可选方式，识别后先核对', icon:Mic, ids:['smart','mic','upload','recognition'] }
+          { title:'语音与表单附件', text:'语音按需使用，附件从手动表单添加', icon:Mic, ids:['smart','mic','upload','recognition'] }
         ].map(group => <details key={group.title} className="help-group"><summary><group.icon size={21} aria-hidden/><span><strong>{group.title}</strong><small>{group.text}</small></span><ChevronDown size={18} aria-hidden/></summary>{rows(group.ids)}</details>)}
       </> : tab === 'product' ? <>
         <div className="help-intro"><span className="help-eyebrow">为什么使用护护</span><h2>平时记下来，需要时说清楚</h2><p>先留住实际情况，回头能找到，<br/>再把重点整理给需要了解的人。</p></div>

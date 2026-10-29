@@ -2,10 +2,8 @@
 .smart-record-home.smart-record-page{max-width:var(--hoho-app-shell-max);font-family:var(--hoho-font-family);background-color:rgb(var(--hoho-color-page-background));background-image:none}
 .smart-record-home .smart-record-page__body{padding:var(--hoho-space-4);scrollbar-width:thin;scroll-padding-block:var(--hoho-space-4)}
 .smart-record-home .smart-record-page__footer{display:grid;gap:var(--hoho-space-2);padding:var(--hoho-space-3) var(--hoho-space-4) max(var(--hoho-space-3),env(safe-area-inset-bottom));border:0;background-color:rgb(var(--hoho-color-page-background));background-image:var(--hoho-page-grain);box-shadow:none}
-body header.hoho-main-header--conversation{padding-inline:var(--hoho-space-4);background:transparent;background-image:none;border:0;box-shadow:none;min-height:64px}
 .hoho-main-header--conversation>h1{display:flex;align-items:center;gap:var(--hoho-space-2);padding:0 88px 0 44px;text-align:left;font-family:var(--hoho-font-family);font-weight:500;font-size:var(--hoho-font-size-page-title);letter-spacing:0}
 .hoho-conversation-ai{font-size:12px;line-height:18px;font-weight:400;border:1px solid rgb(var(--hoho-color-border));border-radius:var(--hoho-radius-small);padding:0 var(--hoho-space-1);color:rgb(var(--hoho-color-text-secondary))}
-.hoho-main-header--conversation .hoho-main-header__actions{gap:0}
 .front-desk-welcome{display:grid;gap:var(--hoho-space-4);margin-bottom:var(--hoho-space-5)}
 .front-desk-welcome__video{width:100%;height:100%}
 .front-desk-welcome--empty .hoho-reception.hoho-health-card{min-height:120px}
@@ -189,7 +187,6 @@ body .front-desk-welcome__media>.idle-nurse-visual[data-cutout="true"]{backgroun
 
 /* Owner-approved key-information flow. Scope stays on the front desk. */
 body .smart-record-home .hoho-bottom-navigation{margin-top:0;background-color:rgb(var(--hoho-color-page-background));background-image:var(--hoho-page-grain);padding-bottom:calc(var(--hoho-space-2) + env(safe-area-inset-bottom))}
-.smart-record-home .hoho-main-header__child{background:rgb(var(--hoho-color-primary-soft));border-radius:var(--hoho-radius-control);padding-inline:var(--hoho-space-3);color:rgb(var(--hoho-color-text-primary))}
 .smart-record-home .nurse-turn--conversation .nurse-turn-content>p{display:block}
 .smart-record-home .front-desk-message-loading>svg{animation-duration:1.8s}
 .smart-record-home .front-desk-record-status{display:flex;align-items:center;justify-content:space-between;gap:var(--hoho-space-2);flex-wrap:wrap}

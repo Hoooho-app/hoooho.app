@@ -19,7 +19,7 @@ function lazyPage(load: () => Promise<Record<string, unknown>>, exportName: stri
 // Redirect before loading a hidden feature, including old bookmarks and shared links.
 function visibleRoutes(routes: RouteObject[]): RouteObject[] {
   return routes.map(route => route.path && !isProductPathVisible(route.path)
-    ? { path: route.path, element: <Navigate to="/nurse-station" replace /> }
+    ? { path: route.path, element: <Navigate to={route.path.startsWith('/care-journey/') ? '/care-journey' : '/nurse-station'} replace /> }
     : route.children ? { ...route, children: visibleRoutes(route.children) } as RouteObject : route)
 }
 
@@ -51,11 +51,11 @@ export const router = createBrowserRouter(visibleRoutes([
       { path: '/conversation-history', lazy: lazyPage(() => import('../pages/NurseStation/ConversationHistoryRedirect'), 'ConversationHistoryRedirect') },
       { path: '/conversation-history/:contextId', lazy: lazyPage(() => import('../pages/NurseStation/ConversationHistoryRedirect'), 'ConversationHistoryRedirect') },
       { path: '/care-journey', lazy: lazyPage(() => import('../features/care-journey/CareJourneyPages'), 'CareJourneyPage') },
-      { path: '/care-journey/sprouts', lazy: lazyPage(() => import('../features/care-journey/CareJourneyPages'), 'CareSproutsPage') },
-      { path: '/care-journey/exchange', lazy: lazyPage(() => import('../features/care-journey/CareJourneyPages'), 'CareExchangePage') },
+      { path: '/care-journey/sprouts', element: <Navigate to="/care-journey" replace /> },
+      { path: '/care-journey/exchange', element: <Navigate to="/care-journey" replace /> },
       { path: '/care-journey/growth', lazy: lazyPage(() => import('../features/care-journey/CareJourneyPages'), 'CareGrowthPage') },
       { path: '/care-journey/achievements', lazy: lazyPage(() => import('../features/care-journey/CareJourneyPages'), 'CareAchievementsPage') },
-      { path: '/care-journey/themes', lazy: lazyPage(() => import('../features/care-journey/CareJourneyPages'), 'CareThemePage') },
+      { path: '/care-journey/themes', element: <Navigate to="/care-journey" replace /> },
       { path: '/family-sharing', lazy: lazyPage(() => import('../features/family-sharing/FamilySharingPage'), 'FamilySharingPage') },
       { path: '/health-profile/vaccination/plan', lazy: lazyPage(() => import('../features/vaccine-plan/VaccinePlanPage'), 'VaccinePlanPage') },
       { path: '/allergy-knowledge', lazy: lazyPage(() => import('../pages/AllergyKnowledge'), 'AllergyKnowledgePage') },

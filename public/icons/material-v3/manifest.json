@@ -1912,6 +1912,18 @@
       "fill": 1,
       "file": "health_cross-fill.svg",
       "sha256": "059f0362fd9e3884f4c7d47f01765feb0075db0f44d6565d6ce940102266b6f1"
+    },
+    {
+      "name": "trending_up",
+      "fill": 0,
+      "file": "trending_up.svg",
+      "sha256": "b2bf853a458079e18dabd52bd74b7313b1a6f55648c7b62d2be79bd4f855d934"
+    },
+    {
+      "name": "trending_up",
+      "fill": 1,
+      "file": "trending_up-fill.svg",
+      "sha256": "b2bf853a458079e18dabd52bd74b7313b1a6f55648c7b62d2be79bd4f855d934"
     }
   ]
 }
