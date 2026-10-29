@@ -128,7 +128,7 @@ export function HelpCenterPage() {
           { title:'记好日常', text:'喂养、排便、用药与补记时间', icon:FileText, ids:['daily','medication','change-record-time'] },
           { title:'找回和带走记录', text:'查找、修改、就诊情况单与导出', icon:Search, ids:['find','delete-record','summary','html','prompt','review'] },
           { title:'补充孩子档案', text:'孩子、生长测量与长期背景', icon:UserRound, ids:['add','profile','growth','allergy'] },
-          { title:'语音与表单附件', text:'语音按需使用，附件从手动表单添加', icon:Mic, ids:['smart','mic','upload','recognition'] }
+          { title:'语音与附件', text:'按需使用，识别后先核对', icon:Mic, ids:['smart','mic','upload','recognition'] }
         ].map(group => <details key={group.title} className="help-group"><summary><group.icon size={21} aria-hidden/><span><strong>{group.title}</strong><small>{group.text}</small></span><ChevronDown size={18} aria-hidden/></summary>{rows(group.ids)}</details>)}
       </> : tab === 'product' ? <>
         <div className="help-intro"><span className="help-eyebrow">为什么使用护护</span><h2>平时记下来，需要时说清楚</h2><p>先留住实际情况，回头能找到，<br/>再把重点整理给需要了解的人。</p></div>

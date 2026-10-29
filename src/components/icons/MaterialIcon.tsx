@@ -1,5 +1,6 @@
 import { forwardRef, type SVGProps } from 'react'
 import { materialPaths, type MaterialIconName } from './materialPaths'
+import { searchShape } from './searchShape'
 import './material-icons.css'
 
 export interface IconProps extends Omit<SVGProps<SVGSVGElement>, 'ref'> {
@@ -19,9 +20,9 @@ export const MaterialIcon = forwardRef<SVGSVGElement, IconProps & { name: Materi
   { name, size = 24, selected, className = '', strokeWidth: _strokeWidth, absoluteStrokeWidth: _absoluteStrokeWidth,
     fill: _fill, stroke: _stroke, children, ...props }, ref
 ) {
-  const paths = materialPaths[name]
+  const paths = name === 'search' ? { outline: searchShape, filled: searchShape } : materialPaths[name]
   return <svg aria-hidden="true" focusable="false" {...props} ref={ref}
-    className={`hoho-icon ${className}`.trim()} data-icon={name} data-icon-selected={selected}
+    className={`hoho-icon ${className}`.trim()} data-icon={name} data-icon-selected={selected} data-icon-variant={name === 'search' ? 'large-lens-short-handle' : undefined}
     width={iconSize(size)} height={iconSize(size)} viewBox="0 -960 960 960" fill="currentColor" stroke="none">
     {children}
     <path className="hoho-icon__outline" d={paths.outline} />

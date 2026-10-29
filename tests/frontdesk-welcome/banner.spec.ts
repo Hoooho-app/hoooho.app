@@ -24,7 +24,7 @@ test('all three banners fill the same space with clear copy, intact art and a si
   for (let index = 0; index < 3; index++) {
     if (index) {
       await page.mouse.move(0, 0)
-      await page.clock.runFor(11200)
+      await page.clock.runFor(7200)
       await expect(page.locator(hero)).toHaveAttribute('data-slide', String(index))
       await expect(page.locator(hero)).toHaveAttribute('data-phase', 'idle')
     }
@@ -69,13 +69,13 @@ test('all three banners fill the same space with clear copy, intact art and a si
   }
 })
 
-test('ten-second dwell dissolves without controls and focus or input pauses rotation', async ({ page }, info) => {
+test('six-second dwell dissolves without controls and focus or input pauses rotation', async ({ page }, info) => {
   await page.clock.pauseAt(new Date(Date.now() + 1000))
   await page.locator(hero).focus()
   await page.getByRole('button', { name: '打开菜单', exact: true }).focus()
   await page.mouse.move(0, 0)
   const before = await page.locator(hero).boundingBox()
-  await page.clock.runFor(9990)
+  await page.clock.runFor(5990)
   await expect(page.locator(hero)).toHaveAttribute('data-slide', '0')
   await expect(page.locator(hero)).toHaveAttribute('data-phase', 'idle')
   await page.clock.runFor(20)
@@ -102,10 +102,10 @@ test('ten-second dwell dissolves without controls and focus or input pauses rota
   await expect(page.locator(hero)).toHaveAttribute('data-slide', '1')
   await page.getByRole('button', { name: '打开菜单', exact: true }).focus()
   await page.mouse.move(0, 0)
-  await page.clock.runFor(11200)
+  await page.clock.runFor(7200)
   await expect(page.locator(hero)).toHaveAttribute('data-slide', '2')
   await expect(page.getByRole('heading', { name: '记忆很长， 不会忘。' })).toBeVisible()
-  await page.clock.runFor(11200)
+  await page.clock.runFor(7200)
   await expect(page.locator(hero)).toHaveAttribute('data-slide', '0')
   await page.getByRole('button', { name: '改用文字', exact: true }).click()
   await page.getByLabel('对话输入', { exact: true }).fill('还没发送')
@@ -137,7 +137,7 @@ test('failed product images leave the original introduction usable', async ({ pa
 
 test('a first message during dissolution unmounts the whole banner and its timer', async ({ page }) => {
   await page.mouse.move(0, 0)
-  await page.clock.runFor(10000)
+  await page.clock.runFor(6000)
   await expect(page.locator(hero)).toHaveAttribute('data-phase', 'out')
   await page.getByRole('button', { name: '改用文字', exact: true }).click()
   await page.getByLabel('对话输入', { exact: true }).fill('今天下午发烧')
@@ -162,7 +162,7 @@ test('simulated background visibility stops rotation and foreground starts a fre
     document.dispatchEvent(new Event('visibilitychange'))
   })
   await page.mouse.move(0, 0)
-  await page.clock.runFor(9990)
+  await page.clock.runFor(5990)
   await expect(page.locator(hero)).toHaveAttribute('data-slide', '0')
   await page.clock.runFor(1150)
   await expect(page.locator(hero)).toHaveAttribute('data-slide', '1')
@@ -187,9 +187,9 @@ for (const failed of ['visit', 'memory'] as const) {
     await page.reload()
     await expect(page.locator(hero)).toHaveAttribute('data-slide', '0')
     await page.mouse.move(0, 0)
-    await page.clock.runFor(11200)
+    await page.clock.runFor(7200)
     await expect(page.locator(hero)).toHaveAttribute('data-kind', failed === 'visit' ? 'memory' : 'visit')
-    await page.clock.runFor(11200)
+    await page.clock.runFor(7200)
     await expect(page.locator(hero)).toHaveAttribute('data-slide', '0')
   })
 }
@@ -203,14 +203,14 @@ test('a late visit illustration joins the next cycle without blocking the ready 
   await expect.poll(() => !!release).toBe(true)
   await page.waitForTimeout(100)
   await page.mouse.move(0, 0)
-  await page.clock.runFor(11200)
+  await page.clock.runFor(7200)
   await expect(page.locator(hero)).toHaveAttribute('data-kind', 'memory')
   const visitLoaded = page.waitForResponse(response => response.url().includes('visit-summary-banner'))
   await release!()
   await visitLoaded
   await page.waitForTimeout(100)
-  await page.clock.runFor(11200)
+  await page.clock.runFor(7200)
   await expect(page.locator(hero)).toHaveAttribute('data-kind', 'welcome')
-  await page.clock.runFor(11200)
+  await page.clock.runFor(7200)
   await expect(page.locator(hero)).toHaveAttribute('data-kind', 'visit')
 })
