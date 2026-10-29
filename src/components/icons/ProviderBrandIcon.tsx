@@ -7,7 +7,9 @@ const sources = { apple, wechat, qq }
 // Paths are from committed local brand assets. No user input enters this markup.
 const viewBoxes = Object.fromEntries(Object.entries(sources).map(([name, svg]) => [name, svg.match(/viewBox="([^"]+)"/)?.[1] ?? '0 0 24 24']))
 const paths = Object.fromEntries(Object.entries(sources).map(([name, svg]) => [name,
-  svg.replace(/<title>.*?<\/title>/, '').replace(/^.*?<svg[^>]*>/, '').replace(/<\/svg>.*$/, '')
+  // These originals are monochrome. Keep their geometry while allowing the
+  // existing white-on-brand account marks and login controls to own the paint.
+  svg.replace(/<title>.*?<\/title>/, '').replace(/^.*?<svg[^>]*>/, '').replace(/<\/svg>.*$/, '').replaceAll('fill="black"', 'fill="currentColor"')
 ]))
 export function ProviderBrandIcon({ provider, size=24, ...props }: SVGProps<SVGSVGElement> & { provider:keyof typeof sources; size?:number }) {
   return <svg aria-hidden="true" focusable="false" {...props} data-brand={provider} width={size} height={size} viewBox={viewBoxes[provider]} fill="currentColor" stroke="none" dangerouslySetInnerHTML={{__html:paths[provider]}}/>
