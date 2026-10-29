@@ -2,7 +2,7 @@ import { useEffect, useState, type CSSProperties } from 'react'
 import { frontDeskGreeting } from './frontDeskGreeting'
 import nursePortrait from '../../assets/nurse-triage/front-desk-nurse-glasses-20261030.webp'
 import recordArchive from '../../assets/nurse-triage/record-archive-dense-20261030.webp'
-import visitSummary from '../../assets/nurse-triage/visit-summary-banner-dossier-20261030.webp'
+import visitSummary from '../../assets/nurse-triage/visit-summary-banner-doctor-20261030.webp'
 
 const HOLD_MS = 10000
 const MOSAIC_MS = 560
@@ -10,7 +10,7 @@ const motionQuery = '(prefers-reduced-motion: reduce)'
 type Phase = 'idle' | 'out' | 'in'
 const slides = [
   { kind: 'welcome', src: nursePortrait, width: 480, height: 786, alt: '戴眼镜与口罩的黑发护士，一手拿病历夹、一手拿笔' },
-  { kind: 'visit', src: visitSummary, width: 720, height: 541, alt: '完整档案汇集成分章节的就诊情况单，夹子无文字标识' },
+  { kind: 'visit', src: visitSummary, width: 720, height: 480, alt: '背对画面的妈妈向正面的医生展示手机，手机浮出就诊情况单气泡，医生做出 OK 手势' },
   { kind: 'memory', src: recordArchive, width: 600, height: 512, alt: '密集层叠的记录文件与厚厚的记忆档案库' },
 ] as const
 
