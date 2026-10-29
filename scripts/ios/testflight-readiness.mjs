@@ -1,6 +1,6 @@
 import { createPrivateKey, sign } from 'node:crypto'
 import { pathToFileURL } from 'node:url'
-const expected = { build: '1.4.1', marketing: '0.1.0', bundle: 'com.hoooho.records' }
+const expected = { build: '1.5.1', marketing: '0.1.0', bundle: 'com.hoooho.records' }
 const states = ['PROCESSING', 'PROCESSING_EXCEPTION', 'MISSING_EXPORT_COMPLIANCE', 'READY_FOR_BETA_TESTING', 'IN_BETA_TESTING', 'EXPIRED', 'IN_EXPORT_COMPLIANCE_REVIEW']
 const encode = value => Buffer.from(JSON.stringify(value)).toString('base64url')
 export function createReadToken(env, now = Math.floor(Date.now() / 1000)) {
