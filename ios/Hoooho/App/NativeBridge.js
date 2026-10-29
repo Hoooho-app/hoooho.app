@@ -23,8 +23,9 @@
   window.print = () => {
     void send('print', {html: document.documentElement.outerHTML}).catch(() => {});
   };
-  if (window.top === window) window.hooohoNativeAttachments = async () => {
-    const selection = await send('attachments', {}, 600000);
+  if (window.top === window) {
+  window.hooohoNativeAttachments = async (options = {}) => {
+    const selection = await send('attachments', options.mediaOnly === true ? {mediaOnly: true} : {}, 600000);
     try {
       const files = [];
       for (const item of selection.files) {
@@ -43,4 +44,6 @@
       await send('attachment_release', {selectionId: selection.selectionId}).catch(() => {});
     }
   };
+  window.hooohoNativeAttachments.supportsMediaOnly = true;
+  }
 })();

@@ -2,6 +2,27 @@ import XCTest
 @testable import HooohoRecords
 
 final class NativeAttachmentsTests: XCTestCase {
+    func testManualSymptomsAcceptSixImagesOrVideosButRejectDocumentsAndOversizedPhotos() throws {
+        let image = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".jpg")
+        let video = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".mov")
+        let document = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".pdf")
+        let largeImage = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".png")
+        for url in [image, video, document, largeImage] { try Data([1, 2, 3]).write(to: url) }
+        defer { for url in [image, video, document, largeImage] { try? FileManager.default.removeItem(at: url) } }
+        let handle = try FileHandle(forWritingTo: largeImage)
+        try handle.truncate(atOffset: 25 * 1024 * 1024 + 1)
+        try handle.close()
+        let selection = try NativeAttachmentSelection(mediaOnly: true)
+        defer { selection.cleanup() }
+        XCTAssertThrowsError(try selection.add(document))
+        XCTAssertThrowsError(try selection.add(largeImage))
+        try selection.add(image)
+        try selection.add(video)
+        for _ in 0..<4 { try selection.add(image) }
+        XCTAssertEqual(selection.files.count, 6)
+        XCTAssertThrowsError(try selection.add(image))
+    }
+
     func testSelectedBytesAreReadInBoundedChunksAndReleased() throws {
         let source = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".pdf")
         let bytes = Data(repeating: 42, count: 512 * 1024 + 17)

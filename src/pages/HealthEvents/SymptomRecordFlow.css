@@ -147,6 +147,10 @@
 
 /* The shared form has one fixed recording area; its content cards only edit facts. */
 .symptom-record-save[hidden] { display: none !important; }
+.symptom-record-page--brand-white .symptom-attachment-add { width: 100%; min-height: calc(var(--hoho-touch-target) + var(--hoho-space-4)); color: rgb(var(--hoho-color-link)); }
+.symptom-attachment-sources { display: grid; gap: var(--hoho-space-2); }
+.symptom-attachment-sources .hoho-button { justify-content: flex-start; gap: var(--hoho-space-3); }
+.symptom-record-page--brand-white > .symptom-record-scroll:last-of-type { padding-bottom: max(var(--hoho-space-4), env(safe-area-inset-bottom)); }
 .symptom-record-toolbar { display:grid; grid-template-columns:.85fr .94fr 1.06fr 1.3fr; gap:var(--hoho-space-1); margin-bottom:var(--hoho-space-2); }
 .symptom-record-toolbar button { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; min-height:56px; padding:0 2px; border:0; border-radius:var(--hoho-radius-control); background:transparent; color:rgb(var(--hoho-color-link)); font-size:12px; white-space:nowrap; }
 .symptom-record-toolbar .symptom-nurse-entry { background:rgb(var(--hoho-color-primary-soft)); border:1px solid rgb(var(--hoho-color-primary-border)); }

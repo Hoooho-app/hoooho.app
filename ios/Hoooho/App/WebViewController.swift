@@ -180,14 +180,14 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
         if ProcessInfo.processInfo.arguments.contains("--native-fixture"), webView.url?.isFileURL == true,
            message.frameInfo.isMainFrame, let body = message.body as? [String: Any], body["type"] as? String == "attachments",
            let id = body["id"] as? String, id == "native-attachment-fixture" {
-            presentAttachments(id: id); return
+            presentAttachments(id: id, mediaOnly: body["mediaOnly"] as? Bool == true); return
         }
         #endif
         guard NavigationPolicy.trusted(webView.url),
               origin.protocol == "https", origin.host == "hoooho.com", origin.port == 0 || origin.port == 443,
               let body = message.body as? [String: Any], let id = body["id"] as? String, id.count < 100,
               let type = body["type"] as? String else { return }
-        if message.frameInfo.isMainFrame, type == "attachments" { presentAttachments(id: id); return }
+        if message.frameInfo.isMainFrame, type == "attachments" { presentAttachments(id: id, mediaOnly: body["mediaOnly"] as? Bool == true); return }
         if message.frameInfo.isMainFrame, ["attachment_read", "attachment_release"].contains(type) {
             guard let picker = attachmentPicker, let selectionId = body["selectionId"] as? String, selectionId == picker.selectionId else { reply(id, ok: false); return }
             if type == "attachment_release" { picker.cleanup(); attachmentPicker = nil; reply(id, ok: true); return }
@@ -231,11 +231,11 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
         present(sheet, animated: true)
     }
 
-    private func presentAttachments(id: String) {
+    private func presentAttachments(id: String, mediaOnly: Bool = false) {
         guard presentedViewController == nil, printJob == nil, attachmentPicker?.isPicking != true else { reply(id, ok: false); return }
         attachmentPicker?.cleanup()
         do {
-            let picker = try NativeAttachments(owner: self, permissions: capturePermissions)
+            let picker = try NativeAttachments(owner: self, permissions: capturePermissions, mediaOnly: mediaOnly)
             attachmentPicker = picker
             picker.present { [weak self] result in self?.reply(id, ok: result["ok"] as? Bool == true, result: result) }
         } catch { reply(id, ok: false) }
