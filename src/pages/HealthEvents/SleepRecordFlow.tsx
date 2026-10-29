@@ -1,4 +1,5 @@
 import { RecordSaveTarget, RecordEditorSave } from './RecordSaveAction'
+import { GuidedRecordHint } from '../../features/help/GuidedRecordHint'
 import { ArrowLeft, ChevronDown, ChevronRight, Moon, Sun } from '../../components/icons'
 import { useEffect, useRef, useState, type CSSProperties, type PointerEvent } from 'react'
 import { HohoButton, HohoSegmentedControl } from '../../components/design-system'
@@ -27,7 +28,7 @@ export function createSleepDraft(now = new Date()): SleepDraft {
 function point(angle: number, radius = 96) { const r = (angle - 90) * Math.PI / 180; return { x: 130 + Math.cos(r) * radius, y: 130 + Math.sin(r) * radius } }
 const clock = (value: string, timeZone?: string) => recordLocal(value, timeZone).slice(11)
 
-export function SleepEditor({ initial, automatic = false, allowStatusChange = false, manualOverview = false, saving, error, onSave, onSkip }: { initial: SleepDraft; automatic?: boolean; allowStatusChange?: boolean; manualOverview?: boolean; saving: boolean; error: string; onSave: (draft: SleepDraft) => void; onSkip?: () => void }) {
+export function SleepEditor({ initial, automatic = false, allowStatusChange = false, manualOverview = false, saving, error, onSave, onSkip, onDraftChange }: { initial: SleepDraft; automatic?: boolean; allowStatusChange?: boolean; manualOverview?: boolean; saving: boolean; error: string; onSave: (draft: SleepDraft) => void; onSkip?: () => void; onDraftChange?: (draft: SleepDraft) => void }) {
   const minutesPerTurn = SLEEP_CLOCK.minutesPerTurn
   const zone = initial.timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone
   const sleepLocal = (value: string) => recordLocal(value, zone)
@@ -38,6 +39,8 @@ export function SleepEditor({ initial, automatic = false, allowStatusChange = fa
   const sleepDateLabel = (value: string, reference: string) => recordDateLabel(value, reference, zone)
   const clock = (value: string) => sleepLocal(value).slice(11)
   const [draft, setDraft] = useState(initial)
+  const draftListener = useRef(onDraftChange); draftListener.current = onDraftChange
+  useEffect(() => { draftListener.current?.(draft) }, [draft])
   const [active, setActive] = useState<Endpoint>('sleepAt')
   const [editing, setEditing] = useState<Endpoint | null>(null)
   const [supplementOpen, setSupplementOpen] = useState(false)
@@ -117,7 +120,7 @@ export function SleepEditor({ initial, automatic = false, allowStatusChange = fa
   </div>
 }
 
-export function SleepRecordFlow({ draft, mode, onBack, onClose, onConfirm, onSaved }: { draft: SleepDraft; mode?: 'start' | 'backfill' | 'nap'; memberId?: string; onDraftChange: (draft: SleepDraft) => void; onBack: () => void; onClose: () => void; onConfirm: SaveRecord; onSaved: (message: string) => void }) {
+export function SleepRecordFlow({ draft, mode, onBack, onClose, onConfirm, onSaved, onDraftChange }: { draft: SleepDraft; mode?: 'start' | 'backfill' | 'nap'; memberId?: string; onDraftChange: (draft: SleepDraft) => void; onBack: () => void; onClose: () => void; onConfirm: SaveRecord; onSaved: (message: string) => void }) {
   const [saveTarget, setSaveTarget] = useState<HTMLElement | null>(null)
   const [saving, setSaving] = useState(false); const [error, setError] = useState('')
   const initial = useRef(mode === 'start' ? { ...draft, sleepAt: new Date(Math.floor(Date.now() / 60000) * 60000).toISOString(), wakeAt: new Date(Math.floor(Date.now() / 60000) * 60000 + 480 * 60000).toISOString(), status: 'ongoing' as const } : draft)
@@ -130,5 +133,5 @@ export function SleepRecordFlow({ draft, mode, onBack, onClose, onConfirm, onSav
     catch (reason) { setError(reason instanceof Error ? reason.message : '保存失败，请重试') }
     finally { setSaving(false) }
   }
-  return <div className="sleep-record-page-layer"><section aria-label="记录睡眠" aria-modal="true" className="sleep-record-page" ref={layerRef} role="dialog" tabIndex={-1}><header><button aria-label="返回记录新情况" disabled={saving} onClick={onBack} type="button"><ArrowLeft size={22} /></button><h1>记录睡眠</h1><span className="record-header-save-target" ref={setSaveTarget}/></header><RecordSaveTarget.Provider value={saveTarget}><div className="sleep-record-scroll"><SleepEditor manualOverview allowStatusChange error={error} initial={initial.current} onSave={value => void save(value)} saving={saving} /></div></RecordSaveTarget.Provider></section></div>
+  return <div className="sleep-record-page-layer"><section aria-label="记录睡眠" aria-modal="true" className="sleep-record-page" ref={layerRef} role="dialog" tabIndex={-1}><header><button aria-label="返回记录新情况" disabled={saving} onClick={onBack} type="button"><ArrowLeft size={22} /></button><h1>记录睡眠</h1><span className="record-header-save-target" ref={setSaveTarget}/></header><RecordSaveTarget.Provider value={saveTarget}><div className="sleep-record-scroll"><GuidedRecordHint lesson="sleep"/><SleepEditor onDraftChange={onDraftChange} manualOverview allowStatusChange error={error} initial={initial.current} onSave={value => void save(value)} saving={saving} /></div></RecordSaveTarget.Provider></section></div>
 }

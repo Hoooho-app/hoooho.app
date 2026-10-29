@@ -31,9 +31,9 @@ test('unsent input switches without a prompt, appears in the sidebar and reopens
   const drawer=page.getByRole('dialog',{name:'侧边栏菜单'})
   // Sidebar labels are compact keywords; the opened draft must still retain the full original below.
   await drawer.locator('.drawer-history-open').filter({hasText:'昨晚睡得不安稳'}).click()
-  await expect(page).toHaveURL(/conversation-history\?draft=/)
-  await expect(page.locator('.nurse-turn--user')).toContainText(text)
-  await page.getByRole('button',{name:'继续此对话',exact:true}).click()
+  await expect(page).toHaveURL(/nurse-station\?draft=/)
+  await expect(page.locator('.nurse-turn--user')).toHaveCount(0)
+  await expect(page.getByRole('button',{name:'继续此对话',exact:true})).toHaveCount(0)
   await expect(page.getByLabel('对话输入',{exact:true})).toHaveValue(text)
   await page.reload();await expect(page.getByLabel('对话输入',{exact:true})).toHaveValue(text)
   const context=await(await request.get(`/api/members/${memberId}/front-desk-record`,{headers})).json()
