@@ -1,6 +1,3 @@
-import {useRecordUpdates,useReadDestinationUpdates} from '../../features/record-updates/RecordUpdates'
-import {useUpdateStore} from '../../features/record-updates/store'
-import {calendarUpdateDays} from '../../features/record-updates/calendarUpdates'
 import { Search, X } from '../../components/icons'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router-dom'
@@ -70,15 +67,6 @@ function HealthEventsContent() {
   const previousToday = useRef(today)
   const setDay = (value: string) => navigation.change({ ...calendar, day: value, month: value.slice(0, 7) })
   const journal = useJournal(currentMemberId, token ?? '', revision)
-  const updates=useRecordUpdates()
-  const unreadDays=calendarUpdateDays(updates,journal.sourceEntries)
-  useReadDestinationUpdates('calendar',calendar.view==='day'&&!journal.loading&&!journal.error)
-  useReadDestinationUpdates('symptom',calendar.view==='day'&&!journal.loading&&!journal.error)
-  useEffect(()=>{
-    if(!sheetDay||journal.loading||journal.error)return
-    const ids=unreadDays.get(sheetDay)??[]
-    if(ids.length)useUpdateStore.getState().read(ids)
-  },[sheetDay,journal.loading,journal.error,JSON.stringify([...unreadDays])])
   const scheduled = useCalendarReminders(accountId, currentMemberId, token ?? '', today, revision)
   const reminderDays = useMemo(() => calendarReminderDays(scheduled.reminders, calendar.category), [scheduled.reminders, calendar.category])
   const filteredEntries = useMemo(() => savedCalendarFacts(journal.entries).filter(entry => matchesCalendarGroup(entry, calendar.category)), [journal.entries, calendar.category])
@@ -200,7 +188,7 @@ function HealthEventsContent() {
       {scheduled.error && <StatusNotice tone="error" title={scheduled.error} action={<HohoButton variant="secondary" size="small" onClick={scheduled.retry}>重试提醒</HohoButton>}/>}
       {calendar.view === 'day' && (reminderDays.get(day)?.length ?? 0) > 0 && <CalendarReminderRows reminders={reminderDays.get(day)!} onOpen={reminder => navigate(reminder.href)}/>}
       <TimeView memberId={currentMemberId} token={token ?? ''} day={day} today={today} active={calendar.view === 'day'} category={calendar.category} identity={identity} journal={filteredJournal} focusRecord={savedRecordFocus} onFocusHandled={() => setSavedRecordFocus(null)} onRecordOpen={(eventId, recordId, options) => setSelectedRecord({ eventId, recordId, correctSleep: options?.correctSleep })} onRoutineRecorded={() => { setRevision(value => value + 1); void retry() }} revision={revision} onContext={setJournalContext} sortOrder={calendar.sort}/>
-      {calendar.view === 'month' && <MonthView month={calendar.month} today={today} day={monthSelection} category={calendar.category} entries={filteredEntries} unreadDays={new Set(unreadDays.keys())} reminders={reminderDays} loading={journal.loading} error={journal.error} onRetry={journal.retry} onDay={value => { monthTrigger.current = document.activeElement instanceof HTMLElement ? document.activeElement : null; setMonthSelection(value); setSheetDay(value) }}/>}
+      {calendar.view === 'month' && <MonthView month={calendar.month} today={today} day={monthSelection} category={calendar.category} entries={filteredEntries} reminders={reminderDays} loading={journal.loading} error={journal.error} onRetry={journal.retry} onDay={value => { monthTrigger.current = document.activeElement instanceof HTMLElement ? document.activeElement : null; setMonthSelection(value); setSheetDay(value) }}/>}
     </div>
     </div>
     {sheetDay && <DayRecordsSheet day={sheetDay} entries={monthRecords.get(sheetDay) ?? []} reminders={reminderDays.get(sheetDay) ?? []} onReminder={reminder => navigate(reminder.href)} suspended={Boolean(selectedRecord)} loading={journal.loading || scheduled.loading} error={journal.error || scheduled.error} onRetry={() => { journal.retry(); scheduled.retry() }} onClose={closeDaySheet} onOpen={entry => setSelectedRecord({ eventId: entry.eventId, recordId: entry.id })}/>}

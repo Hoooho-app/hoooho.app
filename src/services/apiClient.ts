@@ -1,5 +1,4 @@
 import { abortable } from './abortable'
-import {trackSavedMutation} from '../features/record-updates/store'
 import { recoverSessionToken } from './sessionRecoveryCoordinator'
 import { useBrowserRecoveryState } from './browserRecoveryState'
 import type { AIUnverifiedPreview } from '../features/ai-business/AIResultPreview'
@@ -36,7 +35,6 @@ async function executeApiRequest<T>(path: string, options: ApiRequestOptions, ma
   options={...options,headers:{'X-Hoooho-Trace-Id':crypto.randomUUID(),...options.headers}}
   const changesData = Boolean(options.method && options.method !== 'GET' && !/^\/api\/ai\/audio\/live(?:\/|$)/.test(path) && !(options.method === 'POST' && ['/api/ai/audio/transcriptions','/api/ai/telemetry'].includes(path.split('?')[0])))
   options.signal?.throwIfAborted()
-  const mutationScope=changesData?await import('../store/useAppStore').then(({useAppStore})=>{const s=useAppStore.getState();return {accountId:s.authUser?.id??'',memberId:s.currentMemberId}}):undefined
   const browserTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
   const response = await fetch(path, {
     method: options.method ?? 'GET',
@@ -95,7 +93,6 @@ async function executeApiRequest<T>(path: string, options: ApiRequestOptions, ma
 
   options.signal?.throwIfAborted()
   if (changesData && typeof window !== 'undefined') {
-    if(mutationScope && options.method)trackSavedMutation(mutationScope,path,options.method,options.body,data)
     window.dispatchEvent(new Event('hoooho-data-changed'))
   }
   return data as T

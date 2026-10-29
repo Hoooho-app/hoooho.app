@@ -74,7 +74,7 @@ try{
   result.checks.push('real model single incident','doctor and followup preserved','live recording clock','text edit controls')
   await page.goto(base+'/health-events?view=month')
   const date=page.locator('.health-calendar__day[aria-current="date"]')
-  await expect(date.getByRole('img',{name:'有新内容'})).toBeVisible()
+  await expect(date.getByRole('img',{name:'有新内容'})).toHaveCount(0)
   assert.equal(await page.getByRole('navigation',{name:'新记录'}).count(),0)
   await date.click()
   const sheet=page.locator('.calendar-day-sheet')
@@ -86,7 +86,7 @@ try{
   await page.screenshot({path:`${out}/calendar.png`})
   await sheet.getByRole('button',{name:'关闭当天记录',exact:true}).click()
   await expect(date.getByRole('img',{name:'有新内容'})).toHaveCount(0)
-  result.checks.push('month day dot cleared on date open','single line calendar row','three mobile widths')
+  result.checks.push('month and detail have no new-content dots','single line calendar row','three mobile widths')
   assert.deepEqual(errors,[]);result.status='PASS'
 }catch(error){result.status='FAILED';result.message=error.message;await page.screenshot({path:`${out}/failure.png`}).catch(()=>{});process.exitCode=1}
 finally{

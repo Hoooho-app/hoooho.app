@@ -10,7 +10,7 @@
     "src/features/ai-business/caseCapture.css": "2db6515073eb476a5e640ad966f25d617422d596e5926cc75a9495cfcbb0368c",
     "src/features/ai-business/liveAudioPreview.ts": "49041cad3c58d215b99d17f8a76290d3db913cdd69a756b670e47a84a71edac8",
     "src/features/ai-business/useSmartRecordVoice.ts": "72536a278bf98dea54989bacee130036f9ef033a21b73d4a91cc6b37bb8786b6",
-    "src/pages/HealthEvents/index.tsx": "b485be60be97a9fccb75ffabfcbe79f155d2142fc89ffd4117ae855dd7c43316",
+    "src/pages/HealthEvents/index.tsx": "bba14f87d3ddaf36bbfeeb023e3ac5a6e9cff9e4ce9fe3c1e0260cd90b08b225",
     "src/pages/NurseStation/FrontDeskProcessing.tsx": "e3d9030e296900827990b6948305f6f02a10d9c9be1dc5d8ca2044c9b89160f4",
     "server/ai/business/nursing-interview.mjs": "7683ec6865d83d0c66c396ed6303fb07ee158f7dd723d278e3a9de15e4642132"
   },
@@ -54,6 +54,13 @@
         "src/pages/HealthEvents/index.tsx"
       ],
       "reason": "Owner explicitly removes calendar creation controls so the existing month/day flex views expand for reviewing saved records; preserve front-desk form handoff and record details."
+    },
+    {
+      "contract": "docs/delivery/remove-record-update-dots-20261030.md",
+      "files": [
+        "src/pages/HealthEvents/index.tsx"
+      ],
+      "reason": "Owner explicitly removes global new-record/unread red dots. The calendar removes only the update feature imports, unread grouping/read hooks and MonthView unreadDays prop. The complete-file hash guard remains in force for this reviewed revision; calendar review, filtering, reminders and record detail behavior are preserved."
     }
   ]
 }

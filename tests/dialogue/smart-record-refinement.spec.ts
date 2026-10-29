@@ -52,7 +52,7 @@ test('oral narration is one saved occurrence with compact progress, text edits a
   }
   await page.screenshot({path:info.outputPath('one-incident-calendar.png')})
 })
-test('month dots clear by date without opening a record and leave other dates and profiles unread',async({page,request})=>{
+test('month records stay readable without dots even when legacy updates exist',async({page,request})=>{
   const earlier=new Date(Date.now()-86400000),day=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Shanghai'}).format(earlier)
   const rows=[]
   for(const [id,at] of [['today',new Date()],['earlier',earlier]] as const){
@@ -62,23 +62,23 @@ test('month dots clear by date without opening a record and leave other dates an
   await page.goto('/health-events?view=month')
   await notices(page,[...rows,{id:'profile',destination:'profile',sectionId:'allergy',entryId:'a'}]);await page.reload()
   const current=page.locator('.health-calendar__day[aria-current="date"]'),previous=page.locator(`.health-calendar__day[aria-label^="${day}"]`)
-  await expect(current.getByRole('img',{name:'有新内容'})).toBeVisible();await expect(previous.getByRole('img',{name:'有新内容'})).toBeVisible()
+  await expect(current.getByRole('img',{name:'有新内容'})).toHaveCount(0);await expect(previous.getByRole('img',{name:'有新内容'})).toHaveCount(0)
   await expect(page.getByRole('navigation',{name:'新记录'})).toHaveCount(0)
   await previous.click();await expect(previous.getByRole('img',{name:'有新内容'})).toHaveCount(0)
   await expect(page.locator('.calendar-day-sheet').locator('time')).toHaveCount(0)
   await page.locator('.calendar-day-sheet').getByRole('button',{name:'关闭当天记录',exact:true}).click()
-  await expect(current.getByRole('img',{name:'有新内容'})).toBeVisible();await current.click()
+  await expect(current.getByRole('img',{name:'有新内容'})).toHaveCount(0);await current.click()
   await expect(current.getByRole('img',{name:'有新内容'})).toHaveCount(0)
-  const remaining=await page.evaluate(()=>JSON.parse(localStorage.getItem('hoooho-record-updates-v1')!).state.items)
-  expect(remaining.map((i:{id:string})=>i.id)).toEqual(['profile'])
+  expect(await page.evaluate(()=>localStorage.getItem('hoooho-record-updates-v1'))).toBeNull()
 })
-test('day view clears calendar notices on open; section open clears all entries in that profile section',async({page})=>{
+test('day and profile pages discard retired notice caches without adding a notice interface',async({page})=>{
   await page.goto('/health-events?view=month')
-  await notices(page,[{id:'calendar',destination:'calendar',recordId:'new'},{id:'surgery1',destination:'profile',sectionId:'surgery',entryId:'s1'},{id:'surgery2',destination:'profile',sectionId:'surgery',entryId:'s2'},{id:'allergy',destination:'profile',sectionId:'allergy',entryId:'a1'}])
+  await notices(page,[{id:'calendar',destination:'calendar',recordId:'new'},{id:'surgery1',destination:'profile',sectionId:'surgery',entryId:'s1'},{id:'allergy',destination:'profile',sectionId:'allergy',entryId:'a1'}])
   await page.goto('/health-events?view=day')
-  await expect.poll(async()=>page.evaluate(()=>JSON.parse(localStorage.getItem('hoooho-record-updates-v1')!).state.items.some((i:{id:string})=>i.id==='calendar'))).toBe(false)
+  expect(await page.evaluate(()=>localStorage.getItem('hoooho-record-updates-v1'))).toBeNull()
+  await expect(page.getByRole('img',{name:'有新内容'})).toHaveCount(0)
   await page.goto('/health-profile/surgery')
-  await expect.poll(async()=>page.evaluate(()=>JSON.parse(localStorage.getItem('hoooho-record-updates-v1')!).state.items.map((i:{id:string})=>i.id))).toEqual(['allergy'])
+  expect(await page.evaluate(()=>localStorage.getItem('hoooho-record-updates-v1'))).toBeNull()
   await expect(page.getByRole('navigation',{name:'新记录'})).toHaveCount(0)
   await expect(page.getByText('新更新',{exact:true})).toHaveCount(0)
 })

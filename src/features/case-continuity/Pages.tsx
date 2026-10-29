@@ -1,5 +1,4 @@
 import { MaterialIcon as FunctionalIcon } from '../../components/icons'
-import {useReadDestinationUpdates} from '../record-updates/RecordUpdates'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, Navigate, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { WebPageHeader } from '../../components/common'
@@ -56,7 +55,6 @@ export function CaseListPage() {
   useEffect(()=>{setFeedback(null);dirty.current.clear()},[accountId,memberId])
   useEffect(()=>{const before=(e:BeforeUnloadEvent)=>{if([...dirty.current.values()].some(Boolean)){e.preventDefault();e.returnValue=''}};window.addEventListener('beforeunload',before);return()=>window.removeEventListener('beforeunload',before)},[])
   const items = archived ? data?.archived : data?.active
-  useReadDestinationUpdates('symptom',Boolean(data&&!error&&!archived))
   return <main className="app-shell continuity-page case-followup-page"><WebPageHeader title="症状跟进" onBack={()=>{if(guard())navigate(-1)}}/><div className="continuity-scroll"><div className="continuity-tabs" role="tablist" aria-label="症状状态"><button role="tab" aria-selected={!archived} aria-pressed={!archived} onClick={() => {if(guard())setArchived(false)}}>跟进中{data ? ` ${data.active.length}` : ''}</button><button role="tab" aria-selected={archived} aria-pressed={archived} onClick={() => {if(guard())setArchived(true)}}>已归档{data ? ` ${data.archived.length}` : ''}</button></div>
     {feedback&&<div role="status" className="case-followup-feedback">{feedback}</div>}
     {error&&<StatusNotice tone="error" title="列表未加载">{error}<HohoButton onClick={reload}>重试</HohoButton></StatusNotice>}

@@ -8,7 +8,6 @@ import { useAppStore } from '../../store/useAppStore'
 import { RecordEntryActions } from '../HealthEvents/RecordEntryActions'
 import { activeSymptomFollowups, symptomPreview } from './symptomFollowup'
 import './HomeFlows.css'
-import {UpdateDot,useRecordUpdates} from '../../features/record-updates/RecordUpdates'
 import { useDailyKnowledge } from '../../features/allergy-knowledge/useDailyKnowledge'
 
 export function HomeFlows({ nurseVisual }: { nurseVisual: ReactNode }) {
@@ -17,7 +16,6 @@ export function HomeFlows({ nurseVisual }: { nurseVisual: ReactNode }) {
   const { data, memberId, token } = useCases()
   const accountId = useAppStore(state => state.authUser?.id ?? '')
   const knowledge = useDailyKnowledge(accountId)
-  const updates=useRecordUpdates()
   const identity = `${accountId}:${memberId}`
   const symptoms = activeSymptomFollowups(data?.active ?? [], memberId)
   return <section className="home-flows" aria-label="首页服务入口">
@@ -30,7 +28,7 @@ export function HomeFlows({ nurseVisual }: { nurseVisual: ReactNode }) {
         </header>
         {symptoms.length ? <ul className="home-event-descriptions" aria-label="症状简述">{symptoms.slice(0, 1).map(item => { const preview = symptomPreview(item, data?.timezone); return <li key={item.event.id}><span className="home-symptom-title">{item.followup.title}</span>{preview.description && <p className="home-symptom-description">{preview.description}</p>}{preview.latest && <div className="home-symptom-meta"><span>最近记录：<time dateTime={item.followup.latestOccurredAt!}>{preview.latest}</time></span></div>}</li> })}</ul> : <Typography variant="caption">暂无跟进症状</Typography>}
         <div className="home-followup-actions">
-          <HohoButton fullWidth variant="primary" onClick={() => navigate('/cases')}>症状跟进<UpdateDot show={updates.some(i=>i.destination==='symptom')}/></HohoButton>
+          <HohoButton fullWidth variant="primary" onClick={() => navigate('/cases')}>症状跟进</HohoButton>
           <HohoButton fullWidth variant="secondary" onClick={() => setOrganizeOpen(true)}>一键整理</HohoButton>
         </div>
       </HealthCard>

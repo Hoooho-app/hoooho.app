@@ -32,6 +32,8 @@ export async function createFirstChild(page: Page, input: { name: string; birthd
   const result = await response
   expect(result.ok()).toBe(true)
   const member = await result.json()
-  await expect(page.getByRole('region', { name: '记录介绍', exact: true }).locator('.front-desk-welcome__portrait')).toBeVisible()
+  const nurse = page.getByRole('region', { name: '记录介绍', exact: true }).locator('.front-desk-welcome__portrait')
+  await expect(nurse).toBeVisible()
+  await expect.poll(() => nurse.evaluate(image => (image as HTMLImageElement).complete && (image as HTMLImageElement).naturalWidth > 0)).toBe(true)
   return member
 }

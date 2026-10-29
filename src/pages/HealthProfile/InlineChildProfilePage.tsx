@@ -1,4 +1,3 @@
-import {useReadRecordUpdates} from '../../features/record-updates/RecordUpdates'
 import {useEffect,useRef,useState} from 'react'
 import {useLocation,useNavigate,useParams} from 'react-router-dom'
 import {ChevronDown,MoreHorizontal,Pencil,Plus,Trash2} from '../../components/icons'
@@ -60,7 +59,6 @@ function InlineProfile({member,kind,accountId}:{member:Member;kind:Kind;accountI
     window.addEventListener('focus',refresh);document.addEventListener('visibilitychange',refresh)
     return()=>{unsubscribe();window.removeEventListener('focus',refresh);document.removeEventListener('visibilitychange',refresh)}
   },[])
-  useReadRecordUpdates(!loading&&data?.rows.some(r=>r.id===focusedEntry)?[focusedEntry!]:[],[],!loading&&data?kind:undefined)
   const group=session.group,active=session.active[group],rows=data?.rows.filter(r=>kind==='surgery'||kind==='family-history'||r.group===group)??[]
   function put(groupId:string,id:string,changes:Partial<Draft>,row?:Row){
     setSession(old=>{const key=draftId(groupId,id),draft=old.drafts[key]??fresh(row);return {...old,drafts:{...old.drafts,[key]:{...draft,...changes,key:crypto.randomUUID()}}}})
