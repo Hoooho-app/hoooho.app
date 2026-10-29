@@ -4,7 +4,7 @@ import nursePortrait from '../../assets/nurse-triage/front-desk-nurse-glasses-20
 import recordArchive from '../../assets/nurse-triage/record-archive-dense-20261030.webp'
 import visitSummary from '../../assets/nurse-triage/visit-summary-banner-doctor-20261030.webp'
 
-const HOLD_MS = 10000
+const HOLD_MS = 6000
 const MOSAIC_MS = 560
 const motionQuery = '(prefers-reduced-motion: reduce)'
 type Phase = 'idle' | 'out' | 'in'
