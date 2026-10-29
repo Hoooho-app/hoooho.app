@@ -71,12 +71,28 @@ test('one account check-in survives concurrency and clock zone changes', async t
     timeZone: 'Asia/Shanghai'
   })));
   assert.ok(states.every(x => x.balance === 1));
+  assert.ok(states.every(x => x.careDays === 1));
   const r = await s.checkIn('owner', {
     timeZone: 'America/Los_Angeles'
   });
   assert.equal(r.balance, 1);
   assert.equal(r.timeZone, 'Asia/Shanghai');
   assert.equal((await s.get('other')).balance, 0);
+  assert.equal((await s.get('other')).careDays, 0);
+});
+test('care days count all claimed dates past badge targets without resetting on skipped days', async t => {
+  const { s, next } = await setup(t);
+  assert.equal((await s.get('owner')).careDays, 0);
+  await earn(s, next, 9);
+  let state = await s.get('owner');
+  assert.equal(state.careDays, 9);
+  assert.equal(state.today.checkedIn, false);
+  next(3);
+  state = await s.get('owner');
+  assert.equal(state.careDays, 9);
+  assert.equal((await s.checkIn('owner')).careDays, 10);
+  assert.equal((await s.checkIn('owner')).careDays, 10);
+  assert.equal((await s.get('other')).careDays, 0);
 });
 test('client cannot claim a task; only an owned formal record awards once', async t => {
   const {
