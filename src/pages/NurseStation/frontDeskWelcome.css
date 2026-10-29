@@ -18,8 +18,8 @@ body .smart-record-home .front-desk-welcome--editorial{display:grid;grid-templat
 .front-desk-welcome__excerpt{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden;font-size:var(--hoho-font-size-caption);line-height:1.8;color:rgb(var(--hoho-color-text-secondary))}
 .front-desk-welcome__read{flex-shrink:0;margin-top:auto;padding-top:var(--hoho-space-2);font-size:var(--hoho-font-size-caption);line-height:var(--hoho-line-height-caption);color:rgb(var(--hoho-color-primary))}
 .front-desk-welcome__care-link{position:absolute;inset:0;z-index:2;border-radius:inherit}
-.front-desk-welcome__care-claim{position:relative;z-index:3;margin-top:auto;max-width:100%}
-.front-desk-welcome__care-claim .hoho-button{max-width:100%}
+.front-desk-welcome__care-claim{position:relative;z-index:3;margin-top:auto;align-self:center;max-width:100%}
+.front-desk-welcome__care-claim .hoho-button{max-width:100%;background:rgb(var(--hoho-color-sprout-surface));color:rgb(var(--hoho-color-sprout-text))}
 @media(max-width:370px){
  .front-desk-welcome--editorial{--welcome-portrait-width:112px}
  .front-desk-welcome--editorial .front-desk-welcome__copy{padding-inline:var(--hoho-space-4)}

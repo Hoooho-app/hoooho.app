@@ -63,6 +63,7 @@ export function adaptFamilyMember(member: FamilyMemberApiDto): Member {
 
   return {
     id: member.id,
+    createdAt: member.createdAt,
     name: member.name,
     relation: relationLabels[member.relationship],
     primaryRecorderRelationship: member.primaryRecorderRelationship,

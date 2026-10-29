@@ -2,6 +2,7 @@ export type MemberRelation = '本人' | '配偶' | '母亲' | '父亲' | '子女
 
 export interface Member {
   id: string
+  createdAt?: string
   name: string
   age: string
   relation: MemberRelation

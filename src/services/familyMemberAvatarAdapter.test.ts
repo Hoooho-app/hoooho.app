@@ -11,6 +11,12 @@ const baseMember: FamilyMemberApiDto = {
   createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z'
 }
 
+test('member adaptation retains profile creation time independently of birthday and edits', () => {
+  const member = adaptFamilyMember({ ...baseMember, birthday: '2024-01-01', updatedAt: '2026-10-30T00:00:00.000Z' })
+  assert.equal(member.createdAt, baseMember.createdAt)
+  assert.notEqual(member.createdAt, member.birthday)
+})
+
 test('adult members retain their clay fallback while photos remain unchanged', () => {
   const first = adaptFamilyMember(baseMember)
   const second = adaptFamilyMember(baseMember)
