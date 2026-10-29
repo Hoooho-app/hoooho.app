@@ -33,6 +33,15 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
+      - name: Use bundled media tools for voice acceptance
+        run: |
+          node --input-type=module <<'NODE'
+          import ffmpeg from '@ffmpeg-installer/ffmpeg'
+          import ffprobe from 'ffprobe-static'
+          import { dirname } from 'node:path'
+          import { appendFileSync } from 'node:fs'
+          appendFileSync(process.env.GITHUB_PATH, [dirname(ffmpeg.path), dirname(ffprobe.path), ''].join('\n'))
+          NODE
       - run: npx playwright install --with-deps chromium
       - run: npm run build
       - run: TZ=Asia/Shanghai npm run test:client

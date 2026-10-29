@@ -36,6 +36,7 @@
 - `tests/nurse-video-cutout/playwright.config.ts`：12 项通过；`tests/frontdesk-navigation/playwright.config.ts --grep 'default home|keyboard reveals'`：2 项通过。
 - `tests/dialogue/knowledge.config.ts`：既有文章阅读、收藏、参考来源、往期与失效文章链路通过（320／375／393px）；旧“随呵护之旅隐藏”预期按本轮明确开放小知识的决定更新，保留全部阅读验收。
 - 初次浏览器运行曾在 390px 刷新后停于原有账号连接页；隔离该场景通过，之后完整 15 项重跑通过。未修改账号恢复代码，不把这次暂态归因为已证实产品缺陷。
+- GitHub 初次专项检查的 12 个非语音场景通过，3 个语音场景因 runner 未提供 ffmpeg 路径报 `ASR_AUDIO_CONVERSION_UNAVAILABLE`；按仓库已有 Smart record CI 的方式将已安装媒体工具加入 PATH，不修改应用、测试断言或供应商边界。
 - 图像为产品主人确认的既有 3D 妈妈／女儿图，通过内置图像工具仅增加妈妈手持手机动作；透明 WebP 520×488、49,828 bytes，SHA-256 `18313cb789ac6b9e7861d1419a525a5eb890097fca4070eedee00311ba0139dc`。原图保留，原护士视频不变。
 
 浏览器测试使用本地测试账户和合成供应商，不调用付费 AI、不写 Production 健康数据；移动浏览器模拟不等于实体 iPhone 验收。GitHub 与 Production 实际版本回执另留于本次 PR，完成条件仍为对应 main 提交终态 SUCCESS 和线上只读核验。
