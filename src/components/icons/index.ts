@@ -1,4 +1,4 @@
-// Migration names preserve call sites and their business behavior; all paths come from one Material set.
+// Migration names preserve call sites and behavior; shared rendering owns approved optical variants.
 import { createMaterialIcon } from './MaterialIcon'
 export { MaterialIcon } from './MaterialIcon'
 export type { IconProps, MaterialIconComponent } from './MaterialIcon'

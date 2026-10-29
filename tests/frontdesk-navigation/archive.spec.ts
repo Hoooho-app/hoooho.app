@@ -86,8 +86,8 @@ test('switching children updates the header and counts; installation UI is absen
     if(path==='/nurse-station'){
       await expect(page.getByRole('button',{name:'按住记录症状',exact:true})).toBeEnabled()
       await expect(page.locator('.hoho-main-header__child')).toHaveText(identity)
-      await expect(page.getByRole('button',{name:'添加照片、视频或文件',exact:true})).toHaveCount(0)
-      await expect(page.locator('input[type=file]')).toHaveCount(0)
+      await expect(page.getByRole('button',{name:'添加照片、视频或文件',exact:true})).toBeEnabled()
+      await expect(page.getByLabel('选择附件文件', { exact: true })).toHaveCount(1)
     }
     await expect(page.getByRole('button', { name: /添加.*主屏/ })).toHaveCount(0)
     await expect(page.locator('.install-app-trigger, .install-guide-layer, .install-app-notice')).toHaveCount(0)
