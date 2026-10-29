@@ -1,4 +1,4 @@
-name: Frontdesk video verification
+name: Frontdesk welcome verification
 on:
   workflow_dispatch:
   pull_request:
@@ -13,9 +13,9 @@ on:
       - 'src/features/ai-business/SmartRecordWorkspace.tsx'
       - 'shared/product-visibility.mjs'
       - 'src/assets/nurse-triage/care-recording-*'
+      - 'src/assets/nurse-triage/front-desk-nurse-*'
       - 'src/assets/nurse-triage/nurse-station-cutout-*'
       - 'scripts/*nurse*'
-      - 'tests/nurse-video-cutout/**'
       - 'tests/frontdesk-welcome/**'
       - 'tests/help-center/**'
       - '.github/workflows/frontdesk-video-verification.yml'
@@ -48,7 +48,6 @@ jobs:
       - run: npm run build
       - run: TZ=Asia/Shanghai npm run test:client
       - run: npm run test:media
-      - run: npx playwright test --config tests/nurse-video-cutout/playwright.config.ts
       - run: npx playwright test --config tests/frontdesk-welcome/playwright.config.ts --reporter=line --max-failures=1
       - run: npx playwright test --config tests/frontdesk-navigation/playwright.config.ts --grep 'default home|keyboard reveals|drawer uses'
       - run: npx playwright test --config tests/help-center/playwright.config.ts

@@ -1,36 +1,19 @@
-import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useDailyKnowledge } from '../../features/allergy-knowledge/useDailyKnowledge'
 import { useAppStore } from '../../store/useAppStore'
-import { NurseStationIdleVideo } from '../HealthEvents/NurseStationIdleVideo'
-import { useSettingsStore } from '../../store/useSettingsStore'
 import { frontDeskGreeting } from './frontDeskGreeting'
 import careRecordingImage from '../../assets/nurse-triage/care-recording-20261029.webp'
+import nursePortrait from '../../assets/nurse-triage/front-desk-nurse-glasses-20261030.webp'
 import './frontDeskWelcome.css'
 
 export function FrontDeskWelcome(_props:{memberName:string;gender?:string}) {
   const navigate=useNavigate()
   const accountId=useAppStore(state=>state.authUser?.id??'guest')
   const knowledge=useDailyKnowledge(accountId,true)
-  const care=useSettingsStore(state=>state.care)
-  const root=useRef<HTMLDivElement>(null)
-  const [inView,setInView]=useState(true)
-  const [active,setActive]=useState(!document.hidden),[reduced,setReduced]=useState(false)
-  useEffect(()=>{
-    const query=matchMedia('(prefers-reduced-motion: reduce)')
-    const motion=()=>setReduced(query.matches),visibility=()=>setActive(!document.hidden)
-    motion();query.addEventListener('change',motion);document.addEventListener('visibilitychange',visibility)
-    return()=>{query.removeEventListener('change',motion);document.removeEventListener('visibilitychange',visibility)}
-  },[])
-  useEffect(()=>{
-    const observer=new IntersectionObserver(entries=>setInView(entries.some(entry=>entry.isIntersecting)))
-    if(root.current)observer.observe(root.current)
-    return()=>observer.disconnect()
-  },[])
-  return <section ref={root} className="front-desk-welcome front-desk-welcome--editorial" aria-label="记录介绍">
+  return <section className="front-desk-welcome front-desk-welcome--editorial" aria-label="记录介绍">
     <div className="front-desk-welcome__hero">
       <div className="front-desk-welcome__copy"><h2>今天怎么样？</h2><p>{frontDeskGreeting().split('。').filter(Boolean).map(sentence=><span key={sentence}>{sentence}。</span>)}</p></div>
-      <div className="front-desk-welcome__media"><NurseStationIdleVideo active={active&&inView} reducedMotion={reduced||(care.enabled&&care.reduceMotion)} cutout/></div>
+      <div className="front-desk-welcome__media"><img className="front-desk-welcome__portrait" src={nursePortrait} alt="戴眼镜与口罩的黑发护士，一手拿病历夹、一手拿笔" width={480} height={786} decoding="async" fetchPriority="high"/></div>
     </div>
     <div className="front-desk-welcome__entries">
       <button type="button" className="front-desk-welcome__entry front-desk-welcome__guide" onClick={()=>navigate('/help')} aria-label="怎么用护护：边照顾，边记录">

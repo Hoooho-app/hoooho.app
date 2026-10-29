@@ -32,7 +32,7 @@ test('default home has the approved headline, private header and four real navig
   await expect(page.getByRole('button', { name: '快速查找', exact: true })).toBeVisible()
   const nav = page.getByRole('navigation', { name: '主要导航' })
   await expect(nav.getByRole('button')).toHaveText(['症状记录', '健康日历', '孩子档案', '一键整理'])
-  await expect(page.locator('.front-desk-welcome video')).toBeVisible()
+  await expect(page.locator('.front-desk-welcome__portrait')).toBeVisible()
   const positions = await page.locator('.hoho-dialogue-composer').evaluate(root => ['.hoho-dialogue-hold','.hoho-dialogue-mode','.hoho-dialogue-photo'].map(selector => root.querySelector(selector)!.getBoundingClientRect().x))
   expect(positions[0]).toBeLessThan(positions[1])
   expect(positions[1]).toBeLessThan(positions[2])

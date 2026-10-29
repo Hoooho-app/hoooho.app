@@ -427,7 +427,7 @@ test('an occupied lock never authenticates an expired session or exposes cached 
  expect(state.writes).toEqual([])
 })
 
-test('the phone front desk and its nurse video load with a full cache and an occupied session lock',async({page},info)=>{
+test('the phone front desk and its nurse portrait load with a full cache and an occupied session lock',async({page},info)=>{
  const state=await setup(page)
  await page.addInitScript(()=>{
   const write=Storage.prototype.setItem
@@ -435,9 +435,9 @@ test('the phone front desk and its nurse video load with a full cache and an occ
   void navigator.locks.request('hoooho-browser-session',()=>new Promise<void>(()=>{}))
  })
  await page.goto('/nurse-station')
- const video=page.locator('.front-desk-welcome video')
- await expect(video).toBeVisible()
- await expect.poll(()=>video.evaluate(node=>(node as HTMLVideoElement).readyState>=2&&(node as HTMLVideoElement).videoWidth>0)).toBe(true)
+ const portrait=page.locator('.front-desk-welcome__portrait')
+ await expect(portrait).toBeVisible()
+ await expect.poll(()=>portrait.evaluate(node=>(node as HTMLImageElement).complete&&(node as HTMLImageElement).naturalWidth===480)).toBe(true)
  await expect(page.getByRole('button',{name:'按住记录症状',exact:true})).toBeEnabled()
  await expect(page.locator('.session-recovery-chip, .session-recovery-notice, [data-session-recovery-screen]')).toHaveCount(0)
  expect(state.sessionCalls).toBe(1);expect(state.writes).toEqual([])
