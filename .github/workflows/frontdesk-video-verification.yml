@@ -50,7 +50,7 @@ jobs:
       - run: npm run test:media
       - run: npx playwright test --config tests/frontdesk-welcome/playwright.config.ts --reporter=line --max-failures=1
       - run: npx playwright test --config tests/frontdesk-navigation/playwright.config.ts --grep 'default home|keyboard reveals|drawer uses'
-      - run: npx playwright test --config tests/help-center/playwright.config.ts
+      - run: npx playwright test --config tests/help-center/playwright.config.ts --reporter=line --max-failures=1
       - uses: actions/upload-artifact@v4
         if: always()
         with:
