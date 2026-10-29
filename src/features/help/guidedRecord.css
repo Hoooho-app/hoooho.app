@@ -1,0 +1,3 @@
+.help-record-hint { margin-block-end:var(--hoho-space-4); padding-block:var(--hoho-space-3); border-bottom:1px solid rgb(var(--hoho-color-border)); color:rgb(var(--hoho-color-text-secondary)); font-size:var(--hoho-font-size-caption); line-height:var(--hoho-line-height-caption); }
+.help-record-hint strong { display:block; margin-block-end:var(--hoho-space-1); color:rgb(var(--hoho-color-primary)); font-weight:500; }
+.help-record-hint p + p { margin-top:var(--hoho-space-1); }

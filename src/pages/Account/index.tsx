@@ -3,6 +3,7 @@ import { CompleteImage } from '../../components/common/CompleteImage'
 import { Camera, ImageUp, KeyRound, Mail, Phone, ShieldAlert, UserRound } from '../../components/icons'
 import { useEffect, useRef, useState, type ChangeEvent, type ReactNode } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
+import { helpLessonFromSearch, helpLessonUrl } from '../../features/help/guidedRecord'
 import { Avatar, WebPageHeader } from '../../components/common'
 import { BottomSheetSurface, HohoButton, HohoInput, HohoSurfaceRow, StatusNotice } from '../../components/design-system'
 import { AccountOverview, MembershipBadge } from '../../components/account/AccountSheet'
@@ -73,6 +74,7 @@ export function AccountSecurityPage() {
 }
 
 export function AccountNicknamePage() {
+  const helpLesson = helpLessonFromSearch(useLocation().search)
   const navigate = useNavigate()
   const { token, profile, setProfile } = useAccount()
   const [value, setValue] = useState('')
@@ -84,7 +86,7 @@ export function AccountNicknamePage() {
     const nickname = value.trim()
     if (!nickname || !/^[\p{L}\p{N}]{1,20}$/u.test(nickname.normalize('NFKC'))) return setError('请输入 1–20 个中文、英文或数字')
     setSaving(true); setError('')
-    try { setProfile(await accountService.update(token, { nickname })); try { localStorage.setItem('lastLoginNickname', nickname.normalize('NFKC').trim()) } catch { /* Optional convenience only. */ }; await restoreBrowserSession({ transition: false }); navigate('/account/security', { replace: true }) } catch (e) { setError(message(e)) } finally { setSaving(false) }
+    try { setProfile(await accountService.update(token, { nickname })); try { localStorage.setItem('lastLoginNickname', nickname.normalize('NFKC').trim()) } catch { /* Optional convenience only. */ }; await restoreBrowserSession({ transition: false }); navigate(helpLesson ? helpLessonUrl(helpLesson) : '/account/security', { replace: true }) } catch (e) { setError(message(e)) } finally { setSaving(false) }
   }
   return <AccountLayout title="修改昵称" action={<button className="account-header-action" disabled={saving} onClick={() => void save()} type="button">保存</button>}>
     <HohoInput autoFocus error={error} hint={!error ? '昵称也是你的登录名。' : undefined} label="昵称" maxLength={20} value={value} onChange={(e) => { setValue(e.target.value); setError('') }} />

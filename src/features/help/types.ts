@@ -25,4 +25,6 @@ export type HelpArticle = {
   updatedAt: string
   status: 'published' | 'draft' | 'archived'
   priority?: number
+  kind?: 'tutorial' | 'faq' | 'product'
+  lesson?: 'symptom' | 'sleep'
 }
