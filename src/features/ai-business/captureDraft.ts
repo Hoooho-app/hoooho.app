@@ -1,8 +1,9 @@
+import { captureConversationDeleted, markCaptureConversationsDeleted } from './conversationDeletion'
 import type { BodyLocationSelection } from '../body-location'
 import type { ObservationResult } from '../case-continuity/types'
 import {storeDraftFile,restoreDraftFile,type StoredDraftFile} from './draftFiles'
 export interface CaptureTurn {completedOperation?:boolean;operationResult?:import('./recognitionJobs').CompletedRecordOperation;presentedDraft?:{id:string;version:number};expectedContextVersion?:number;continuationId?:string;answerTo?:{contextId:string;questionId:string};id:string;text:string;at?:number;role?:'user'|'assistant';kind?:'text'|'voice'|'image';fileKeys?:string[];status?:'pending'|'transcribing'|'completed'|'failed';error?:string;errorCode?:string;contextId?:string;reviewId?:string;recordCount?:number}
-export interface CaptureDraft { recognitionRestartRequired?:boolean; frontGenerationDeferred?:{contextId:string;evidenceVersion:number;version:number}; frontCardEdit?:import('./ContinuousRecordCard').ContinuousCardEdit; interactionRollbackRecovery?:{voiceTextDraft?:CaptureDraft["voiceTextDraft"];manualTextReview?:CaptureDraft["manualTextReview"];rawSaveTarget?:CaptureDraft["rawSaveTarget"]}; manualTextReview?:{contextId:string;contextVersion:number;sourceText:string;text:string;open:boolean;requested:boolean}; voiceTextDraft?:{id:string;text:string;at:number;incomplete:boolean;originalTranscript?:string}; deferredSubjectContextId?:string; rawSaveTarget?:import('./frontOriginalSave').RawSaveTarget; frontSubject?:import('./frontDeskRecord').FrontSubject; frontContextVersion?:number; followUpEnabled?:boolean; resumeContextId?:string; nursingInterview?:import('./smartRecordTypes').NursingInterview; archivedConversation?:boolean; caseRecognitionDraft?:{id:string;version:number}; visitMaterials?: import('../visit-materials/types').VisitMaterialsDeviceDraft; rawSavedGuide?:import('./savedRecordGuide').SavedRecordGuide; recognitionSubmittedFiles?:string[]; appliedVoiceJobIds?:string[]; recognitionJobId?:string; recognitionAssets?:Record<string,string>; recognitionSnapshot?:import('./recognitionJobs').RecognitionJob; pendingRecognitionCommand?:{id:string;type:'discard'}; savedGuides?: import('./savedRecordGuide').SavedRecordGuide[]; returnScrollTop?:number; returningFromRecord?:boolean; text: string; updatedAt?:number; frontContextId?:string; conversationInput?: string; conversationTurns?: CaptureTurn[]; voiceTranscript?:string; files: File[]; occurredAt: string; capturedAt?: string; timeUnknown: boolean; requestId: string; eventId?: string; supplement?: string; bodyLocations?: string[]; locations?: BodyLocationSelection[]; result?: ObservationResult; aiDraftId?: string; identity?: import('../case-continuity/types').MaterialIdentity; pendingVoice?: File; smartReview?: import('./smartRecordTypes').SmartRecordDraft }
+export interface CaptureDraft { conversationResetAt?:number; recognitionRestartRequired?:boolean; frontGenerationDeferred?:{contextId:string;evidenceVersion:number;version:number}; frontCardEdit?:import('./ContinuousRecordCard').ContinuousCardEdit; interactionRollbackRecovery?:{voiceTextDraft?:CaptureDraft["voiceTextDraft"];manualTextReview?:CaptureDraft["manualTextReview"];rawSaveTarget?:CaptureDraft["rawSaveTarget"]}; manualTextReview?:{contextId:string;contextVersion:number;sourceText:string;text:string;open:boolean;requested:boolean}; voiceTextDraft?:{id:string;text:string;at:number;incomplete:boolean;originalTranscript?:string}; deferredSubjectContextId?:string; rawSaveTarget?:import('./frontOriginalSave').RawSaveTarget; frontSubject?:import('./frontDeskRecord').FrontSubject; frontContextVersion?:number; followUpEnabled?:boolean; resumeContextId?:string; nursingInterview?:import('./smartRecordTypes').NursingInterview; archivedConversation?:boolean; caseRecognitionDraft?:{id:string;version:number}; visitMaterials?: import('../visit-materials/types').VisitMaterialsDeviceDraft; rawSavedGuide?:import('./savedRecordGuide').SavedRecordGuide; recognitionSubmittedFiles?:string[]; appliedVoiceJobIds?:string[]; recognitionJobId?:string; recognitionAssets?:Record<string,string>; recognitionSnapshot?:import('./recognitionJobs').RecognitionJob; pendingRecognitionCommand?:{id:string;type:'discard'}; savedGuides?: import('./savedRecordGuide').SavedRecordGuide[]; returnScrollTop?:number; returningFromRecord?:boolean; text: string; updatedAt?:number; frontContextId?:string; conversationInput?: string; conversationTurns?: CaptureTurn[]; voiceTranscript?:string; files: File[]; occurredAt: string; capturedAt?: string; timeUnknown: boolean; requestId: string; eventId?: string; supplement?: string; bodyLocations?: string[]; locations?: BodyLocationSelection[]; result?: ObservationResult; aiDraftId?: string; identity?: import('../case-continuity/types').MaterialIdentity; pendingVoice?: File; smartReview?: import('./smartRecordTypes').SmartRecordDraft }
 type StoredDraft=Omit<CaptureDraft,'files'|'pendingVoice'>&{files:(StoredDraftFile|File)[];pendingVoice?:StoredDraftFile|File}
 /** Restore V3-only editors into the existing unsent input, without submitting
  * text, replaying a save, inventing audio or changing the original sources. */
@@ -24,6 +25,7 @@ function checkpointValue(value:CaptureDraft){const {files,pendingVoice,...metada
 // transaction is pending. It contains no encoded audio/images and is scoped to
 // the same account/member/context key, not a second draft or routing system.
 export function checkpointCaptureDraft(key:string,value:CaptureDraft){
+  if(captureConversationDeleted(key,value))return
   try{sessionStorage.setItem(checkpointKey(key),checkpointValue(value))}catch{/* IDB remains authoritative; storage denial does not discard the draft. */}
 }
 function restoreCheckpoint(key:string,value:CaptureDraft|null):CaptureDraft|null{
@@ -78,7 +80,7 @@ export async function retainedCaptureDrafts(key: string): Promise<{ key: string;
         if (!cursor) return
         if (typeof cursor.key === 'string' && cursor.key.startsWith(`${key}:retained:`)) {
           const draft = unpackCaptureDraft(cursor.value)
-          if (hasCaptureContent(draft) && draft.smartReview?.state !== 'saved') drafts.push({ key: cursor.key, draft })
+          if (!captureConversationDeleted(key,draft) && hasCaptureContent(draft) && draft.smartReview?.state !== 'saved') drafts.push({ key: cursor.key, draft })
         }
         cursor.continue()
       }
@@ -117,7 +119,9 @@ export async function captureDraft(key: string, value?: CaptureDraft | null, ver
 async function captureDraftOnce(key: string, value?: CaptureDraft | null, verifiedOwner?: {accountId:string;memberId:string}): Promise<CaptureDraft | null> {
   // Read bytes before opening the IDB transaction; awaiting inside it would let
   // Safari auto-commit. Store bytes rather than OS-backed File references.
+  if(value&&captureConversationDeleted(key,value))value=null
   const packed=value?await packCaptureDraft(value):value
+  if(value&&captureConversationDeleted(key,value))return captureDraftOnce(key,null)
   const db = await database()
   try { return await new Promise((resolve, reject) => {
     const transaction = db.transaction('drafts', value === undefined && !verifiedOwner ? 'readonly' : 'readwrite')
@@ -139,9 +143,25 @@ async function captureDraftOnce(key: string, value?: CaptureDraft | null, verifi
     transaction.oncomplete = () => {
       try{if(value===null||(value&&sessionStorage.getItem(checkpointKey(key))===checkpointValue(value)))sessionStorage.removeItem(checkpointKey(key))}catch{/* Storage may be disabled. */}
       const opening=value===undefined?restoreCheckpoint(key,restored):value
-      resolve(value===undefined&&opening?recoverPreviousInteractionDraft(opening):opening)
+      resolve(opening&&captureConversationDeleted(key,opening)?null:value===undefined&&opening?recoverPreviousInteractionDraft(opening):opening)
     }
     transaction.onerror = () => reject(transaction.error)
     transaction.onabort = () => reject(transaction.error)
   }) } finally { db.close() }
+}
+
+/** Remove every local copy of a deleted conversation, including pending autosaves. */
+export async function deleteCaptureConversations(key:string,contextIds:string[],requestIds:string[]=[]) {
+  markCaptureConversationsDeleted(key,contextIds,requestIds)
+  const db=await database()
+  let matches:{key:string;requestId:string}[]=[]
+  try { matches=await new Promise((resolve,reject)=>{
+    const tx=db.transaction('drafts','readonly'),items:{key:string;requestId:string}[]=[],request=tx.objectStore('drafts').openCursor()
+    request.onsuccess=()=>{const cursor=request.result;if(!cursor)return
+      if(typeof cursor.key==='string'&&(cursor.key===key||cursor.key.startsWith(key+':retained:'))){const draft=cursor.value as CaptureDraft;if(captureConversationDeleted(key,draft))items.push({key:cursor.key,requestId:draft.requestId})}
+      cursor.continue()
+    };tx.oncomplete=()=>resolve(items);tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error)
+  }) } finally { db.close() }
+  markCaptureConversationsDeleted(key,contextIds,[...requestIds,...matches.map(item=>item.requestId)])
+  for(const item of matches)await captureDraft(item.key,null)
 }

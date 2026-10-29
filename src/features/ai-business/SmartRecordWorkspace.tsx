@@ -1,3 +1,4 @@
+import {captureConversationDeleted,conversationDeletedEvent,deletionStorageKey,lastConversationDeletionAt} from './conversationDeletion'
 import {nativeAttachmentPicker} from '../../services/nativeAttachments'
 import {FrontDeskQuestionTools} from './FrontDeskQuestionTools'
 import {recognitionAcceptedInput,recoverUnreceivedTurns,applyRecognitionReceipt,recognitionInputProcessing,retainUnreceivedFailures} from './recognitionSubmission'
@@ -14,7 +15,7 @@ import { dismissSavedRecordGuide,savedRecordUrl, savedRecordGuides, type SavedRe
 import { BottomSheetSurface, HohoButton, DialogueComposer, Typography } from '../../components/design-system'
 import { useAppStore } from '../../store/useAppStore'
 import { localDateTimeValue, localDateTimeToIso } from '../../utils/healthOccurredAt'
-import { appendCaptureTurn,beginCaptureFinalization,captureDraft, checkpointCaptureDraft, fileIdentity, hasCaptureContent, pendingCaptureCancellations, retainedCaptureDrafts, type CaptureDraft, type CaptureTurn } from './captureDraft'
+import { appendCaptureTurn,beginCaptureFinalization,captureDraft,deleteCaptureConversations, checkpointCaptureDraft, fileIdentity, hasCaptureContent, pendingCaptureCancellations, retainedCaptureDrafts, type CaptureDraft, type CaptureTurn } from './captureDraft'
 import {ProfessionalRecordSummary} from './ProfessionalRecordSummary'
 import {completedFrontSaveReplyIds,recordOperationTurn,restoreFrontContext, restoreFrontFile, type FrontContext} from './frontDeskRecord'
 import {confirmRawSaveTarget,frontHasOriginalFiles,frontOriginalsConfirmed,rawSaveTargetMatches} from './frontOriginalSave'
@@ -143,7 +144,7 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
     const frame=requestAnimationFrame(resize)
     return()=>{observer.disconnect();cancelAnimationFrame(frame)}
   },[home,ready,stage,key,local.savedGuides,local.recognitionSnapshot?.seq,recoveryMessageId])
-  const persist=async(value:CaptureDraft)=>{const next={...value,updatedAt:Date.now()};current.current=next;checkpointCaptureDraft(key,next);if(mounted.current)setLocal(next);const write=writes.current.catch(()=>undefined).then(()=>captureDraft(key,next));writes.current=write;try{await write}catch(e){if(mounted.current)setError('本机草稿保存失败，请保持页面打开后重试');throw e}}
+  const persist=async(value:CaptureDraft)=>{if(captureConversationDeleted(key,value))return;const next={...value,updatedAt:Date.now()};current.current=next;checkpointCaptureDraft(key,next);if(mounted.current)setLocal(next);const write=writes.current.catch(()=>undefined).then(()=>captureDraft(key,next));writes.current=write;try{await write}catch(e){if(mounted.current)setError('本机草稿保存失败，请保持页面打开后重试');throw e}}
   const change=(patch:Partial<CaptureDraft>)=>void persist({...current.current,...patch}).catch(()=>undefined)
   useEffect(()=>{
     let active=true;mounted.current=true
@@ -152,6 +153,8 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
       for(const pending of await pendingCaptureCancellations(key)){const command=pending.draft.pendingRecognitionCommand,id=pending.draft.recognitionJobId;if(!command||!id)continue;try{await recognitionCommand(memberId,credentials.current,id,'discard',command.id);await captureDraft(pending.key,null)}catch{cancellationPending=true}}
       if(cancellationPending)setError('本机草稿已清除；服务端取消尚未确认，联网后会继续同步')
       let saved=await captureDraft(key)
+      if(page&&saved?.frontContextId)try{const existing=await request<FrontContext|null>(frontUrl+'/contexts/'+encodeURIComponent(saved.frontContextId),'GET');if(!existing){await deleteCaptureConversations(key,[saved.frontContextId],[saved.requestId]);saved={...freshDraft(),conversationResetAt:lastConversationDeletionAt(key),updatedAt:lastConversationDeletionAt(key)}}}catch{/* Offline originals remain available until the server confirms deletion. */}
+      if(page&&!saved&&lastConversationDeletionAt(key))saved={...freshDraft(),conversationResetAt:lastConversationDeletionAt(key),updatedAt:lastConversationDeletionAt(key)}
       const retained=conversational&&!eventId?await retainedCaptureDrafts(key):[]
       if(!active)return
       if(page&&!eventId){
@@ -170,7 +173,7 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
           if(!active)return
           try{const draft=choice.draft,media=await Promise.all(draft.files.filter(f=>f!==draft.pendingVoice).map(async f=>({name:f.name,mimeType:f.type,lastModified:f.lastModified,dataUrl:await fileDataUrl(f)})));const acknowledged=await request<FrontContext|null>(frontUrl,'POST',{kind:'legacy',requestId:draft.requestId,updatedAt:draft.updatedAt??Number(choice.key.split(':retained:')[1]?.split(':')[0]),turns:draft.conversationTurns??(draft.text?[{text:draft.text}]:[]),files:media.filter(f=>!f.mimeType.startsWith('audio/')),voiceFiles:media.filter(f=>f.mimeType.startsWith('audio/')),draftId:draft.smartReview?.id});if(acknowledged&&!draft.pendingVoice&&!draft.conversationInput?.trim())await captureDraft(choice.key,null)}catch{/* A failed migration retains this exact older draft and its byte originals. */}
         }
-        try{const server=cancellationPending?null:await request<FrontContext|null>(frontUrl,'GET');if(!active)return;if(server)for(const message of [...server.previousMessages??[],...server.messages])for(const original of [...message.files??[],...message.voices??[]]){const file=restoreFrontFile(original);visibleMedia.current.set(fileIdentity(file),file)}if(server&&(!saved?.frontContextId||Date.parse(server.updatedAt)>(saved.updatedAt??0)))saved=restoreFrontContext(server,saved??freshDraft())}catch{/* Local recovery remains usable while the server is unavailable. */}
+        try{const server=cancellationPending?null:await request<FrontContext|null>(frontUrl,'GET');if(!active)return;if(server)for(const message of [...server.previousMessages??[],...server.messages])for(const original of [...message.files??[],...message.voices??[]]){const file=restoreFrontFile(original);visibleMedia.current.set(fileIdentity(file),file)}if(server&&(!saved?.conversationResetAt||Date.parse(server.updatedAt)>saved.conversationResetAt)&&(!saved?.frontContextId||Date.parse(server.updatedAt)>(saved.updatedAt??0)))saved=restoreFrontContext(server,saved??freshDraft())}catch{/* Local recovery remains usable while the server is unavailable. */}
         // Start talking immediately from local recovery. A late history read
         // must never replace text, media or a new intent entered since opening.
         if(current.current!==opening)return
@@ -760,6 +763,19 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
     }catch{setError('新对话尚未建立，原内容仍然保留，请重试。')}
     finally{pending.current=false;setBusy(false)}
   }
+  useEffect(()=>{
+    if(!home)return
+    const deleted=()=>{
+      if(!captureConversationDeleted(key,current.current))return
+      workEpoch.current++;abort.current?.abort();uploadAbort.current?.abort()
+      const clean={...freshDraft(),conversationResetAt:Date.now()};current.current=clean;setLocal(clean);checkpointCaptureDraft(key,clean);void captureDraft(key,clean)
+      setContinuousCard(null);setRecordOpen(false);setChecklistOpen(false);setHomeTyping(false);setHomeInputEpoch(value=>value+1)
+      hiddenTurns.current.clear();liveVoicePreview.current.clear();completedGuideIds.current.clear();setShowJump(false);setCompleted(false);setStage('conversation');setOriginalsNeedReview(false);setError('');setStatus('');setHomeNotice('对话已删除，已保存的记录不受影响。');followScroll.current=true;scrollOpened.current=false
+    }
+    const storage=(event:StorageEvent)=>{if(event.key===deletionStorageKey(key))deleted()}
+    window.addEventListener(conversationDeletedEvent,deleted);window.addEventListener('storage',storage)
+    return()=>{window.removeEventListener(conversationDeletedEvent,deleted);window.removeEventListener('storage',storage)}
+  },[home,key])
   useEffect(()=>{
     const requestId=(location.state as {frontDeskNewConversation?:string}|null)?.frontDeskNewConversation
     if(!home||!requestId||handledNewConversation.current===requestId||!ready||busy||dialogueBusy||jobBusy||localStage||voice.busy||pending.current)return

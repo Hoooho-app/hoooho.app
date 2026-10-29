@@ -5,7 +5,7 @@ import { drawerHistoryRows, type RetainedConversation } from './drawerHistory'
 
 test('history extracts whole source keywords, later observations and uncertainty rather than a greeting or raw first line', () => {
   const result = conversationTitle({ texts: ['你好', '我这个对话记录，脸上有个小痘痘，不确定是包包还什么'] })
-  assert.equal(result.title, '脸上 · 小痘痘 · 包包（待确认）')
+  assert.equal(result.title, '脸上 · 小痘痘 · 待确认')
   assert.doesNotMatch(result.title, /你好|对话记录|痤疮|确诊/)
   assert.match(conversationTitle({ texts: ['你好', '脸颊发红', '后来有点痒', '三天了'] }).title, /发红.*痒/)
 })
@@ -34,4 +34,10 @@ test('one history destination retains the latest unsent device copy while keepin
   const continued = [{ ...server[0], contextIds: ['c', 'continued'] }]
   assert.equal(drawerHistoryRows(continued, [retained('newer', 'continued', '另外补充')]).length, 1)
   assert.equal(drawerHistoryRows(continued, [retained('newer', 'continued', '另外补充')])[0].title, '脸上 · 小痘痘')
+})
+
+test('compact titles retain the core symptom and remove measurement or observation scaffolding',()=>{
+  assert.equal(conversationTitle({texts:['发烧，还没量，家长观察后当前精神好']}).title,'发烧')
+  assert.equal(conversationTitle({texts:['发烧，家长观察：当前精神尚可，体温还没量']}).title,'发烧')
+  assert.match(conversationTitle({texts:['没有发热，今天咳嗽']}).title,/无发热.*咳嗽/)
 })

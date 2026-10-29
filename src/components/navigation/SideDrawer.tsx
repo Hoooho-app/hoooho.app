@@ -1,4 +1,6 @@
-import { ChevronRight, FileText, Info, MessageCircle, MessageCirclePlus, Pencil, Plus, UserRound } from '../icons'
+import { BottomSheetSurface, HohoButton } from '../design-system'
+import type { DrawerHistoryRow } from './drawerHistory'
+import { ChevronRight, FileText, Trash2, Info, MessageCircle, MessageCirclePlus, Pencil, Plus, UserRound } from '../icons'
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Avatar } from '../common'
@@ -42,11 +44,13 @@ export function SideDrawer({ onClose, onOpenChildSheet, open, cleanChrome = true
   const setAccountProfile = useAppStore(state => state.setAccountProfile)
   const accountId = authUser?.id ?? 'guest'
   const [accountOpen, setAccountOpen] = useState(false)
+  const [deleting,setDeleting]=useState<DrawerHistoryRow|null>(null),[deleteBusy,setDeleteBusy]=useState(false),[deleteError,setDeleteError]=useState('')
+  useEffect(()=>{setDeleting(null);setDeleteError('')},[open,accountId,member.id])
   const ownHistory = useDrawerHistory({ open, accountId, memberId: member.id, memberName: member.name, token: authToken, hasMembers: members.length > 0 })
   const userName = authUser?.guest ? '创建正式账户' : maskIdentityName(accountProfile?.nickname || authUser?.nickname) || '我的账户'
   const childName = maskIdentityName(member.name) || '记录对象'
   usePageScrollLock(open)
-  useDialogFocus(open, drawerRef)
+  useDialogFocus(open && !deleting, drawerRef)
   useEffect(() => {
     if (!open || !ownHistory.hasMore || ownHistory.loadingMore || ownHistory.moreError || !historyEndRef.current || typeof IntersectionObserver === 'undefined') return
     const observer = new IntersectionObserver(entries => { if (entries.some(entry => entry.isIntersecting)) void ownHistory.loadMore() }, { root: historyScrollRef.current, rootMargin: '160px' })
@@ -54,11 +58,11 @@ export function SideDrawer({ onClose, onOpenChildSheet, open, cleanChrome = true
     return () => observer.disconnect()
   }, [open, ownHistory.hasMore, ownHistory.loadingMore, ownHistory.moreError, ownHistory.loadMore, ownHistory.rows.length])
   useEffect(() => {
-    if (!open) return
+    if (!open || deleting) return
     const close = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose() }
     window.addEventListener('keydown', close)
     return () => window.removeEventListener('keydown', close)
-  }, [open, onClose])
+  }, [open, onClose, deleting])
   useEffect(() => {
     if (!open || !authToken || authUser?.guest || accountProfile) return
     void accountService.get(authToken).then(profile => {
@@ -80,6 +84,7 @@ export function SideDrawer({ onClose, onOpenChildSheet, open, cleanChrome = true
     onClose()
     navigate(to, to === '/feedback' ? { state: makeFeedbackState(getCurrentPath(location.pathname, location.search, location.hash), '侧边栏', window.scrollY) } : undefined)
   }
+  const confirmDelete=async()=>{if(!deleting||deleteBusy)return;setDeleteBusy(true);setDeleteError('');try{await ownHistory.remove(deleting);setDeleting(null)}catch(error){setDeleteError(error instanceof Error?error.message:'删除未完成，请重试')}finally{setDeleteBusy(false)}}
   if (!open) return <AccountSheet open={accountOpen} onClose={() => setAccountOpen(false)} />
   return <>
     <div className="hoho-drawer-layer" role="dialog" aria-modal="true" aria-label="侧边栏菜单">
@@ -104,7 +109,7 @@ export function SideDrawer({ onClose, onOpenChildSheet, open, cleanChrome = true
           {!ownHistory.loading && !ownHistory.error && !ownHistory.localError && !ownHistory.rows.length && <p className="drawer-history-notice">还没有对话记录</p>}
           {(['今天', '昨天', '更早'] as const).map(group => {
             const rows = ownHistory.rows.filter(row => historyGroup(row.updatedAt) === group)
-            return rows.length ? <section className="drawer-history-group" key={group} aria-label={group}><h3>{group}</h3>{rows.map(row => <button type="button" key={row.id} onClick={() => openHistory(row.destination)}><FileText size={18} aria-hidden="true" /><span>{row.title}</span><ChevronRight size={16} aria-hidden="true" /></button>)}</section> : null
+            return rows.length ? <section className="drawer-history-group" key={group} aria-label={group}><h3>{group}</h3>{rows.map(row => <div className="drawer-history-row" key={row.id}><button className="drawer-history-open" type="button" onClick={() => openHistory(row.destination)} aria-label={row.title}><FileText size={18} aria-hidden="true" /><span className="drawer-history-title">{row.title.replace(/（待确认）|(?: · )?待确认/gu,'')}</span>{/待确认/u.test(row.title)&&<span className="drawer-history-pending">待确认</span>}</button><button className="drawer-history-delete" type="button" disabled={conversationDisabled||deleteBusy} aria-label={'删除对话：'+row.title} onClick={()=>{setDeleteError('');setDeleting(row)}}><Trash2 size={18} aria-hidden="true" /></button></div>)}</section> : null
           })}
           {ownHistory.loadingMore && <p className="drawer-history-notice" role="status">正在读取更多对话…</p>}
           {ownHistory.moreError && <div className="drawer-history-notice" role="status"><span>更早对话暂未加载，已显示的对话仍保留。</span><button type="button" onClick={() => void ownHistory.loadMore()}>重试</button></div>}
@@ -113,6 +118,7 @@ export function SideDrawer({ onClose, onOpenChildSheet, open, cleanChrome = true
         <footer className="drawer-utilities" aria-label="反馈与关于">{utilityLinks.map(({ label, icon: Icon, to }) => <button key={to} type="button" onClick={() => openUtility(to)}><Icon size={22} strokeWidth={1.7} aria-hidden="true" /><span>{label}</span></button>)}</footer>
       </aside>
     </div>
+    <BottomSheetSurface open={Boolean(deleting)} title="删除这次对话？" label="删除对话" onClose={()=>{if(!deleteBusy)setDeleting(null)}} footer={<div className="drawer-delete-actions"><HohoButton variant="secondary" disabled={deleteBusy} onClick={()=>setDeleting(null)}>取消</HohoButton><HohoButton variant="danger" loading={deleteBusy} onClick={()=>void confirmDelete()}>确认删除</HohoButton></div>}><p>删除对话不会影响已保存的记录。</p>{deleteError&&<p role="alert" className="drawer-delete-error">{deleteError}</p>}</BottomSheetSurface>
     <AccountSheet open={accountOpen} onClose={() => setAccountOpen(false)} />
   </>
 }

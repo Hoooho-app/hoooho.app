@@ -2,8 +2,8 @@ import { conversationTitle } from '../../../shared/conversation-title.mjs'
 import type { CaptureDraft } from '../../features/ai-business/captureDraft'
 
 export interface ServerConversation { id: string; contextIds?: string[]; title: string; keywords?: string[]; updatedAt: string }
-export interface HistoryPage { items: ServerConversation[]; hasMore: boolean; nextOffset: number }
-export interface DrawerHistoryRow { id: string; title: string; updatedAt: string; destination: string }
+export interface HistoryPage { items: ServerConversation[]; hasMore: boolean; nextOffset: number; deletedContextIds?: string[] }
+export interface DrawerHistoryRow { id: string; title: string; updatedAt: string; destination: string; serverId?: string; contextIds?: string[]; requestIds?: string[] }
 export type RetainedConversation = { key: string; draft: CaptureDraft }
 
 export function draftConversationTitle(draft: CaptureDraft, memberName = '') {
@@ -29,5 +29,5 @@ export function drawerHistoryRows(server: ServerConversation[], retained: Retain
     if (!hasContent) continue
     rows.set(id, { id, title: saved?.title || draftConversationTitle(draft, memberName), updatedAt: new Date(Math.max(Date.parse(saved?.updatedAt ?? '') || 0, draft.updatedAt ?? 0)).toISOString(), destination: '/conversation-history?draft=' + encodeURIComponent(item.key) + '&from=sidebar' })
   }
-  return [...rows.values()].sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt) || b.id.localeCompare(a.id))
+  return [...rows.values()].map(row=>{const saved=server.find(item=>item.id===row.id),ids=saved?.contextIds??[row.id];const copies=retained.filter(item=>item.key===row.id||ids.includes(item.draft.frontContextId??''));return {...row,serverId:saved?.id??copies.find(item=>item.draft.frontContextId)?.draft.frontContextId,contextIds:ids,requestIds:copies.map(item=>item.draft.requestId)}}).sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt) || b.id.localeCompare(a.id))
 }

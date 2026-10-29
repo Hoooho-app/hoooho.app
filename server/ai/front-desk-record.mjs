@@ -81,7 +81,7 @@ export class FrontDeskRecord {
   async snapshot(accountId, memberId, contextId) {
     const data = await this.store.read()
     const context = data.contexts.find(c => c.id === contextId && c.accountId === accountId && c.memberId === memberId)
-    if (!context) return null
+    if (!context || context.conversationDeletedAt) return null
     let review
     if (context.draftId) try { review = await this.business.read(accountId, memberId, context.draftId) } catch (error) { if (error.code !== 'AI_DRAFT_NOT_FOUND') throw error }
     if(context.semanticVersion===2&&review&&(context.decision?.organize===false&&context.decision.intent!=='interaction'||context.interview?.status!=='ready'||review.inputText!==factMessages(data.messages.filter(message=>message.contextId===contextId&&message.accountId===accountId&&message.memberId===memberId)).map(message=>message.text).filter(Boolean).join('\n')))review=undefined
@@ -102,7 +102,7 @@ export class FrontDeskRecord {
     await this.scope(accountId,memberId)
     const data=await this.store.read()
     const requested=data.contexts.find(c=>c.id===contextId&&c.accountId===accountId&&c.memberId===memberId)
-    if(!requested)return null
+    if(!requested||requested.conversationDeletedAt)return null
     const root=conversationIdOf(requested)
     const group=data.contexts.filter(c=>c.accountId===accountId&&c.memberId===memberId&&conversationIdOf(c)===root)
     const active=latestConversationContext(group)??requested
@@ -122,7 +122,7 @@ export class FrontDeskRecord {
       await this.scope(accountId,memberId)
       await this.store.update(data=>{
         const requested=data.contexts.find(c=>c.id===contextId&&c.accountId===accountId&&c.memberId===memberId)
-        if(!requested)throw fail('未找到这次对话',404,'FRONT_RECORD_NOT_FOUND')
+        if(!requested||requested.conversationDeletedAt)throw fail('未找到这次对话',404,'FRONT_RECORD_NOT_FOUND')
         const group=data.contexts.filter(c=>c.accountId===accountId&&c.memberId===memberId&&conversationIdOf(c)===conversationIdOf(requested))
         const selected=latestConversationContext(group)??requested
         selectedId=selected.id
@@ -135,7 +135,7 @@ export class FrontDeskRecord {
   async latest(accountId, memberId) {
     await this.scope(accountId, memberId)
     const data = await this.store.read()
-    const scoped=data.contexts.filter(c=>c.accountId===accountId&&c.memberId===memberId)
+    const scoped=data.contexts.filter(c=>c.accountId===accountId&&c.memberId===memberId&&!c.conversationDeletedAt)
     const parents=new Set(scoped.filter(c=>c.continuedFromId&&c.continuedFromId!==c.id).map(c=>c.continuedFromId))
     const context = scoped.filter(c => !parents.has(c.id)&&!c.closedAt&&data.messages.some(m=>m.contextId===c.id&&m.status!=='discarded')).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || b.id.localeCompare(a.id))[0]
     return context ? this.conversation(accountId, memberId, context.id) : null
@@ -147,7 +147,7 @@ export class FrontDeskRecord {
     await this.scope(accountId, memberId)
     // One history row per conversation, even after several formal saves.
     const groups=new Map()
-    for(const context of data.contexts.filter(c=>c.accountId===accountId&&c.memberId===memberId)){
+    for(const context of data.contexts.filter(c=>c.accountId===accountId&&c.memberId===memberId&&!c.conversationDeletedAt)){
       const root=conversationIdOf(context)
       if(!groups.has(root))groups.set(root,[])
       groups.get(root).push(context)
@@ -166,7 +166,25 @@ export class FrontDeskRecord {
       return {id:root,contextIds:[...ids],updatedAt:contexts.reduce((last,c)=>c.updatedAt>last?c.updatedAt:last,''),...label,preview:(messages.at(-1)?.text??'').slice(0,160),saved:Boolean(active?.saved||active?.currentRecord),closed:Boolean(active?.closedAt),messageCount:messages.length}
     }).filter(Boolean).sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt)||b.id.localeCompare(a.id))
     const limit = 30
-    return { items: items.slice(offset, offset + limit), hasMore: items.length > offset + limit, nextOffset: offset + limit }
+    return { items: items.slice(offset, offset + limit), hasMore: items.length > offset + limit, nextOffset: offset + limit, deletedContextIds:data.contexts.filter(c=>c.accountId===accountId&&c.memberId===memberId&&c.conversationDeletedAt).map(c=>c.id) }
+  }
+  /** Remove a conversation from access, preserving saved-record source dependencies. */
+  async deleteConversation(accountId,memberId,contextId) {
+    await this.scope(accountId,memberId)
+    let contextIds=[]
+    await accountTransaction(this.directory,async()=>{
+      await this.scope(accountId,memberId)
+      if(this.inFlight.has(JSON.stringify([accountId,memberId])))throw fail('正在处理对话，请稍后再删除',409,'FRONT_RECORD_BUSY')
+      await this.store.update(data=>{
+        const selected=data.contexts.find(c=>c.id===contextId&&c.accountId===accountId&&c.memberId===memberId)
+        if(!selected)throw fail('未找到这次对话',404,'FRONT_RECORD_NOT_FOUND')
+        const root=conversationIdOf(selected)
+        contextIds=data.contexts.filter(c=>c.accountId===accountId&&c.memberId===memberId&&conversationIdOf(c)===root).map(c=>c.id)
+        const at=this.now().toISOString()
+        return {...data,contexts:data.contexts.map(c=>c.accountId===accountId&&c.memberId===memberId&&contextIds.includes(c.id)?{...c,conversationDeletedAt:c.conversationDeletedAt??at,closedAt:c.closedAt??at}:c)}
+      })
+    })
+    return {deleted:true,contextIds}
   }
   async discard(accountId,memberId,id){
     await this.scope(accountId,memberId)
@@ -255,6 +273,7 @@ export class FrontDeskRecord {
     await this.scope(accountId, memberId)
     const stored=await this.store.read(),prior=stored.messages.find(message=>message.id===input.id&&message.accountId===accountId&&message.memberId===memberId)
     const target=stored.contexts.find(context=>context.id===(input.contextId??input.answerTo?.contextId)&&context.accountId===accountId&&context.memberId===memberId)
+    if(target?.conversationDeletedAt||stored.contexts.find(c=>c.id===prior?.contextId)?.conversationDeletedAt)throw fail('这次对话已删除，请新建对话',410,'FRONT_CONVERSATION_DELETED')
     if(!execution.continuousRecord&&((prior?.protocolVersion??input.protocolVersion)===2||target?.semanticVersion===2&&!target.understanding))return this.legacySemantic.submit(accountId,memberId,{...input,protocolVersion:2},signal)
     const key = JSON.stringify([accountId, memberId]), digest = fingerprint(input), active = this.inFlight.get(key)
     if (active) { if (active.digest === digest) return active.promise; throw fail('正在回应上一条消息，内容已保留', 409, 'FRONT_RECORD_BUSY') }
