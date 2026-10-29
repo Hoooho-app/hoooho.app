@@ -39,3 +39,18 @@ body .smart-record-home .front-desk-welcome--editorial{display:grid;grid-templat
  .front-desk-welcome__entry strong{font-size:var(--hoho-font-size-card-title)}
  .front-desk-welcome__excerpt{-webkit-line-clamp:2;line-height:1.6}
 }
+/* Very short phones use a smaller reading layout before falling back to scrolling. */
+@media(max-height:600px){
+ .smart-record-home .smart-record-page__body:has(>.front-desk-welcome--editorial){padding-block:var(--hoho-space-2)}
+}
+@container front-desk-body (max-height:360px){
+ body .smart-record-home .front-desk-welcome--editorial{grid-template-rows:minmax(min-content,1.25fr) minmax(168px,1fr)}
+ .front-desk-welcome--editorial .front-desk-welcome__hero{min-height:140px}
+ .front-desk-welcome--editorial .front-desk-welcome__copy{padding:var(--hoho-space-3)}
+ .front-desk-welcome--editorial .front-desk-welcome__media{height:calc(100% - var(--hoho-space-1));max-height:170px}
+ .front-desk-welcome__entries,.front-desk-welcome__entry{min-height:168px}
+ .front-desk-welcome__entry{padding:var(--hoho-space-2)}
+ .front-desk-welcome__entry strong{font-size:var(--hoho-font-size-body-small)}
+ .front-desk-welcome__guide img{min-height:64px}
+ .front-desk-welcome__excerpt{-webkit-line-clamp:1}
+}

@@ -27,13 +27,13 @@ test('home fills available height with full images clear of copy and composer', 
       inputTop: document.querySelector('.smart-record-page__footer')!.getBoundingClientRect().top,
       heroHeight: rect('.front-desk-welcome__hero').height, cardHeight: cards.height, bodyHeight:b.height, welcomeHeight:welcome.getBoundingClientRect().height, cqh:getComputedStyle(welcome).height, gap:getComputedStyle(welcome).gap, horizontal: document.documentElement.scrollWidth > innerWidth }
   })
-  console.log(JSON.stringify(result))
+  await info.attach('layout-geometry', { body: JSON.stringify(result), contentType: 'application/json' })
   expect(result.paragraphRight).toBeLessThanOrEqual(result.portraitLeft)
   expect(result.portraitBottom).toBeLessThanOrEqual(result.heroBottom + 1)
   expect(result.artBottom).toBeLessThanOrEqual(result.cardBottom + 1)
   expect(result.horizontal).toBe(false)
   await expect(page.locator('.front-desk-welcome__guide img')).toHaveCSS('object-fit', 'contain')
-  if (page.viewportSize()!.height >= 646) {
+  if (page.viewportSize()!.height >= 568) {
     expect(result.cardBottom).toBeLessThanOrEqual(result.inputTop)
     expect(result.cardBottom).toBeLessThanOrEqual(result.bodyBottom)
     expect(result.contentBottom - result.cardBottom).toBeGreaterThanOrEqual(0)
@@ -61,7 +61,7 @@ test('keyboard classifications and larger copy remain reachable without cropping
 // Browser toolbar expansion/collapse and rotation change available height without a reload.
 test('same home continuously adapts when the viewport changes', async ({ page }, info) => {
   test.skip(info.project.name !== 'mini-812', 'One continuous resize sequence covers this shared layout')
-  for (const height of [932, 844, 724, 667, 646, 812]) {
+  for (const height of [932, 844, 724, 667, 646, 568, 812]) {
     await page.setViewportSize({ width: 375, height })
     await expect.poll(async () => page.locator('.front-desk-welcome__entries').evaluate(cards => {
       const body = cards.closest('.smart-record-page__body')!
