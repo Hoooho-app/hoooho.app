@@ -152,8 +152,18 @@ test('failed recording survives refresh, retries and remains readable after a ne
  await detail.locator('summary').filter({hasText:/^原始资料$/}).click()
  const original=page.waitForResponse(r=>new URL(r.url()).pathname.startsWith(`/api/events/${sourceEventId}/attachments/`)&&new URL(r.url()).pathname.endsWith('/content')&&r.request().method()==='GET')
  await detail.getByRole('button',{name:'读取原件 1',exact:true}).click()
- const audio=await original;expect(audio.ok()).toBe(true);expect(audio.headers()['content-type']).toMatch(/^audio\//);expect((await audio.body()).byteLength).toBeGreaterThan(0)
- await expect(detail.getByRole('link',{name:'查看原件 1',exact:true})).toBeVisible()
+ const audio=await original;expect(audio.ok()).toBe(true);expect(audio.headers()['content-type']).toMatch(/^audio\//)
+ const originalLink=detail.getByRole('link',{name:'查看原件 1',exact:true});await expect(originalLink).toBeVisible();await expect(originalLink).toHaveAttribute('href',/^blob:/)
+ // Measure the blob actually received by the app, plus an authenticated server
+ // read. CDP may return an empty body when its fallback drops the Bearer header.
+ const uiAudio=await originalLink.evaluate(async node=>{const r=await fetch((node as HTMLAnchorElement).href),blob=await r.blob();return {status:r.status,type:blob.type,size:blob.size}})
+ const serverAudio=await request.get(audio.url(),{headers}),serverBytes=await serverAudio.body()
+ let cdpBytes:number|null=null,cdpError='';try{cdpBytes=(await audio.body()).byteLength}catch(error){cdpError=String(error)}
+ const evidence={responseStatus:audio.status(),contentLength:audio.headers()['content-length'],contentType:audio.headers()['content-type'],uiAudio,serverStatus:serverAudio.status(),serverType:serverAudio.headers()['content-type'],serverBytes:serverBytes.byteLength,cdpBytes,cdpError}
+ await test.info().attach('original-audio-readback',{body:JSON.stringify(evidence,null,2),contentType:'application/json'})
+ expect(uiAudio.status,JSON.stringify(evidence)).toBe(200);expect(uiAudio.type).toMatch(/^audio\//);expect(uiAudio.size,JSON.stringify(evidence)).toBeGreaterThan(0)
+ expect(serverAudio.ok(),JSON.stringify(evidence)).toBe(true);expect(serverAudio.headers()['content-type']).toMatch(/^audio\//);expect(serverBytes.byteLength,JSON.stringify(evidence)).toBeGreaterThan(0)
+ expect(Number(audio.headers()['content-length']),JSON.stringify(evidence)).toBe(serverBytes.byteLength);expect(uiAudio.size).toBe(serverBytes.byteLength)
  await page.goBack();await expect(page).toHaveURL(historyUrl)
  await expect(savedStatus).toHaveAttribute('data-record-id',voiceRecordId!)
  await page.getByRole('button',{name:'打开菜单',exact:true}).click()
