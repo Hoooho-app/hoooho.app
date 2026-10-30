@@ -89,7 +89,7 @@ test('failed voice has two compact actions on one row and retries the same task'
   expect(after.id).toBe(before.id);expect(after.inputStates).toHaveLength(1)
 })
 
-test('camera opens a system chooser directly; native cancellation retains input without opening another chooser',async({page},info)=>{
+test('camera uses the browser system chooser even inside a native container; cancelling retains input',async({page},info)=>{
   const add=page.locator('.hoho-main-header').getByRole('button',{name:'新建对话',exact:true})
   await expect(add).toHaveCount(0)
   const selected=page.waitForEvent('filechooser')
@@ -97,15 +97,37 @@ test('camera opens a system chooser directly; native cancellation retains input 
   const input=(await selected).element()
   expect(await input.getAttribute('accept')).toContain('video/mp4')
   expect(await input.getAttribute('accept')).toContain('application/pdf')
+  await input.setInputFiles([])
   await expect(page.getByRole('dialog',{name:'添加附件',exact:true})).toHaveCount(0)
   await type(page,'选择附件前输入的补充')
-  await page.evaluate(()=>{window.hooohoNativeAttachments=async()=>{throw new DOMException('已取消','AbortError')}})
-  let extraChoosers=0;page.on('filechooser',()=>extraChoosers++)
+  await page.evaluate(()=>{
+    ;(window as any).__customPickerCalls=0
+    window.hooohoNativeAttachments=async()=>{(window as any).__customPickerCalls++;throw new Error('应用自定义菜单不应打开')}
+  })
+  const systemPicker=page.waitForEvent('filechooser')
   await page.getByRole('button',{name:'添加照片、视频或文件',exact:true}).click()
+  await (await systemPicker).setFiles([])
   await expect(page.getByLabel('对话输入')).toHaveValue('选择附件前输入的补充')
   await expect(page.locator('.nurse-turn--user')).toHaveCount(0)
   await expect(page.getByRole('alert')).toHaveCount(0)
   await expect(add).toHaveCount(0)
-  expect(extraChoosers).toBe(0)
+  expect(await page.evaluate(()=>(window as any).__customPickerCalls)).toBe(0)
+  await expect(page.getByRole('dialog',{name:'添加附件',exact:true})).toHaveCount(0)
   await page.screenshot({path:info.outputPath('attachment-cancel-keeps-input.png')})
+})
+
+test('a system picker opened for the old conversation cannot attach its late files to a new one',async({page,request})=>{
+  await type(page,'旧对话中尚未发送的输入')
+  const choosing=page.waitForEvent('filechooser')
+  await page.getByRole('button',{name:'添加照片、视频或文件',exact:true}).click()
+  const picker=await choosing
+  await page.getByRole('button',{name:'打开菜单',exact:true}).click()
+  await page.getByRole('dialog',{name:'侧边栏菜单',exact:true}).getByRole('button',{name:'新建对话',exact:true}).click()
+  await expect(page.getByLabel('对话输入',{exact:true})).toHaveCount(0)
+  await expect(page.getByRole('button',{name:'按住记录症状',exact:true})).toBeEnabled()
+  await picker.setFiles({name:'迟到的合成照片.png',mimeType:'image/png',buffer:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a2XcAAAAASUVORK5CYII=','base64')})
+  await page.evaluate(()=>new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve()))))
+  await expect(page.locator('.nurse-turn--user')).toHaveCount(0)
+  await expect(page.getByRole('alert')).toHaveCount(0)
+  expect(await(await request.get(`/api/members/${memberId}/recognition-jobs`,{headers})).json()).toBeNull()
 })
