@@ -19,4 +19,4 @@
 - 纯照片上传并保存可读原件的既有流程1项通过；导航/空白与有内容的新建入口/侧栏恢复/320至430宽度等9项通过。均为真实浏览器和本地API持久化，使用合成账户、供应商fixture及隔离临时数据，没有真实供应商调用或生产写入。
 - 未改Swift，不触发新原生包。真实iPhone系统菜单外观由实体设备验收，浏览器filechooser事件不冒称系统菜单截图。
 
-Production发布回执待追加。
+PR [#608](https://github.com/Hoooho-app/hoooho.app/pull/608) 已合并，运行提交 `561d646fb21bd8c6efe0cdb9b981bf66a43e994e`，完整树 `140b966db04f1034dc62716ecf177bbdf9f2ff47` 与本地验证一致。Railway Production部署 `d34ca331-cde8-4438-9dde-5b845ce6751c` 于 2026/10/30 12:55:01（Asia/Shanghai）观察到SUCCESS，旧部署已REMOVED。正式站健康接口ok，入口 `/assets/index-yL9DNROJ.js` 内目标SHA正确，工作区 `assets/JournalRecordDetail-CS5UtcKf.js` 的文件选择入口已读回；系统选择路径与隔离行为依据同一源码浏览器证据，不冒称已查看实体iPhone系统面板。本次不触发原生/TestFlight或其他渠道构建，临时测试服务随Playwright退出关闭；实体手机菜单外观待主人体验。
