@@ -211,3 +211,6 @@ body .smart-record-home .hoho-bottom-navigation{margin-top:0;background-color:rg
 .continuous-record-card>header>strong{font-size:var(--hoho-font-size-body);font-weight:600;color:rgb(var(--hoho-color-text-primary))}
 .continuous-record-actions{display:flex;align-items:center;gap:var(--hoho-space-1);margin-left:auto}
 .smart-record-home .continuous-record-actions>.hoho-button{padding-inline:var(--hoho-space-2);white-space:nowrap}
+
+.continuous-record-card>header>.front-desk-recorded--partial{order:1;flex-basis:100%;min-width:0;align-items:flex-start}
+.continuous-record-card>header>.front-desk-recorded--partial>svg{flex:none;margin-top:var(--hoho-space-1)}
