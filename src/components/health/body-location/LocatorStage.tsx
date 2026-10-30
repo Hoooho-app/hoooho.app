@@ -1,10 +1,11 @@
 import type { ReactNode } from 'react'
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { type ChildRegion, type ChildView } from '../../../features/body-location/childBodyCatalog'
 import { localAngles, type Bounds, type LocalAngle } from '../../../features/body-location/childBodyGeometry'
 import { type LocatorModel } from '../../../features/body-location/locatorDictionary'
 import { locatorAssetUrl, type LocatorZone } from '../../../features/body-location/locatorGeometry'
 import { graphicalVisual, graphicalZones } from '../../../features/body-location/graphicalLocator'
+import { selectionPartition, selectionSilhouette } from '../../../features/body-location/selectionContours'
 
 interface Props {model:LocatorModel;view:ChildView;region?:ChildRegion;angle:LocalAngle;selectedIds:string[];onRegion:(id:string)=>void;onToggle:(id:string)=>void;controls?:ReactNode;zoom:Bounds|null;onZoom:(bounds:Bounds|null)=>void}
 export function LocatorStage({model,view,region,angle,selectedIds,onRegion,onToggle,controls,zoom,onZoom}:Props) {
@@ -13,6 +14,9 @@ export function LocatorStage({model,view,region,angle,selectedIds,onRegion,onTog
   const [status,setStatus]=useState<'loading'|'ready'|'error'>('loading'),[attempt,setAttempt]=useState(0)
   const visual=useMemo(()=>graphicalVisual(model,view,region,angle),[model,view,region,angle])
   const selected=new Set(selectedIds)
+  const silhouetteId=`locator-silhouette-${useId().replace(/:/g,'')}`
+  const partitionId=`${silhouetteId}-selection`
+  const silhouette=useMemo(()=>visual?selectionSilhouette(visual):'',[visual])
   useLayoutEffect(()=>{if(!host.current)return;const {width,height}=host.current.getBoundingClientRect();setSize({width,height});const observer=new ResizeObserver(entries=>{const {width,height}=entries[0].contentRect;setSize({width,height})});observer.observe(host.current);return()=>observer.disconnect()},[region?.id,view,angle])
   useEffect(()=>{
     if(!visual)return
@@ -34,7 +38,13 @@ export function LocatorStage({model,view,region,angle,selectedIds,onRegion,onTog
     {visual&&status==='ready'&&<svg className="locator-canvas" viewBox={`0 0 ${size.width} ${size.height}`} role="group" aria-label={`${model==='girl'?'女孩':model==='boy'?'男孩':'中性儿童'}${region?region.label:'全身'}${viewLabel}示意图`}>
       <svg x={ix} y={iy} width={imageW} height={imageH} viewBox={`${zx} ${zy} ${zw} ${zh}`} preserveAspectRatio="none">
         <image href={locatorAssetUrl(visual)} x={-visual.bounds[0]/visual.bounds[2]} y={-visual.bounds[1]/visual.bounds[3]} width={1/visual.bounds[2]} height={1/visual.bounds[3]} preserveAspectRatio="none"/>
-        {zones.map((z,i)=><g key={`${z.id}:${i}`}><path d={z.path} data-zone-id={z.id} className="locator-zone" role="button" tabIndex={0} aria-label={z.label} aria-pressed={region?isSelected(z):undefined} data-region-id={region?undefined:z.id} data-location-id={region?z.id:undefined} data-selected={isSelected(z)} onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();activate(z)}}} onClick={()=>activate(z)}><title>{z.label}</title></path>{isSelected(z)&&<text className="locator-check" x={z.point[0]} y={z.point[1]} textAnchor="middle" dominantBaseline="middle" fontSize={.045*Math.min(zw,zh)}>✓</text>}</g>)}
+        <defs>
+          <clipPath id={silhouetteId} clipPathUnits="userSpaceOnUse"><path d={silhouette}/></clipPath>
+          <clipPath id={partitionId} clipPathUnits="userSpaceOnUse">{zones.filter(isSelected).map(z=><path key={z.id} d={selectionPartition(z,visual,region,model)}/>)}</clipPath>
+        </defs>
+        {region&&silhouette&&zones.some(isSelected)&&<g aria-hidden="true" clipPath={`url(#${silhouetteId})`}><rect className="locator-selection" x="0" y="0" width="1" height="1" clipPath={`url(#${partitionId})`}/></g>}
+        {region&&silhouette&&<g aria-hidden="true" clipPath={`url(#${silhouetteId})`}>{zones.map(z=><path key={z.id} className="locator-contour-target" d={selectionPartition(z,visual,region,model)} onClick={()=>activate(z)}/>)}</g>}
+        {zones.map((z,i)=><path key={`${z.id}:${i}`} d={z.path} data-zone-id={z.id} className="locator-zone" role="button" tabIndex={0} aria-label={z.label} aria-pressed={region?isSelected(z):undefined} data-region-id={region?undefined:z.id} data-location-id={region?z.id:undefined} data-selected={isSelected(z)} onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();activate(z)}}} onClick={()=>activate(z)}><title>{z.label}</title></path>)}
       </svg>
 
     </svg>}
