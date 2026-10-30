@@ -1,7 +1,7 @@
 import {RecordNarrative} from '../../../features/ai-business/RecordNarrative'
 import { NurseNotes } from '../../../features/ai-nurse/NurseNotes'
 import type { NurseMetadata } from '../../../features/ai-nurse/types'
-import { Link2, Pencil, Save, Trash2 } from '../../../components/icons'
+import { ChevronRight, Link2, Pencil, Save, Trash2 } from '../../../components/icons'
 import { useEffect, useState, type ReactNode } from 'react'
 import { BottomSheetSurface, HohoButton } from '../../../components/design-system'
 import { ChildBodyLocationPicker } from '../../../components/health/body-location/ChildBodyLocationPicker'
@@ -297,5 +297,5 @@ function formatRecordDateTime(value: string) {
 }
 
 function RecordExtras({collapsed,title,children}:{collapsed:boolean;title:string;children:ReactNode}){
-  return collapsed?<details className="record-reading__detail"><summary>{title}</summary>{children}</details>:<>{children}</>
+  return collapsed?<details className="record-reading__detail"><summary><span>{title}</span><ChevronRight className="record-reading__chevron" size={20} aria-hidden="true"/></summary>{children}</details>:<>{children}</>
 }

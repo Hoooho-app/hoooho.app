@@ -1,4 +1,5 @@
 import {recordReading} from '../../../shared/front-desk-record-format.mjs'
+import {ChevronRight} from '../../components/icons'
 import './recordNarrative.css'
 
 /** The same saved text is rendered in conversation and calendar details. */
@@ -8,7 +9,7 @@ export function RecordNarrative({text,title='主要症状',compact=false,keyword
     return <div className="record-reading">
       <section><h3>情况概述</h3><p className="symptom-record-original">{reading.overview}</p></section>
       <section><h3>关键词</h3>{reading.keywords.length?<div className="record-reading__keywords">{reading.keywords.map(keyword=><span key={keyword}>{keyword}</span>)}</div>:<p className="record-reading__empty">暂无可提取的关键词</p>}</section>
-      {reading.details.map(section=><details className="record-reading__detail" key={section.title}><summary>{section.title}</summary><p className="symptom-record-original">{section.text}</p></details>)}
+      {reading.details.map(section=><details className="record-reading__detail" key={section.title}><summary><span>{section.title}</span><ChevronRight className="record-reading__chevron" size={20} aria-hidden="true"/></summary><p className="symptom-record-original">{section.text}</p></details>)}
     </div>
   }
   const parts=text.split(/(?:^|\n)【([^】\n]{1,40})】\s*\n/u)
