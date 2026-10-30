@@ -64,6 +64,8 @@ jobs:
           node --import ./scripts/register-node-ts-loader.mjs --test src/features/health-attachments/photoAnalysis.test.ts src/services/imageAnalysisPresentation.test.ts src/services/healthEventDetailAdapter.test.ts
       - run: npm run build
         id: build
+      - run: npx playwright test --config tests/conversation-home/playwright.config.ts
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
       - name: Verify report diagnostics and continuous page paper
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: npx playwright test --config tests/visit-sheet/presentation.config.ts
@@ -98,8 +100,6 @@ jobs:
       - name: Verify selective rollback draft and data compatibility
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: npx playwright test --config tests/selective-rollback/playwright.config.ts
-      - run: npx playwright test --config tests/conversation-home/playwright.config.ts
-        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
       - run: npx playwright test --config tests/conversation-home/first-child.config.ts
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
       - run: npx playwright test --config tests/conversation-home/forest.config.ts
