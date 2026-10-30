@@ -3,7 +3,6 @@ import {test,expect,type Page,type APIRequestContext} from '@playwright/test'
 import {TokenService} from '../../server/auth/token-service.mjs'
 import sharp from 'sharp'
 import {writeFile} from 'node:fs/promises'
-import {openRegion,choose} from '../body-locator/helpers'
 import {maskIdentityName} from '../../src/utils/privateIdentity'
 import {fingerprint} from '../../server/ai/business/contract.mjs'
 const control='http://127.0.0.1:4868',token=new TokenService('visit-sheet-e2e-secret',3600000).create({id:'visit-test'}),headers={Authorization:`Bearer ${token}`}
@@ -156,12 +155,17 @@ test('second follow-up offers text consent, unknown location opens picker, and r
  await picker.getByRole('button',{name:'取消选择',exact:true}).click();await expect(picker).toHaveCount(0)
  expect((await(await request.get(`/api/members/${memberId}/front-desk-record`,{headers})).json()).messages).toHaveLength(beforeCancel.messages.length)
  await page.getByRole('button',{name:'选择症状部位',exact:true}).click()
- await reply(request,'暂时无法确认具体症状部位。','洗完澡后更明显吗？','unknown')
- const selected=page.waitForResponse(response=>response.url().endsWith('/recognition-jobs')&&response.request().method()==='POST')
- await picker.getByRole('button',{name:'完成，暂不选择',exact:true}).click();job=await(await selected).json();await settle(request,job.id,job.inputRevision)
- const supplemented=await(await request.get(`/api/members/${memberId}/front-desk-record`,{headers})).json()
- expect(supplemented.interview.question.text).toBe('洗完澡后更明显吗？')
- expect(supplemented.messages.find((message:any)=>message.text==='暂时无法确认具体症状部位。').contextQuestion??null).toBeNull()
+ // The current graphic picker cannot submit an empty selection as a new fact.
+ // The parent's actual unknown statement above remains the source of uncertainty.
+ const beforeEmpty=(await(await request.get(`${control}/status`)).json()).calls
+ await expect(picker.getByRole('button',{name:'完成',exact:true})).toBeDisabled()
+ await picker.getByRole('button',{name:'取消选择',exact:true}).click();await expect(picker).toHaveCount(0)
+ const unchanged=await(await request.get(`/api/members/${memberId}/front-desk-record`,{headers})).json()
+ expect(unchanged.messages).toHaveLength(beforeCancel.messages.length)
+ expect(unchanged.interview.question.text).toBe('洗完澡后更明显吗？')
+ expect(unchanged.messages.filter((message:any)=>message.text===unknown)).toHaveLength(1)
+ expect((await(await request.get(`${control}/status`)).json()).calls).toBe(beforeEmpty)
+ await expect(page.getByRole('list',{name:'本轮询问进度'}).getByRole('listitem',{name:'症状部位，未完成',exact:true})).toHaveAttribute('data-state','uncertain')
  const noComparison='洗澡之前没有观察，无法比较。'
  await request.post(`${control}/front-reply-data`,{data:{reply:'明白。洗澡后会更明显吗？',contextId:'@context',responseMode:'record',taskRelation:'continue',subject,recordChanges:[{type:'add',targetId:null,text:noComparison,scope:'record',polarity:'unknown',subject,sources:[{messageId:'@latest',attachmentId:null,quote:noComparison}]}],nextQuestion:{id:null,text:'洗澡后会更明显吗？',target:'after_bathing',sourceMessageId:'@latest'},requestedAction:noAction,uncertainties:[],emergency:{currentChild:false,quote:''}}})
  job=await send(page,noComparison);await settle(request,job.id,job.inputRevision)
@@ -183,11 +187,11 @@ test('selected body location and choice answers become one owned input each; fre
  let job=await send(page,text);await settle(request,job.id,job.inputRevision)
  await page.getByRole('button',{name:'选择症状部位',exact:true}).click()
  const picker=page.getByRole('dialog',{name:'身体部位定位器',exact:true})
- await openRegion(page,'hand_left');await choose(page,'hand_left_palm_center')
- await expect(picker.locator('.locator-selected-line')).toContainText('左掌心')
- const selected='补充症状部位：左掌心。';await reply(request,selected,'孩子有说痒或疼，还是您看到他一直抓挠？')
+ await picker.locator('[data-region-id="hand_left"]').click();await picker.locator('[data-location-id="graphic_hand_left_palm"]').click()
+ await expect(picker.locator('.locator-selected-line')).toContainText('左手掌')
+ const selected='补充症状部位：左手掌。';await reply(request,selected,'孩子有说痒或疼，还是您看到他一直抓挠？')
  const posted=page.waitForResponse(response=>response.url().endsWith('/recognition-jobs')&&response.request().method()==='POST')
- await picker.getByRole('button',{name:/确认部位并补充到对话/}).click();job=await(await posted).json();await settle(request,job.id,job.inputRevision)
+ await picker.getByRole('button',{name:'完成',exact:true}).click();job=await(await posted).json();await settle(request,job.id,job.inputRevision)
  await expect(picker).toHaveCount(0);await expect(page.getByText(selected,{exact:true})).toBeVisible()
  const choice=page.getByRole('group',{name:'选择回答',exact:true}).getByRole('button',{name:'看到抓挠',exact:true})
  await expect(choice).toBeVisible()
@@ -202,6 +206,7 @@ test('selected body location and choice answers become one owned input each; fre
  await expect(page.getByRole('list',{name:'本轮询问进度'}).getByRole('listitem',{name:'症状部位，已完成',exact:true})).toHaveAttribute('data-state','answered')
  const context=await(await request.get(`/api/members/${memberId}/front-desk-record`,{headers})).json()
  expect(context.messages.filter((message:any)=>message.kind!=='assistant'&&message.text===selected)).toHaveLength(1)
+ expect(context.messages.find((message:any)=>message.kind!=='assistant'&&message.text===selected).contextQuestion??null).toBeNull()
  expect(context.messages.filter((message:any)=>message.kind!=='assistant'&&message.text==='我看到孩子反复抓挠那里。')).toHaveLength(1)
  expect(context.currentRecord).toBeUndefined()
  await page.screenshot({path:info.outputPath('location-choices-visible-reply.png')})
