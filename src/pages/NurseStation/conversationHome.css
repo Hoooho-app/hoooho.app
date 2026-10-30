@@ -204,3 +204,10 @@ body .smart-record-home .hoho-bottom-navigation{margin-top:0;background-color:rg
 
 .front-desk-history-error{display:flex;flex-wrap:wrap;gap:var(--hoho-space-2);padding:var(--hoho-space-3);color:rgb(var(--hoho-color-error))}
 .front-desk-history-error>p{flex-basis:100%;margin:0}
+
+/* The home record is content inside the existing assistant bubble. */
+.smart-record-home .nurse-turn-content>.continuous-record-card{padding:0;border:0;border-radius:0;background:transparent;box-shadow:none}
+.continuous-record-card>header{flex-wrap:wrap}
+.continuous-record-card>header>strong{font-size:var(--hoho-font-size-body);font-weight:600;color:rgb(var(--hoho-color-text-primary))}
+.continuous-record-actions{display:flex;align-items:center;gap:var(--hoho-space-1);margin-left:auto}
+.smart-record-home .continuous-record-actions>.hoho-button{padding-inline:var(--hoho-space-2);white-space:nowrap}

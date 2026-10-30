@@ -8,8 +8,9 @@
 .record-reading__detail{border-top:1px solid rgb(var(--hoho-color-border)/.6)}
 .record-reading__detail>summary{min-height:44px;display:flex;align-items:center;justify-content:space-between;gap:var(--hoho-space-2);cursor:pointer;font-size:var(--hoho-font-size-body-small);color:rgb(var(--hoho-color-text-secondary));list-style:none}
 .record-reading__detail>summary::-webkit-details-marker{display:none}
-.record-reading__detail>summary::after{content:'＋';flex:none}
-.record-reading__detail[open]>summary::after{content:'−'}
+.record-reading__chevron{flex:none;transition:transform var(--hoho-motion-base) var(--hoho-ease-standard)}
+.record-reading__detail[open]>summary>.record-reading__chevron{transform:rotate(90deg)}
+@media(prefers-reduced-motion:reduce){.record-reading__chevron{transition:none}}
 .record-reading__detail>p{padding-bottom:var(--hoho-space-3)}
 .record-reading__detail>summary:focus-visible{outline:2px solid rgb(var(--hoho-color-primary));outline-offset:2px}
 
