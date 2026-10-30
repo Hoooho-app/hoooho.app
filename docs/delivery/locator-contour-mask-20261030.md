@@ -15,3 +15,15 @@
 已无冲突整合 `499fcad22c57765f77ce2bb02ecd52ef2d343943` 的相机系统选择更新，保留其范围。本轮最终构建通过，17份素材轮廓与原图SHA-256一致，v1/v2/v3图片均未修改；819/819客户端检查通过。浏览器19/19（39.5秒），新增像素检查证实手腕近外缘着色、身体外侧背景不变、两处重叠保持深浅、足大拇趾含指尖且不染相邻趾。原四档手机宽度、左右前后、失败重试、取消、保存回读、历史值保留及标签移除回归继续通过。
 
 已实际查看 `outputs/graphical-locator/head-375.png`、`refined-chest.png`、`contour-arm-selection.png`、`hand-selected.png`、`foot-boy.png`：图内无对勾，额头沿发际、掌心沿指根曲线、胸部衔接躯干轮廓，臂/腿/手足在位图外缘截止。为隔离合成账户与本地真实API持久化，非真实供应商/Production写入验收。
+
+## 合入回执
+
+[PR610](https://github.com/Hoooho-app/hoooho.app/pull/610)，头提交 `e800d8b670bc3812127408fa27165d6840a037af`，发布树 `d509666d22226cb1618636d89157cc92dc02998e` 与本地验证树一致。[云端定位器检查41006751591](https://github.com/Hoooho-app/hoooho.app/actions/runs/41006751591) 全部 SUCCESS 后合入main，提交 `cc5f3820396e15f04e2de7eb4d689cf11fd8027a`。保留同期 `08d78f0` 的记录单气泡改动，已核对合并后本次运行文件与验证版本一致，无位图或数据改动。
+
+## 正式页面回执
+
+唯一 Railway Production 部署 `327b3bcb-1c27-477d-bb09-0df1fa64649b`，目标提交 `cc5f3820396e15f04e2de7eb4d689cf11fd8027a`，于 `2026-10-30T05:13:17.246Z` SUCCESS。
+
+实际登录Chrome从 `https://hoooho.com/nurse-station` 进入空白手动症状表单。首次进入期间发生一次页面刷新；重新进入后观察到新轮廓定义和手部6个轮廓触控区，不据此推断刷新根因。实际点「左手掌」后 aria-pressed=true，选中蒙层 fill 为 `rgba(72,98,83,.22)`、stroke=none，图内文字/对勾节点数为0。截图 `outputs/graphical-locator/production-contour-palm.jpg` 确认着色沿掌心外缘与指根曲线裁切，无独立椭圆或对勾。再次点选变为false，蒙层数为0，取消反馈正常。
+
+验收未填写真实症状、未保存正式记录、未调用真实AI，已关闭仅本次新建的页面。此为线上Chrome观察与手机宽度浏览器模拟，不冒称实体iPhone/Safari或产品主人视觉验收。本补充只写发布记录，不重部署不变的应用。
