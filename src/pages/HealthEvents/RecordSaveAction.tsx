@@ -10,7 +10,7 @@ export const RecordSaveTarget = createContext<HTMLElement | null>(null)
 export function RecordSaveAction({ disabled, saving, onClick, label = '保存', description }: {
   disabled?: boolean; saving: boolean; onClick: () => void; label?: ReactNode; description?: string
 }) {
-  return <HohoButton aria-label={description ?? '保存记录'} className="record-header-save" disabled={disabled} loading={saving} variant="text" onClick={onClick}>{saving ? '保存中' : label}</HohoButton>
+  return <HohoButton data-help-target="record-save" aria-label={description ?? '保存记录'} className="record-header-save" disabled={disabled} loading={saving} variant="text" onClick={onClick}>{saving ? '保存中' : label}</HohoButton>
 }
 
 export function RecordEditorSave({ disabled, saving, onClick, children }: {

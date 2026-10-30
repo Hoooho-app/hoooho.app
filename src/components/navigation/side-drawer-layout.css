@@ -48,5 +48,5 @@ body .hoho-drawer.hoho-drawer--history{display:flex;flex-direction:column;width:
 .drawer-delete-error{color:rgb(var(--hoho-color-error));margin-top:var(--hoho-space-2)}
 .drawer-history-notice{display:flex;align-items:center;gap:var(--hoho-space-2);margin:var(--hoho-space-3) 0;font-size:var(--hoho-font-size-caption);color:rgb(var(--hoho-color-text-secondary))}
 .drawer-history-notice>button{min-height:44px;background:transparent;border:0;color:rgb(var(--hoho-color-link));font-size:var(--hoho-font-size-caption)}
-.drawer-utilities{flex:none;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--hoho-space-2);padding-top:var(--hoho-space-2);border-top:1px solid rgb(var(--hoho-color-border)/.6)}
+.drawer-utilities{flex:none;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--hoho-space-2);padding-top:var(--hoho-space-2);border-top:1px solid rgb(var(--hoho-color-border)/.6)}
 .drawer-utilities>button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--hoho-space-1);min-height:56px;background:transparent;border:0;border-radius:var(--hoho-radius-small);font-size:var(--hoho-font-size-caption);color:rgb(var(--hoho-color-text-secondary))}

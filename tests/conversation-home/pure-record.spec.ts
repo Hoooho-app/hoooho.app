@@ -29,18 +29,18 @@ test('daily care opens while other hidden features stay closed and core records 
  const drawer=page.getByRole('dialog',{name:'侧边栏菜单'})
  for(const name of ['呵护之旅','辅助工具','免费版'])await expect(drawer.getByText(name,{exact:true})).toHaveCount(0)
  await expect(drawer.getByText('产品中心',{exact:true})).toHaveCount(0)
- for(const name of ['反馈','关于'])await expect(drawer.getByRole('button',{name,exact:true})).toBeVisible()
- await expect(drawer.getByRole('button',{name:'帮助',exact:true})).toHaveCount(0)
+ for(const name of ['帮助中心','反馈','关于'])await expect(drawer.getByRole('button',{name,exact:true})).toBeVisible()
  await drawer.getByRole('button',{name:'我的账户',exact:true}).click()
  const account=page.getByRole('main')
  await expect(account.getByText('会员状态',{exact:true})).toHaveCount(0)
  await expect(account.getByText('账户与安全',{exact:true})).toBeVisible()
  await page.getByRole('button',{name:'返回',exact:true}).click()
- for(const route of ['/care-tools/results','/family-sharing','/health-profile/vaccination/plan','/food-observations','/dietary-card/edit','/food-label','/medication-reminders','/desensitization-tests','/nurse-station/desensitization/new','/care-handoff/shared/hidden-test','/account/membership']){
+ for(const route of ['/care-tools/results','/family-sharing','/health-profile/vaccination/plan','/food-observations','/dietary-card/edit','/food-label','/medication-reminders','/desensitization-tests','/nurse-station/desensitization/new','/account/membership']){
   await page.goto(route);await expect(page).toHaveURL(/\/nurse-station$/)
  }
  await page.goto('/care-journey');await expect(page.getByRole('heading',{name:'呵护之旅',exact:true})).toBeVisible()
- await page.goto('/care-journey/themes');await expect(page.getByRole('heading',{name:'界面主题',exact:true})).toBeVisible()
+ await page.goto('/care-handoff/shared/hidden-test');await expect(page).toHaveURL(/\/care-handoff\/shared\/hidden-test$/);await expect(page.getByText('暂时无法打开这份照顾资料，请稍后重试或联系分享者。',{exact:true})).toBeVisible()
+ await page.goto('/care-journey/themes');await expect(page).toHaveURL(/\/(?:care-journey|nurse-station)$/);await expect(page.getByRole('heading',{name:'界面主题',exact:true})).toHaveCount(0)
  await page.goto('/health-profile/growth');await expect(page.locator('.growth-reference-entry')).toHaveCount(0)
  await page.goto('/recent-review?voucher=hidden&snapshot=hidden');await expect(page.locator('.review-snapshot-tools')).toHaveCount(0)
  await page.goto('/health-events');await expect(page.locator('.journal-record-actions')).toHaveCount(0)

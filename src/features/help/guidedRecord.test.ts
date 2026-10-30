@@ -23,10 +23,23 @@ test('tutorial results and unfinished sleep stay with their account and child, e
   } finally { Reflect.deleteProperty(globalThis, 'sessionStorage') }
 })
 
-test('login continuation accepts only the two actual recording tutorials', () => {
+test('login continuation accepts only actual recording tutorials', () => {
   assert.equal(helpLessonFromReturnPath('/health-events?helpTutorial=sleep&day=2026-10-29'), 'sleep')
   assert.equal(helpLessonFromReturnPath('/health-events?helpTutorial=symptom'), 'symptom')
   for (const value of ['//example.test/health-events?helpTutorial=sleep', 'https://example.test/health-events?helpTutorial=sleep', '/account/nickname?helpTutorial=sleep', '/health-events?helpTutorial=tasks']) assert.equal(helpLessonFromReturnPath(value), null)
   assert.equal(helpLessonFromSearch('?helpTutorial=symptom&recordId=pretend'), 'symptom')
   assert.equal(readHelpLessonReceipt('account-url', 'child-url', 'symptom'), null)
+})
+
+test('guide pause and step state are isolated and cannot stand in for an actual save receipt', async () => {
+  const { beginHelpGuide, readHelpGuideState, writeHelpGuideState } = await import('./guidedRecord')
+  writeHelpGuideState('guide-a','child-a','symptom',{step:2,paused:true,phase:'editing'})
+  assert.equal(readHelpGuideState('guide-b','child-a','symptom').step,0)
+  assert.equal(readHelpGuideState('guide-a','child-b','symptom').step,0)
+  assert.equal(readHelpGuideState('guide-a','child-a','sleep').step,0)
+  assert.equal(readHelpLessonReceipt('guide-a','child-a','symptom'),null)
+  beginHelpGuide('guide-a','child-a','symptom')
+  assert.deepEqual(readHelpGuideState('guide-a','child-a','symptom'),{step:2,paused:false,phase:'editing'})
+  beginHelpGuide('guide-a','child-a','symptom',true)
+  assert.equal(readHelpGuideState('guide-a','child-a','symptom').step,0)
 })

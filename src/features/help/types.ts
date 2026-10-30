@@ -26,5 +26,5 @@ export type HelpArticle = {
   status: 'published' | 'draft' | 'archived'
   priority?: number
   kind?: 'tutorial' | 'faq' | 'product'
-  lesson?: 'symptom' | 'sleep'
+  lesson?: 'symptom' | 'sleep' | 'medication' | 'diet' | 'elimination'
 }

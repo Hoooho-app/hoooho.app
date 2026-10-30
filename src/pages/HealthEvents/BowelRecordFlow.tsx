@@ -1,3 +1,4 @@
+import { GuidedRecordHint } from '../../features/help/GuidedRecordHint'
 import { MaterialIcon as FunctionalIcon } from '../../components/icons'
 import { PhotoPreview } from '../../features/health-attachments/PhotoPreview'
 import { RecordSaveAction } from './RecordSaveAction'
@@ -93,8 +94,8 @@ export function BowelRecordFlow({ memberId, token, selectedDay, today, onBack, o
   return <div className="diet-record-page-layer"><section aria-label="记录排便" aria-modal="true" className="diet-record-page bowel-record-page" ref={layerRef} role="dialog" tabIndex={-1}>
     <header><button aria-label="返回记录新情况" disabled={saving} onClick={onBack} type="button"><ArrowLeft size={22} /></button><h1>记录排便</h1><RecordSaveAction disabled={saving || photos.blocked} saving={saving} onClick={() => void save()}/></header>
     <div className="diet-record-scroll">
-      <fieldset className="bowel-fieldset"><legend>形状 <span>（可多选）</span></legend><div className="bowel-shape-grid">{bowelShapes.map((shape, index) => <button aria-pressed={draft.shapes.includes(shape)} key={shape} onClick={() => update('shapes', toggle(draft.shapes, shape))} type="button"><i data-shape={index} aria-hidden="true"><b /><b /><b /></i><span>{shape}</span></button>)}</div></fieldset>
-      <fieldset className="bowel-fieldset"><legend>颜色</legend><div className="bowel-color-grid">{bowelColors.map((color) => <button aria-label={color} aria-pressed={draft.color === color} data-color={color} key={color} onClick={() => update('color', draft.color === color ? undefined : color)} type="button"><i aria-hidden="true"/><span>{color}</span></button>)}</div>{draft.color && ['灰白', '近黑', '红色'].includes(draft.color) && <p className="bowel-gentle-hint">建议拍照留存；如有担心，可及时咨询医生</p>}</fieldset>
+      <GuidedRecordHint lesson="elimination"/><fieldset className="bowel-fieldset" data-help-target="bowel-shape"><legend>形状 <span>（可多选）</span></legend><div className="bowel-shape-grid">{bowelShapes.map((shape, index) => <button aria-pressed={draft.shapes.includes(shape)} key={shape} onClick={() => update('shapes', toggle(draft.shapes, shape))} type="button"><i data-shape={index} aria-hidden="true"><b /><b /><b /></i><span>{shape}</span></button>)}</div></fieldset>
+      <fieldset className="bowel-fieldset" data-help-target="bowel-color"><legend>颜色</legend><div className="bowel-color-grid">{bowelColors.map((color) => <button aria-label={color} aria-pressed={draft.color === color} data-color={color} key={color} onClick={() => update('color', draft.color === color ? undefined : color)} type="button"><i aria-hidden="true"/><span>{color}</span></button>)}</div>{draft.color && ['灰白', '近黑', '红色'].includes(draft.color) && <p className="bowel-gentle-hint">建议拍照留存；如有担心，可及时咨询医生</p>}</fieldset>
       <details className="bowel-overview-supplement"><summary><span>补充信息<span className="bowel-optional">（选填）</span></span><ChevronDown size={18} aria-hidden/></summary><div>
       <section className="record-form-group record-combined-group">
         <ScaleChoice label="分量" optional={false} options={bowelAmounts} value={draft.amount} onChange={(value) => update('amount', value)} />

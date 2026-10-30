@@ -122,6 +122,12 @@
 - 侧栏身份摘要最多两行并保留用户头像。姓名显示两字 `*末字`、三字 `姓*末字`；不改原件、编辑值和导出。子女关系以女儿/儿子表达，不以爸爸/妈妈作为用户中心身份。
 - 欢迎语不含孩子姓名，保留现有护士站视频和绿底白字；不加极光和日期海报。侧栏保留真实历史及帮助/反馈/关于，不显示「产品中心」标题。
 
+## 帮助中心图解与聚焦引导：产品主人确认 2026-10-30
+
+- 恢复侧栏“帮助中心”入口，首页帮助卡保留；帮助内切栏目、搜索、文章及教程往返保留账户/孩子约束的来源，回原页面，不重放一次性对话指令。本段覆盖此前删除侧栏帮助入口的局部规则。
+- 入口先突出手动记事和睡眠图解，其余当前操作按用途折叠；所有说明配与实际内容对应的操作示意，不把示例当保存结果。只介绍当前测试版，隐藏功能与任务系统继续不说明。
+- 实操用半透明蒙版、真实控件开孔及简短标签，用户自己填写、核对、保存；记录完成以真实eventId/recordId回执为准，再打开准确记录。暂停引导保留输入，弹窗优先、键盘可操作、视口变化重定位、缺目标不锁页。契约见 `docs/delivery/help-visual-coach-20261030.md`。
+
 ## Complete user workflows before implementation — owner instruction 2026-10-27
 
 This requirement applies to product planning, feature design, implementation, bug fixes, testing, reviews and handoffs in ChatGPT and Codex. A list of UI changes or passing tests is not a complete business design.

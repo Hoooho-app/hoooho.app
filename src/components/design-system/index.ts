@@ -22,3 +22,4 @@ export * from './HoldToTalkButton'
 export * from './SproutEntry'
 
 export * from './HohoProgress'
+export * from './HohoSpotlightGuide'

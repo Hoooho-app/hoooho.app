@@ -13,10 +13,9 @@ const feedback = read('../../pages/Feedback/index.tsx')
 const about = read('../../pages/About/index.tsx')
 const welcome = read('../../pages/NurseStation/FrontDeskWelcome.tsx')
 
-test('primary destinations stay in bottom navigation and help moves to the homepage guide', () => {
+test('primary destinations stay in bottom navigation and help has homepage and sidebar entries', () => {
   for (const route of ['/nurse-station', '/health-events', '/health-profile']) assert.match(bottom, new RegExp(`to: '${route.replaceAll('/', '\\/')}'`))
-  for (const route of ['/feedback', '/about']) assert.match(drawer, new RegExp(`to: '${route.replaceAll('/', '\\/')}'`))
-  assert.doesNotMatch(drawer, /to: '\/help'/)
+  for (const route of ['/help', '/feedback', '/about']) assert.match(drawer, new RegExp(`to: '${route.replaceAll('/', '\\/')}'`))
   assert.match(welcome, /navigate\('\/help'\)/)
   assert.match(header, /aria-label="打开菜单"/)
   assert.match(header, /<SideDrawer open=\{open\}/)
@@ -46,7 +45,7 @@ test('sidebar identities use display privacy and a user-centered member relation
 test('top-level utility pages use the shared compact sidebar header', () => {
   assert.match(settings, /topLevel \? <MainAppHeader compact title=\{title\} \/>/)
   assert.match(guide, /Navigate to="\/help\?tab=manual" replace/)
-  assert.match(help, /<WebPageHeader title="帮助中心" fallback="\/nurse-station"\s*\/>/)
+  assert.match(help, /navigate\(origin\?\.path \?\? '\/nurse-station', helpReturnOptions\(origin\)\)/)
   assert.match(feedback, /<MainAppHeader action=\{<button className="feedback-header-action"/)
   assert.match(feedback, /compact title="反馈意见" \/>/)
   assert.match(about, /<MainAppHeader compact title="关于" \/>/)
