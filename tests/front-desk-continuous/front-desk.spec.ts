@@ -73,6 +73,7 @@ test('key information: paper home, empty temperature tool, inline spinner and on
  await expect(recordHeader).toContainText('记录单');await expect(recordHeader).not.toContainText('已保存')
  await expect(whiteSheet.getByRole('status',{name:'记录已保存'})).toHaveCount(0)
  await expect(saveIntro).toHaveText('记录单已保存，可以查看或编辑。')
+ await expect(saveIntro).toHaveCSS('background-color','rgba(0, 0, 0, 0)');await expect(saveIntro).toHaveCSS('border-top-width','0px')
  expect((await saveIntro.boundingBox())!.y).toBeLessThan((await whiteSheet.boundingBox())!.y)
  await expect(recordHeader.getByRole('button',{name:'查看记录',exact:true})).toBeVisible()
  await expect(recordHeader.getByRole('button',{name:'编辑',exact:true})).toBeVisible()
