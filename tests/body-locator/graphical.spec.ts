@@ -8,6 +8,7 @@ const test=base.extend<{}, {browser:import('@playwright/test').Browser}>({browse
 import {TokenService} from '../../server/auth/token-service.mjs'
 import {mkdir,readFile} from 'node:fs/promises'
 import path from 'node:path'
+import sharp from 'sharp'
 async function open(page:any,model='girl'){
  if(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE)await page.route('**/assets/**',async(route:any)=>{const name=path.basename(new URL(route.request().url()).pathname);try{const body=await readFile(path.join(process.cwd(),'dist/assets',name));await route.fulfill({body,contentType:name.endsWith('.css')?'text/css':name.endsWith('.js')?'application/javascript':name.endsWith('.svg')?'image/svg+xml':name.endsWith('.webp')?'image/webp':'application/octet-stream'})}catch{await route.continue()}})
  const token=new TokenService('body-locator-local-test-only',3600000).create({id:'body-locator-test-account'})
@@ -22,6 +23,34 @@ async function tapSource(page:any,p:any,x:number,y:number){
  const point=await p.locator('.locator-stage').evaluate((el:any,{x,y}:any)=>{const [bx,by,bw,bh]=el.dataset.sourceBounds.split(',').map(Number),svg=el.querySelector('.locator-canvas > svg'),point=svg.createSVGPoint();point.x=(x-bx)/bw;point.y=(y-by)/bh;const result=point.matrixTransform(svg.getScreenCTM());return {x:result.x,y:result.y}},{x,y})
  await page.touchscreen.tap(point.x,point.y)
 }
+
+test('selection follows the arm edge without ticks, exterior spill or darker overlaps',async({page})=>{
+ const p=await open(page);await p.locator('[data-region-id="wrist_left"]').click()
+ await expect(p.locator('[data-detail-kind="arm"]')).toBeVisible()
+ const screen=async(x:number,y:number)=>p.locator('.locator-stage').evaluate((el:any,{x,y}:any)=>{const [bx,by,bw,bh]=el.dataset.sourceBounds.split(',').map(Number),svg=el.querySelector('.locator-canvas > svg'),point=svg.createSVGPoint();point.x=(x-bx)/bw;point.y=(y-by)/bh;const result=point.matrixTransform(svg.getScreenCTM());return{x:result.x,y:result.y}},{x,y})
+ const skin=await screen(.577,.71),outside=await screen(.562,.71),overlap=await screen(.64,.71)
+ const pixel=async(buffer:Buffer,point:{x:number;y:number})=>Array.from(await sharp(buffer).extract({left:Math.round(point.x),top:Math.round(point.y),width:1,height:1}).removeAlpha().raw().toBuffer()) as number[]
+ const delta=(a:number[],b:number[])=>Math.max(...a.map((v,i)=>Math.abs(v-b[i])))
+ const before=await page.screenshot({scale:'css'})
+ await tapSource(page,p,.577,.68);await expect(p.locator('[data-location-id="wrist_left_whole"]')).toHaveAttribute('aria-pressed','true')
+ await expect(p.locator('.locator-canvas text,.locator-check')).toHaveCount(0)
+ const whole=await page.screenshot({scale:'css'})
+ expect(delta(await pixel(before,skin),await pixel(whole,skin))).toBeGreaterThan(8)
+ expect(delta(await pixel(before,outside),await pixel(whole,outside))).toBeLessThan(3)
+ await tapSource(page,p,.64,.71);await expect(p.locator('[data-location-id="wrist_left_crease"]')).toHaveAttribute('aria-pressed','true')
+ const combined=await page.screenshot({scale:'css'})
+ expect(delta(await pixel(whole,overlap),await pixel(combined,overlap))).toBeLessThan(3)
+ await page.screenshot({path:'outputs/graphical-locator/contour-arm-selection.png'})
+ await tapSource(page,p,.64,.68);await tapSource(page,p,.64,.71)
+ await expect(p.locator('.locator-selection')).toHaveCount(0)
+ await page.keyboard.press('Escape');await p.locator('[data-region-id="foot_left"]').click();await p.getByRole('button',{name:'足底',exact:true}).click()
+ await expect(p.locator('.locator-canvas > svg')).toBeVisible()
+ const toeTip=await screen(.66,.04),nextToe=await screen(.7175,.065),footBefore=await page.screenshot({scale:'css'})
+ await p.locator('[data-location-id="graphic_foot_left_toe_1"]').click()
+ const footAfter=await page.screenshot({scale:'css'})
+ expect(delta(await pixel(footBefore,toeTip),await pixel(footAfter,toeTip))).toBeGreaterThan(8)
+ expect(delta(await pixel(footBefore,nextToe),await pixel(footAfter,nextToe))).toBeLessThan(3)
+})
 for(const width of [320,375,390,430])test(`direct image selection, inline controls and return at ${width}`,async({page})=>{
  await page.setViewportSize({width,height:740});const p=await open(page)
  await expect(p.locator('.locator-callout,.locator-leader,.locator-more-trigger,.locator-context,.locator-secondary')).toHaveCount(0)

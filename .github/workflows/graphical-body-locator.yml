@@ -7,6 +7,7 @@ on:
       - 'src/features/body-location/**'
       - 'public/body-locator/**'
       - 'scripts/check-locator-detail-assets.mjs'
+      - 'scripts/*locator-contours*'
       - 'src/pages/HealthEvents/symptomRecordLogic*'
       - 'tests/body-locator/**'
       - '.github/workflows/graphical-body-locator.yml'

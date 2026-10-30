@@ -59,7 +59,6 @@
 .locator-zone { fill: transparent; stroke: transparent; stroke-width: .003; cursor: pointer; }
 .locator-zone:hover { fill: rgb(var(--hoho-color-primary) / .12); stroke: rgb(var(--hoho-color-primary) / .5); }
 .locator-zone[data-selected=true] { fill: rgb(var(--hoho-color-primary) / .34); stroke: rgb(var(--hoho-color-primary)); stroke-width: .004; }
-.locator-check { fill: rgb(var(--hoho-color-primary)); font-weight: 700; pointer-events: none; }
 .locator-leader { fill: none; stroke: rgb(var(--hoho-color-primary) / .35); stroke-width: 1; pointer-events: none; }
 .locator-callout { position: absolute; display: flex; gap: 2px; align-items: center; justify-content: center; min-height: 44px; height: 44px; padding: 3px; border: 1px solid rgb(var(--hoho-color-border)); border-radius: 11px; background: rgb(var(--hoho-color-surface) / .98); color: rgb(var(--hoho-color-text-primary)); font-size: 14px; line-height: 18px; overflow-wrap: anywhere; }
 .locator-callout[aria-pressed=true] { background: rgb(var(--hoho-color-primary-soft)); border-color: rgb(var(--hoho-color-primary)); color: rgb(var(--hoho-color-link)); }
@@ -102,8 +101,10 @@
 .locator-image-controls button { min-width:0; white-space:nowrap; }
 .locator-image-controls .child-body-segments { margin:0; background:rgb(var(--hoho-color-surface) / .94); }
 .locator-zone { stroke:rgb(var(--hoho-color-primary) / .045); stroke-width:.001; vector-effect:non-scaling-stroke; }
-.locator-zone[data-selected=true] { fill:rgb(var(--hoho-color-primary) / .16); stroke:rgb(var(--hoho-color-primary) / .5); stroke-width:1; }
+.locator-zone[data-selected=true] { fill:transparent; stroke:transparent; stroke-width:1; }
+.locator-selection { fill:rgb(var(--hoho-color-primary) / .22); stroke:none; pointer-events:none; fill-rule:nonzero; }
+.locator-contour-target { fill:transparent; stroke:none; cursor:pointer; }
 .locator-canvas .locator-zone:focus { outline:none; }
 .locator-zone:focus-visible { outline:none; stroke:rgb(var(--hoho-color-primary)); stroke-width:2; }
 .locator-zone:hover { fill:transparent; stroke:rgb(var(--hoho-color-primary) / .045); }
-.locator-zone[data-selected=true]:hover { fill:rgb(var(--hoho-color-primary) / .16); stroke:rgb(var(--hoho-color-primary) / .5); }
+.locator-zone[data-selected=true]:hover { fill:transparent; stroke:transparent; }
