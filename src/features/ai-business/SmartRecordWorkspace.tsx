@@ -206,7 +206,7 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
       const emptyHome=home&&!local.conversationTurns?.length&&!local.savedGuides?.length
       if(recoveryMessageId)nurseScrollAnchor.current=recoveryMessageId
       else if(local.conversationTurns?.at(-1)?.role==='user')nurseScrollAnchor.current=null
-      const anchor=home&&!restore&&nurseScrollAnchor.current?(nurseScrollAnchor.current==='@record'?element.querySelector<HTMLElement>('.continuous-record-card'):[...element.querySelectorAll<HTMLElement>('[data-message-id]')].find(node=>node.dataset.messageId===nurseScrollAnchor.current)):null
+      const anchor=home&&!restore&&nurseScrollAnchor.current?(nurseScrollAnchor.current==='@record'?element.querySelector<HTMLElement>('.front-desk-record-message'):[...element.querySelectorAll<HTMLElement>('[data-message-id]')].find(node=>node.dataset.messageId===nurseScrollAnchor.current)):null
       followingUntil.current=performance.now()+450
       // Later progress checkpoints must retain the reply's beginning, even
       // when a small viewport cannot fit its choices and consent together.
@@ -240,7 +240,7 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
   useLayoutEffect(()=>{
     if(!home||!continuousCard?.presentation?.generated||nurseScrollAnchor.current!=='@record')return
     const frame=requestAnimationFrame(()=>{
-      const body=scrollBody.current,target=body?.querySelector<HTMLElement>('.continuous-record-card')
+      const body=scrollBody.current,target=body?.querySelector<HTMLElement>('.front-desk-record-message')
       if(!body||!target)return
       followScroll.current=true;followingUntil.current=performance.now()+450;setShowJump(false)
       body.scrollTo({top:body.scrollTop+target.getBoundingClientRect().top-body.getBoundingClientRect().top-12,behavior:'auto'})
@@ -942,7 +942,7 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
       {local.rawSavedGuide&&<NurseMessage conversation={home} role="assistant"><p>{local.rawSavedGuide.text}</p><HohoButton onClick={()=>void viewSavedRecord(local.rawSavedGuide!)}>查看记录</HohoButton></NurseMessage>}
       {home&&!recordGenerated&&!homeInputPending&&!jobBusy&&!localStage&&!unreceivedInput&&uploadPreview&&<NurseMessage conversation role="assistant"><UploadRecognitionPreview draft={uploadPreview} onConfirmSubject={()=>void confirmSubject()} memberName={memberName} disabled={currentCardDisabled}/></NurseMessage>}
       {generationOffer&&!continuousCard?.presentation?.asking&&<NurseMessage conversation role="assistant">{generationInvitation}</NurseMessage>}
-      {home&&!recordOpen&&recordGenerated&&!homeInputPending&&continuousCard&&(continuousCard.recordable!==false||continuousCard.hasOriginals)&&<NurseMessage conversation role="assistant"><ContinuousRecordCard card={continuousCard} onConfirmSubject={()=>void confirmSubject()} memberName={memberName} editDraft={local.frontCardEdit} onEditDraft={frontCardEdit=>change({frontCardEdit})} disabled={currentCardDisabled} onEdit={editCurrentCard} onSave={()=>void saveCurrentCard()} onView={()=>void viewCurrentCard()}/></NurseMessage>}
+      {home&&!recordOpen&&recordGenerated&&!homeInputPending&&continuousCard&&(continuousCard.recordable!==false||continuousCard.hasOriginals)&&<NurseMessage conversation role="assistant"><ContinuousRecordCard inConversation card={continuousCard} onConfirmSubject={()=>void confirmSubject()} memberName={memberName} editDraft={local.frontCardEdit} onEditDraft={frontCardEdit=>change({frontCardEdit})} disabled={currentCardDisabled} onEdit={editCurrentCard} onSave={()=>void saveCurrentCard()} onView={()=>void viewCurrentCard()}/></NurseMessage>}
       {home&&continuousCard&&!homeProcessing&&!continuousCard.presentation?.asking&&(hasChecklist||continuousCard.presentation?.visitEligible)&&(continuousCard.recordable!==false||continuousCard.hasOriginals)&&<section className="front-desk-checklist-action" aria-label="就诊情况单"><span>就诊情况单</span><HohoButton variant="secondary" size="small" disabled={currentCardDisabled||!ready||!continuousCard.text.trim()} loading={cardBusy} onClick={()=>void openChecklist()}>{hasChecklist?'查看清单':'一键整理'}</HohoButton></section>}
       {!home&&!local.rawSavedGuide&&!completed&&!savedOperationReply&&(job||localStage)&&!(home&&(jobBusy||localStage))&&<NurseMessage conversation={home} role="assistant">{jobBusy||!!localStage?<FrontDeskProcessing statusText={processingLabel}/>:job?.frontDesk?.context.messages.find(m=>m.id===job.frontDesk?.replyId)?.text&&<p>{job.frontDesk.context.messages.find(m=>m.id===job.frontDesk?.replyId)?.text}</p>}{contextSubjectPending&&!review?.items.length&&subjectConfirmation}{(!review?.items.length||!['ready','needs_review'].includes(job?.state??'')||!!job?.unresolvedInputs?.length)&&<RecognitionProgress overview onSaveOriginal={rawCanOffer?()=>void saveOriginal():undefined} saveOriginalLabel={frontHasOriginalFiles(rawContext)?'保存原件':'先保存原话'} job={job} localStage={localStage} onCommand={type=>void taskCommand(type)} commandBusy={commandBusy||busy}/>}
       {!jobBusy&&!localStage&&recordActions()}</NurseMessage>}
