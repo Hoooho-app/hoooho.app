@@ -90,6 +90,7 @@ test('key information: paper home, empty temperature tool, inline spinner and on
  expect(records).toHaveLength(1);expect(records[0].content).toBe('发热减轻，复测体温37.8℃。')
  await page.locator('[data-front-entry="record"]').click();const detail=page.locator('.symptom-record-sheet')
  await expect(detail.getByRole('heading',{name:'情况概述',exact:true})).toBeVisible();await expect(detail.locator('details[open]')).toHaveCount(0)
+ await expect(detail.locator('.record-reading__detail > summary > .record-reading__chevron')).toHaveCount(await detail.locator('.record-reading__detail > summary').count())
 })
 
 test('key information: speaking other observations bypasses an empty numeric tool without inventing a measurement',async({page,request})=>{
