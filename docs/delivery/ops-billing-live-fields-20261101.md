@@ -21,7 +21,7 @@
 - [x] 分类/多计费结构、按类型字段、币种/时间语义、旧记录兼容、权限和持久化。
 - [x] 真实Chromium合成登录/DOM识别/区域与遮罩/保存后自动采集/过期/并发保护；无真实邮件、模型或付款。
 - [x] 浏览器桌面/笔记本/手机分类与授权流程，原费用/反馈回归。
-- [ ] main提交、原Railway Production SUCCESS，生产浏览器环境诊断及已登录控制台检查。
+- [x] main提交、原Railway Production SUCCESS，生产浏览器环境诊断及已登录控制台检查。
 - [ ] 各供应商实际登录后的数值：需要本人授权，不得冒称全部已读取。
 
 ## 本地验证回执
@@ -29,3 +29,18 @@
 - `npm run build`：类型检查、图标/素材契约、Vite构建、viewport/auth/install构建契约通过。
 - 视觉核验：1440×900分类页、合成账单授权预览；既有桌面/带鱼屏/笔记本/手机布局测试保留。修复保存后URL驱动弹窗重新打开的问题；域名无事实时也明确标注册到期。
 - Railway新服务不再支持Config as Code；独立worker通过服务设置配置Dockerfile/start/healthcheck/资源限制，未迁移或更改旧健康服务配置。
+
+## 生产基础设施回执
+- 已验证树 `48c9f1480b83e2678abdd234d5a191a40b6e883d`，远端功能提交 `1e9fcb4d2d92df7c9ec2ff130ebc63c07e04d805`，已用CAS快进main。
+- 原项目 `d8855fe3-c785-4b8c-825b-bdb10a941850`、原Production `68b9b73f-1401-4658-a315-6d333ec31728`，未创建新环境；主服务和原500MB `/data` 卷保留。
+- 新隔离采集服务 `18be83de-8232-4be7-bd18-ee96ec5228e1`；独立500MB `/profiles` 卷 `2c9360d4-dd8d-4f8b-b513-95aa6cd3ecd1`，ams单实例，1GB/1vCPU。仅4个专用变量，无产品共享变量，无公开域名/TCPproxy/CDP。主应用使用私网地址与服务秘密引用，未持有worker存储加密密钥。
+- worker部署 `161c18ea-9677-4c0c-b6ba-178885cc8a52` 在2026-10-31T22:50:18Z为SUCCESS。真实镜像Playwright1.64.1启动验证，日志`[billing-browser] isolated Chromium runtime verified`，随后ready。连接恢复跟随main，无提交钉住；同树切main后的`50b2c2f0-704f-45c5-81c5-0b6ed9bfd46c`为SKIPPED，原SUCCESS保持运行。
+- 主应用部署 `9cd5c1f3-c8ec-4689-ab32-140ec953e4db`，功能提交`1e9fcb4d2d92df7c9ec2ff130ebc63c07e04d805`，2026-10-31T22:52:48Z SUCCESS；原Production启动及健康检查通过。
+- 备案中的hoooho.com/www DNS未改；不涉及原生构建、健康/家庭/反馈数据写入、供应商支付或真实模型/邮件请求。
+
+## 线上浏览器验收
+- 复用管理员已登录的Chrome原生生产入口。旧PWA资源首次刷新仍显示旧字段；新资源激活后打开明确连接URL，确认新前端脚本生效。未清除用户数据或登录状态。
+- DOM实测11来源，用途数量4服务器与存储/3运营管理/2 AI与Agent/2域名与发布；旧通用“尚未读取”单元格从43降为0。域名实际只显示1项“域名注册到期”，此前官方到期事实与Railway/Resend历史图片保留。
+- 打开Railway连接采集后，私网中转显示采集服务可用；点击“检查采集环境”，线上实际空白浏览器启动/截图回执显示“采集环境检查通过”。未勾选持续授权、未打开任何真实平台会话，未读取供应商新账单/密码/验证码。
+- 已留在可用授权入口 `https://hooohoapp-production.up.railway.app/ops/billing?project=hoooho&connect=railway`。本人勾选同意并登录平台，进入账单页核对结果后保存，才会有首批真实数值；其他来源同入口各自授权。域名RDAP无需登录继续自动更新。本次不能宣称所有平台实际账单已读取。
+- 证明截图仅采集环境诊断对话框（无账号/账单/验证码），未提交仓库；真实账单截图仅主产品私有存储。
