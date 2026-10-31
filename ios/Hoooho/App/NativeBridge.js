@@ -1,6 +1,6 @@
 (function () {
   // srcdoc reports inherit the app origin even though location.origin is "null".
-  if (window.origin !== 'https://hoooho.com') return;
+  if (!['https://hoooho.com', 'https://hooohoapp-production.up.railway.app'].includes(window.origin)) return;
   const pending = new Map();
   window.__hooohoNativeReply = function (id, result) {
     const waiter = pending.get(id); if (!waiter) return;
@@ -51,3 +51,4 @@
   window.hooohoNativeAttachments.supportsMediaOnly = true;
   }
 })();
+

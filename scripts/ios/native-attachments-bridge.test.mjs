@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs'
 import vm from 'node:vm'
 
 const source=readFileSync(new URL('../../ios/Hoooho/App/NativeBridge.js',import.meta.url),'utf8')
-function bridge(respond,{origin='https://hoooho.com',main=true}={}){
+function bridge(respond,{origin='https://hooohoapp-production.up.railway.app',main=true}={}){
   const messages=[],window={origin},navigator={}
   window.top=main?window:{}
   window.webkit={messageHandlers:{hooohoNative:{postMessage(message){messages.push(message);queueMicrotask(()=>window.__hooohoNativeReply(message.id,respond(message)))}}}}
@@ -40,8 +40,25 @@ test('a failed byte read still releases selected files and stays a visible opera
 })
 
 test('the attachment capability is absent for untrusted pages and report subframes',()=>{
-  assert.equal(bridge(()=>({ok:true}),{origin:'https://hoooho.com.attacker.invalid'}).window.hooohoNativeAttachments,undefined)
+  for(const origin of ['https://hoooho.com.attacker.invalid','https://hooohoapp-production.up.railway.app.attacker.invalid','https://another-project.up.railway.app','http://hooohoapp-production.up.railway.app','https://hooohoapp-production.up.railway.app:444']){
+    const {window,messages}=bridge(()=>({ok:true}),{origin})
+    assert.equal(window.hooohoNativeAttachments,undefined)
+    assert.equal(window.print,undefined)
+    assert.equal(messages.length,0)
+  }
   assert.equal(bridge(()=>({ok:true}),{main:false}).window.hooohoNativeAttachments,undefined)
+})
+
+test('both exact production origins support report subframe printing without attachment access',()=>{
+  for(const origin of ['https://hoooho.com','https://hooohoapp-production.up.railway.app']){
+    const {window,messages}=bridge(()=>({ok:true}),{origin,main:false})
+    window.print()
+    assert.equal(messages.length,1)
+    assert.equal(messages[0].type,'print')
+    assert.equal(messages[0].html,'synthetic')
+    assert.equal(window.hooohoNativeAttachments,undefined)
+    assert.equal(window.hooohoNativeAppearance,undefined)
+  }
 })
 
 test('appearance is main-frame only and sends opaque RGB without opening a system operation',()=>{
@@ -61,3 +78,4 @@ test('media-only selection is advertised and scoped to the explicit request',asy
   assert.equal(messages[0].mediaOnly,true)
   assert.equal(messages[1].mediaOnly,undefined)
 })
+

@@ -40,13 +40,13 @@ final class NativeBridgeTests: XCTestCase, WKScriptMessageHandler {
         frame.onload = () => frame.contentWindow.print();
         document.body.append(frame);
         </script></body></html>
-        """, baseURL: URL(string: "https://hoooho.com"))
+        """, baseURL: NavigationPolicy.home)
         await fulfillment(of: [try XCTUnwrap(received)], timeout: 15)
         let message = try XCTUnwrap(captured)
         let body = try XCTUnwrap(message.body as? [String: Any])
         XCTAssertFalse(message.frameInfo.isMainFrame)
         XCTAssertEqual(message.frameInfo.securityOrigin.protocol, "https")
-        XCTAssertEqual(message.frameInfo.securityOrigin.host, "hoooho.com")
+        XCTAssertEqual(message.frameInfo.securityOrigin.host, NavigationPolicy.home.host)
         XCTAssertEqual(body["type"] as? String, "print")
         let html = try XCTUnwrap(body["html"] as? String)
         XCTAssertTrue(html.contains("REPORT SNAPSHOT 42"))
@@ -58,3 +58,4 @@ final class NativeBridgeTests: XCTestCase, WKScriptMessageHandler {
         received?.fulfill()
     }
 }
+

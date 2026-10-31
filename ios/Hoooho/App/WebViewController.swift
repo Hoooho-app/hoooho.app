@@ -167,7 +167,9 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
         @unknown default: decisionHandler(.deny); return
         }
         capturePermissions.authorize(resources) { [weak webView] allowed in
-            decisionHandler(allowed && NavigationPolicy.trusted(webView?.url) ? .grant : .deny)
+            let stillTrusted = NavigationPolicy.captureTrusted(scheme: origin.protocol, host: origin.host, port: origin.port,
+                frameURL: frame.request.url, isMainFrame: frame.isMainFrame, pageURL: webView?.url)
+            decisionHandler(allowed && stillTrusted ? .grant : .deny)
         }
     }
 
@@ -187,8 +189,7 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
             presentAttachments(id: id, mediaOnly: body["mediaOnly"] as? Bool == true); return
         }
         #endif
-        guard NavigationPolicy.trusted(webView.url),
-              origin.protocol == "https", origin.host == "hoooho.com", origin.port == 0 || origin.port == 443,
+        guard NavigationPolicy.bridgeTrusted(scheme: origin.protocol, host: origin.host, port: origin.port, pageURL: webView.url),
               let body = message.body as? [String: Any], let id = body["id"] as? String, id.count < 100,
               let type = body["type"] as? String else { return }
         if message.frameInfo.isMainFrame, type == "appearance",
@@ -326,3 +327,4 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
         presentNextDownload()
     }
 }
+

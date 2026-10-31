@@ -3,14 +3,20 @@ import Foundation
 enum NavigationDestination: Equatable { case app, download, external, blocked }
 
 enum NavigationPolicy {
-    static let home = URL(string: "https://hoooho.com/nurse-station")!
+    // Use the same Production service while the canonical domain is offline for ICP filing.
+    static let home = URL(string: "https://hooohoapp-production.up.railway.app/nurse-station")!
+    private static let trustedHosts: Set<String> = ["hoooho.com", "hooohoapp-production.up.railway.app"]
+    static func bridgeTrusted(scheme: String, host: String, port: Int, pageURL: URL?) -> Bool {
+        scheme == "https" && trustedHosts.contains(host) && (port == 0 || port == 443) &&
+            trusted(pageURL) && pageURL?.host?.lowercased() == host
+    }
     static func captureTrusted(scheme: String, host: String, port: Int, frameURL: URL?, isMainFrame: Bool, pageURL: URL?) -> Bool {
-        scheme == "https" && host == "hoooho.com" && (port == 0 || port == 443) &&
-            isMainFrame && trusted(frameURL) && trusted(pageURL)
+        bridgeTrusted(scheme: scheme, host: host, port: port, pageURL: pageURL) &&
+            isMainFrame && trusted(frameURL) && frameURL?.host?.lowercased() == host
     }
     static func trusted(_ url: URL?) -> Bool {
         guard let url, url.scheme?.lowercased() == "https",
-              url.host?.lowercased() == "hoooho.com",
+              let host = url.host?.lowercased(), trustedHosts.contains(host),
               url.port == nil || url.port == 443,
               url.user == nil, url.password == nil else { return false }
         return true
@@ -24,7 +30,7 @@ enum NavigationPolicy {
             }
             return .app
         }
-        if url.scheme == "blob", url.absoluteString.hasPrefix("blob:https://hoooho.com/") { return .download }
+        if url.scheme == "blob", trusted(URL(string: String(url.absoluteString.dropFirst(5)))) { return .download }
         if ["https", "mailto", "tel"].contains(url.scheme?.lowercased() ?? "") { return .external }
         return .blocked
     }
@@ -34,3 +40,4 @@ enum NavigationPolicy {
         return clean.isEmpty || clean == "." || clean == ".." ? "护护记录.txt" : String(clean.prefix(160))
     }
 }
+
