@@ -20,6 +20,7 @@ export interface BillingSnapshot {
 }
 
 export interface BillingSource {
+  projectId?: string
   id: string
   name: string
   icon: string
@@ -56,6 +57,7 @@ export interface BillingSourcesResponse {
 }
 
 export interface BillingSourceInput {
+  projectId?: string
   name: string
   icon: string
   platformUrl: string
@@ -73,7 +75,7 @@ export const getBillingSources = (token: string, signal?: AbortSignal) => opsApi
 export const createBillingSource = (token: string, body: BillingSourceInput) => opsApiRequest<BillingSource>('/api/ops/sources', { token, method: 'POST', body })
 export const updateBillingSource = (token: string, id: string, body: Partial<BillingSourceInput>) => opsApiRequest<BillingSource>(`/api/ops/sources/${encodeURIComponent(id)}`, { token, method: 'PATCH', body })
 export const refreshBillingSource = (token: string, id: string) => opsApiRequest<BillingSource>(`/api/ops/sources/${encodeURIComponent(id)}/refresh`, { token, method: 'POST' })
-export const refreshAllBillingSources = (token: string) => opsApiRequest<BillingSourcesResponse>('/api/ops/refresh', { token, method: 'POST' })
+export const refreshAllBillingSources = (token: string, project = 'all') => opsApiRequest<BillingSourcesResponse>(`/api/ops/refresh${project === 'all' ? '' : `?project=${encodeURIComponent(project)}`}`, { token, method: 'POST' })
 export const getBillingHistory = (token: string, id: string) => opsApiRequest<{ snapshots: BillingSnapshot[] }>(`/api/ops/sources/${encodeURIComponent(id)}/snapshots`, { token })
 export const uploadBillingSnapshot = (token: string, id: string, body: { name: string; type: string; dataUrl: string; privacyConfirmed: true }) => opsApiRequest<BillingSource>(`/api/ops/sources/${encodeURIComponent(id)}/snapshots`, { token, method: 'POST', body })
 export const updateBillingSnapshot = (token: string, sourceId: string, snapshotId: string, important: boolean) => opsApiRequest<BillingSnapshot>(`/api/ops/sources/${encodeURIComponent(sourceId)}/snapshots/${encodeURIComponent(snapshotId)}`, { token, method: 'PATCH', body: { important } })

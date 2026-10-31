@@ -1,9 +1,10 @@
 import { CompleteImage } from '../../components/common/CompleteImage'
-import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { AlertTriangle, Camera, Check, Clock3, ExternalLink, Eye, History, ImageOff, LogIn, Plus, RefreshCw, Settings2, ShieldCheck, Upload, WalletCards, X } from '../../components/icons'
 import { HohoButton } from '../../components/design-system/HohoButton'
-import { OpsAccount } from '../../components/auth/OpsAccount'
+import { OPS_PROJECTS, opsProjectId } from '../../../shared/ops-projects.mjs'
+import { OpsProjectPicker, useOpsProject, useOpsViewedReceipt } from './workspace'
 import { useAppStore } from '../../store/useAppStore'
 import {
   createBillingSource, getBillingHistory, getBillingSnapshotImage, getBillingSources, refreshAllBillingSources,
@@ -27,6 +28,11 @@ const stale = (source: BillingSource) => Boolean(source.latestSnapshot && source
 
 export function OpsPage() {
   const token = useAppStore((state) => state.opsAuthToken)!
+  const { project } = useOpsProject('hoooho')
+  const [params] = useSearchParams()
+  const targetSource = params.get('source')
+  const targetEvent = params.get('event')
+  const [focusedSource, setFocusedSource] = useState<string | null>(null)
   const [sources, setSources] = useState<BillingSource[]>([])
   const [inactiveSources, setInactiveSources] = useState<string[]>([])
   const [overview, setOverview] = useState<BillingOverview | null>(null)
@@ -54,7 +60,7 @@ export function OpsPage() {
 
   const refreshAll = async () => {
     setRefreshingAll(true); setError(''); setOverview(null)
-    try { const data = await refreshAllBillingSources(token); setSources(data.sources); setInactiveSources(data.inactiveSources); setOverview(data.summary) }
+    try { const data = await refreshAllBillingSources(token, project); setSources(data.sources); setInactiveSources(data.inactiveSources); setOverview(data.summary) }
     catch (cause) { setError(cause instanceof Error ? cause.message : '更新失败') }
     finally { setRefreshingAll(false) }
   }
@@ -66,35 +72,54 @@ export function OpsPage() {
   }
   const replace = (updated: BillingSource) => { setSources((all) => all.map((item) => item.id === updated.id ? updated : item)); load().catch(cause => setError(cause instanceof Error ? cause.message : '概览同步失败')) }
 
+  const visibleSources = sources.filter(source => project === 'all' || opsProjectId(source.projectId) === project)
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Shanghai' })
+  const enabled = visibleSources.filter(source => source.enabled)
+  const scopedOverview = !overview ? null : project === 'all' ? overview : { total: enabled.length, updatedToday: enabled.filter(source => source.lastSuccessAt && new Date(source.lastSuccessAt).toLocaleDateString('en-CA', { timeZone: 'Asia/Shanghai' }) === today).length, relogin: enabled.filter(source => source.status === 'relogin').length, failed: enabled.filter(source => source.status === 'failed').length }
+  useEffect(() => {
+    setFocusedSource(null)
+    if (loading || !targetSource || !visibleSources.some(source => source.id === targetSource)) return
+    const frame = requestAnimationFrame(() => {
+      const element = document.getElementById(`billing-source-${targetSource}`)
+      element?.scrollIntoView({ block: 'center' })
+      element?.focus({ preventScroll: true })
+      if (element) setFocusedSource(targetSource)
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [loading, targetSource, targetEvent, project, sources])
+
   return <main className="ops-page">
     <header className="ops-topbar">
       <div className="ops-heading"><span><WalletCards size={17} />内部只读费用工作台</span><h1>Hoooho · 费用总控台</h1><p>集中查看各个平台的余额、用量、套餐与续费信息</p></div>
       <div className="ops-actions">
-        <Link className="hoho-button" data-size="medium" data-variant="secondary" to="/ops/feedback">反馈管理</Link>
+
         <HohoButton variant="secondary" onClick={() => setCreating(true)}><Plus size={16} />新增费用来源</HohoButton>
         <HohoButton loading={refreshingAll} onClick={refreshAll}><RefreshCw size={16} />立即更新全部</HohoButton>
-        <OpsAccount />
+
       </div>
     </header>
 
+    <div className="ops-billing-projects"><OpsProjectPicker fallback="hoooho" /></div>
+    {targetSource && !loading && !visibleSources.some(source => source.id === targetSource) && <p className="ops-error" role="alert">该费用来源不存在或不属于当前项目，未确认已查看。</p>}
     <div className="ops-security-note"><ShieldCheck size={18} /><span><strong>仅管理员可见</strong> 快照通过已授权接口读取，不生成公开图片链接；自动任务不会绕过验证码、MFA 或 CAPTCHA。</span></div>
     {error && <div className="ops-error" role="alert"><AlertTriangle size={18} /><span>{error}</span><button onClick={() => setError('')} aria-label="关闭错误"><X size={16} /></button></div>}
 
     <section className="ops-summary" aria-label="更新概览">
-      <Summary label="费用来源总数" value={loading || !overview ? '—' : String(overview.total)} detail="已启用的快照来源" />
-      <Summary label="今日已更新" value={loading || !overview ? '—' : String(overview.updatedToday)} detail="已启用来源 · 今天有成功快照（北京时间）" tone="success" />
-      <Summary label="需要重新登录" value={loading || !overview ? '—' : String(overview.relogin)} detail="已启用来源 · 自动任务已暂停" tone={overview?.relogin ? 'warning' : undefined} />
-      <Summary label="更新失败" value={loading || !overview ? '—' : String(overview.failed)} detail="已启用来源 · 仍保留最近成功快照" tone={overview?.failed ? 'error' : undefined} />
+      <Summary label="费用来源总数" value={loading || !scopedOverview ? '—' : String(scopedOverview.total)} detail="已启用的快照来源" />
+      <Summary label="今日已更新" value={loading || !scopedOverview ? '—' : String(scopedOverview.updatedToday)} detail="已启用来源 · 今天有成功快照（北京时间）" tone="success" />
+      <Summary label="需要重新登录" value={loading || !scopedOverview ? '—' : String(scopedOverview.relogin)} detail="已启用来源 · 自动任务已暂停" tone={scopedOverview?.relogin ? 'warning' : undefined} />
+      <Summary label="更新失败" value={loading || !scopedOverview ? '—' : String(scopedOverview.failed)} detail="已启用来源 · 仍保留最近成功快照" tone={scopedOverview?.failed ? 'error' : undefined} />
     </section>
 
     <section className="ops-sources-section">
       <div className="ops-section-heading"><div><span>Latest snapshots</span><h2>费用来源快照</h2><p>页面只展示最近一次成功截图；失败记录不会覆盖已有快照。</p></div><p><Clock3 size={15} />自动任务每日 08:00（Asia/Shanghai）串行执行</p></div>
-      {loading ? <LoadingGrid /> : <div className="ops-source-grid">{sources.map((source) => <SourceCard key={source.id} source={source} token={token} refreshing={refreshingId === source.id} onRefresh={() => refreshOne(source)} onManage={() => setManaging(source)} onUpload={() => setUploading(source)} onLarge={() => setLarge(source)} />)}</div>}
+      {loading ? <LoadingGrid /> : <div className="ops-source-grid">{visibleSources.map((source) => <SourceCard key={source.id} source={source} token={token} targetEvent={focusedSource === source.id ? targetEvent : null} targeted={targetSource === source.id} refreshing={refreshingId === source.id} onRefresh={() => refreshOne(source)} onManage={() => setManaging(source)} onUpload={() => setUploading(source)} onLarge={() => setLarge(source)} />)}</div>}
     </section>
 
+    {!loading && !visibleSources.length && <section className="ops-inbox-empty"><h2>该项目暂无费用来源</h2><p>可以新增来源，或在已有来源的管理中设置所属项目。</p></section>}
     <section className="ops-inactive"><div><h2>暂不采集</h2><p>尚未启用的平台保留为普通文字，不创建截图任务。</p></div><ul>{inactiveSources.map((item) => <li key={item}>{item}</li>)}</ul></section>
 
-    {creating && <SourceDrawer title="新增费用来源" submitLabel="新增来源" onClose={() => setCreating(false)} onSubmit={async (values) => { const created = await createBillingSource(token, values); setSources((all) => [...all, created]); setCreating(false); await load() }} />}
+    {creating && <SourceDrawer projectId={project === 'all' ? 'hoooho' : project} title="新增费用来源" submitLabel="新增来源" onClose={() => setCreating(false)} onSubmit={async (values) => { const created = await createBillingSource(token, values); setSources((all) => [...all, created]); setCreating(false); await load() }} />}
     {managing && <ManageDrawer source={managing} token={token} onClose={() => setManaging(null)} onSaved={(updated) => { replace(updated); setManaging(updated) }} />}
     {uploading && <UploadDrawer source={uploading} token={token} onClose={() => setUploading(null)} onUploaded={(updated) => { replace(updated); setUploading(null) }} />}
     {large && large.latestSnapshot && <SnapshotModal source={large} token={token} onClose={() => setLarge(null)} />}
@@ -105,10 +130,15 @@ function Summary({ label, value, detail, tone }: { label: string; value: string;
   return <article data-tone={tone}><span>{label}</span><strong>{value}</strong><small>{detail}</small></article>
 }
 
-function SourceCard({ source, token, refreshing, onRefresh, onManage, onUpload, onLarge }: { source: BillingSource; token: string; refreshing: boolean; onRefresh: () => void; onManage: () => void; onUpload: () => void; onLarge: () => void }) {
+function SourceCard({ source, token, targetEvent, targeted, refreshing, onRefresh, onManage, onUpload, onLarge }: { source: BillingSource; token: string; targetEvent?: string | null; targeted?: boolean; refreshing: boolean; onRefresh: () => void; onManage: () => void; onUpload: () => void; onLarge: () => void }) {
   const snapshot = useSnapshotUrl(token, source.id, source.latestSnapshot?.id ?? null)
+  const [imageReady, setImageReady] = useState(false)
+  const snapshotId = useRef(source.latestSnapshot?.id)
+  snapshotId.current = source.latestSnapshot?.id
+  useEffect(() => setImageReady(false), [source.latestSnapshot?.id])
+  const viewed = useOpsViewedReceipt(targetEvent, Boolean(targetEvent?.startsWith(`billing:${source.id}:`) && (!targetEvent.includes(':snapshot:') || imageReady)))
   const state = statusMap[source.status]
-  return <article className="ops-source-card">
+  return <article className="ops-source-card" id={`billing-source-${source.id}`} tabIndex={-1} data-target={targeted}>
     <header>
       <div className="ops-source-identity"><span className="ops-source-icon" aria-hidden="true">{source.icon}</span><div><h3>{source.name}</h3><p>{methodMap[source.method]} · {frequencyMap[source.frequency]}</p></div></div>
       <span className="ops-status" data-tone={state.tone}>{source.status === 'updating' ? <RefreshCw className="ops-spin" /> : source.status === 'success' ? <Check /> : source.status === 'relogin' ? <LogIn /> : <Clock3 />}{state.label}</span>
@@ -116,8 +146,9 @@ function SourceCard({ source, token, refreshing, onRefresh, onManage, onUpload, 
     <div className="ops-source-meta"><span>最近成功更新</span><strong>{formatTime(source.lastSuccessAt)}</strong></div>
     {stale(source) && <div className="ops-stale"><AlertTriangle size={15} />最新更新失败，当前显示的是 {formatTime(source.lastSuccessAt)} 快照</div>}
     <button className="ops-snapshot" onClick={source.latestSnapshot ? onLarge : onUpload} aria-label={source.latestSnapshot ? `查看 ${source.name} 快照大图` : `为 ${source.name} 上传截图`}>
-      {snapshot.loading ? <div className="ops-snapshot-state"><RefreshCw className="ops-spin" /><span>正在安全读取快照</span></div> : snapshot.url ? <CompleteImage loading="lazy" src={snapshot.url} alt={`${source.name} 最新费用页面快照`} /> : <div className="ops-snapshot-state"><ImageOff /><strong>尚无页面快照</strong><span>{source.method === 'manual-screenshot' ? '上传一张已裁除隐私信息的截图' : '配置连接器，或先手动上传截图'}</span></div>}
+      {snapshot.loading ? <div className="ops-snapshot-state"><RefreshCw className="ops-spin" /><span>正在安全读取快照</span></div> : snapshot.url ? <CompleteImage loading="lazy" src={snapshot.url} data-snapshot-id={source.latestSnapshot?.id} onLoad={async event => { const image = event.currentTarget; const id = image.dataset.snapshotId; try { await image.decode() } catch { return }; if (id === snapshotId.current && image.isConnected) setImageReady(true) }} alt={`${source.name} 最新费用页面快照`} /> : <div className="ops-snapshot-state"><ImageOff /><strong>尚无页面快照</strong><span>{source.method === 'manual-screenshot' ? '上传一张已裁除隐私信息的截图' : '配置连接器，或先手动上传截图'}</span></div>}
     </button>
+    {viewed.error && <p className="ops-image-error" role="alert">查看状态同步失败：{viewed.error} <button type="button" onClick={viewed.retry}>重新确认查看</button></p>}
     {snapshot.error && <p className="ops-image-error">{snapshot.error}</p>}
     <footer>
       <button onClick={source.latestSnapshot ? onLarge : onUpload}>{source.latestSnapshot ? <><Eye size={15} />查看大图</> : <><Upload size={15} />上传截图</>}</button>
@@ -144,14 +175,14 @@ function LoadingGrid() { return <div className="ops-source-grid" aria-label="正
 
 const defaultInput: BillingSourceInput = { name: '', icon: '', platformUrl: '', method: 'manual-screenshot', frequency: 'manual', notes: '', loginUrl: '', targetDescription: '', targetSelector: '', waitCondition: '', enabled: true }
 
-function SourceDrawer({ title, submitLabel, source, onClose, onSubmit }: { title: string; submitLabel: string; source?: BillingSource; onClose: () => void; onSubmit: (values: BillingSourceInput) => Promise<void> }) {
-  const [form, setForm] = useState<BillingSourceInput>(source ? { name: source.name, icon: source.icon, platformUrl: source.platformUrl, method: source.method, frequency: source.frequency, notes: source.notes, loginUrl: source.loginUrl, targetDescription: source.targetDescription, targetSelector: source.targetSelector, waitCondition: source.waitCondition, enabled: source.enabled } : defaultInput)
+function SourceDrawer({ title, submitLabel, source, projectId = 'hoooho', onClose, onSubmit }: { title: string; submitLabel: string; source?: BillingSource; projectId?: string; onClose: () => void; onSubmit: (values: BillingSourceInput) => Promise<void> }) {
+  const [form, setForm] = useState<BillingSourceInput>(source ? { projectId: opsProjectId(source.projectId), name: source.name, icon: source.icon, platformUrl: source.platformUrl, method: source.method, frequency: source.frequency, notes: source.notes, loginUrl: source.loginUrl, targetDescription: source.targetDescription, targetSelector: source.targetSelector, waitCondition: source.waitCondition, enabled: source.enabled } : { ...defaultInput, projectId })
   const [saving, setSaving] = useState(false), [error, setError] = useState('')
   const field = <K extends keyof BillingSourceInput>(key: K, value: BillingSourceInput[K]) => setForm((current) => ({ ...current, [key]: value }))
   const submit = async (event: React.FormEvent) => { event.preventDefault(); setSaving(true); setError(''); try { await onSubmit(form) } catch (cause) { setError(cause instanceof Error ? cause.message : '保存失败') } finally { setSaving(false) } }
   return <Drawer title={title} subtitle="凭据只允许存放在服务器端安全配置中，不在这里填写密码、Cookie 或 Token。" onClose={onClose}>
     <form onSubmit={submit}><div className="ops-form-grid">
-      <Field label="平台名称"><input required maxLength={120} value={form.name} onChange={(event) => field('name', event.target.value)} /></Field>
+      <Field label="所属项目"><select value={form.projectId ?? 'hoooho'} onChange={event => field('projectId', event.target.value)}>{OPS_PROJECTS.map(project => <option value={project.id} key={project.id}>{project.name}</option>)}</select></Field><Field label="平台名称"><input required maxLength={120} value={form.name} onChange={(event) => field('name', event.target.value)} /></Field>
       <Field label="平台图标缩写"><input maxLength={8} placeholder="例如 RW" value={form.icon} onChange={(event) => field('icon', event.target.value)} /></Field>
       <Field wide label="原平台费用页面地址"><input required type="url" placeholder="https://" value={form.platformUrl} onChange={(event) => field('platformUrl', event.target.value)} /></Field>
       <Field label="更新方式"><select value={form.method} onChange={(event) => field('method', event.target.value as BillingMethod)}>{Object.entries(methodMap).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field>
@@ -173,12 +204,12 @@ function ManageDrawer({ source, token, onClose, onSaved }: { source: BillingSour
 }
 
 function SourceDrawerContent({ source, onSubmit, onClose }: { source: BillingSource; onSubmit: (values: BillingSourceInput) => Promise<void>; onClose: () => void }) {
-  const [form, setForm] = useState<BillingSourceInput>({ name: source.name, icon: source.icon, platformUrl: source.platformUrl, method: source.method, frequency: source.frequency, notes: source.notes, loginUrl: source.loginUrl, targetDescription: source.targetDescription, targetSelector: source.targetSelector, waitCondition: source.waitCondition, enabled: source.enabled })
+  const [form, setForm] = useState<BillingSourceInput>({ projectId: opsProjectId(source.projectId), name: source.name, icon: source.icon, platformUrl: source.platformUrl, method: source.method, frequency: source.frequency, notes: source.notes, loginUrl: source.loginUrl, targetDescription: source.targetDescription, targetSelector: source.targetSelector, waitCondition: source.waitCondition, enabled: source.enabled })
   const [saving, setSaving] = useState(false), [error, setError] = useState('')
   const field = <K extends keyof BillingSourceInput>(key: K, value: BillingSourceInput[K]) => setForm((current) => ({ ...current, [key]: value }))
   const submit = async (event: React.FormEvent) => { event.preventDefault(); setSaving(true); setError(''); try { await onSubmit(form) } catch (cause) { setError(cause instanceof Error ? cause.message : '保存失败') } finally { setSaving(false) } }
   return <form onSubmit={submit}><div className="ops-form-grid">
-    <Field label="平台名称"><input required value={form.name} onChange={(event) => field('name', event.target.value)} /></Field><Field label="图标缩写"><input maxLength={8} value={form.icon} onChange={(event) => field('icon', event.target.value)} /></Field>
+    <Field label="所属项目"><select value={form.projectId ?? 'hoooho'} onChange={event => field('projectId', event.target.value)}>{OPS_PROJECTS.map(project => <option value={project.id} key={project.id}>{project.name}</option>)}</select></Field><Field label="平台名称"><input required value={form.name} onChange={(event) => field('name', event.target.value)} /></Field><Field label="图标缩写"><input maxLength={8} value={form.icon} onChange={(event) => field('icon', event.target.value)} /></Field>
     <Field wide label="原平台费用页面地址"><input required type="url" value={form.platformUrl} onChange={(event) => field('platformUrl', event.target.value)} /></Field><Field label="更新方式"><select value={form.method} onChange={(event) => field('method', event.target.value as BillingMethod)}>{Object.entries(methodMap).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field><Field label="更新频率"><select value={form.frequency} onChange={(event) => field('frequency', event.target.value as BillingFrequency)}>{Object.entries(frequencyMap).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field><Field wide label="截图目标区域说明"><textarea value={form.targetDescription ?? ''} onChange={(event) => field('targetDescription', event.target.value)} /></Field><Field wide label="备注"><textarea value={form.notes} onChange={(event) => field('notes', event.target.value)} /></Field>
   </div>{error && <p className="ops-form-error">{error}</p>}<DrawerFooter saving={saving} onClose={onClose} submitLabel="保存设置" /></form>
 }

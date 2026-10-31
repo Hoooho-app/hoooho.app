@@ -35,8 +35,14 @@ export const router = createBrowserRouter(visibleRoutes([
   {
     element: <RequireOpsAuth />,
     children: [
-      { path: '/ops', lazy: lazyPage(() => import('../pages/Ops'), 'OpsPage') },
-      { path: '/ops/feedback', lazy: lazyPage(() => import('../pages/Ops/Feedback'), 'OpsFeedbackPage') }
+      { lazy: lazyPage(() => import('../pages/Ops/Layout'), 'OpsLayout'), children: [
+        { path: '/ops', lazy: lazyPage(() => import('../pages/Ops/Overview'), 'OpsOverviewPage') },
+        { path: '/ops/billing', lazy: lazyPage(() => import('../pages/Ops'), 'OpsPage') },
+        { path: '/ops/feedback', lazy: lazyPage(() => import('../pages/Ops/Feedback'), 'OpsFeedbackPage') },
+        { path: '/ops/services', lazy: lazyPage(() => import('../pages/Ops/Layout'), 'OpsBlankPage') },
+        { path: '/ops/versions', lazy: lazyPage(() => import('../pages/Ops/Layout'), 'OpsBlankPage') },
+        { path: '/ops/settings', lazy: lazyPage(() => import('../pages/Ops/Layout'), 'OpsBlankPage') }
+      ] }
     ]
   },
   {

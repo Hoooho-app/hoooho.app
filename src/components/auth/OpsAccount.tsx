@@ -11,5 +11,5 @@ export function OpsAccount() {
     clearSession()
     navigate('/ops/login', { replace: true })
   }
-  return <div className="ops-account"><span>{email}</span><button type="button" onClick={logout}><LogOut aria-hidden="true" size={15}/>退出登录</button></div>
+  return <div className="ops-account"><span title={email ?? undefined}>管理员 · {email}</span><button type="button" onClick={logout}><LogOut aria-hidden="true" size={15}/>退出登录</button></div>
 }

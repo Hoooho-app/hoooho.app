@@ -2,6 +2,8 @@ import { parseJsonObject } from '../json-input.mjs'
 import { OPS_SNAPSHOT_REQUEST_MAX_LENGTH, OpsService, assertOpsAccess } from './ops-service.mjs'
 import { TokenService } from '../auth/token-service.mjs'
 import { authConfig } from '../auth/config.mjs'
+import { FeedbackService } from '../help/feedback-service.mjs'
+import { OpsOverviewService } from './overview-service.mjs'
 
 const readJson = (request, maxLength = 16_384) => new Promise((resolve, reject) => {
   let body = '', settled = false
@@ -22,6 +24,7 @@ const decode = (value) => { try { return decodeURIComponent(value) } catch { thr
 
 export function opsApiPlugin(options = {}) {
   const service = options.service ?? new OpsService({ dataDirectory: options.dataDirectory ?? authConfig.dataDirectory })
+  const overview = new OpsOverviewService({ billing: service, feedback: options.feedback ?? new FeedbackService({ dataDirectory: options.dataDirectory ?? authConfig.dataDirectory }), dataDirectory: options.dataDirectory ?? authConfig.dataDirectory })
   const tokens = options.tokens ?? new TokenService(options.tokenSecret ?? authConfig.tokenSecret, options.tokenTtlMs ?? authConfig.tokenTtlMs)
   const ownerEmail = options.opsOwnerEmail ?? authConfig.opsOwnerEmail
   return { name: 'hoooho-local-ops-api', configureServer(server) { server.middlewares.use(async (request, response, next) => {
@@ -32,10 +35,12 @@ export function opsApiPlugin(options = {}) {
       const payload = token ? tokens.verify(token) : null
       if (!payload) throw Object.assign(new Error('登录状态无效或已过期'), { status: 401, code: 'UNAUTHORIZED' })
       assertOpsAccess(payload, { ownerEmail })
+      if (pathname === '/api/ops/overview' && request.method === 'GET') return send(response, 200, await overview.list())
+      if (pathname === '/api/ops/overview/viewed' && request.method === 'POST') return send(response, 200, await overview.viewed((await readJson(request)).id))
       if (pathname === '/api/ops/session' && request.method === 'GET') return send(response, 200, { authenticated: true, authorized: true, email: payload.email })
       if (pathname === '/api/ops/sources' && request.method === 'GET') return send(response, 200, await service.list())
       if (pathname === '/api/ops/sources' && request.method === 'POST') return send(response, 201, await service.create(await readJson(request)))
-      if (pathname === '/api/ops/refresh' && request.method === 'POST') return send(response, 200, await service.refreshAll())
+      if (pathname === '/api/ops/refresh' && request.method === 'POST') return send(response, 200, await service.refreshAll(new Date(), new URL(request.url, 'http://localhost').searchParams.get('project') || null))
       const image = /^\/api\/ops\/sources\/([^/]+)\/snapshots\/([^/]+)\/image$/.exec(pathname)
       if (image && request.method === 'GET') {
         const file = await service.readSnapshot(decode(image[1]), decode(image[2]))

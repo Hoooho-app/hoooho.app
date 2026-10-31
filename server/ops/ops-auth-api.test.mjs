@@ -59,6 +59,7 @@ test('all Operations APIs share the same owner-only authorization', async () => 
     const createdFeedback = await createdFeedbackResponse.json()
 
     const protectedRequests = [
+      ['/api/ops/overview', 'GET'], ['/api/ops/overview/viewed', 'POST', { id: `feedback:${createdFeedback.id}:0` }],
       ['/api/ops/session', 'GET'], ['/api/ops/sources', 'GET'], ['/api/ops/sources', 'POST', { name: 'Test', platformUrl: 'https://example.com/billing', method: 'manual-screenshot', frequency: 'manual' }],
       ['/api/ops/sources/railway', 'PATCH', { notes: 'test' }], ['/api/ops/refresh', 'POST'], ['/api/ops/feedback', 'GET'],
       [`/api/ops/feedback/${createdFeedback.id}`, 'GET'], [`/api/ops/feedback/${createdFeedback.id}`, 'PATCH', { status: 'reviewing' }],

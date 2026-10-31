@@ -1,8 +1,8 @@
 import { MaterialIcon as FunctionalIcon } from '../../components/icons'
 import { PRODUCT_FEATURES } from '../../../shared/product-visibility.mjs'
 import { CompleteImage } from '../../components/common/CompleteImage'
-import { FormEvent, KeyboardEvent, useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { FormEvent, KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import {
   addOpsFeedbackMessage,
   getOpsFeedback,
@@ -17,7 +17,7 @@ import {
   type OpsFeedbackRecord,
 } from '../../services/feedback'
 import { useAppStore } from '../../store/useAppStore'
-import { OpsAccount } from '../../components/auth/OpsAccount'
+import { OpsProjectPicker, useOpsProject, useOpsViewedReceipt, useOpsInbox } from './workspace'
 import './ops.css'
 import './ops-feedback.css'
 
@@ -52,6 +52,15 @@ const latestSupplementAt = (item: OpsFeedbackRecord) => [...(item.messages ?? []
 
 export function OpsFeedbackPage() {
   const token = useAppStore((state) => state.opsAuthToken)!
+  const { project } = useOpsProject('hoooho')
+  const [params, setParams] = useSearchParams()
+  const targetId = params.get('feedback')
+  const targetVersion = params.get('event')
+  const scope = `${token}:${project}`
+  const activeScope = useRef(scope)
+  activeScope.current = scope
+  const detailSequence = useRef(0)
+  const [locatedId, setLocatedId] = useState<string | null>(null)
   const [records, setRecords] = useState<OpsFeedbackRecord[]>([])
   const [overview, setOverview] = useState<OpsFeedbackOverview | null>(null)
   const [selected, setSelected] = useState<OpsFeedbackRecord | null>(null)
@@ -78,10 +87,11 @@ export function OpsFeedbackPage() {
 
   useEffect(() => {
     const controller = new AbortController()
+    if (!['all', 'hoooho'].includes(project)) { setRecords([]); setOverview(null); setSelected(null); setLoading(false); return }
     setLoading(true)
     setDataError('')
     listOpsFeedback(token, new URLSearchParams(query), controller.signal)
-      .then((data) => { setRecords(data.feedback); setOverview(data.overview) })
+      .then((data) => { if (!controller.signal.aborted) { setRecords(data.feedback); setOverview(data.overview) } })
       .catch((cause: unknown) => {
         if (cause instanceof Error && cause.name === 'AbortError') return
         setRecords([])
@@ -91,15 +101,17 @@ export function OpsFeedbackPage() {
       })
       .finally(() => { if (!controller.signal.aborted) setLoading(false) })
     return () => controller.abort()
-  }, [query, reloadKey, token])
+  }, [query, reloadKey, token, project])
 
   const refreshList = async () => {
     try {
       const data = await listOpsFeedback(token, new URLSearchParams(query))
+      if (activeScope.current !== scope) return
       setRecords(data.feedback)
       setOverview(data.overview)
       setDataError('')
     } catch (cause) {
+      if (activeScope.current !== scope) return
       setRecords([])
       setOverview(null)
       setSelected(null)
@@ -108,19 +120,47 @@ export function OpsFeedbackPage() {
   }
 
   const openFeedback = async (id: string) => {
+    const sequence = ++detailSequence.current
     setDetailLoading(true)
     setDetailError('')
     setProcessingOpen(false)
     try {
       const detail = await getOpsFeedback(token, id)
+      if (activeScope.current !== scope || sequence !== detailSequence.current) return
       const next = detail.status === 'received' ? await updateOpsFeedback(token, id, { status: 'reviewing' }) : detail
+      if (activeScope.current !== scope || sequence !== detailSequence.current) return
       setSelected(next)
       await refreshList()
     } catch (cause) {
+      if (activeScope.current !== scope || sequence !== detailSequence.current) return
       setDetailError(cause instanceof Error ? cause.message : '反馈详情读取失败')
     } finally {
-      setDetailLoading(false)
+      if (activeScope.current === scope && sequence === detailSequence.current) setDetailLoading(false)
     }
+  }
+
+  useEffect(() => {
+    setSelected(null); setDetailError(''); setLocatedId(null)
+    if (targetId && ['all', 'hoooho'].includes(project)) void openFeedback(targetId)
+    return () => { detailSequence.current++ }
+    // Only changing the target or project should reopen the source, not filters.
+  }, [targetId, targetVersion, project, token])
+  useEffect(() => {
+    setLocatedId(null)
+    if (!selected || detailLoading || detailError || dataError) return
+    const id = selected.id
+    const frame = requestAnimationFrame(() => {
+      const element = document.getElementById(`feedback-${id}`)
+      element?.scrollIntoView({ block: 'nearest' })
+      element?.focus({ preventScroll: true })
+      if (element) setLocatedId(id)
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [selected?.id, detailLoading, detailError, dataError])
+  const viewed = useOpsViewedReceipt(selected ? `feedback:${selected.id}:${selected.supplementCount ?? 0}` : null, Boolean(selected && locatedId === selected.id && !detailLoading && !detailError && !dataError && ['all', 'hoooho'].includes(project)))
+  const openRecord = (id: string) => {
+    if (targetId === id) { void openFeedback(id); return }
+    setParams(previous => { const next = new URLSearchParams(previous); next.set('feedback', id); next.delete('event'); return next })
   }
 
   const handleRecordChange = (item: OpsFeedbackRecord) => {
@@ -132,10 +172,12 @@ export function OpsFeedbackPage() {
 
   return <main className="ops-page ops-feedback-page">
     <header className="ops-topbar ops-feedback-topbar">
-      <div><Link to="/ops"><FunctionalIcon name="arrow_back" size={16}/> Operations &amp; Billing</Link><h1>Feedback（反馈管理）</h1><p>在一个工作台里查看反馈、回复用户并记录处理结论</p></div>
-      <div className="ops-feedback-header-actions"><button className="ops-feedback-reload" type="button" onClick={() => setReloadKey((value) => value + 1)}>重新加载</button><OpsAccount /></div>
+      <div><h1>反馈中心</h1><p>在一个工作台里查看反馈、回复用户并记录处理结论</p></div>
+      <div className="ops-feedback-header-actions"><button className="ops-feedback-reload" type="button" onClick={() => setReloadKey((value) => value + 1)}>重新加载</button></div>
     </header>
 
+    <div className="ops-feedback-projects"><OpsProjectPicker fallback="hoooho" /></div>
+    {viewed.error && <div className="ops-error" role="alert">查看状态同步失败：{viewed.error}<button type="button" onClick={viewed.retry}>重新确认查看</button></div>}
     {dataError && <div className="ops-error" role="alert"><span>{dataError}</span><button type="button" onClick={() => setReloadKey((value) => value + 1)}>重新加载</button></div>}
 
     <section className="ops-feedback-summary" aria-label="反馈概览">
@@ -147,7 +189,7 @@ export function OpsFeedbackPage() {
       <span className="ops-feedback-summary-more">历史补充 {overview?.withSupplements ?? '—'} · 重复反馈 {overview?.duplicates ?? '—'}</span>
     </section>
 
-    {dataError ? <section className="ops-feedback-unavailable">
+    {!['all', 'hoooho'].includes(project) ? <section className="ops-inbox-empty"><h2>该项目暂未接入反馈</h2><p>接入后会在这里显示该项目的反馈。</p></section> : dataError ? <section className="ops-feedback-unavailable">
       <h2>暂时无法读取反馈</h2><p>登录可能已过期，或反馈服务暂时不可用。重新加载后再试。</p><button type="button" onClick={() => setReloadKey((value) => value + 1)}>重新加载</button>
     </section> : <section className="ops-feedback-workbench">
       <aside className="ops-feedback-queue" aria-label="反馈队列">
@@ -168,12 +210,12 @@ export function OpsFeedbackPage() {
           </div>}
         </div>
         <div className="ops-feedback-queue-list" aria-busy={loading}>
-          {loading ? <QueueSkeleton /> : records.length === 0 ? <div className="ops-feedback-empty"><h2>{hasAnyFilter ? '没有符合条件的反馈' : '还没有用户反馈'}</h2><p>{hasAnyFilter ? '尝试清除部分筛选条件。' : '用户提交的反馈会出现在这里。'}</p></div> : records.map((item) => <FeedbackQueueItem key={item.id} item={item} selected={selected?.id === item.id} onClick={() => void openFeedback(item.id)} />)}
+          {loading ? <QueueSkeleton /> : records.length === 0 ? <div className="ops-feedback-empty"><h2>{hasAnyFilter ? '没有符合条件的反馈' : '还没有用户反馈'}</h2><p>{hasAnyFilter ? '尝试清除部分筛选条件。' : '用户提交的反馈会出现在这里。'}</p></div> : records.map((item) => <FeedbackQueueItem key={item.id} item={item} selected={selected?.id === item.id} onClick={() => openRecord(item.id)} />)}
         </div>
       </aside>
 
       <section className="ops-feedback-conversation" aria-label="反馈内容与对话">
-        {detailLoading ? <div className="ops-feedback-detail-state">正在读取反馈详情…</div> : detailError ? <div className="ops-feedback-detail-state" role="alert"><strong>反馈详情读取失败</strong><span>{detailError}</span></div> : selected ? <ConversationPane item={selected} token={token} onChange={handleRecordChange} onOpenProcessing={() => setProcessingOpen(true)} /> : <div className="ops-feedback-detail-state"><strong>选择一条反馈开始处理</strong><span>反馈正文、附件和完整沟通记录会显示在这里。</span></div>}
+        {detailLoading ? <div className="ops-feedback-detail-state">正在读取反馈详情…</div> : detailError ? <div className="ops-feedback-detail-state" role="alert"><strong>反馈详情读取失败</strong><span>{detailError}</span></div> : selected ? <ConversationPane key={selected.id} item={selected} token={token} onChange={handleRecordChange} onOpenProcessing={() => setProcessingOpen(true)} /> : <div className="ops-feedback-detail-state"><strong>选择一条反馈开始处理</strong><span>反馈正文、附件和完整沟通记录会显示在这里。</span></div>}
       </section>
 
       {selected && <><button className="ops-feedback-processing-backdrop" data-open={processingOpen} type="button" aria-label="关闭处理面板" onClick={() => setProcessingOpen(false)} /><ProcessingPanel key={selected.id} item={selected} token={token} open={processingOpen} onClose={() => setProcessingOpen(false)} onChange={handleRecordChange} /></>}
@@ -201,8 +243,10 @@ function QueueSkeleton() {
 }
 
 function ConversationPane({ item, token, onChange, onOpenProcessing }: { item: OpsFeedbackRecord; token: string; onChange: (item: OpsFeedbackRecord) => void; onOpenProcessing: () => void }) {
-  const [messageKind, setMessageKind] = useState<'user-reply' | 'internal-note'>('user-reply')
-  const [message, setMessage] = useState('')
+  const drafts = useOpsInbox()?.drafts
+  const [messageKind, setMessageKind] = useState<'user-reply' | 'internal-note'>(drafts?.get(item.id)?.kind ?? 'user-reply')
+  const [message, setMessage] = useState(drafts?.get(item.id)?.text ?? '')
+  useEffect(() => { if (message) drafts?.set(item.id, { kind: messageKind, text: message }); else drafts?.delete(item.id) }, [drafts, item.id, message, messageKind])
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
   const messages = useMemo(() => [...(item.messages ?? [])].sort((left, right) => left.createdAt.localeCompare(right.createdAt)), [item.messages])
@@ -214,6 +258,8 @@ function ConversationPane({ item, token, onChange, onOpenProcessing }: { item: O
     setError('')
     try {
       const next = await addOpsFeedbackMessage(token, item.id, { kind: messageKind, text: message.trim() })
+      const savedDraft = drafts?.get(item.id)
+      if (savedDraft?.text === message && savedDraft.kind === messageKind) drafts?.delete(item.id)
       onChange(next)
       setMessage('')
     } catch (cause) {
@@ -227,7 +273,7 @@ function ConversationPane({ item, token, onChange, onOpenProcessing }: { item: O
     if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') { event.preventDefault(); void send() }
   }
 
-  return <div className="ops-feedback-conversation-inner">
+  return <div className="ops-feedback-conversation-inner" id={`feedback-${item.id}`} tabIndex={-1}>
     <header className="ops-feedback-detail-header"><div><span>{item.id}</span><h2>{item.summary}</h2><p>{opsStatusLabels[item.status]} · {opsFeedbackCategoryLabel(item.problemType ?? item.category)} · 提交于 {time(item.createdAt)}</p></div><button type="button" onClick={onOpenProcessing}>处理信息</button></header>
     <div className="ops-feedback-thread">
       <article className="ops-feedback-message" data-kind="original"><header><strong>用户最初反馈</strong><time>{time(item.createdAt)}</time></header><p>{item.description || '用户仅提交了图片附件。'}</p><AttachmentGrid attachments={initialAttachments} /></article>

@@ -40,6 +40,7 @@ import { MedicalSummaryError } from './ai/medical-summary-service.mjs'
 import { SafeAIProviderError } from './ai/providers/provider-config.mjs'
 import { OPS_SNAPSHOT_REQUEST_MAX_LENGTH, OpsService, assertOpsAccess, startOpsScheduler } from './ops/ops-service.mjs'
 import { FeedbackService } from './help/feedback-service.mjs'
+import { OpsOverviewService } from './ops/overview-service.mjs'
 import { HelpService } from './help/help-service.mjs'
 import { helpApi } from './help/help-api.mjs'
 import { FeedbackInterview } from './help/feedback-interview.mjs'
@@ -107,6 +108,7 @@ const tokens = new TokenService(authConfig.tokenSecret, authConfig.tokenTtlMs)
 const ops = new OpsService(sharedOptions)
 const stopOpsScheduler = startOpsScheduler(ops)
 const feedback = new FeedbackService(sharedOptions)
+const opsOverview = new OpsOverviewService({ ...sharedOptions, billing: ops, feedback })
 const productHelp = new HelpService(sharedOptions)
 const feedbackInterview = new FeedbackInterview(sharedOptions)
 const onlineConsultations = new OnlineConsultationService(sharedOptions)
@@ -244,9 +246,11 @@ async function handleOps(request, response, pathname) {
   const payload = await readAuthPayload(request)
   assertOpsAccess(payload, { ownerEmail: authConfig.opsOwnerEmail })
   if (pathname === '/api/ops/session' && request.method === 'GET') sendJson(response, 200, { authenticated: true, authorized: true, email: payload.email })
+  else if (pathname === '/api/ops/overview' && request.method === 'GET') sendJson(response, 200, await opsOverview.list())
+  else if (pathname === '/api/ops/overview/viewed' && request.method === 'POST') sendJson(response, 200, await opsOverview.viewed((await readJson(request)).id))
   else if (pathname === '/api/ops/sources' && request.method === 'GET') sendJson(response, 200, await ops.list())
   else if (pathname === '/api/ops/sources' && request.method === 'POST') sendJson(response, 201, await ops.create(await readJson(request)))
-  else if (pathname === '/api/ops/refresh' && request.method === 'POST') sendJson(response, 200, await ops.refreshAll())
+  else if (pathname === '/api/ops/refresh' && request.method === 'POST') sendJson(response, 200, await ops.refreshAll(new Date(), new URL(request.url, 'http://localhost').searchParams.get('project') || null))
   else {
     const image = /^\/api\/ops\/sources\/([^/]+)\/snapshots\/([^/]+)\/image$/.exec(pathname)
     const snapshot = /^\/api\/ops\/sources\/([^/]+)\/snapshots\/([^/]+)$/.exec(pathname)

@@ -4,6 +4,7 @@ import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { JsonStore } from '../auth/storage/json-store.mjs'
 import { withStorageLock } from '../auth/storage/transaction.mjs'
 import { validateRasterImage } from '../image-validation.mjs'
+import { isOpsProject, opsProjectId } from '../../shared/ops-projects.mjs'
 
 export const OPS_SNAPSHOT_MAX_BYTES = 12 * 1024 * 1024
 export const OPS_SNAPSHOT_REQUEST_MAX_LENGTH = 17_000_000
@@ -81,7 +82,7 @@ function publicSnapshot(snapshot) {
 
 function publicSource(item, snapshots) {
   const latest = snapshots.find((entry) => entry.id === item.latestSnapshotId && entry.result === 'success')
-  return { ...item, latestSnapshot: publicSnapshot(latest) }
+  return { ...item, projectId: opsProjectId(item.projectId), latestSnapshot: publicSnapshot(latest) }
 }
 
 function summary(sources, now = new Date()) {
@@ -105,12 +106,14 @@ function validSourceUrl(value) {
 }
 function cleanSourceInput(input, current = {}) {
   assertInput(input)
+  if (input.projectId !== undefined && !isOpsProject(input.projectId)) throw new OpsError('请选择有效的项目', 400, 'INVALID_OPS_PROJECT')
   for (const key of ['name', 'icon', 'platformUrl', 'loginUrl', 'targetDescription', 'targetSelector', 'waitCondition', 'notes']) {
     if (input[key] !== undefined && input[key] !== null && typeof input[key] !== 'string') throw new OpsError('费用来源字段格式错误', 400, 'INVALID_OPS_SOURCE_FIELD')
   }
   const method = METHODS.has(input.method) ? input.method : current.method ?? 'manual-screenshot'
   const frequency = FREQUENCIES.has(input.frequency) ? input.frequency : current.frequency ?? 'manual'
   return {
+    projectId: opsProjectId(input.projectId ?? current.projectId),
     name: cleanText(input.name ?? current.name, 120), icon: cleanText(input.icon ?? current.icon, 8).toUpperCase(),
     platformUrl: cleanText(input.platformUrl ?? current.platformUrl, 500), method, frequency,
     loginUrl: nullableText(input.loginUrl ?? current.loginUrl, 500), targetDescription: nullableText(input.targetDescription ?? current.targetDescription, 500),
@@ -124,7 +127,7 @@ export class OpsService {
   #storage
   #collectors
   #refreshes = new Map()
-  #refreshAllPromise = null
+  #refreshAllPromises = new Map()
   constructor(options = {}) {
     const directory = options.dataDirectory ?? process.cwd()
     this.#store = options.store ?? new JsonStore(path.join(directory, 'ops', 'billing-sources.json'), emptyData)
@@ -267,18 +270,20 @@ export class OpsService {
     try { return await operation } finally { if (this.#refreshes.get(id) === operation) this.#refreshes.delete(id) }
   }
 
-  async refreshAll(now = new Date()) {
-    if (this.#refreshAllPromise) return this.#refreshAllPromise
+  async refreshAll(now = new Date(), projectId = null) {
+    if (projectId && !isOpsProject(projectId)) throw new OpsError('请选择有效的项目', 400, 'INVALID_OPS_PROJECT')
+    const scope = projectId || 'all'
+    if (this.#refreshAllPromises.has(scope)) return this.#refreshAllPromises.get(scope)
     const operation = (async () => {
       const data = await this.#readAndRepair()
       for (const item of data.sources) {
-        if (!item.enabled || item.frequency === 'manual') continue
+        if (!item.enabled || item.frequency === 'manual' || (projectId && opsProjectId(item.projectId) !== projectId)) continue
         try { await this.refresh(item.id, now) } catch { /* isolate a single source/storage failure */ }
       }
       return this.list(now)
     })()
-    this.#refreshAllPromise = operation
-    try { return await operation } finally { if (this.#refreshAllPromise === operation) this.#refreshAllPromise = null }
+    this.#refreshAllPromises.set(scope, operation)
+    try { return await operation } finally { if (this.#refreshAllPromises.get(scope) === operation) this.#refreshAllPromises.delete(scope) }
   }
 
   async refreshScheduled(now = new Date()) {

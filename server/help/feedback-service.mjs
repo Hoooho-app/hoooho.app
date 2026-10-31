@@ -373,7 +373,8 @@ export class FeedbackService {
     const attachments = data.attachments.filter((entry) => entry.feedbackId === item.id).map((entry) => this.#attachmentView(entry))
     const messages = data.messages.filter((entry) => entry.feedbackId === item.id)
     const base = { ...item, lastOpsViewedAt: item.lastOpsViewedAt ?? null, hasUnreadSupplement: hasUnreadSupplement(item, data), status: normalizeStatus(item.status), statusUpdatedAt: item.statusUpdatedAt ?? item.updatedAt ?? item.createdAt, attachmentCount: attachments.length, supplementCount: messages.filter((entry) => entry.kind === 'user-supplement').length, mergedCount: data.feedback.filter((entry) => entry.mergedIntoId === item.id).length }
-    return detailed ? { ...base, attachments, messages, statusHistory: data.statusHistory.filter((entry) => entry.feedbackId === item.id) } : base
+    const lastUserSupplementAt = [...messages].reverse().find(entry => entry.kind === 'user-supplement')?.createdAt ?? null
+    return detailed ? { ...base, lastUserSupplementAt, attachments, messages, statusHistory: data.statusHistory.filter((entry) => entry.feedbackId === item.id) } : { ...base, lastUserSupplementAt }
   }
 
   #overview(data) {
