@@ -36,7 +36,7 @@ test('growth loading render does not claim zero saved records', () => {
 
 test('billing overview renders unknown counts until a successful response', () => {
   const html = renderToStaticMarkup(createElement(MemoryRouter, null, createElement(components.OpsPage)))
-  const summary = html.slice(html.indexOf('aria-label="更新概览"'), html.indexOf('ops-finance-filters'))
+  const summary = html.slice(html.indexOf('aria-label="更新概览"'), html.indexOf('</section>', html.indexOf('aria-label="更新概览"')))
   assert.equal((summary.match(/—/g) ?? []).length, 4)
   assert.doesNotMatch(summary, />0</)
   const filters = html.slice(html.indexOf('aria-label="费用状态筛选"'), html.indexOf('ops-sources-section'))

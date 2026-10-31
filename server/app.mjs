@@ -38,6 +38,7 @@ import { HealthRecordOrganizationService } from './ai/health-record-organization
 import { AudioTranscriptionService, AudioTranscriptionError } from './ai/audio-transcription-service.mjs'
 import { MedicalSummaryError } from './ai/medical-summary-service.mjs'
 import { SafeAIProviderError } from './ai/providers/provider-config.mjs'
+import { CaptureWorkerClient, handleCaptureApi } from './ops/capture-worker-client.mjs'
 import { OpsWorkspaceService } from './ops/workspace-service.mjs'
 import { createBillingCollectors } from './ops/capture-collectors.mjs'
 import { OPS_SNAPSHOT_REQUEST_MAX_LENGTH, OpsService, assertOpsAccess, startOpsScheduler } from './ops/ops-service.mjs'
@@ -107,9 +108,11 @@ const quickRecordPhotos = new QuickRecordPhotoService({ ...sharedOptions, attach
 const symptomMediaJobs = new SymptomMediaJobs(quickRecordPhotos, {...sharedOptions,audio:audioTranscription})
 const quickRecords = new QuickRecordService({ ...sharedOptions, events, records, photos: quickRecordPhotos })
 const tokens = new TokenService(authConfig.tokenSecret, authConfig.tokenTtlMs)
-const opsWorkspace = new OpsWorkspaceService(sharedOptions)
-const billingCollectors = createBillingCollectors()
-const ops = new OpsService({ ...sharedOptions, ...billingCollectors, collectorStatus: billingCollectors.status, logger: event => console.info('[Hoooho Ops collection]', JSON.stringify(event)), getReminderRules: async () => (await opsWorkspace.settings()).reminders })
+const captureWorker = new CaptureWorkerClient()
+await captureWorker.refreshMetadata()
+const opsWorkspace = new OpsWorkspaceService({ ...sharedOptions, captureWorker })
+const billingCollectors = createBillingCollectors({ worker: captureWorker })
+const ops = new OpsService({ ...sharedOptions, ...billingCollectors, collectorStatus: billingCollectors.status, beforeCollection: () => captureWorker.refreshMetadata(), getConnectedFields: item => Object.keys(captureWorker.profile(item.id)?.fields || {}), logger: event => console.info('[Hoooho Ops collection]', JSON.stringify(event)), getReminderRules: async () => (await opsWorkspace.settings()).reminders })
 const stopOpsScheduler = startOpsScheduler(ops)
 const feedback = new FeedbackService(sharedOptions)
 const opsOverview = new OpsOverviewService({ ...sharedOptions, billing: ops, feedback })
@@ -249,6 +252,7 @@ async function handleOps(request, response, pathname) {
   if (!pathname.startsWith('/api/ops')) return false
   const payload = await readAuthPayload(request)
   assertOpsAccess(payload, { ownerEmail: authConfig.opsOwnerEmail })
+  if (await handleCaptureApi({ request, response, pathname, readJson, send: sendJson, vault: captureWorker, ops, actorId: payload.sub })) return true
   if (pathname === '/api/ops/session' && request.method === 'GET') sendJson(response, 200, { authenticated: true, authorized: true, email: payload.email })
   else if (pathname === '/api/ops/services' && request.method === 'GET') sendJson(response, 200, await opsWorkspace.services())
   else if (pathname === '/api/ops/versions' && request.method === 'GET') sendJson(response, 200, await opsWorkspace.versions())

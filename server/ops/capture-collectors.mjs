@@ -10,7 +10,7 @@ export function parseBillingFields(values, config = {}) {
     currency: config.currency, quotaRemaining: numeric(values.quotaRemaining), quotaLimit: numeric(values.quotaLimit), quotaUnit: config.quotaUnit, plan: values.plan,
     autoRenew: values.autoRenew === config.autoRenewTrueText && Boolean(config.autoRenewTrueText) ? true : values.autoRenew === config.autoRenewFalseText && Boolean(config.autoRenewFalseText) ? false : null })
 }
-export function createBillingCollectors({ env = process.env, fetchImpl = fetch, connect, fetchNavigation } = {}) {
+export function createBillingCollectors({ env = process.env, fetchImpl = fetch, connect, fetchNavigation, worker } = {}) {
   let profiles = {}
   try { profiles = JSON.parse(env.OPS_CAPTURE_PROFILES || '{}') } catch { /* invalid config stays unavailable */ }
   let browserPromise
@@ -25,6 +25,7 @@ export function createBillingCollectors({ env = process.env, fetchImpl = fetch, 
   }
   const status = item => {
     if (item.id === 'godaddy-domain') return { state: 'ready', label: 'hoooho.com 官方到期数据', detail: '自动读取 hoooho.com 注册到期事件；扣款日、自动续费和账户余额需另行授权。' }
+    if (worker?.configured && hosts[item.id] && (worker.profile(item.id) || !env.OPS_BROWSER_CDP_URL || !profiles[item.id])) return worker.status(item)
     const profile = profiles[item.id]
     if (!hosts[item.id]) return { state: 'unconfigured', label: '待接入采集器', detail: '自定义来源需登记受控的只读采集器。' }
     if (!env.OPS_BROWSER_CDP_URL) return { state: 'authorization', label: '待持续登录授权', detail: '尚未连接专用账单浏览器，日常无需上传截图。' }
@@ -33,6 +34,7 @@ export function createBillingCollectors({ env = process.env, fetchImpl = fetch, 
     return { state: 'ready', label: '自动采集已配置', detail: '后台定时读取账单区域；会话失效时提示重新登录。' }
   }
   const capture = async (item, { signal } = {}) => {
+    if (worker?.configured && worker.profile(item.id)) return worker.capture(item)
     if (status(item).state !== 'ready') throw fail('COLLECTOR_UNCONFIGURED')
     const profile = profiles[item.id], connected = await browser()
     const context = connected.contexts()[0]

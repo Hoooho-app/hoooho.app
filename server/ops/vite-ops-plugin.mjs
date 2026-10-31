@@ -1,3 +1,4 @@
+import { CaptureWorkerClient, handleCaptureApi } from './capture-worker-client.mjs'
 import { OpsWorkspaceService } from './workspace-service.mjs'
 import { createBillingCollectors } from './capture-collectors.mjs'
 import { parseJsonObject } from '../json-input.mjs'
@@ -25,9 +26,10 @@ const send = (response, status, data) => { response.statusCode = status; respons
 const decode = (value) => { try { return decodeURIComponent(value) } catch { throw Object.assign(new Error('请求路径格式错误'), { status: 400, code: 'INVALID_PATH' }) } }
 
 export function opsApiPlugin(options = {}) {
-  const workspace = options.workspace ?? new OpsWorkspaceService({ dataDirectory: options.dataDirectory ?? authConfig.dataDirectory })
-  const capture = createBillingCollectors()
-  const service = options.service ?? new OpsService({ dataDirectory: options.dataDirectory ?? authConfig.dataDirectory, collectors: options.collectors ?? capture.collectors, collectorStatus: capture.status, getReminderRules: async () => (await workspace.settings()).reminders })
+  const captureWorker = options.captureWorker ?? new CaptureWorkerClient()
+  const workspace = options.workspace ?? new OpsWorkspaceService({ dataDirectory: options.dataDirectory ?? authConfig.dataDirectory, captureWorker })
+  const capture = createBillingCollectors({ worker: captureWorker })
+  const service = options.service ?? new OpsService({ dataDirectory: options.dataDirectory ?? authConfig.dataDirectory, collectors: options.collectors ?? capture.collectors, collectorStatus: capture.status, beforeCollection: () => captureWorker.refreshMetadata(), getConnectedFields: item => Object.keys(captureWorker.profile(item.id)?.fields || {}), getReminderRules: async () => (await workspace.settings()).reminders })
   const overview = new OpsOverviewService({ billing: service, feedback: options.feedback ?? new FeedbackService({ dataDirectory: options.dataDirectory ?? authConfig.dataDirectory }), dataDirectory: options.dataDirectory ?? authConfig.dataDirectory })
   const tokens = options.tokens ?? new TokenService(options.tokenSecret ?? authConfig.tokenSecret, options.tokenTtlMs ?? authConfig.tokenTtlMs)
   const ownerEmail = options.opsOwnerEmail ?? authConfig.opsOwnerEmail
@@ -39,6 +41,7 @@ export function opsApiPlugin(options = {}) {
       const payload = token ? tokens.verify(token) : null
       if (!payload) throw Object.assign(new Error('登录状态无效或已过期'), { status: 401, code: 'UNAUTHORIZED' })
       assertOpsAccess(payload, { ownerEmail })
+      if (await handleCaptureApi({ request, response, pathname, readJson, send, vault: captureWorker, ops: service, actorId: payload.sub })) return
       if (pathname === '/api/ops/services' && request.method === 'GET') return send(response, 200, await workspace.services())
       if (pathname === '/api/ops/versions' && request.method === 'GET') return send(response, 200, await workspace.versions())
       if (pathname === '/api/ops/settings' && request.method === 'GET') return send(response, 200, await workspace.settings())

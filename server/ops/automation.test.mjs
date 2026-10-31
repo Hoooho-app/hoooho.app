@@ -30,7 +30,7 @@ test('reminders cross Shanghai date thresholds without changing evidence or pret
   assert.notEqual(notice.fingerprint, warning.fingerprint); assert.notEqual(warning.fingerprint, critical.fingerprint)
   assert.equal(billingHealth(item({ dueAt: '2026-10-31', dueKind: 'payment' }), now).reasons[0].code, 'expired')
   assert.equal(billingHealth(item({ dueAt: '2026-10-31', dueKind: 'quota-reset' }), now).reasons.length, 0)
-  assert.equal(billingHealth(item({ quotaRemaining: 0, quotaLimit: 100 }), now).level, 'critical')
+  assert.equal(billingHealth(item({ quotaRemaining: 0, quotaLimit: 100, quotaKind: 'hard-cap' }), now).level, 'critical')
   assert.equal(billingHealth(item({ balance: 4, currency: 'USD', lowBalanceThreshold: 5 }), now).level, 'warning')
   assert.equal(billingHealth(item({ balance: 0, currency: 'USD' }, { enabled: false }), now).level, 'paused')
 })

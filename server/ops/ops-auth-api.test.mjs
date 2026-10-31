@@ -60,7 +60,7 @@ test('all Operations APIs share the same owner-only authorization', async () => 
     const createdFeedback = await createdFeedbackResponse.json()
 
     const protectedRequests = [
-      ['/api/ops/services', 'GET'], ['/api/ops/settings', 'GET'], ['/api/ops/settings', 'PATCH', { reminders: { noticeDays: 30, warningDays: 7, criticalDays: 3, quotaWarningPercent: 20, quotaCriticalPercent: 5 } }], ['/api/ops/versions', 'GET'],
+      ['/api/ops/capture/runtime', 'GET'], ['/api/ops/services', 'GET'], ['/api/ops/settings', 'GET'], ['/api/ops/settings', 'PATCH', { reminders: { noticeDays: 30, warningDays: 7, criticalDays: 3, quotaWarningPercent: 20, quotaCriticalPercent: 5 } }], ['/api/ops/versions', 'GET'],
       ['/api/ops/overview', 'GET'], ['/api/ops/overview/viewed', 'POST', { id: `feedback:${createdFeedback.id}:0` }],
       ['/api/ops/session', 'GET'], ['/api/ops/sources', 'GET'], ['/api/ops/sources', 'POST', { name: 'Test', platformUrl: 'https://example.com/billing', method: 'manual-screenshot', frequency: 'manual' }],
       ['/api/ops/sources/railway', 'PATCH', { notes: 'test' }], ['/api/ops/refresh', 'POST'], ['/api/ops/feedback', 'GET'],
@@ -74,6 +74,11 @@ test('all Operations APIs share the same owner-only authorization', async () => 
       const allowed = await json(`${base}${route}`, method, ownerSession.token, body)
       assert.ok([200, 201].includes(allowed.status), `${method} ${route} must allow the owner`)
       assert.equal(allowed.headers.get('cache-control'), 'no-store')
+    }
+
+    for (const [route, method, body] of [['/api/ops/capture/sessions','POST',{sourceId:'railway',consent:true}],['/api/ops/capture/runtime/check','POST',{}],['/api/ops/capture/sessions/00000000-0000-0000-0000-000000000000/image','GET'],['/api/ops/capture/sessions/00000000-0000-0000-0000-000000000000/actions','POST',{action:'text',text:'synthetic',epoch:0}]]) {
+      assert.equal((await json(`${base}${route}`,method,ordinarySession.token,body)).status,403)
+      assert.equal((await json(`${base}${route}`,method,null,body)).status,401)
     }
 
     const tokens = new TokenService(tokenSecret, 1)

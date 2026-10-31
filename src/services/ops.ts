@@ -1,3 +1,4 @@
+import type { BillingDefinition } from '../../shared/ops-billing-catalog.mjs'
 import { ApiRequestError } from './apiClient'
 import { clearOpsSessionForError, opsApiRequest } from './opsAuth'
 
@@ -5,6 +6,8 @@ export type BillingMethod = 'api' | 'automatic-screenshot' | 'manual-screenshot'
 export type BillingFrequency = 'daily' | 'weekly' | 'manual'
 export type BillingStatus = 'success' | 'updating' | 'relogin' | 'manual' | 'failed' | 'unconfigured'
 
+export interface BillingMetric { value: number | string | boolean; currency?: string; unit?: string | null }
+export interface BillingFieldRow { key: string; label: string; kind: string; metric: BillingMetric | null; state: 'available' | 'authorization' | 'pending' | 'missing'; reason: string | null }
 export interface BillingHealth {
   level: 'critical' | 'warning' | 'notice' | 'unknown' | 'normal' | 'paused'
   label: string; reasons: { code: string; level: string; label: string }[]; missing: string[]
@@ -28,6 +31,10 @@ export interface BillingSnapshot {
 }
 
 export interface BillingSource {
+  category?: string
+  billingModes?: string[]
+  billing?: BillingDefinition
+  fieldRows?: BillingFieldRow[]
   health?: BillingHealth
   connection?: BillingConnection
   nextRunAt?: string | null
@@ -69,6 +76,8 @@ export interface BillingSourcesResponse {
 }
 
 export interface BillingSourceInput {
+  category?: string
+  billingModes?: string[]
   projectId?: string
   name: string
   icon: string
@@ -101,3 +110,13 @@ export async function getBillingSnapshotImage(token: string, sourceId: string, s
   }
   return response.blob()
 }
+
+export interface CaptureCandidate { key: string; label: string; parsed: BillingMetric }
+export interface CaptureSession { id: string; sourceId: string; url: string; epoch: number; width: number; height: number; currency: string; analysis: { version: string; candidates: CaptureCandidate[] } | null }
+export interface CaptureRuntime { installed: boolean; available: boolean; verified?: boolean; error?: string; configuredSources: string[] }
+export async function getCaptureImage(token: string, id: string, preview = false, signal?: AbortSignal) {
+  const response = await fetch(`/api/ops/capture/sessions/${encodeURIComponent(id)}/${preview ? 'preview' : 'image'}`, { headers: { Authorization: `Bearer ${token}` }, signal })
+  if (!response.ok) { const value = await response.json().catch(() => ({})); const error = new ApiRequestError(value.error?.message || '授权画面暂时不可用', response.status); clearOpsSessionForError(error); throw error }
+  return response.blob()
+}
+export const formatBillingMetric = (metric: BillingMetric, kind: string) => kind === 'date' ? new Date(String(metric.value)).toLocaleDateString('zh-CN', { timeZone: 'Asia/Shanghai' }) : typeof metric.value === 'boolean' ? metric.value ? '已开启' : '未开启' : `${metric.currency ? metric.currency + ' ' : ''}${metric.value}${metric.unit ? ' ' + metric.unit : ''}`

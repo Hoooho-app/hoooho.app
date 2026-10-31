@@ -3,15 +3,15 @@ import { JsonStore } from '../auth/storage/json-store.mjs'
 import { DEFAULT_REMINDERS } from './billing-health.mjs'
 import { OPS_PROJECTS } from '../../shared/ops-projects.mjs'
 export class OpsWorkspaceService {
-  constructor({ dataDirectory, env = process.env, fetchImpl = fetch } = {}) {
-    this.env = env; this.fetch = fetchImpl; this.startedAt = new Date().toISOString()
+  constructor({ dataDirectory, env = process.env, fetchImpl = fetch, captureWorker } = {}) {
+    this.captureWorker = captureWorker; this.env = env; this.fetch = fetchImpl; this.startedAt = new Date().toISOString()
     this.settingsStore = new JsonStore(path.join(dataDirectory, 'ops/workspace-settings.json'), { reminders: DEFAULT_REMINDERS })
     this.releases = new JsonStore(path.join(dataDirectory, 'ops/web-releases.json'), { releases: [] })
     this.probes = new Map()
   }
   async settings() {
     const data = await this.settingsStore.read()
-    return { reminders: { ...DEFAULT_REMINDERS, ...data.reminders }, schedule: { time: '08:00', timeZone: 'Asia/Shanghai', catchUpOnRestart: true }, notification: '仅站内 Overview，不发送邮件或短信', capture: { connected: Boolean(this.env.OPS_BROWSER_CDP_URL), profilesConfigured: Boolean(this.env.OPS_CAPTURE_PROFILES), detail: '账单会话、区域和隐私遮罩在服务器端配置；不会从本机导出 Cookie。' } }
+    return { reminders: { ...DEFAULT_REMINDERS, ...data.reminders }, schedule: { time: '08:00', timeZone: 'Asia/Shanghai', catchUpOnRestart: true }, notification: '仅站内 Overview，不发送邮件或短信', capture: { connected: Boolean(this.captureWorker?.configured || this.env.OPS_BROWSER_CDP_URL), profilesConfigured: Boolean(Object.keys(this.captureWorker?.cache.profiles || {}).length || this.env.OPS_CAPTURE_PROFILES), detail: '在各费用来源内连接采集，完成一次平台登录和账单核对；会话保留在隔离的私有采集服务中。' } }
   }
   async saveSettings(input) {
     const r = input?.reminders

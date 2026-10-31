@@ -4,7 +4,8 @@ import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { JsonStore } from '../auth/storage/json-store.mjs'
 import { withStorageLock } from '../auth/storage/transaction.mjs'
 import { validateRasterImage } from '../image-validation.mjs'
-import { billingHealth, cleanBillingFacts, DEFAULT_REMINDERS } from './billing-health.mjs'
+import { billingHealth, cleanBillingFacts, billingFieldRows, DEFAULT_REMINDERS } from './billing-health.mjs'
+import { billingDefinition, isBillingCategory, isBillingMode } from '../../shared/ops-billing-catalog.mjs'
 import { isOpsProject, opsProjectId } from '../../shared/ops-projects.mjs'
 
 export const OPS_SNAPSHOT_MAX_BYTES = 12 * 1024 * 1024
@@ -110,6 +111,8 @@ function validSourceUrl(value) {
 }
 function cleanSourceInput(input, current = {}) {
   assertInput(input)
+  if (input.category !== undefined && !isBillingCategory(input.category)) throw new OpsError('请选择有效的费用分类',400,'INVALID_BILLING_CATEGORY')
+  if (input.billingModes !== undefined && (!Array.isArray(input.billingModes) || input.billingModes.some(value => !isBillingMode(value)) || new Set(input.billingModes).size !== input.billingModes.length)) throw new OpsError('请选择有效的计费结构',400,'INVALID_BILLING_MODES')
   if (input.projectId !== undefined && !isOpsProject(input.projectId)) throw new OpsError('请选择有效的项目', 400, 'INVALID_OPS_PROJECT')
   for (const key of ['name', 'icon', 'platformUrl', 'loginUrl', 'targetDescription', 'targetSelector', 'waitCondition', 'notes']) {
     if (input[key] !== undefined && input[key] !== null && typeof input[key] !== 'string') throw new OpsError('费用来源字段格式错误', 400, 'INVALID_OPS_SOURCE_FIELD')
@@ -117,6 +120,7 @@ function cleanSourceInput(input, current = {}) {
   const method = METHODS.has(input.method) ? input.method : current.method ?? 'manual-screenshot'
   const frequency = FREQUENCIES.has(input.frequency) ? input.frequency : current.frequency ?? 'manual'
   return {
+    category: input.category ?? current.category, billingModes: input.billingModes ?? current.billingModes,
     projectId: opsProjectId(input.projectId ?? current.projectId),
     name: cleanText(input.name ?? current.name, 120), icon: cleanText(input.icon ?? current.icon, 8).toUpperCase(),
     platformUrl: cleanText(input.platformUrl ?? current.platformUrl, 500), method, frequency,
@@ -130,6 +134,8 @@ export class OpsService {
   #store
   #storage
   #collectors
+  #beforeCollection
+  #getConnectedFields
   #hasCollectorStatus
   #collectorStatus
   #logger
@@ -141,6 +147,8 @@ export class OpsService {
     this.#store = options.store ?? new JsonStore(path.join(directory, 'ops', 'billing-sources.json'), emptyData)
     this.#storage = options.storage ?? new OpsSnapshotStorage(path.join(directory, 'ops', 'snapshots'))
     this.#collectors = options.collectors ?? {}
+    this.#beforeCollection = options.beforeCollection ?? (async () => {})
+    this.#getConnectedFields = options.getConnectedFields ?? (() => [])
     this.#logger = options.logger ?? (() => {})
     this.#hasCollectorStatus = Boolean(options.collectorStatus)
     this.#collectorStatus = options.collectorStatus ?? (() => ({ state: 'unconfigured', label: '待接入采集器', detail: '尚无持续授权采集连接。' }))
@@ -174,6 +182,7 @@ export class OpsService {
   }
 
   async list(now = new Date()) {
+    await this.#beforeCollection()
     const data = await this.#prune(now)
     const rules = await this.#reminderRules()
     const sources = data.sources.map((item) => this.#publicSource(item, data.snapshots, now, rules))
@@ -188,7 +197,11 @@ export class OpsService {
       const dueDay = new Date(Date.parse(lastDay) + 7 * 86400000).toISOString().slice(0, 10)
       if (nextRunAt.toLocaleDateString('en-CA', { timeZone: 'Asia/Shanghai' }) < dueDay) nextRunAt = getNextOpsRunAt(new Date(Date.parse(`${dueDay}T00:00:00+08:00`) - 1))
     }
-    return { ...publicSource(item, snapshots), connection: this.#collectorStatus(item), health: billingHealth(item, now, rules), nextRunAt: nextRunAt?.toISOString() ?? null }
+    const connection = this.#collectorStatus(item), connectedFields = this.#getConnectedFields(item)
+    const billing = billingDefinition(item, connectedFields), fieldRows = billingFieldRows(item, connection, connectedFields)
+    let health = billingHealth(item, now, rules)
+    if (health.level === 'normal' && fieldRows.some(row => row.state !== 'available')) health = { ...health, level: 'unknown', label: '部分字段待核验' }
+    return { ...publicSource(item, snapshots), category: billing.category, billingModes: billing.modes, billing, fieldRows, connection, health, nextRunAt: nextRunAt?.toISOString() ?? null }
   }
 
   async create(input, now = new Date()) {
@@ -262,8 +275,10 @@ export class OpsService {
   }
 
   async #refresh(id, now = new Date()) {
+    await this.#beforeCollection()
     const data = await this.#readAndRepair(), item = data.sources.find((entry) => entry.id === id)
     if (!item) throw new OpsError('费用来源不存在', 404, 'OPS_SOURCE_NOT_FOUND')
+    if (this.#collectorStatus(item).state === 'busy') throw new OpsError('授权窗口正在使用，关闭后可继续采集',409,'CAPTURE_BUSY')
     if (!item.enabled) return this.#publicSource(item, data.snapshots)
     if (item.method === 'manual-screenshot') {
       await this.#recordAttempt(id, 'manual', '该历史来源尚未接入自动采集，请在管理中切换采集方式并完成授权。', item.method, now)
@@ -319,6 +334,7 @@ export class OpsService {
   }
 
   async refreshScheduled(now = new Date()) {
+    await this.#beforeCollection()
     const data = await this.#readAndRepair()
     const today = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Shanghai' })
     for (const item of data.sources) {
@@ -391,7 +407,9 @@ export function startOpsScheduler(service, options = {}) {
   schedule()
   const catchup = setTimeout(() => { void service.refreshScheduled(new Date()).catch(() => {}) }, 5000)
   catchup.unref?.()
-  return () => { stopped = true; clearTimeout(timer); clearTimeout(catchup) }
+  const retry = setInterval(() => { void service.refreshScheduled(new Date()).catch(() => {}) }, 15 * 60000)
+  retry.unref?.()
+  return () => { stopped = true; clearTimeout(timer); clearTimeout(catchup); clearInterval(retry) }
 }
 
 export function getNextOpsRunAt(now = new Date(), options = {}) {
