@@ -5,6 +5,7 @@ import { MaterialIcon } from '../../components/icons'
 import { OpsProjectPicker, projectName, useOpsInbox, useOpsProject, type OpsEvent } from './workspace'
 
 const kinds: Record<string, { label: string; icon: MaterialIconName }> = {
+  'billing-reminder': { label: '费用提醒', icon: 'warning' },
   feedback: { label: '新反馈', icon: 'chat_bubble' }, 'feedback-reply': { label: '新回复', icon: 'chat_bubble' },
   'billing-alert': { label: '费用提醒', icon: 'warning' }, 'billing-update': { label: '账单更新', icon: 'description' }
 }

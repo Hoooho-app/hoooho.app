@@ -1,3 +1,5 @@
+import { OpsWorkspaceService } from './workspace-service.mjs'
+import { createBillingCollectors } from './capture-collectors.mjs'
 import { parseJsonObject } from '../json-input.mjs'
 import { OPS_SNAPSHOT_REQUEST_MAX_LENGTH, OpsService, assertOpsAccess } from './ops-service.mjs'
 import { TokenService } from '../auth/token-service.mjs'
@@ -23,7 +25,9 @@ const send = (response, status, data) => { response.statusCode = status; respons
 const decode = (value) => { try { return decodeURIComponent(value) } catch { throw Object.assign(new Error('请求路径格式错误'), { status: 400, code: 'INVALID_PATH' }) } }
 
 export function opsApiPlugin(options = {}) {
-  const service = options.service ?? new OpsService({ dataDirectory: options.dataDirectory ?? authConfig.dataDirectory })
+  const workspace = options.workspace ?? new OpsWorkspaceService({ dataDirectory: options.dataDirectory ?? authConfig.dataDirectory })
+  const capture = createBillingCollectors()
+  const service = options.service ?? new OpsService({ dataDirectory: options.dataDirectory ?? authConfig.dataDirectory, collectors: options.collectors ?? capture.collectors, collectorStatus: capture.status, getReminderRules: async () => (await workspace.settings()).reminders })
   const overview = new OpsOverviewService({ billing: service, feedback: options.feedback ?? new FeedbackService({ dataDirectory: options.dataDirectory ?? authConfig.dataDirectory }), dataDirectory: options.dataDirectory ?? authConfig.dataDirectory })
   const tokens = options.tokens ?? new TokenService(options.tokenSecret ?? authConfig.tokenSecret, options.tokenTtlMs ?? authConfig.tokenTtlMs)
   const ownerEmail = options.opsOwnerEmail ?? authConfig.opsOwnerEmail
@@ -35,6 +39,10 @@ export function opsApiPlugin(options = {}) {
       const payload = token ? tokens.verify(token) : null
       if (!payload) throw Object.assign(new Error('登录状态无效或已过期'), { status: 401, code: 'UNAUTHORIZED' })
       assertOpsAccess(payload, { ownerEmail })
+      if (pathname === '/api/ops/services' && request.method === 'GET') return send(response, 200, await workspace.services())
+      if (pathname === '/api/ops/versions' && request.method === 'GET') return send(response, 200, await workspace.versions())
+      if (pathname === '/api/ops/settings' && request.method === 'GET') return send(response, 200, await workspace.settings())
+      if (pathname === '/api/ops/settings' && request.method === 'PATCH') return send(response, 200, await workspace.saveSettings(await readJson(request)))
       if (pathname === '/api/ops/overview' && request.method === 'GET') return send(response, 200, await overview.list())
       if (pathname === '/api/ops/overview/viewed' && request.method === 'POST') return send(response, 200, await overview.viewed((await readJson(request)).id))
       if (pathname === '/api/ops/session' && request.method === 'GET') return send(response, 200, { authenticated: true, authorized: true, email: payload.email })

@@ -4,6 +4,7 @@ import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { JsonStore } from '../auth/storage/json-store.mjs'
 import { withStorageLock } from '../auth/storage/transaction.mjs'
 import { validateRasterImage } from '../image-validation.mjs'
+import { billingHealth, cleanBillingFacts, DEFAULT_REMINDERS } from './billing-health.mjs'
 import { isOpsProject, opsProjectId } from '../../shared/ops-projects.mjs'
 
 export const OPS_SNAPSHOT_MAX_BYTES = 12 * 1024 * 1024
@@ -12,7 +13,7 @@ export const OPS_SNAPSHOT_REQUEST_MAX_LENGTH = 17_000_000
 const METHODS = new Set(['api', 'automatic-screenshot', 'manual-screenshot'])
 const FREQUENCIES = new Set(['daily', 'weekly', 'manual'])
 const IMAGE_TYPES = new Map([['image/jpeg', 'jpg'], ['image/png', 'png'], ['image/webp', 'webp']])
-const inactiveSources = ['SMS', 'OCR', 'Vector DB', 'Maps', 'Apple Developer', 'Google Play', '其他尚未启用的平台']
+const inactiveSources = ['SMS', 'OCR', 'Vector DB', 'Maps', 'Google Play', '其他尚未启用的平台']
 const iso = (value = new Date()) => value.toISOString()
 const cleanText = (value, max = 500) => String(value ?? '').trim().slice(0, max)
 const nullableText = (value, max = 500) => cleanText(value, max) || null
@@ -25,15 +26,17 @@ const source = (id, name, icon, platformUrl, method, frequency, notes, status = 
 })
 
 export const initialBillingSources = [
+  source('aliyun', '阿里云（含百炼）', 'AL', 'https://usercenter2.aliyun.com/', 'automatic-screenshot', 'daily', '云服务器、模型调用和账户费用；等待账单页持续授权。'),
+  source('apple-developer', 'Apple Developer', 'AP', 'https://developer.apple.com/account', 'automatic-screenshot', 'weekly', '开发者年费与会员到期；等待授权，不绕过二次验证。'),
   source('railway', 'Railway', 'RW', 'https://railway.com/account/billing', 'automatic-screenshot', 'daily', '待配置已授权的只读登录会话与账单区域。'),
   source('railway-volume', 'Railway Volume', 'RV', 'https://railway.com/account/billing', 'automatic-screenshot', 'daily', '与 Railway 账单页同源，单独保留存储用量快照。'),
-  source('openai', 'OpenAI API', 'OA', 'https://platform.openai.com/usage', 'api', 'daily', '优先接入官方允许的用量接口；未配置时不读取环境中的密钥内容。'),
+  source('openai', 'OpenAI API', 'OA', 'https://platform.openai.com/usage', 'automatic-screenshot', 'daily', '账单页面自动截图；产品调用密钥不等于组织账单授权。'),
   source('resend', 'Resend', 'RE', 'https://resend.com/settings/billing', 'automatic-screenshot', 'daily', '待确认页面访问条款和登录会话稳定性。'),
   source('cloudflare', 'Cloudflare', 'CF', 'https://dash.cloudflare.com/', 'automatic-screenshot', 'daily', '待配置只读账单页和截图区域。'),
-  source('godaddy-domain', 'GoDaddy / hoooho.com', 'GD', 'https://account.godaddy.com/billing', 'manual-screenshot', 'manual', '域名账户可能要求 MFA，默认使用手动截图。', 'manual'),
-  source('github', 'GitHub', 'GH', 'https://github.com/settings/billing', 'automatic-screenshot', 'weekly', '待配置已授权会话；出现二次验证时回退手动更新。'),
-  source('figma', 'Figma', 'FG', 'https://www.figma.com/settings', 'manual-screenshot', 'manual', '默认手动上传，避免对登录与团队账单页进行不稳定自动化。', 'manual'),
-  source('chatgpt-codex', 'ChatGPT / Codex', 'AI', 'https://chatgpt.com/', 'manual-screenshot', 'manual', '默认手动上传，不自动处理 MFA、CAPTCHA 或账户安全验证。', 'manual')
+  source('godaddy-domain', '域名 / hoooho.com', 'DN', 'https://dc.console.aliyun.com/next/index#/domain-list/all', 'api', 'daily', '自动读取官方域名注册到期事件；账户扣款信息待授权。'),
+  source('github', 'GitHub', 'GH', 'https://github.com/settings/billing', 'automatic-screenshot', 'weekly', '待配置已授权会话；出现二次验证时暂停并提示重新登录。'),
+  source('figma', 'Figma', 'FG', 'https://www.figma.com/settings', 'automatic-screenshot', 'daily', '等待专用账单浏览器授权与区域配置。'),
+  source('chatgpt-codex', 'ChatGPT / Codex', 'AI', 'https://chatgpt.com/', 'automatic-screenshot', 'daily', '等待专用账单浏览器授权；会话失效后暂停，不绕过账户验证。')
 ]
 
 const emptyData = { sources: initialBillingSources, snapshots: [], inactiveSources }
@@ -51,9 +54,10 @@ export class OpsSnapshotStorage {
 
 function normalizeData(data) {
   return {
+    automationPolicyVersion: data?.automationPolicyVersion ?? 0,
     sources: Array.isArray(data?.sources) ? data.sources : [],
     snapshots: Array.isArray(data?.snapshots) ? data.snapshots : [],
-    inactiveSources: Array.isArray(data?.inactiveSources) ? data.inactiveSources : inactiveSources
+    inactiveSources: Array.isArray(data?.inactiveSources) ? data.inactiveSources.filter(item => item !== 'Apple Developer') : inactiveSources
   }
 }
 
@@ -126,6 +130,10 @@ export class OpsService {
   #store
   #storage
   #collectors
+  #hasCollectorStatus
+  #collectorStatus
+  #logger
+  #reminderRules
   #refreshes = new Map()
   #refreshAllPromises = new Map()
   constructor(options = {}) {
@@ -133,15 +141,20 @@ export class OpsService {
     this.#store = options.store ?? new JsonStore(path.join(directory, 'ops', 'billing-sources.json'), emptyData)
     this.#storage = options.storage ?? new OpsSnapshotStorage(path.join(directory, 'ops', 'snapshots'))
     this.#collectors = options.collectors ?? {}
+    this.#logger = options.logger ?? (() => {})
+    this.#hasCollectorStatus = Boolean(options.collectorStatus)
+    this.#collectorStatus = options.collectorStatus ?? (() => ({ state: 'unconfigured', label: '待接入采集器', detail: '尚无持续授权采集连接。' }))
+    this.#reminderRules = options.getReminderRules ?? (async () => DEFAULT_REMINDERS)
   }
 
   async #readAndRepair() {
     const current = normalizeData(await this.#store.read())
     const ids = new Set(current.sources.map((item) => item?.id).filter(Boolean))
-    if (initialBillingSources.every((item) => ids.has(item.id))) return current
+    if (current.automationPolicyVersion === 1 && initialBillingSources.every((item) => ids.has(item.id))) return current
     return normalizeData(await this.#store.update((raw) => {
       const data = normalizeData(raw), currentIds = new Set(data.sources.map((item) => item?.id).filter(Boolean))
-      return { ...data, sources: [...data.sources, ...initialBillingSources.filter((item) => !currentIds.has(item.id))] }
+      const sources = data.sources.map(item => initialBillingSources.some(s => s.id === item.id) && !raw.automationPolicyVersion ? { ...item, ...(item.id === 'godaddy-domain' && item.name === 'GoDaddy / hoooho.com' ? { name: '域名 / hoooho.com', platformUrl: 'https://dc.console.aliyun.com/next/index#/domain-list/all' } : {}), method: item.id === 'godaddy-domain' ? 'api' : 'automatic-screenshot', frequency: item.frequency === 'manual' ? 'daily' : item.frequency, status: item.status === 'manual' ? 'unconfigured' : item.status } : item)
+      return { ...data, automationPolicyVersion: 1, sources: [...sources, ...initialBillingSources.filter((item) => !currentIds.has(item.id))] }
     }))
   }
 
@@ -162,8 +175,20 @@ export class OpsService {
 
   async list(now = new Date()) {
     const data = await this.#prune(now)
-    const sources = data.sources.map((item) => publicSource(item, data.snapshots))
+    const rules = await this.#reminderRules()
+    const sources = data.sources.map((item) => this.#publicSource(item, data.snapshots, now, rules))
     return { sources, inactiveSources: data.inactiveSources, summary: summary(sources, now) }
+  }
+
+  #publicSource(item, snapshots, now = new Date(), rules = DEFAULT_REMINDERS) {
+    let nextRunAt = item.enabled && item.frequency !== 'manual' && item.status !== 'relogin' ? getNextOpsRunAt(now) : null
+    if (this.#hasCollectorStatus && this.#collectorStatus(item).state !== 'ready') nextRunAt = null
+    if (nextRunAt && item.frequency === 'weekly' && Number.isFinite(Date.parse(item.lastAttemptAt))) {
+      const lastDay = new Date(item.lastAttemptAt).toLocaleDateString('en-CA', { timeZone: 'Asia/Shanghai' })
+      const dueDay = new Date(Date.parse(lastDay) + 7 * 86400000).toISOString().slice(0, 10)
+      if (nextRunAt.toLocaleDateString('en-CA', { timeZone: 'Asia/Shanghai' }) < dueDay) nextRunAt = getNextOpsRunAt(new Date(Date.parse(`${dueDay}T00:00:00+08:00`) - 1))
+    }
+    return { ...publicSource(item, snapshots), connection: this.#collectorStatus(item), health: billingHealth(item, now, rules), nextRunAt: nextRunAt?.toISOString() ?? null }
   }
 
   async create(input, now = new Date()) {
@@ -173,7 +198,7 @@ export class OpsService {
     const createdAt = iso(now)
     const item = { id: randomUUID(), ...values, icon: values.icon || values.name.slice(0, 2).toUpperCase(), status: values.method === 'manual-screenshot' ? 'manual' : 'unconfigured', lastAttemptAt: null, lastSuccessAt: null, lastFailureReason: null, latestSnapshotId: null, createdAt, updatedAt: createdAt }
     await this.#store.update((raw) => { const data = normalizeData(raw); return { ...data, sources: [...data.sources, item] } })
-    return publicSource(item, [])
+    return this.#publicSource(item, [])
   }
 
   async update(id, input, now = new Date()) {
@@ -196,10 +221,10 @@ export class OpsService {
     if (input.privacyConfirmed !== true) {
       throw new OpsError('保存前必须确认截图已裁除无关隐私信息', 400, 'OPS_SNAPSHOT_PRIVACY_CONFIRMATION_REQUIRED')
     }
-    return this.#saveSnapshot(id, input, now, 'manual-screenshot')
+    return this.#saveSnapshot(id, input, now, 'manual-screenshot', null)
   }
 
-  async #saveSnapshot(id, input, now, snapshotMethod) {
+  async #saveSnapshot(id, input, now, snapshotMethod, observation = undefined) {
     const prepared = await decodeSnapshot(input)
     return withStorageLock(async () => {
       const createdAt = iso(now), snapshotId = randomUUID()
@@ -212,7 +237,7 @@ export class OpsService {
       if (latest?.contentHash === prepared.contentHash) {
         await this.#store.update((raw) => {
           const current = normalizeData(raw)
-          return { ...current, sources: current.sources.map((item) => item.id === id ? { ...item, status: 'success', lastAttemptAt: createdAt, lastFailureReason: null, updatedAt: createdAt } : item) }
+          return { ...current, sources: current.sources.map((item) => item.id === id ? { ...item, status: 'success', lastAttemptAt: createdAt, lastVerifiedAt: createdAt, ...(observation !== undefined ? { observation } : {}), lastFailureReason: null, updatedAt: createdAt } : item) }
         })
         return this.get(id)
       }
@@ -220,7 +245,7 @@ export class OpsService {
       try {
         await this.#store.update((raw) => {
           const current = normalizeData(raw)
-          return { ...current, snapshots: [snapshot, ...current.snapshots], sources: current.sources.map((item) => item.id === id ? { ...item, status: 'success', lastAttemptAt: createdAt, lastSuccessAt: createdAt, lastFailureReason: null, latestSnapshotId: snapshotId, updatedAt: createdAt } : item) }
+          return { ...current, snapshots: [snapshot, ...current.snapshots], sources: current.sources.map((item) => item.id === id ? { ...item, status: 'success', lastVerifiedAt: createdAt, ...(observation !== undefined ? { observation } : {}), lastAttemptAt: createdAt, lastSuccessAt: createdAt, lastFailureReason: null, latestSnapshotId: snapshotId, updatedAt: createdAt } : item) }
         })
       } catch (error) { await this.#storage.remove(storageKey); throw error }
       return this.get(id)
@@ -239,9 +264,9 @@ export class OpsService {
   async #refresh(id, now = new Date()) {
     const data = await this.#readAndRepair(), item = data.sources.find((entry) => entry.id === id)
     if (!item) throw new OpsError('费用来源不存在', 404, 'OPS_SOURCE_NOT_FOUND')
-    if (!item.enabled) return publicSource(item, data.snapshots)
+    if (!item.enabled) return this.#publicSource(item, data.snapshots)
     if (item.method === 'manual-screenshot') {
-      await this.#recordAttempt(id, 'manual', '该来源使用手动截图，请上传最新页面截图。', item.method, now)
+      await this.#recordAttempt(id, 'manual', '该历史来源尚未接入自动采集，请在管理中切换采集方式并完成授权。', item.method, now)
       return this.get(id)
     }
     const collector = this.#collectors[item.id] ?? this.#collectors[item.method]
@@ -251,12 +276,19 @@ export class OpsService {
     }
     await this.#store.update((raw) => { const current = normalizeData(raw); return { ...current, sources: current.sources.map((entry) => entry.id === id ? { ...entry, status: 'updating', lastAttemptAt: iso(now) } : entry) } })
     try {
-      const result = await collector(item)
-      if (!result?.dataUrl) throw Object.assign(new Error('collector did not return an image'), { code: 'COLLECTOR_EMPTY' })
-      return this.#saveSnapshot(id, { name: result.name ?? `${item.name}.png`, type: result.type ?? 'image/png', dataUrl: result.dataUrl }, now, item.method)
+      const controller = new AbortController()
+      let timer
+      let result
+      try { result = await Promise.race([collector(item, { signal: controller.signal }), new Promise((_, reject) => { timer = setTimeout(() => { controller.abort(); reject(Object.assign(new Error('capture timeout'), { code: 'COLLECTOR_TIMEOUT' })) }, 45000); timer.unref?.() })]) } finally { clearTimeout(timer) }
+      if (!result?.dataUrl && !result?.facts) throw Object.assign(new Error('collector returned no evidence'), { code: 'COLLECTOR_EMPTY' })
+      const observedAt = iso(now), facts = cleanBillingFacts(result.facts)
+      const observation = result.facts ? { id: randomUUID(), observedAt, origin: result.origin === 'api' ? 'api' : 'page', facts, evidenceUrl: result.origin === 'api' && item.id === 'godaddy-domain' ? result.evidenceUrl : null } : undefined
+      if (result.dataUrl) return this.#saveSnapshot(id, { name: result.name ?? `${item.name}.png`, type: result.type ?? 'image/png', dataUrl: result.dataUrl }, now, item.method, observation)
+      await this.#store.update(raw => { const current = normalizeData(raw); return { ...current, sources: current.sources.map(entry => entry.id === id ? { ...entry, observation, status: 'success', lastVerifiedAt: observedAt, lastSuccessAt: observedAt, lastAttemptAt: observedAt, lastFailureReason: null } : entry) } })
+      return this.get(id)
     } catch (error) {
-      const status = error?.code === 'AUTH_REQUIRED' ? 'relogin' : error?.code === 'MANUAL_REQUIRED' ? 'manual' : 'failed'
-      const reason = status === 'relogin' ? '登录会话已失效，需要重新授权。' : status === 'manual' ? '平台要求人工验证，请手动上传截图。' : '采集任务失败，已保留上一张成功截图。'
+      const status = error?.code === 'COLLECTOR_UNCONFIGURED' ? 'unconfigured' : error?.code === 'AUTH_REQUIRED' ? 'relogin' : error?.code === 'MANUAL_REQUIRED' ? 'manual' : 'failed'
+      const reason = status === 'unconfigured' ? this.#collectorStatus(item).detail : status === 'relogin' ? '登录会话已失效，需要重新授权。' : status === 'manual' ? '平台要求人工验证，请在原平台完成验证后恢复自动采集。' : '采集任务失败，已保留上一张成功截图。'
       await this.#recordAttempt(id, status, reason, item.method, now)
       return this.get(id)
     }
@@ -267,7 +299,7 @@ export class OpsService {
     if (pending) return pending
     const operation = this.#refresh(id, now)
     this.#refreshes.set(id, operation)
-    try { return await operation } finally { if (this.#refreshes.get(id) === operation) this.#refreshes.delete(id) }
+    try { const result = await operation; this.#logger({ sourceId: id, status: result.status, origin: result.observation?.origin ?? null }); return result } finally { if (this.#refreshes.get(id) === operation) this.#refreshes.delete(id) }
   }
 
   async refreshAll(now = new Date(), projectId = null) {
@@ -288,11 +320,12 @@ export class OpsService {
 
   async refreshScheduled(now = new Date()) {
     const data = await this.#readAndRepair()
-    const today = now.toLocaleDateString('en-CA')
+    const today = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Shanghai' })
     for (const item of data.sources) {
-      if (!item.enabled || item.frequency === 'manual' || item.status === 'relogin') continue
-      const attemptedToday = item.lastAttemptAt && new Date(item.lastAttemptAt).toLocaleDateString('en-CA') === today
-      const attemptedRecently = item.lastAttemptAt && now.getTime() - new Date(item.lastAttemptAt).getTime() < 7 * 86_400_000
+      if (!item.enabled || item.frequency === 'manual' || item.status === 'relogin' || !this.#collectors[item.id] && !this.#collectors[item.method]) continue
+      if (this.#hasCollectorStatus && this.#collectorStatus(item).state !== 'ready') continue
+      const attemptedToday = !['unconfigured', 'updating'].includes(item.status) && item.lastAttemptAt && new Date(item.lastAttemptAt).toLocaleDateString('en-CA', { timeZone: 'Asia/Shanghai' }) === today
+      const attemptedRecently = !['unconfigured', 'updating'].includes(item.status) && item.lastAttemptAt && Date.parse(today) - Date.parse(new Date(item.lastAttemptAt).toLocaleDateString('en-CA', { timeZone: 'Asia/Shanghai' })) < 7 * 86_400_000
       if (attemptedToday || (item.frequency === 'weekly' && attemptedRecently)) continue
       try { await this.refresh(item.id, now) } catch { /* keep later sources running */ }
     }
@@ -302,7 +335,7 @@ export class OpsService {
   async get(id) {
     const data = await this.#readAndRepair(), item = data.sources.find((entry) => entry.id === id)
     if (!item) throw new OpsError('费用来源不存在', 404, 'OPS_SOURCE_NOT_FOUND')
-    return publicSource(item, data.snapshots)
+    return this.#publicSource(item, data.snapshots, new Date(), await this.#reminderRules())
   }
 
   async history(id) {
@@ -345,8 +378,9 @@ export function startOpsScheduler(service, options = {}) {
   const minute = Number.isInteger(options.minute) ? options.minute : 0
   const timeZone = cleanText(options.timeZone ?? process.env.OPS_SCHEDULER_TIME_ZONE ?? 'Asia/Shanghai', 100)
   new Intl.DateTimeFormat('en-CA', { timeZone }).format(new Date())
-  let timer
+  let timer, stopped = false
   const schedule = () => {
+    if (stopped) return
     const current = new Date(), next = getNextOpsRunAt(current, { hour, minute, timeZone })
     timer = setTimeout(async () => {
       try { await service.refreshScheduled(new Date()) } catch { /* keep the next daily run scheduled */ }
@@ -355,7 +389,9 @@ export function startOpsScheduler(service, options = {}) {
     timer.unref?.()
   }
   schedule()
-  return () => clearTimeout(timer)
+  const catchup = setTimeout(() => { void service.refreshScheduled(new Date()).catch(() => {}) }, 5000)
+  catchup.unref?.()
+  return () => { stopped = true; clearTimeout(timer); clearTimeout(catchup) }
 }
 
 export function getNextOpsRunAt(now = new Date(), options = {}) {

@@ -7,6 +7,7 @@ import { createServer } from 'vite'
 import { authApiPlugin } from '../auth/vite-auth-plugin.mjs'
 import { TokenService } from '../auth/token-service.mjs'
 import { feedbackApiPlugin } from '../help/vite-feedback-plugin.mjs'
+import { OpsWorkspaceService } from './workspace-service.mjs'
 import { opsApiPlugin } from './vite-ops-plugin.mjs'
 
 const ownerEmail = 'wenxiaodaoray@gmail.com'
@@ -30,7 +31,7 @@ test('all Operations APIs share the same owner-only authorization', async () => 
     plugins: [
       authApiPlugin({ ...shared, codeGenerator: () => '123456', logger: () => undefined, emailProvider: { sendVerificationCode: async (input) => deliveries.push(input) } }),
       feedbackApiPlugin(shared),
-      opsApiPlugin(shared)
+      opsApiPlugin({ ...shared, collectors: {}, workspace: new OpsWorkspaceService({ ...shared, env: {}, fetchImpl: async () => new Response('{"ok":true}') }) })
     ]
   })
   try {
@@ -59,6 +60,7 @@ test('all Operations APIs share the same owner-only authorization', async () => 
     const createdFeedback = await createdFeedbackResponse.json()
 
     const protectedRequests = [
+      ['/api/ops/services', 'GET'], ['/api/ops/settings', 'GET'], ['/api/ops/settings', 'PATCH', { reminders: { noticeDays: 30, warningDays: 7, criticalDays: 3, quotaWarningPercent: 20, quotaCriticalPercent: 5 } }], ['/api/ops/versions', 'GET'],
       ['/api/ops/overview', 'GET'], ['/api/ops/overview/viewed', 'POST', { id: `feedback:${createdFeedback.id}:0` }],
       ['/api/ops/session', 'GET'], ['/api/ops/sources', 'GET'], ['/api/ops/sources', 'POST', { name: 'Test', platformUrl: 'https://example.com/billing', method: 'manual-screenshot', frequency: 'manual' }],
       ['/api/ops/sources/railway', 'PATCH', { notes: 'test' }], ['/api/ops/refresh', 'POST'], ['/api/ops/feedback', 'GET'],

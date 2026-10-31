@@ -7,16 +7,22 @@ import sharp from 'sharp'
 import { authApiPlugin } from '../../server/auth/vite-auth-plugin.mjs'
 import { feedbackApiPlugin } from '../../server/help/vite-feedback-plugin.mjs'
 import { opsApiPlugin } from '../../server/ops/vite-ops-plugin.mjs'
+import { OpsWorkspaceService } from '../../server/ops/workspace-service.mjs'
+import { DEFAULT_REMINDERS } from '../../server/ops/billing-health.mjs'
 import { OpsService } from '../../server/ops/ops-service.mjs'
 import { FeedbackService } from '../../server/help/feedback-service.mjs'
 import { JsonStore } from '../../server/auth/storage/json-store.mjs'
 
 const dataDirectory = await mkdtemp(path.join(tmpdir(), 'ops-workspace-ui-'))
 const shared = { dataDirectory, tokenSecret: 'ops-workspace-synthetic-secret', opsOwnerEmail: 'ops@example.test' }
-const billing = new OpsService(shared), feedback = new FeedbackService(shared)
+const workspace = new OpsWorkspaceService({ ...shared, env: { RAILWAY_GIT_COMMIT_SHA: 'a'.repeat(40), RAILWAY_DEPLOYMENT_ID: 'synthetic-local-release' }, fetchImpl: async () => new Response('{"ok":true}') })
+let billingFacts
+const billing = new OpsService({ ...shared, getReminderRules: async () => (await workspace.settings()).reminders, collectors: { railway: async () => ({ dataUrl: `data:image/png;base64,${png.toString('base64')}`, facts: billingFacts, origin: 'page' }) } }), feedback = new FeedbackService(shared)
 let seed
 const png = await sharp({ create: { width: 640, height: 360, channels: 3, background: '#e9f6f2' } }).png().toBuffer()
 async function reset() {
+  billingFacts = null
+  await workspace.saveSettings({ reminders: DEFAULT_REMINDERS })
   await new JsonStore(path.join(dataDirectory, 'users.json'), {}).update(() => ({ users: [{ id: 'synthetic-ops-admin', email: 'ops@example.test', createdAt: new Date().toISOString() }] }))
   await new JsonStore(path.join(dataDirectory, 'ops/billing-sources.json'), {}).update(() => ({ sources: [], snapshots: [], inactiveSources: [] }))
   await new JsonStore(path.join(dataDirectory, 'feedback/records.json'), {}).update(() => ({ feedback: [], attachments: [], messages: [], statusHistory: [] }))
@@ -37,11 +43,12 @@ const server = await createServer({ configFile: false, logLevel: 'error', server
   { name: 'synthetic-fixtures-only', configureServer(server) { server.middlewares.use(async (request, response, next) => {
     if (!request.url?.startsWith('/__test/')) return next()
     if (request.url === '/__test/reset' && request.method === 'POST') await reset()
+    else if (request.url === '/__test/billing-warning' && request.method === 'POST') { billingFacts = { dueAt: new Date(Date.now() + 86400000).toISOString(), dueKind: 'renewal', balance: 0, currency: 'USD' }; await billing.refresh('railway') }
     else if (request.url === '/__test/supplement' && request.method === 'POST') await feedback.addUserMessage('synthetic-user', seed.first, { text: '合成：新补充信息', attachments: [] })
     response.setHeader('Content-Type', 'application/json'); response.end(JSON.stringify(seed))
   }) } },
   authApiPlugin({ ...shared, emailProvider: { sendVerificationCode: async () => { throw new Error('Real email is forbidden in these tests') } } }),
-  feedbackApiPlugin(shared), opsApiPlugin({ ...shared, service: billing, feedback })
+  feedbackApiPlugin(shared), opsApiPlugin({ ...shared, service: billing, feedback, workspace })
 ] })
 await server.listen()
 console.log('Synthetic Operations UI available on 127.0.0.1:4217')

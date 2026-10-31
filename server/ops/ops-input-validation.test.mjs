@@ -20,7 +20,7 @@ test('source validation rejects wrong shapes names and URLs without changing an 
     await assert.rejects(service.update('railway', input), clientError)
   }
   assert.deepEqual(await service.get('railway'), before)
-  assert.equal((await service.list()).sources.length, 9)
+  assert.equal((await service.list()).sources.length, 11)
   assert.equal((await service.create(source())).platformUrl, 'https://example.test/billing')
 })
 test('manual snapshot cannot bypass privacy by claiming api or automatic-screenshot', async t => {
@@ -33,7 +33,7 @@ test('trusted automatic collectors keep their method without a user privacy chec
   const file = await image(), { service } = await fixture(t, { collectors: { openai: async () => file } })
   const result = await service.refresh('openai')
   assert.equal(result.status, 'success')
-  assert.equal(result.latestSnapshot.method, 'api')
+  assert.equal(result.latestSnapshot.method, 'automatic-screenshot')
 })
 test('corrupt PNG snapshot fails before storage and preserves last successful image', async t => {
   const { service, dataDirectory } = await fixture(t), file = await image(), before = await service.addManualSnapshot('railway', { ...file, privacyConfirmed: true })

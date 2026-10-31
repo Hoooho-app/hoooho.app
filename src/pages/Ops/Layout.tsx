@@ -1,4 +1,4 @@
-import { NavLink, Outlet, useLocation } from 'react-router-dom'
+import { NavLink, Outlet } from 'react-router-dom'
 import { MaterialIcon } from '../../components/icons'
 import type { MaterialIconName } from '../../components/icons/materialPaths'
 import { OpsAccount } from '../../components/auth/OpsAccount'
@@ -25,8 +25,3 @@ function Workspace() {
   </div>
 }
 export function OpsLayout() { return <OpsInboxProvider><Workspace /></OpsInboxProvider> }
-export function OpsBlankPage() {
-  const { pathname } = useLocation()
-  const name = pathname.endsWith('services') ? '服务链接' : pathname.endsWith('versions') ? '版本管理' : '工作台设置'
-  return <main className="ops-module-page" aria-label={name}><h1>{name}</h1></main>
-}

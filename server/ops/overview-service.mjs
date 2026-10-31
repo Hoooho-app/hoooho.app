@@ -15,6 +15,11 @@ export class OpsOverviewService {
     const receipts = Array.isArray(saved?.receipts) ? saved.receipts : []
     const events = []
     for (const item of billing.sources) {
+      if (item.enabled && item.health?.reasons?.length) {
+        const id = `billing:${item.id}:health:${item.health.fingerprint}`
+        const params = new URLSearchParams({ project: opsProjectId(item.projectId), source: item.id, event: id })
+        events.push({ id, projectId: opsProjectId(item.projectId), kind: 'billing-reminder', title: `${item.name} · ${item.health.label}`, preview: `${item.health.reasons.map(r => r.label).join('；')}。${item.health.verification}`, occurredAt: item.health.observedAt, target: `/ops/billing?${params}#billing-source-${encodeURIComponent(item.id)}` })
+      }
       const failed = ['failed', 'relogin'].includes(item.status) && validTime(item.lastAttemptAt)
       const snapshot = item.latestSnapshot && validTime(item.lastSuccessAt)
       if (!failed && !snapshot) continue

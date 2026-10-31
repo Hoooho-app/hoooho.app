@@ -10,7 +10,7 @@ const pixel = { name: 'billing.png', type: 'image/png', dataUrl: 'data:image/png
 test('overview counts only enabled sources and uses the Shanghai calendar day', async () => {
   const now = new Date('2026-10-06T00:30:00+08:00')
   const sources = initialBillingSources.map((source, index) => ({ ...source, enabled: index < 2, lastSuccessAt: index === 0 ? '2026-10-05T23:30:00+08:00' : now.toISOString(), status: index === 1 ? 'failed' : index === 2 ? 'relogin' : 'success' }))
-  const service = new OpsService({ store: { read: async () => ({ sources, snapshots: [], inactiveSources: [] }) } })
+  const service = new OpsService({ store: { read: async () => ({ automationPolicyVersion: 1, sources, snapshots: [], inactiveSources: [] }) } })
   assert.deepEqual((await service.list(now)).summary, { total: 2, updatedToday: 1, relogin: 0, failed: 1 })
   sources[1].lastSuccessAt = 'invalid'
   assert.equal((await service.list(now)).summary.updatedToday, 0)
@@ -19,9 +19,9 @@ test('overview counts only enabled sources and uses the Shanghai calendar day', 
 test('initializes the focused billing source catalog without credentials', async () => {
   const directory = await mkdtemp(path.join(tmpdir(), 'hoho-billing-'))
   const result = await new OpsService({ dataDirectory: directory }).list(new Date('2026-09-02T08:00:00+08:00'))
-  assert.equal(result.sources.length, 9)
+  assert.equal(result.sources.length, 11)
   assert.deepEqual(result.sources.map((item) => item.id), initialBillingSources.map((item) => item.id))
-  assert.equal(result.summary.total, 9)
+  assert.equal(result.summary.total, 11)
   assert.equal(result.inactiveSources.includes('Vector DB'), true)
   assert.equal(JSON.stringify(result).match(/password|cookie|apiKey|token|secret/gi), null)
 })
@@ -79,10 +79,10 @@ test('refresh all runs configured collectors sequentially and skips manual sourc
   const collector = async (item) => { order.push(item.id); return { ...pixel, method: item.method } }
   const service = new OpsService({ dataDirectory: directory, collectors: { 'automatic-screenshot': collector, api: collector } })
   await service.refreshAll(new Date('2026-09-02T08:00:00+08:00'))
-  assert.deepEqual(order, ['railway', 'railway-volume', 'openai', 'resend', 'cloudflare', 'github'])
+  assert.deepEqual(order, ['aliyun', 'apple-developer', 'railway', 'railway-volume', 'openai', 'resend', 'cloudflare', 'godaddy-domain', 'github', 'figma', 'chatgpt-codex'])
   const result = await service.list(new Date('2026-09-02T09:00:00+08:00'))
-  assert.equal(result.summary.updatedToday, 6)
-  assert.equal(result.sources.find((item) => item.id === 'openai').latestSnapshot.method, 'api')
+  assert.equal(result.summary.updatedToday, 11)
+  assert.equal(result.sources.find((item) => item.id === 'openai').latestSnapshot.method, 'automatic-screenshot')
 })
 
 test('scheduled refresh respects weekly cadence and pauses sources that need login', async () => {

@@ -4,6 +4,7 @@ const token = new TokenService('ops-workspace-synthetic-secret', 3600000).create
 const headers = { Authorization: `Bearer ${token}` }
 const badge = (page: Page) => page.locator('.ops-sidebar .ops-unread-badge')
 async function selectProject(page: Page, id: string, name: string) {
+  await page.locator('.ops-project-picker').waitFor({ state: 'visible' })
   const select = page.locator('.ops-project-select select')
   if (await select.isVisible()) await select.selectOption(id)
   else await page.locator('.ops-project-tabs').getByRole('button', { name, exact: true }).click()
@@ -58,7 +59,7 @@ test('failed source loading does not acknowledge the event', async ({ page, requ
 })
 test('billing switches source panels and counters by project, retaining the snapshot actions', async ({ page }, info) => {
   await page.goto('/ops/billing')
-  await expect(page.locator('.ops-source-card')).toHaveCount(9)
+  await expect(page.locator('.ops-source-card')).toHaveCount(11)
   await selectProject(page, 'family', '家庭统筹')
   await expect(page.locator('.ops-source-card')).toHaveCount(1)
   await expect(page.locator('.ops-source-card h3')).toHaveText('家庭费用（合成）')
@@ -81,7 +82,7 @@ test('billing event locates its actual source and only confirms after the snapsh
   await expect(page.locator('.ops-source-card[data-target=true] .ops-snapshot img')).toBeVisible()
   await expect(badge(page)).toHaveText('3')
 })
-test('unbuilt modules stay empty, wrong anchors do not clear unrelated events, and logout remains available', async ({ page, request }) => {
+test('completed modules show scoped real-status surfaces, wrong anchors stay unread, and logout remains available', async ({ page, request }) => {
   const data = await (await request.get('/api/ops/overview', { headers })).json()
   const event = data.events.find((item: any) => item.kind === 'feedback')
   await page.goto(`/ops/billing?project=hoooho&source=railway&event=${encodeURIComponent(event.id)}`)
@@ -91,7 +92,7 @@ test('unbuilt modules stay empty, wrong anchors do not clear unrelated events, a
     await page.getByRole('link', { name, exact: true }).click()
     await expect(page.getByRole('main', { name })).toBeVisible()
     await expect(page.getByRole('main', { name }).locator('h1')).toHaveText(name)
-    await expect(page.getByRole('main', { name }).locator(':scope > *')).toHaveCount(1)
+    await expect(page.getByRole('main', { name }).getByRole('heading', { name: name === '服务链接' ? '应用服务' : '当前版本', exact: true })).toBeVisible()
   }
   await page.getByRole('button', { name: '退出登录', exact: true }).click()
   await expect(page).toHaveURL(/\/ops\/login$/)
@@ -118,4 +119,49 @@ test('feedback fits notebook and ultrawide layouts and preserves unsent text per
   await expect(page.locator('.ops-feedback-composer textarea')).toHaveValue('')
   await page.locator('.ops-feedback-queue-item').filter({ hasText: '合成：情况单导出显示问题' }).click()
   await expect(page.locator('.ops-feedback-composer textarea')).toHaveValue('合成草稿，不发送')
+})
+
+test('new modules fit ultrawide, notebook and phone widths; settings save persists and invalid values stay editable', async ({ page }, info) => {
+  for (const width of [2560, 1280, 390]) {
+    await page.setViewportSize({ width, height: 900 })
+    for (const route of ['services', 'versions', 'billing', 'settings']) {
+      await page.goto(`/ops/${route}`)
+      await expect(page.getByRole('main')).toBeVisible()
+      if (route === 'settings') await expect(page.getByRole('button', { name: '保存提醒设置' })).toBeVisible()
+      else if (route === 'billing') await expect(page.locator('.ops-source-card').first()).toBeVisible()
+      else await expect(page.locator('.ops-module-card').first()).toBeVisible()
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy()
+      await page.screenshot({ path: info.outputPath(`synthetic-${route}-${width}.png`) })
+    }
+  }
+  await page.setViewportSize({ width: 1280, height: 900 })
+  await page.getByLabel('临近到期', { exact: true }).fill('12')
+  await page.getByRole('button', { name: '保存提醒设置' }).click()
+  await expect(page.getByRole('status')).toContainText('设置已保存')
+  await page.reload(); await expect(page.getByLabel('临近到期', { exact: true })).toHaveValue('12')
+  await page.getByLabel('紧急到期', { exact: true }).fill('90')
+  await page.getByRole('button', { name: '保存提醒设置' }).click()
+  await expect(page.getByRole('alert')).toContainText('有效的提醒阈值')
+  await expect(page.getByLabel('紧急到期', { exact: true })).toHaveValue('90')
+  await page.goto('/ops/services'); await selectProject(page, 'play', '护护陪玩')
+  await expect(page.locator('.ops-module-card')).toHaveCount(1)
+  await expect(page.locator('.ops-module-card')).toContainText('尚未接入')
+  await page.goto('/ops/versions?project=family')
+  await expect(page.getByRole('heading', { name: '该项目尚未接入版本回执' })).toBeVisible()
+  await expect(page.locator('.ops-current-release')).toHaveCount(0)
+})
+test('financial risks enter Overview and locate actual billing evidence; missing facts never say normal', async ({ page, request }, info) => {
+  await request.post('/__test/billing-warning')
+  await page.goto('/ops')
+  const event = (await (await request.get('/api/ops/overview', { headers })).json()).events.find((e: any) => e.kind === 'billing-reminder')
+  expect(event).toBeTruthy()
+  await page.getByRole('link', { name: `打开并定位 ${event.title}`, exact: true }).click()
+  await expect(page.locator('#billing-source-railway')).toContainText('余额已用尽')
+  await expect(page.locator('#billing-source-railway')).toContainText('需立即关注')
+  await expect(page.locator('#billing-source-resend')).toContainText('待核验')
+  await expect.poll(async () => (await (await request.get('/api/ops/overview', { headers })).json()).events.find((e: any) => e.id === event.id)?.viewedAt).toBeTruthy()
+  await page.getByRole('button', { name: '到期或不足', exact: false }).click()
+  await expect(page.locator('.ops-source-card')).toHaveCount(1)
+  await page.screenshot({ path: info.outputPath('synthetic-billing-reminders.png') })
+  await expect(page.locator('.ops-source-card').getByRole('button', { name: '上传截图', exact: true })).toHaveCount(0)
 })

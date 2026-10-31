@@ -9,7 +9,8 @@ test('manual refresh never attempts a connector', async () => {
   const directory = await mkdtemp(path.join(tmpdir(), 'hoho-billing-regression-'))
   let calls = 0
   const service = new OpsService({ dataDirectory: directory, collectors: { 'manual-screenshot': async () => { calls += 1 } } })
-  const result = await service.refresh('figma')
+  const manual = await service.create({ name: 'Legacy import', platformUrl: 'https://example.test/billing', method: 'manual-screenshot', frequency: 'manual' })
+  const result = await service.refresh(manual.id)
   assert.equal(calls, 0)
   assert.equal(result.status, 'manual')
 })

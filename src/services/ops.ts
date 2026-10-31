@@ -5,6 +5,14 @@ export type BillingMethod = 'api' | 'automatic-screenshot' | 'manual-screenshot'
 export type BillingFrequency = 'daily' | 'weekly' | 'manual'
 export type BillingStatus = 'success' | 'updating' | 'relogin' | 'manual' | 'failed' | 'unconfigured'
 
+export interface BillingHealth {
+  level: 'critical' | 'warning' | 'notice' | 'unknown' | 'normal' | 'paused'
+  label: string; reasons: { code: string; level: string; label: string }[]; missing: string[]
+  facts: { dueAt: string | null; dueKind: string | null; balance: number | null; currency: string | null; quotaRemaining: number | null; quotaLimit: number | null; quotaUnit: string | null; plan: string | null; autoRenew: boolean | null }
+  observedAt: string | null; fresh: boolean; daysLeft: number | null; remainingPercent: number | null; verification: string; fingerprint: string
+}
+export interface BillingConnection { state: string; label: string; detail: string }
+
 export interface BillingSnapshot {
   id: string
   sourceId: string
@@ -20,6 +28,10 @@ export interface BillingSnapshot {
 }
 
 export interface BillingSource {
+  health?: BillingHealth
+  connection?: BillingConnection
+  nextRunAt?: string | null
+  lastVerifiedAt?: string | null
   projectId?: string
   id: string
   name: string
