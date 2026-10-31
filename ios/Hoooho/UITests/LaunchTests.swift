@@ -6,6 +6,7 @@ final class LaunchTests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["--native-fixture"]
         app.launch()
+        guard waitForFixture(app) else { return }
         XCTAssertTrue(app.webViews.buttons["选择症状附件"].waitForExistence(timeout: 20))
         app.webViews.buttons["选择症状附件"].tap()
         for label in ["照片图库", "拍照", "拍视频"] {
@@ -27,6 +28,7 @@ final class LaunchTests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["--native-fixture"]
         app.launch()
+        guard waitForFixture(app) else { return }
         XCTAssertTrue(app.webViews.buttons["选择测试附件"].waitForExistence(timeout: 20))
         app.webViews.buttons["选择测试附件"].tap()
         for label in ["照片图库", "拍照", "拍视频", "选择文件"] {
@@ -56,6 +58,7 @@ final class LaunchTests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["--native-fixture"]
         app.launch()
+        guard waitForFixture(app) else { return }
         XCTAssertTrue(app.webViews.staticTexts["护护原生容器测试"].waitForExistence(timeout: 20))
         app.webViews.buttons["测试页面交互"].tap()
         XCTAssertTrue(app.webViews.staticTexts["交互已响应"].waitForExistence(timeout: 5))
@@ -64,6 +67,14 @@ final class LaunchTests: XCTestCase {
         screenshot.lifetime = .keepAlways
         add(screenshot)
         assertPaperSafeAreas(app)
+    }
+
+    private func waitForFixture(_ app: XCUIApplication, file: StaticString = #filePath, line: UInt = #line) -> Bool {
+        // Wait for cold WebKit startup before timing individual interactions.
+        // Keep every menu, cancellation, layout and bridge assertion intact.
+        let ready = app.webViews.staticTexts["护护原生容器测试"].waitForExistence(timeout: 60)
+        XCTAssertTrue(ready, "Synthetic fixture must finish loading before interaction checks", file: file, line: line)
+        return ready
     }
 
     private func assertPaperSafeAreas(_ app: XCUIApplication) {
@@ -98,3 +109,4 @@ final class LaunchTests: XCTestCase {
         }
     }
 }
+
