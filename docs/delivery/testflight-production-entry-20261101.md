@@ -18,9 +18,10 @@
 
 ## 验收
 - [x] 相关本地 JS 桥回归（7 项）通过；Swift 安全规则由真实 Mac 原生 CI 检验。
-- [ ] main 精确提交原生 CI 两系统通过并生成设备归档。
-- [ ] Production 页面/API 仍可访问，持久卷及旧数据保持。
-- [ ] TestFlight 上传、Apple processing 及本人内部组分发取得实际回执。
+- [x] main 精确提交原生 CI 两系统通过并生成设备归档。
+- [x] Production 页面/API 仍可访问，继续使用同一服务；无数据/卷修改。
+- [x] TestFlight 上传及 Apple processing 已取得实际回执。
+- [ ] 本人内部组分发：Apple 后台登录已过期，仍需恢复登录后完成合规信息及原组分发。
 - 实体 iPhone 更新、登录及记录/原件/导出全流程由本人验收，不冒称已完成。
 
 ## 原生检查中的启动时序修正
@@ -30,3 +31,11 @@
 ## 后续迁移约束
 本包启动地址固定为 Railway Production；将来关闭 Railway 或切换阿里云前，必须同步处理 iOS 包入口并确认用户已更新，不能只改 hoooho.com DNS 后就停掉仍被安装包使用的服务。旧域未发送草稿保留在原域存储，未自动复制到新域。
 
+
+## 本轮实际发布回执（2026-11-01，北京时间）
+- 上传源码 `20d94c164204d34e9a88590a829fc924665abcd8`（原生地址修复 `4929760`，测试就绪等待修正 `20d94c1`），上传时为 main。
+- [原生 CI #38 / 41231688979](https://github.com/Hoooho-app/hoooho.app/actions/runs/41231688979) SUCCESS。两系统各 16 项单元与 3 项 UI 通过；当前系统设备归档成功；相关本地 JS 桥 7 项通过。此前失败保留，未删除或跳过功能断言。
+- [上传 #9 / 41232269777](https://github.com/Hoooho-app/hoooho.app/actions/runs/41232269777) SUCCESS，job `124628757465`。Apple 版本 `0.1.0`、构建 `1.9.1`，03:04:23 上传成功，03:06:25 完成 processing，实际日志包含 `Successfully uploaded the new binary` 和 `Successfully finished processing the build 0.1.0 - 1.9.1 for IOS`。
+- 健康 Production 原生地址 `/api/health`、`/nurse-station` 均 HTTP 200。新包首页改到同一生产服务；备案域名仍关闭。未读取或写入真实业务资料，未新增签名、测试者或权限。
+- App Store Connect 当前停在 Apple 登录页面，显示身份核验失败；尚未核验新包的合规状态、What to Test 或「护护首轮内测」组分配。上传/processing 完成不等于手机已可更新，不宣称 TestFlight 分发或实体 iPhone 验收已完成。
+- 需用户恢复后台登录后，在既有 App 与本人内部组处理 `0.1.0 (1.9.1)`，不重复上传、不新增组或测试者、不提交正式 App Store 审核；手机通过 TestFlight 原位更新，不卸载，以保留旧域本机资料。

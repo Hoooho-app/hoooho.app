@@ -28,7 +28,9 @@
 
 常规 iOS 次序：本地必要验证 → GitHub → 共享服务的 Production 核对 → 需要时更新 TestFlight 并在手机内测 → 选定构建提交 App Store 审核 → 正式发布。小程序在自己被要求发布时走独立次序，不是 iOS 上架的前置步骤。
 
-当前 iOS 容器直接使用 `https://hoooho.com`。网页共享功能上线后，已安装的 TestFlight 包也会读取同一套服务；不同安装渠道不提供后台或数据隔离。只有原生代码、权限、原生资源或打包配置等需要变更时，才需要新的 iOS 包。上线共享变更前必须兼容仍在使用的容器，不能把尚未通过 Apple 审核的新原生能力当作已普遍可用。
+ICP 审核期间，`hoooho.com` 和 `www.hoooho.com` 保持关闭，原生产服务的临时入口为 `https://hooohoapp-production.up.railway.app/nurse-station`。旧 iOS 包固定访问 `https://hoooho.com`，不能通过网页更新替换该地址；恢复 TestFlight 必须更新包含新地址的原生构建。2026-11-01 的修复与实际分发状态见 [TestFlight 生产入口恢复](delivery/testflight-production-entry-20261101.md)。将来迁到阿里云或关闭 Railway 前，还须处理安装包入口并确认更新，不能只切 DNS 就停掉旧包仍使用的服务。
+
+网页共享功能上线后，连接同一 Production 的已安装容器会读取相同网页；不同安装渠道不提供后台或数据隔离。原生地址、代码、权限、原生资源或打包配置等变更需要新的 iOS 包。上线共享变更前必须兼容仍在使用的容器，不能把尚未通过 Apple 审核的新原生能力当作已普遍可用。
 
 ## 资源和费用的默认规则
 
