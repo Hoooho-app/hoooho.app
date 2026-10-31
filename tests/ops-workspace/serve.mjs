@@ -15,7 +15,7 @@ import { JsonStore } from '../../server/auth/storage/json-store.mjs'
 
 const dataDirectory = await mkdtemp(path.join(tmpdir(), 'ops-workspace-ui-'))
 const shared = { dataDirectory, tokenSecret: 'ops-workspace-synthetic-secret', opsOwnerEmail: 'ops@example.test' }
-const workspace = new OpsWorkspaceService({ ...shared, env: { RAILWAY_GIT_COMMIT_SHA: 'a'.repeat(40), RAILWAY_DEPLOYMENT_ID: 'synthetic-local-release' }, fetchImpl: async () => new Response('{"ok":true}') })
+const workspace = new OpsWorkspaceService({ ...shared, env: { RAILWAY_GIT_COMMIT_SHA: 'a'.repeat(40), RAILWAY_DEPLOYMENT_ID: 'synthetic-local-release', QINGGAN_UPSTREAM_URL: 'https://qinggan.example.test' }, fetchImpl: async url => String(url).includes('qinggan') ? new Response('<!doctype html><html>synthetic frontend</html>', { headers: { 'Content-Type': 'text/html' } }) : new Response('{"ok":true}') })
 let billingFacts
 const billing = new OpsService({ ...shared, getReminderRules: async () => (await workspace.settings()).reminders, collectors: { railway: async () => ({ dataUrl: `data:image/png;base64,${png.toString('base64')}`, facts: billingFacts, origin: 'page' }) } }), feedback = new FeedbackService(shared)
 let seed

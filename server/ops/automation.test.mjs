@@ -100,11 +100,16 @@ test('official domain adapter extracts only expiration evidence without credenti
 test('real Chromium captures a synthetic billing region, masks private area and extracts explicit fields', async t => {
   const browser = await chromium.launch({ headless: true }); t.after(() => browser.close())
   const context = await browser.newContext({ viewport: { width: 1000, height: 800 } })
-  await context.route('https://railway.com/synthetic-billing', route => route.fulfill({ contentType: 'text/html', body: '<div id="ready">authorized synthetic account</div><section id="bill" style="width:500px;height:200px"><span class="due">2026-12-10</span><span class="balance">42.50</span><span class="private">SYNTHETIC PRIVATE FIELD</span></section>' }))
+  const html = '<div id="ready">authorized synthetic account</div><section id="bill" style="width:500px;height:200px"><span class="due">2026-12-10</span><span class="balance">42.50</span><span class="private">SYNTHETIC PRIVATE FIELD</span></section>'
+  const fetchNavigation = async url => ({ status: url.includes('redirect-test') ? 302 : 200, headers: { 'Content-Type': 'text/html', ...(url.includes('redirect-test') ? { Location: 'https://foreign.example.test/private' } : {}) }, body: html })
   const env = { OPS_BROWSER_CDP_URL: 'synthetic-only', OPS_CAPTURE_PROFILES: JSON.stringify({ railway: { url: 'https://railway.com/synthetic-billing', selector: '#bill', readySelector: '#ready', privacyReviewed: true, maskSelectors: ['.private'], currency: 'USD', dueKind: 'payment', fields: { dueAt: '.due', balance: '.balance' } } }) }
-  const adapter = createBillingCollectors({ env, connect: async () => browser })
+  const adapter = createBillingCollectors({ env, connect: async () => browser, fetchNavigation })
   const result = await adapter.collectors['automatic-screenshot']({ id: 'railway' })
   const image = await sharp(Buffer.from(result.dataUrl.split(',')[1], 'base64')).metadata()
+  const pixels = await sharp(Buffer.from(result.dataUrl.split(',')[1], 'base64')).removeAlpha().raw().toBuffer()
+  let maskedPixels = 0
+  for (let index = 0; index < pixels.length; index += 3) if (pixels[index] === 255 && pixels[index + 1] === 0 && pixels[index + 2] === 255) maskedPixels++
+  assert.ok(maskedPixels > 100, 'private field must be covered by the screenshot mask')
   assert.equal(image.width, 500); assert.equal(image.height, 200); assert.equal(result.facts.balance, 42.5); assert.equal(result.facts.dueAt, '2026-12-10'); assert.equal((await context.pages()).length, 0)
   assert.equal(parseBillingFields({ dueAt: 'next week', balance: '$42.50' }, { currency: 'USD' }).dueAt, null)
   assert.equal(parseBillingFields({ balance: '$42.50' }, { currency: 'USD' }).balance, 42.5)
@@ -113,6 +118,12 @@ test('real Chromium captures a synthetic billing region, masks private area and 
   const unsafe = createBillingCollectors({ env: { ...env, OPS_CAPTURE_PROFILES: env.OPS_CAPTURE_PROFILES.replace('railway.com/synthetic-billing', 'internal.example.test/billing') }, connect: async () => { throw Error('must not connect') } })
   assert.equal(unsafe.status({ id: 'railway' }).state, 'unconfigured')
   await assert.rejects(unsafe.collectors['automatic-screenshot']({ id: 'railway' }), e => e.code === 'COLLECTOR_UNCONFIGURED')
+  let foreignHits = 0
+  await context.route('https://railway.com/redirect-test', route => route.fulfill({ status: 302, headers: { Location: 'https://foreign.example.test/private' } }))
+  await context.route('https://foreign.example.test/**', route => { foreignHits++; return route.abort() })
+  const redirectAdapter = createBillingCollectors({ env: { ...env, OPS_CAPTURE_PROFILES: env.OPS_CAPTURE_PROFILES.replace('synthetic-billing', 'redirect-test') }, connect: async () => browser, fetchNavigation })
+  await assert.rejects(redirectAdapter.collectors['automatic-screenshot']({ id: 'railway' }), e => e.code === 'AUTH_REQUIRED')
+  assert.equal(foreignHits, 0)
 })
 
 test('weekly capture uses seven Shanghai calendar days rather than drifting to eight days with queue jitter', async t => {
@@ -124,4 +135,13 @@ test('weekly capture uses seven Shanghai calendar days rather than drifting to e
   assert.equal(source.nextRunAt, '2026-11-08T00:00:00.000Z')
   await service.refreshScheduled(new Date('2026-11-08T08:00:00+08:00'))
   assert.equal(calls, 2)
+})
+
+test('service links use the existing gateways and a static frontend is checked as a page, not an invented API', async t => {
+  const dataDirectory = await fixture(t)
+  const service = new OpsWorkspaceService({ dataDirectory, env: { FAMILY_UPSTREAM_URL: 'https://family.example.test', QINGGAN_UPSTREAM_URL: 'https://qinggan.example.test' }, fetchImpl: async url => String(url).includes('qinggan') ? new Response('<!doctype html><html><body>synthetic frontend</body></html>', { headers: { 'Content-Type': 'text/html' } }) : new Response('{"ok":true}') })
+  const { services } = await service.services()
+  assert.equal(services[1].url, 'https://hooohoapp-production.up.railway.app/family-ray-home-life-workspace')
+  assert.equal(services[2].url, 'https://hooohoapp-production.up.railway.app/api/apps/qinggan-jichoushi-notebook/')
+  assert.equal(services[2].state, 'online'); assert.equal(services[2].probeKind, 'page'); assert.equal(services[2].healthPath, '/')
 })

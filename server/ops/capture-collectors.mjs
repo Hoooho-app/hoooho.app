@@ -10,7 +10,7 @@ export function parseBillingFields(values, config = {}) {
     currency: config.currency, quotaRemaining: numeric(values.quotaRemaining), quotaLimit: numeric(values.quotaLimit), quotaUnit: config.quotaUnit, plan: values.plan,
     autoRenew: values.autoRenew === config.autoRenewTrueText && Boolean(config.autoRenewTrueText) ? true : values.autoRenew === config.autoRenewFalseText && Boolean(config.autoRenewFalseText) ? false : null })
 }
-export function createBillingCollectors({ env = process.env, fetchImpl = fetch, connect } = {}) {
+export function createBillingCollectors({ env = process.env, fetchImpl = fetch, connect, fetchNavigation } = {}) {
   let profiles = {}
   try { profiles = JSON.parse(env.OPS_CAPTURE_PROFILES || '{}') } catch { /* invalid config stays unavailable */ }
   let browserPromise
@@ -43,7 +43,26 @@ export function createBillingCollectors({ env = process.env, fetchImpl = fetch, 
     try {
       if (signal?.aborted) throw fail('COLLECTOR_TIMEOUT')
       page.setDefaultTimeout(12000)
-      const response = await page.goto(profile.url, { waitUntil: 'domcontentloaded', timeout: 20000 })
+      let blockedNavigation = false
+      await page.route('**/*', async route => {
+        const request = route.request()
+        if (request.isNavigationRequest() && request.frame() === page.mainFrame()) {
+          const u = new URL(request.url())
+          if (u.protocol !== 'https:' || !hosts[item.id].includes(u.hostname)) { blockedNavigation = true; return route.abort().catch(() => {}) }
+          try {
+            // Do not let Chromium follow an HTTP redirect before its destination can be checked.
+            // Profiles must use the final authorized billing URL.
+            const fixture = fetchNavigation ? await fetchNavigation(request.url()) : null
+            const response = fixture ? null : await route.fetch({ maxRedirects: 0, timeout: 20000 })
+            const status = fixture?.status ?? response.status()
+            if (status >= 300 && status < 400) { blockedNavigation = true; return route.abort().catch(() => {}) }
+            return route.fulfill(fixture ?? { response })
+          } catch { return route.abort().catch(() => {}) }
+        }
+        return route.fallback()
+      })
+      let response
+      try { response = await page.goto(profile.url, { waitUntil: 'domcontentloaded', timeout: 20000 }) } catch (error) { if (blockedNavigation) throw fail('AUTH_REQUIRED'); throw error }
       if (response?.status() === 401 || response?.status() === 403 || /\/(login|signin|sign-in|auth)(\/|\?|$)/i.test(new URL(page.url()).pathname)) throw fail('AUTH_REQUIRED')
       if (response && response.status() >= 400) throw fail('COLLECTOR_FAILED')
       try { await page.locator(profile.readySelector).waitFor({ state: 'visible', timeout: 8000 }) } catch { throw fail('AUTH_REQUIRED') }

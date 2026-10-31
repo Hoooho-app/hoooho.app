@@ -25,20 +25,24 @@ export class OpsWorkspaceService {
     const entries = [
       { id: 'health-api', projectId: 'hoooho', name: '护护记录应用', url: native, healthPath: '/api/health' },
       { id: 'family-api', projectId: 'family', name: '家庭统筹服务', url: this.env.FAMILY_UPSTREAM_URL, healthPath: '/api/health' },
-      { id: 'qinggan-api', projectId: 'qinggan', name: '翻旧账服务', url: this.env.QINGGAN_UPSTREAM_URL, healthPath: '/api/health' },
+      { id: 'qinggan-api', projectId: 'qinggan', name: '翻旧账前端', url: this.env.QINGGAN_UPSTREAM_URL, healthPath: '/', probeKind: 'page' },
       { id: 'play-api', projectId: 'play', name: '护护陪玩服务', url: null, healthPath: '/api/health' }
     ]
     const services = await Promise.all(entries.map(async item => {
       if (!item.url) return { ...item, url: null, state: 'unconfigured', checkedAt: null, latencyMs: null, httpStatus: null }
       const u = new URL(item.url)
       // Upstreams come only from operator-controlled environment; never from request input.
-      const publicUrl = /\.railway\.internal$/.test(u.hostname) ? null : `${u.origin}/`
+      const publicUrl = item.id === 'family-api' ? new URL('/family-ray-home-life-workspace', native).href : item.id === 'qinggan-api' ? new URL('/api/apps/qinggan-jichoushi-notebook/', native).href : /\.railway\.internal$/.test(u.hostname) ? null : `${u.origin}/`
       let pending = this.probes.get(item.id)
       if (!pending || Date.now() - pending.at > 60000) {
         pending = { at: Date.now(), promise: (async () => {
           const start = Date.now(), checkedAt = new Date().toISOString()
           try {
             const response = await this.fetch(new URL(item.healthPath, u), { redirect: 'error', signal: AbortSignal.timeout(6000), headers: { Accept: 'application/json' } })
+            if (item.probeKind === 'page') {
+              const valid = response.ok && response.headers.get('content-type')?.includes('text/html') && /<html\b|<!doctype html/i.test(await response.text())
+              return { state: valid ? 'online' : 'degraded', checkedAt, latencyMs: Date.now() - start, httpStatus: response.status }
+            }
             const body = response.ok ? await response.json().catch(() => null) : null
             return { state: response.ok && (body?.ok === true || body?.status === 'ok' || body?.status === 'healthy') ? 'online' : 'degraded', checkedAt, latencyMs: Date.now() - start, httpStatus: response.status }
           } catch { return { state: 'unreachable', checkedAt, latencyMs: Date.now() - start, httpStatus: null } }
@@ -48,7 +52,7 @@ export class OpsWorkspaceService {
       return { ...item, url: publicUrl, ...await pending.promise }
     }))
     const providers = [{ name: '模型接口', projectId: 'hoooho', configured: Boolean(this.env.OPENAI_API_KEY || this.env.BAILIAN_API_KEY) }, { name: '邮件接口', projectId: 'hoooho', configured: Boolean(this.env.RESEND_API_KEY) }]
-    return { services, providers, checkedScope: '应用健康端点；配置存在不代表第三方服务在线，未发送邮件或模型请求。' }
+    return { services, providers, checkedScope: 'API检查健康端点；前端只检查页面入口，不代表全部业务可用。配置存在不代表第三方服务在线，未发送邮件或模型请求。' }
   }
   async versions() {
     const revision = /^[0-9a-f]{40}$/i.test(this.env.RAILWAY_GIT_COMMIT_SHA || '') ? this.env.RAILWAY_GIT_COMMIT_SHA : null
