@@ -19,3 +19,14 @@
 ## 本地检查
 - 原生JavaScript桥7项、Xcode选择器Python3项通过；变更范围与差异检查通过。当前环境无Swift/Xcode，Swift编译、单元与WebKit UI流程不能冒称本地通过，交由现有双系统Mac原生CI执行；只有通过后才触发既有手动TestFlight上传。
 - 本轮增加4项原生单元案例：真实系统错误编号与非断言式提示、敏感NSError详情不回显、未知域脱敏/TLS独立分类、相同Production的只读新鲜启动请求；新增1个合成WebKit失败→重试→恢复交互UI案例。
+
+## 实际交付回执与剩余阻塞（北京时间2026-11-02）
+- 实现已合入main：`6b6d9008c2f9ed64f7e26f76394510f10e76ba2d`。仅原生启动链路和任务文档变化；共享网页与备案DNS不变，无需重部署相同服务器二进制。
+- [原生CI #39](https://github.com/Hoooho-app/hoooho.app/actions/runs/41361565555) 已成功：current与oldest两套iOS各20项单元、4项UI测试通过，current设备归档成功。失败→显示真实编号→本人重试→本地WebKit夹具恢复是合成案例，不是真机Production恢复证明。
+- 原生CI对该精确main提交成功后，仅手动触发一次[上传 #10](https://github.com/Hoooho-app/hoooho.app/actions/runs/41362589116)，attempt1，精确源码仍为上述提交。任务及签名清理均SUCCESS。
+- Apple版本`0.1.0`、构建`1.10.1`：07:33:46上传成功，07:35:49完成processing。日志分别确认`Successfully uploaded the new binary`与`Successfully finished processing the build 0.1.0 - 1.10.1 for IOS`。
+- 分发状态：BLOCKED。当前App Store Connect停在登录页并显示身份核验失败，已交还本人恢复登录；未核验此新包合规状态、What to Test、原内部组「护护首轮内测」分配或TestFlight可更新状态。不使用其他会话绕过登录，不新增组/测试者，不提交正式App Store审核，不重复上传。
+- 手机启动问题仍未解决、根因未确定。本人恢复Apple后台登录后，继续处理同一个`0.1.0 (1.10.1)`并加入既有内部组；手机通过TestFlight原位更新，保留已有资料。只有本人实体设备成功进入护护才确认恢复；若仍失败，使用新版页面展示的受控系统错误编号继续排查。
+
+### 待登录后使用的 What to Test 草稿
+本版调整启动失败后的重新连接，并显示版本、固定启动地址和系统错误编号。请原位更新后打开护护，确认能进入原页面；如仍失败，请截图错误详情，再尝试重新连接。保留登录和本机资料，不需要卸载。设置、Safari检查和复制诊断只在本人点击时执行。
