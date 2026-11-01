@@ -9,7 +9,7 @@ interface Inbox { events: OpsEvent[]; loading: boolean; error: string; refresh: 
 const InboxContext = createContext<Inbox | null>(null)
 export const useOpsInbox = () => useContext(InboxContext)
 export const projectName = (id: string) => OPS_PROJECTS.find(project => project.id === id)?.name ?? '护护记录'
-export function useOpsProject(fallback = 'all') {
+export function useOpsProject(fallback = 'all', resetParams: string[] = []) {
   const [params, setParams] = useSearchParams()
   const value = params.get('project')
   const project = value === 'all' || isOpsProject(value) ? value! : fallback
@@ -17,12 +17,13 @@ export function useOpsProject(fallback = 'all') {
     const next = new URLSearchParams(previous)
     next.set('project', id)
     next.delete('source'); next.delete('feedback'); next.delete('event')
+    for (const key of resetParams) next.delete(key)
     return next
   })
   return { project, choose }
 }
-export function OpsProjectPicker({ fallback = 'all' }: { fallback?: string }) {
-  const { project, choose } = useOpsProject(fallback)
+export function OpsProjectPicker({ fallback = 'all', resetParams = [] }: { fallback?: string; resetParams?: string[] }) {
+  const { project, choose } = useOpsProject(fallback, resetParams)
   const options = [{ id: 'all', name: '全部项目' }, ...OPS_PROJECTS]
   return <div className="ops-project-picker">
     <div className="ops-project-tabs" aria-label="选择项目">{options.map(item => <button type="button" key={item.id} aria-pressed={project === item.id} onClick={() => choose(item.id)}>{item.name}</button>)}</div>

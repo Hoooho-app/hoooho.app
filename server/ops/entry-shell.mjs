@@ -4,7 +4,7 @@ export const OPS_NAVIGATION_EXCLUSION = /^\/ops(?:\/|$)/
 export const OPS_ENTRY_PATH = '/api/console-entry'
 const script = `(() => {
   const query = new URLSearchParams(location.search);
-  const pages = ['/ops','/ops/billing','/ops/feedback','/ops/services','/ops/versions','/ops/settings','/ops/login'];
+  const pages = ['/ops','/ops/billing','/ops/feedback','/ops/services','/ops/versions','/ops/marketing','/ops/settings','/ops/login'];
   const requested = query.get('page');
   const target = new URL(pages.includes(requested) ? requested : '/ops/billing', location.origin);
   target.searchParams.set('project', /^[a-z0-9-]{1,64}$/.test(query.get('project') || '') ? query.get('project') : 'hoooho');

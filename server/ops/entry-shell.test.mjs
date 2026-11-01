@@ -15,6 +15,7 @@ test('Ops uses a fresh public app shell without clearing storage or exposing pro
   const code=await(await fetch(base+'/api/console-entry.js')).text();let destination
   const run=search=>vm.runInNewContext(code,{URL,URLSearchParams,location:{origin:'https://console.example.test',search},history:{replaceState:(_,__,value)=>destination=value}})
   run('?project=family&connect=railway-volume');assert.equal(destination,'/ops/billing?project=family&connect=railway-volume')
+  run('?page=/ops/marketing&project=hoooho');assert.equal(destination,'/ops/marketing?project=hoooho')
   run('?page=https://foreign.example.test&connect=%3Cscript%3E&token=secret');assert.equal(destination,'/ops/billing?project=hoooho')
   assert.doesNotMatch(code,/localStorage|sessionStorage|indexedDB|caches\.|serviceWorker\.unregister/)
   assert.equal((await fetch(base+'/api/console-entry',{method:'POST'})).status,405)
