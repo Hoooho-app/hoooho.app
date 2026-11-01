@@ -6,6 +6,11 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
     private var webView: WKWebView!
     private let progress = UIActivityIndicatorView(style: .medium)
     private let retryButton = UIButton(type: .system)
+    private let failureScroll = UIScrollView()
+    private let failureMessage = UILabel()
+    private let failureDiagnostic = UILabel()
+    private let copyDiagnosticButton = UIButton(type: .system)
+    private var currentLaunchFailure: LaunchFailure?
     private var downloaded: [ObjectIdentifier: URL] = [:]
     private var pendingShares: [(URL, WKDownload)] = []
     private var currentShareDirectory: URL?
@@ -55,30 +60,24 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
         progress.hidesWhenStopped = true
         progress.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(progress)
-        retryButton.setTitle("连接未完成，点此重试", for: .normal)
-        retryButton.accessibilityIdentifier = "hoooho.retry"
-        retryButton.addTarget(self, action: #selector(retry), for: .touchUpInside)
-        retryButton.translatesAutoresizingMaskIntoConstraints = false
-        retryButton.backgroundColor = view.backgroundColor
-        retryButton.layer.cornerRadius = 12
-        retryButton.contentEdgeInsets = UIEdgeInsets(top: 14, left: 20, bottom: 14, right: 20)
-        retryButton.isHidden = true
-        view.addSubview(retryButton)
+        setupLaunchRecovery()
         NSLayoutConstraint.activate([
             progress.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            progress.centerYAnchor.constraint(equalTo: view.centerYAnchor),
-            retryButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            retryButton.centerYAnchor.constraint(equalTo: view.centerYAnchor)
+            progress.centerYAnchor.constraint(equalTo: view.centerYAnchor)
         ])
         progress.startAnimating()
         #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("--startup-error-fixture") {
+            loadFailed(NSError(domain: NSURLErrorDomain, code: URLError.notConnectedToInternet.rawValue))
+            return
+        }
         if ProcessInfo.processInfo.arguments.contains("--native-fixture"),
            let fixture = Bundle.main.url(forResource: "NativeFixture", withExtension: "html") {
             webView.loadFileURL(fixture, allowingReadAccessTo: fixture.deletingLastPathComponent())
             return
         }
         #endif
-        webView.load(URLRequest(url: NavigationPolicy.home))
+        webView.load(LaunchFailure.startupRequest)
     }
 
     override func viewDidAppear(_ animated: Bool) {
@@ -86,28 +85,110 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
         presentNextDownload()
     }
 
-    @objc private func retry() {
-        retryButton.isHidden = true
-        progress.startAnimating()
-        if hasLoadedPage { webView.reload() } else { webView.load(URLRequest(url: NavigationPolicy.home)) }
+    private func setupLaunchRecovery() {
+        failureScroll.translatesAutoresizingMaskIntoConstraints = false
+        failureScroll.backgroundColor = view.backgroundColor
+        failureScroll.isHidden = true
+        failureScroll.alwaysBounceVertical = false
+        view.addSubview(failureScroll)
+        let title = UILabel()
+        title.text = "暂时无法打开护护"
+        title.font = .preferredFont(forTextStyle: .title2)
+        title.textColor = .darkText
+        title.numberOfLines = 0
+        title.adjustsFontForContentSizeCategory = true
+        failureMessage.font = .preferredFont(forTextStyle: .body)
+        failureMessage.textColor = .darkText
+        failureMessage.numberOfLines = 0
+        failureMessage.adjustsFontForContentSizeCategory = true
+        failureDiagnostic.font = .monospacedSystemFont(ofSize: 12, weight: .regular)
+        failureDiagnostic.numberOfLines = 0
+        failureDiagnostic.textColor = .darkGray
+        failureDiagnostic.accessibilityIdentifier = "hoooho.startupDiagnostic"
+        retryButton.setTitle("重新连接", for: .normal)
+        retryButton.accessibilityIdentifier = "hoooho.retry"
+        retryButton.addTarget(self, action: #selector(retry), for: .touchUpInside)
+        let settings = UIButton(type: .system)
+        settings.setTitle("打开App系统设置", for: .normal)
+        settings.addTarget(self, action: #selector(openAppSettings), for: .touchUpInside)
+        let safari = UIButton(type: .system)
+        safari.setTitle("用Safari检查启动地址", for: .normal)
+        safari.addTarget(self, action: #selector(checkStartupInSafari), for: .touchUpInside)
+        copyDiagnosticButton.setTitle("复制诊断信息", for: .normal)
+        copyDiagnosticButton.addTarget(self, action: #selector(copyStartupDiagnostic), for: .touchUpInside)
+        for button in [retryButton, settings, safari, copyDiagnosticButton] {
+            button.titleLabel?.font = .preferredFont(forTextStyle: .body)
+            button.titleLabel?.adjustsFontForContentSizeCategory = true
+            button.titleLabel?.numberOfLines = 0
+            button.heightAnchor.constraint(greaterThanOrEqualToConstant: 48).isActive = true
+        }
+        let stack = UIStackView(arrangedSubviews: [title, failureMessage, failureDiagnostic, retryButton, settings, safari, copyDiagnosticButton])
+        stack.axis = .vertical
+        stack.spacing = 18
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        failureScroll.addSubview(stack)
+        let preferredWidth = stack.widthAnchor.constraint(equalTo: failureScroll.frameLayoutGuide.widthAnchor, constant: -48)
+        preferredWidth.priority = .defaultHigh
+        NSLayoutConstraint.activate([
+            failureScroll.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            failureScroll.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
+            failureScroll.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            failureScroll.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            failureScroll.contentLayoutGuide.widthAnchor.constraint(equalTo: failureScroll.frameLayoutGuide.widthAnchor),
+            stack.topAnchor.constraint(equalTo: failureScroll.contentLayoutGuide.topAnchor, constant: 28),
+            stack.bottomAnchor.constraint(equalTo: failureScroll.contentLayoutGuide.bottomAnchor, constant: -28),
+            stack.centerXAnchor.constraint(equalTo: failureScroll.frameLayoutGuide.centerXAnchor),
+            stack.widthAnchor.constraint(lessThanOrEqualToConstant: 480),
+            stack.widthAnchor.constraint(lessThanOrEqualTo: failureScroll.frameLayoutGuide.widthAnchor, constant: -48),
+            preferredWidth
+        ])
     }
-
+    @objc private func retry() {
+        failureScroll.isHidden = true
+        progress.startAnimating()
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("--startup-error-fixture"),
+           let fixture = Bundle.main.url(forResource: "NativeFixture", withExtension: "html") {
+            webView.loadFileURL(fixture, allowingReadAccessTo: fixture.deletingLastPathComponent())
+            return
+        }
+        #endif
+        if hasLoadedPage { webView.reload() } else { webView.load(LaunchFailure.startupRequest) }
+    }
+    @objc private func openAppSettings() {
+        guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
+        UIApplication.shared.open(url)
+    }
+    @objc private func checkStartupInSafari() { UIApplication.shared.open(NavigationPolicy.home) }
+    @objc private func copyStartupDiagnostic() {
+        guard let failure = currentLaunchFailure else { return }
+        UIPasteboard.general.string = failure.diagnostic
+        copyDiagnosticButton.setTitle("诊断信息已复制", for: .normal)
+    }
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         hasLoadedPage = true
+        currentLaunchFailure = nil
         progress.stopAnimating()
-        retryButton.isHidden = true
+        failureScroll.isHidden = true
+    }
+    private func showLaunchFailure(_ failure: LaunchFailure) {
+        currentLaunchFailure = failure
+        failureMessage.text = failure.message
+        failureDiagnostic.text = failure.diagnostic
+        copyDiagnosticButton.setTitle("复制诊断信息", for: .normal)
+        progress.stopAnimating()
+        failureScroll.isHidden = false
+        failureScroll.setContentOffset(.zero, animated: false)
     }
     private func loadFailed(_ error: Error) {
-        guard (error as NSError).code != NSURLErrorCancelled else { return }
-        progress.stopAnimating()
-        retryButton.isHidden = false
+        let failure = error as NSError
+        guard !(failure.domain == NSURLErrorDomain && failure.code == NSURLErrorCancelled) else { return }
+        showLaunchFailure(LaunchFailure.from(failure))
         // Never clear cookies, IndexedDB or the current web page on failure.
     }
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) { loadFailed(error) }
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) { loadFailed(error) }
-    func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
-        progress.stopAnimating(); retryButton.isHidden = false
-    }
+    func webViewWebContentProcessDidTerminate(_ webView: WKWebView) { showLaunchFailure(.contentProcessEnded()) }
 
     func webView(_ webView: WKWebView, decidePolicyFor action: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
         #if DEBUG
@@ -199,7 +280,7 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
             webView.backgroundColor = color
             webView.scrollView.backgroundColor = color
             webView.underPageBackgroundColor = color
-            retryButton.backgroundColor = color
+            failureScroll.backgroundColor = color
             var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0, alpha: CGFloat = 0
             if color.getRed(&red, green: &green, blue: &blue, alpha: &alpha) {
                 pageStatusBarStyle = (0.2126 * red + 0.7152 * green + 0.0722 * blue) < 0.5 ? .lightContent : .darkContent

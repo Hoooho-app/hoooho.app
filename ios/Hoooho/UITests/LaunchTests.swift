@@ -2,6 +2,28 @@ import XCTest
 import UIKit
 
 final class LaunchTests: XCTestCase {
+    func testStartupFailureExplainsItsCodeAndRetryRecoversTheExistingWebView() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--native-fixture", "--startup-error-fixture"]
+        app.launch()
+        XCTAssertTrue(app.staticTexts["暂时无法打开护护"].waitForExistence(timeout: 20))
+        let diagnostic = app.staticTexts["hoooho.startupDiagnostic"]
+        XCTAssertTrue(diagnostic.label.contains("NSURLErrorDomain · -1009"))
+        XCTAssertTrue(diagnostic.label.contains("hooohoapp-production.up.railway.app"))
+        XCTAssertTrue(app.buttons["打开App系统设置"].exists)
+        XCTAssertTrue(app.buttons["用Safari检查启动地址"].exists)
+        XCTAssertTrue(app.buttons["复制诊断信息"].exists)
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = "Startup-error-synthetic-NOT-owner-device"
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
+        app.buttons["hoooho.retry"].tap()
+        guard waitForFixture(app) else { return }
+        XCTAssertFalse(app.staticTexts["暂时无法打开护护"].exists)
+        app.webViews.buttons["测试页面交互"].tap()
+        XCTAssertTrue(app.webViews.staticTexts["交互已响应"].waitForExistence(timeout: 5))
+    }
+
     func testManualSymptomMenuHasOnlyThreeMediaSources() {
         let app = XCUIApplication()
         app.launchArguments = ["--native-fixture"]
