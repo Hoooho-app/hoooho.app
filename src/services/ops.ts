@@ -112,7 +112,9 @@ export async function getBillingSnapshotImage(token: string, sourceId: string, s
 }
 
 export interface CaptureCandidate { key: string; label: string; parsed: BillingMetric }
-export interface CaptureSession { id: string; sourceId: string; url: string; epoch: number; width: number; height: number; currency: string; analysis: { version: string; candidates: CaptureCandidate[] } | null }
+export interface CaptureControl { id: string; type: string; label: string; multiline: boolean; hasValue: boolean; rect: { x: number; y: number; width: number; height: number } }
+export interface CaptureSession { id: string; sourceId: string; url: string; epoch: number; revision?: number; control?: CaptureControl | null; width: number; height: number; currency: string; analysis: { version: string; candidates: CaptureCandidate[] } | null }
+export interface CaptureFrame { session: CaptureSession; imageDataUrl: string }
 export interface CaptureRuntime { installed: boolean; available: boolean; verified?: boolean; error?: string; configuredSources: string[] }
 export async function getCaptureImage(token: string, id: string, preview = false, signal?: AbortSignal) {
   const response = await fetch(`/api/ops/capture/sessions/${encodeURIComponent(id)}/${preview ? 'preview' : 'image'}`, { headers: { Authorization: `Bearer ${token}` }, signal })

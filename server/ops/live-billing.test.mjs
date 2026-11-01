@@ -9,6 +9,7 @@ import { billingHealth, billingFieldRows } from './billing-health.mjs'
 import { inspectBillingPage, parseBillingValue, readBoundBillingFields } from './billing-page-reader.mjs'
 import { BillingBrowserWorker, allowedBillingUrl } from '../../ops-browser-worker/core.mjs'
 import { OpsService } from './ops-service.mjs'
+import { syntheticLogin, syntheticIframeLogin } from '../../tests/ops-workspace/capture-login.mjs'
 const actor = 'a'.repeat(64)
 const bill = '<main style="padding:20px;min-height:500px"><h1>Billing</h1><div><span>Prepaid balance</span><strong>USD 12.50</strong></div><div><span>Current charges</span><strong>USD 4.25</strong></div><div><span>Next billing date</span><strong>2026-12-12</strong></div><div><span>Storage used</span><strong>2 GB</strong></div><div><span>Total storage</span><strong>10 GB</strong></div><div><span>Current plan</span><strong>Pro</strong></div><div><span>synthetic@example.test</span></div></main>'
 const now = new Date('2026-11-01T04:00:00Z')
@@ -99,6 +100,27 @@ test('Aliyun modern cost homepage can be verified, saved and reread while login 
   await worker.commit(session.id,{version:inspected.analysis.version,fields:['balance','currentCost'],privacyConfirmed:true})
   const result=await worker.capture('aliyun')
   assert.equal(result.facts.balance,12.5);assert.equal(result.facts.currency,'CNY');assert.equal(result.facts.metrics.currentCost.value,4.25)
+})
+
+test('cross-origin frame focus supports direct typing without exposing field contents and rejects stale targets',async t=>{
+  const directory=await fixture(t)
+  const launchFactory=async dir=>{const context=await chromium.launchPersistentContext(dir,{headless:true,viewport:{width:1280,height:800},args:['--no-sandbox']});await context.route('https://**.aliyun.com/**',route=>route.fulfill({contentType:'text/html',body:new URL(route.request().url()).searchParams.has('verified')?bill:new URL(route.request().url()).hostname==='account.aliyun.com'?syntheticLogin('https://billing-cost.console.aliyun.com/home?verified=1'):syntheticIframeLogin}));return context}
+  const worker=await new BillingBrowserWorker({directory,launchFactory,storageKey:'d'.repeat(64)}).init();t.after(()=>worker.close())
+  let state=await worker.start({sourceId:'aliyun',actor,consent:true})
+  state=await worker.action(state.id,{action:'click',x:140,y:160,epoch:state.epoch})
+  assert.equal(state.control.label,'Username or email address');assert.equal(state.control.rect.x,120);assert.equal(state.control.rect.y,140)
+  const usernameId=state.control.id
+  state=await worker.action(state.id,{action:'fill',controlId:usernameId,text:'合成-admin@example.test',epoch:state.epoch})
+  assert.equal(await worker.lease.page.frameLocator('iframe').getByLabel('Username or email address').inputValue(),'合成-admin@example.test')
+  const first=await worker.frame(state.id);assert.ok(first.imageDataUrl.startsWith('data:image/jpeg;base64,'));assert.equal(first.session.control.id,usernameId);assert.ok(!JSON.stringify(first.session).includes('合成-admin@'))
+  state=await worker.action(state.id,{action:'key',key:'Tab',epoch:state.epoch});assert.equal(state.control.type,'password')
+  await assert.rejects(worker.action(state.id,{action:'fill',controlId:usernameId,text:'wrong-target',epoch:state.epoch}),e=>e.code==='CAPTURE_FOCUS_CHANGED')
+  assert.equal(await worker.lease.page.frameLocator('iframe').getByLabel('Password',{exact:true}).inputValue(),'')
+  state=await worker.action(state.id,{action:'fill',controlId:state.control.id,text:'合成-only-P4ss!',epoch:state.epoch})
+  assert.equal(await worker.lease.page.frameLocator('iframe').getByLabel('Password',{exact:true}).inputValue(),'合成-only-P4ss!')
+  const frame=await worker.frame(state.id);assert.ok(!JSON.stringify(frame.session).includes('P4ss'));assert.equal(frame.session.control.hasValue,true)
+  state=await worker.action(state.id,{action:'key',key:'Shift+Tab',epoch:state.epoch});assert.equal(state.control.label,'Username or email address')
+  state=await worker.action(state.id,{action:'key',key:'Tab',epoch:state.epoch});await worker.action(state.id,{action:'key',key:'Enter',epoch:state.epoch});await worker.lease.page.getByRole('heading',{name:'Billing',exact:true}).waitFor();assert.equal((await worker.state(state.id)).control,null)
 })
 
 test('private capture HTTP boundary exposes no profiles or images without its server credential',async t=>{

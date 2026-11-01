@@ -76,7 +76,7 @@ test('all Operations APIs share the same owner-only authorization', async () => 
       assert.equal(allowed.headers.get('cache-control'), 'no-store')
     }
 
-    for (const [route, method, body] of [['/api/ops/capture/sessions','POST',{sourceId:'railway',consent:true}],['/api/ops/capture/runtime/check','POST',{}],['/api/ops/capture/sessions/00000000-0000-0000-0000-000000000000/image','GET'],['/api/ops/capture/sessions/00000000-0000-0000-0000-000000000000/actions','POST',{action:'text',text:'synthetic',epoch:0}]]) {
+    for (const [route, method, body] of [['/api/ops/capture/sessions','POST',{sourceId:'railway',consent:true}],['/api/ops/capture/runtime/check','POST',{}],['/api/ops/capture/sessions/00000000-0000-0000-0000-000000000000/image','GET'],['/api/ops/capture/sessions/00000000-0000-0000-0000-000000000000/frame','GET'],['/api/ops/capture/sessions/00000000-0000-0000-0000-000000000000/actions','POST',{action:'text',text:'synthetic',epoch:0}]]) {
       assert.equal((await json(`${base}${route}`,method,ordinarySession.token,body)).status,403)
       assert.equal((await json(`${base}${route}`,method,null,body)).status,401)
     }

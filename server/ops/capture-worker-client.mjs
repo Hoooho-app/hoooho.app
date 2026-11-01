@@ -22,10 +22,11 @@ export async function handleCaptureApi({request,response,pathname,readJson,send,
   }
   if(route==='/runtime/check'&&request.method==='POST'){send(response,200,await vault.request('/runtime/check',{method:'POST'}));return true}
   if(route==='/sessions'&&request.method==='POST'){const input=await readJson(request);const actor=createHash('sha256').update(String(actorId)).digest('hex');const data=await vault.request('/sessions',{method:'POST',body:{sourceId:input.sourceId,consent:input.consent,actor}});await vault.refreshMetadata(true);send(response,200,data);return true}
-  const match=/^\/sessions\/([a-f0-9-]+)(?:\/(image|preview|actions|analyze|commit))?$/.exec(route)
+  const match=/^\/sessions\/([a-f0-9-]+)(?:\/(image|preview|frame|actions|analyze|commit))?$/.exec(route)
   if(!match){send(response,404,{error:{code:'NOT_FOUND',message:'接口不存在'}});return true}
   const[,id,action]=match
   if(['image','preview'].includes(action)&&request.method==='GET'){const file=await vault.request(`/sessions/${id}/${action}`,{binary:true});response.statusCode=200;response.setHeader('Content-Type',file.type);response.setHeader('Content-Length',String(file.buffer.length));response.setHeader('Cache-Control','private, no-store');response.end(file.buffer);return true}
+  if(action==='frame'&&request.method==='GET'){send(response,200,await vault.request(`/sessions/${id}/frame`));return true}
   if(!action&&['GET','DELETE'].includes(request.method)){const data=await vault.request(`/sessions/${id}`,{method:request.method});if(request.method==='DELETE')await vault.refreshMetadata(true);send(response,200,data);return true}
   if(['actions','analyze','commit'].includes(action)&&request.method==='POST'){const input=await readJson(request),data=await vault.request(`/sessions/${id}/${action}`,{method:'POST',body:input});if(action==='commit'){await vault.refreshMetadata(true);const source=await ops.refresh(data.sourceId);send(response,200,{...data,source})}else send(response,200,data);return true}
   send(response,405,{error:{code:'METHOD_NOT_ALLOWED',message:'方法不支持'}});return true

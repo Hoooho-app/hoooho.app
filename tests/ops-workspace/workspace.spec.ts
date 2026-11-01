@@ -224,3 +224,66 @@ test('owner can open a consent-gated isolated browser, verify live DOM fields an
   expect(data.sources.find((s:any)=>s.id==='railway').fieldRows.every((r:any)=>r.state==='available')).toBeTruthy()
   await page.screenshot({path:info.outputPath('synthetic-billing-connected.png')})
 })
+
+for (const scenario of [
+  {source:'railway-volume',width:1440,height:900,zoom:false,offset:0},
+  {source:'railway',width:1280,height:800,zoom:true,offset:0},
+  {source:'aliyun',width:390,height:844,zoom:true,offset:40}
+]) test(`direct platform typing works at ${scenario.width}px for ${scenario.source}, including focus, paste, IME and submit`,async({page,request},info)=>{
+  await request.post('/__test/capture-login')
+  await page.setViewportSize({width:scenario.width,height:scenario.height})
+  await page.goto(`/ops/billing?project=hoooho&connect=${scenario.source}`)
+  const dialog=page.getByRole('dialog'),screen=dialog.getByAltText('私有平台授权与账单窗口')
+  await dialog.getByRole('checkbox',{name:/我同意将该平台/}).check()
+  await dialog.getByRole('button',{name:'打开平台授权窗口',exact:true}).click()
+  await expect(screen).toBeVisible()
+  if(scenario.zoom&&scenario.width>600)await dialog.getByRole('button',{name:'放大画面',exact:true}).click()
+  // Use visible screenshot coordinates, exactly as a person does; never access the remote DOM here.
+  const box=(await screen.boundingBox())!
+  await page.mouse.click(box.x+(100+scenario.offset)/1280*box.width,box.y+(120+scenario.offset)/800*box.height)
+  const username=dialog.getByLabel('平台输入：Username or email address',{exact:true})
+  await expect(username).toBeFocused()
+  await username.pressSequentially('temporary-fast-input',{delay:8})
+  await username.fill('')
+  await username.dispatchEvent('compositionstart')
+  await username.fill('合成-admin@example.test')
+  await username.dispatchEvent('compositionend')
+  if(scenario.source==='railway-volume') {
+    let rejected=false
+    await page.route('**/api/ops/capture/sessions/*/actions',async route=>{
+      const body=route.request().postDataJSON()
+      if(!rejected&&body.action==='fill'){rejected=true;await route.fulfill({status:503,json:{error:{code:'CAPTURE_WORKER_UNAVAILABLE',message:'合成：暂时无法同步输入'}}})}
+      else await route.continue()
+    })
+    await username.press('Tab')
+    await expect(dialog.getByRole('alert')).toContainText('合成：暂时无法同步输入')
+    await expect(username).toBeFocused()
+    await expect(username).toHaveValue('合成-admin@example.test')
+  }
+  await username.press('Tab')
+  const password=dialog.getByLabel('平台输入：Password',{exact:true})
+  await expect(password).toBeFocused()
+  await expect(password).toHaveAttribute('type','password')
+  // A single input replacement follows the same browser input event used by pasting.
+  await password.fill('合成-only-P4ss!')
+  await password.press('Shift+Tab')
+  await expect(username).toBeFocused()
+  await expect(username).toHaveAttribute('placeholder','已有内容，输入后替换')
+  await username.press('Tab')
+  await expect(password).toBeFocused()
+  await expect(password).toHaveValue('')
+  await password.fill('合成-only-P4ss!')
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBeTruthy()
+  await page.screenshot({path:info.outputPath(`synthetic-direct-input-${scenario.source}-${scenario.width}.png`)})
+  if(scenario.source==='railway') {
+    const currentBox=(await screen.boundingBox())!
+    await page.mouse.click(currentBox.x+100/1280*currentBox.width,currentBox.y+280/800*currentBox.height)
+  } else await password.press('Enter')
+  await expect(dialog.locator('.ops-capture-direct-input')).toHaveCount(0)
+  await dialog.getByRole('button',{name:'读取当前账单',exact:true}).click()
+  await expect(dialog.locator('.ops-capture-candidates')).toContainText(scenario.source==='aliyun'?'CNY 24.5':'USD 24.5')
+  await dialog.getByRole('checkbox',{name:/读取结果与账单一致/}).check()
+  await dialog.getByRole('button',{name:'保存连接并立即采集',exact:true}).click()
+  await expect(dialog).toHaveCount(0)
+  await expect(page.locator(`#billing-source-${scenario.source}`)).toContainText(scenario.source==='aliyun'?'CNY 24.5':'USD 24.5')
+})
