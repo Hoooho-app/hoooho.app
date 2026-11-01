@@ -1,3 +1,4 @@
+import { OPS_NAVIGATION_EXCLUSION } from './server/ops/entry-shell.mjs'
 import { foodObservationApiPlugin } from './server/food-observations/api.mjs'
 import { careJourneyApiPlugin } from './server/care-journey/api.mjs'
 import { familySharingApiPlugin } from './server/family-sharing/api.mjs'
@@ -78,7 +79,7 @@ export default defineConfig({
         clientsClaim: true,
         skipWaiting: true,
         navigateFallback: 'index.html',
-        navigateFallbackDenylist: [/^\/api\//, /^\/family-ray-home-life-workspace(?:\/|$)/, /^\/qinggan-jichoushi-notebook(?:\/|$)/, /^\/_internal\//]
+        navigateFallbackDenylist: [/^\/api\//, OPS_NAVIGATION_EXCLUSION, /^\/family-ray-home-life-workspace(?:\/|$)/, /^\/qinggan-jichoushi-notebook(?:\/|$)/, /^\/_internal\//]
       },
       manifest: {
         name: 'Hoooho',

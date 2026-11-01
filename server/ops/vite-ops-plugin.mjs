@@ -1,3 +1,6 @@
+import { handleOpsEntry } from './entry-shell.mjs'
+import { readFile } from 'node:fs/promises'
+import path from 'node:path'
 import { CaptureWorkerClient, handleCaptureApi } from './capture-worker-client.mjs'
 import { OpsWorkspaceService } from './workspace-service.mjs'
 import { createBillingCollectors } from './capture-collectors.mjs'
@@ -35,6 +38,7 @@ export function opsApiPlugin(options = {}) {
   const ownerEmail = options.opsOwnerEmail ?? authConfig.opsOwnerEmail
   return { name: 'hoooho-local-ops-api', configureServer(server) { server.middlewares.use(async (request, response, next) => {
     const pathname = new URL(request.url ?? '/', 'http://localhost').pathname
+    if (await handleOpsEntry(request, response, { readIndex: async () => server.transformIndexHtml('/ops/billing', await readFile(path.join(server.config.root, 'index.html'), 'utf8')) })) return
     if (!pathname.startsWith('/api/ops')) return next()
     try {
       const token = /^Bearer\s+(.+)$/i.exec(request.headers.authorization ?? '')?.[1]

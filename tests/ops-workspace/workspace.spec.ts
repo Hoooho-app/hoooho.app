@@ -287,3 +287,40 @@ for (const scenario of [
   await expect(dialog).toHaveCount(0)
   await expect(page.locator(`#billing-source-${scenario.source}`)).toContainText(scenario.source==='aliyun'?'CNY 24.5':'USD 24.5')
 })
+
+test.describe('cached Ops migration',()=>{
+  test.use({serviceWorkers:'allow'})
+test('a cached old Ops page recovers through the network entry and can actually type without clearing account storage',async({page,request})=>{
+  await request.post('/__test/capture-login')
+  await page.goto('/ops/billing')
+  await expect(page.locator('.ops-source-card')).toHaveCount(11)
+  await page.evaluate(async()=>{
+    sessionStorage.setItem('synthetic-preserved-session','keep')
+    localStorage.setItem('synthetic-preserved-local','keep')
+    await navigator.serviceWorker.register('/__test/legacy-shell-sw.js',{scope:'/'})
+    await navigator.serviceWorker.ready
+    if(!navigator.serviceWorker.controller)await new Promise(resolve=>navigator.serviceWorker.addEventListener('controllerchange',resolve,{once:true}))
+  })
+  await page.goto('/ops/billing')
+  await expect(page.getByRole('heading',{name:'旧版授权窗口',exact:true})).toBeVisible()
+  await page.reload()
+  await expect(page.getByRole('heading',{name:'旧版授权窗口',exact:true})).toBeVisible()
+  await page.goto('/api/console-entry?connect=railway-volume')
+  const dialog=page.getByRole('dialog')
+  await expect(dialog).toBeVisible()
+  await expect(page).toHaveURL(/\/ops\/billing\?project=hoooho&connect=railway-volume$/)
+  expect(await page.evaluate(()=>[sessionStorage.getItem('synthetic-preserved-session'),localStorage.getItem('synthetic-preserved-local')])).toEqual(['keep','keep'])
+  const calls:string[]=[];page.on('request',request=>{if(request.url().includes('/api/ops/capture/sessions/'))calls.push(request.url())})
+  await dialog.getByRole('checkbox',{name:/我同意将该平台/}).check()
+  await dialog.getByRole('button',{name:'打开平台授权窗口',exact:true}).click()
+  const screen=dialog.getByAltText('私有平台授权与账单窗口');await expect(screen).toBeVisible()
+  const box=(await screen.boundingBox())!
+  await page.mouse.click(box.x+100/1280*box.width,box.y+120/800*box.height)
+  const username=dialog.getByLabel('平台输入：Username or email address',{exact:true})
+  await expect(username).toBeFocused();await username.fill('合成-admin@example.test');await username.press('Tab')
+  await expect(dialog.getByLabel('平台输入：Password',{exact:true})).toBeFocused()
+  expect(calls.some(url=>url.endsWith('/frame'))).toBeTruthy()
+  expect(calls.some(url=>url.endsWith('/image'))).toBeFalsy()
+})
+
+})

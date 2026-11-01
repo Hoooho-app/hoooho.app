@@ -1,3 +1,4 @@
+import { handleOpsEntry } from './ops/entry-shell.mjs'
 import { FoodObservationService } from './food-observations/service.mjs'
 import { foodObservationRoute, foodObservationResult, observationSourceMutation, watchObservationMutation } from './food-observations/api.mjs'
 import { CareJourneyService } from './care-journey/service.mjs'
@@ -1142,6 +1143,7 @@ async function handleRequest(request, response) {
     }
     const url = new URL(request.url ?? '/', 'http://localhost')
     const pathname = url.pathname
+    if (await handleOpsEntry(request, response, { readIndex: () => readFile(path.join(staticDirectory, 'index.html'), 'utf8') })) return
     if (await qingganGateway(request, response)) return
     if (await familyMigration.handle(request, response, pathname, url.searchParams, { readJson, sendJson })) return
     if (pathname === FAMILY_WORKSPACE_PATH || pathname.startsWith(`${FAMILY_WORKSPACE_PATH}/`)) {

@@ -5,6 +5,7 @@ const [index, sw] = await Promise.all([readFile('dist/index.html', 'utf8'), read
 assert.match(index, /assets\/index-[A-Za-z0-9_-]+\.js/)
 assert.match(sw, /skipWaiting\(\)/)
 assert.match(sw, /clientsClaim\(\)/)
+assert.ok(sw.includes(String.raw`/^\/ops(?:\/|$)/`), 'Operations navigation must load the current server shell instead of an old offline shell')
 assert.doesNotMatch(sw, /api\/auth\/session/)
 assert.doesNotMatch(sw, /api\/auth\/(?:register|nickname\/login)/)
 console.log('Auth build contract passed: versioned entry, immediate SW activation, no auth API precache.')

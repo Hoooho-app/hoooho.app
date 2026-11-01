@@ -57,6 +57,8 @@ const server = await createServer({ configFile: false, logLevel: 'error', server
   { name: 'synthetic-no-service-worker', resolveId: id => id === 'virtual:pwa-register' ? '\0ops-pwa' : null, load: id => id === '\0ops-pwa' ? 'export function registerSW(){ return ()=>{} }' : null },
   { name: 'synthetic-fixtures-only', configureServer(server) { server.middlewares.use(async (request, response, next) => {
     if (!request.url?.startsWith('/__test/')) return next()
+    if (request.url === '/__test/legacy-shell-sw.js') { response.setHeader('Content-Type','application/javascript'); response.setHeader('Service-Worker-Allowed','/'); response.end(`const NAME='synthetic-old-console';self.addEventListener('install',event=>event.waitUntil(caches.open(NAME).then(cache=>cache.put('/index.html',new Response('<main><h1>旧版授权窗口</h1></main>',{headers:{'Content-Type':'text/html; charset=utf-8'}}))).then(()=>self.skipWaiting())));self.addEventListener('activate',event=>event.waitUntil(self.clients.claim()));self.addEventListener('fetch',event=>{const url=new URL(event.request.url);if(event.request.mode==='navigate'&&!url.pathname.startsWith('/api/'))event.respondWith(caches.open(NAME).then(cache=>cache.match('/index.html')))});`); return }
+
     if (request.url === '/__test/capture-login' && request.method === 'POST') captureLoginMode=true
     else if (request.url === '/__test/reset' && request.method === 'POST') await reset()
     else if (request.url === '/__test/billing-warning' && request.method === 'POST') { billingFacts = { dueAt: new Date(Date.now() + 86400000).toISOString(), dueKind: 'renewal', balance: 0, currency: 'USD', balanceMode: 'prepaid' }; await billing.refresh('railway') }
