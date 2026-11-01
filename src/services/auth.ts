@@ -1,4 +1,5 @@
 import type { AuthSession } from '../types'
+import { startAnalyticsOperation, finishAnalyticsOperation } from './productAnalytics'
 import { browserLoginStorageDiagnostics } from './loginStorageDiagnostics'
 
 interface SendCodeResponse {
@@ -51,6 +52,7 @@ function publicErrorMessage(path: string, response: Response, data: ApiErrorBody
 }
 
 export async function postAuthRequest<T>(path: string, body: Record<string, string>, method: 'GET' | 'POST' = 'POST', legacyToken = '', signal?: AbortSignal): Promise<T> {
+  const analyticsAttempt = startAnalyticsOperation(path, method)
   const requestId = createRequestId()
   const controller = new AbortController()
   const timeout = globalThis.setTimeout(() => controller.abort(), 15_000)
@@ -97,8 +99,10 @@ export async function postAuthRequest<T>(path: string, body: Record<string, stri
         responseRequestId
       )
     }
+    finishAnalyticsOperation(analyticsAttempt, 'success', (data as unknown as { user?: { id?: string } }).user?.id)
     return data
   } catch (error) {
+    finishAnalyticsOperation(analyticsAttempt, signal?.aborted ? 'cancel' : 'failure')
     if (error instanceof AuthApiError) throw error
     if (error instanceof Error && error.name === 'AbortError') {
       throw new AuthApiError('请求超时，请稍后重试', 'AUTH_REQUEST_TIMEOUT', undefined, undefined, requestId)

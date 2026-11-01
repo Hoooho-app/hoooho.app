@@ -3,6 +3,13 @@ import ReactDOM from 'react-dom/client'
 import { registerSW } from 'virtual:pwa-register'
 import { App } from './app/App'
 import './styles/index.css'
+import { startProductAnalytics } from './services/productAnalytics'
+import { useAppStore } from './store/useAppStore'
+
+startProductAnalytics(() => {
+  const state = useAppStore.getState()
+  return { token: state.authToken || '', account: state.authUser?.id || '', authenticated: state.authStatus === 'authenticated' }
+})
 
 // Retire only the old new-content badge cache; existing records and drafts keep their stores.
 try { localStorage.removeItem('hoooho-record-updates-v1') } catch { /* Storage restrictions must not prevent startup. */ }

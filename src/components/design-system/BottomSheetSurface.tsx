@@ -5,6 +5,7 @@ import { usePageScrollLock } from '../../hooks/usePageScrollLock'
 import { useDialogFocus } from '../../hooks/useDialogFocus'
 
 export interface BottomSheetSurfaceProps {
+  analyticsId?: string
   children: ReactNode
   className?: string
   layerClassName?: string
@@ -21,7 +22,7 @@ export interface BottomSheetSurfaceProps {
   dismissText?: string
 }
 
-export function BottomSheetSurface({ children, className = '', dismissText, footer, headerAction, viewportAware = false, label, layerClassName = '', leading, navigation, onClose, open, size = 'default', title }: BottomSheetSurfaceProps) {
+export function BottomSheetSurface({ analyticsId, children, className = '', dismissText, footer, headerAction, viewportAware = false, label, layerClassName = '', leading, navigation, onClose, open, size = 'default', title }: BottomSheetSurfaceProps) {
   const viewport = useVisibleViewport()
   const sheetRef = useRef<HTMLElement>(null)
   usePageScrollLock(open)
@@ -41,7 +42,7 @@ export function BottomSheetSurface({ children, className = '', dismissText, foot
   return (
     <div className={`hoho-bottom-sheet-layer ${layerClassName}`} role="presentation" style={viewportAware ? {top:viewport.top,height:viewport.height,bottom:'auto'} : undefined}>
       <button aria-label={`关闭${label}`} className="hoho-bottom-sheet-backdrop" onClick={onClose} type="button" />
-      <section aria-label={label} aria-modal="true" className={`hoho-bottom-sheet ${className}`} data-size={size} ref={sheetRef} role="dialog" tabIndex={-1}>
+      <section data-ha-surface={analyticsId} aria-label={label} aria-modal="true" className={`hoho-bottom-sheet ${className}`} data-size={size} ref={sheetRef} role="dialog" tabIndex={-1}>
         <div aria-hidden="true" className="hoho-bottom-sheet__handle" />
         <header className="hoho-bottom-sheet__header">
           <div className="hoho-bottom-sheet__title-group">{leading}<h2 className="hoho-text-section-title">{title}</h2></div>

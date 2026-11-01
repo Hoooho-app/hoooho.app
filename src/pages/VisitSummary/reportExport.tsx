@@ -1,3 +1,4 @@
+import {startNamedAnalyticsOperation,finishAnalyticsOperation} from '../../services/productAnalytics'
 import { readingCourseGroups, questionText, questionOrdinal } from './readingPresentation'
 import { currentSituationText, situationLineParts } from './currentSituationCopy'
 import { SituationDescription } from './SituationDescription'
@@ -102,7 +103,9 @@ export function reportHtml(report:VisitSheet,resources:ExportResources=emptyReso
   return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'none'; form-action 'none'; base-uri 'none'"><title>Hoooho 就诊情况单</title><style>${tokens}:root{--hoho-color-page-background:252 251 247;--hoho-color-background:242 241 234;--hoho-color-action:72 98 83;--hoho-color-action-hover:57 80 66;--hoho-color-action-active:44 64 52;--hoho-color-action-text:255 255 255}body{margin:0;background:white}*{box-sizing:border-box}${css}${chartCss}${medicationCss}</style></head><body>${body}${editable?`<script id="visit-copy-data" type="application/json">${json}</script><script>(${offlineRuntime.toString()})();</script>`:''}</body></html>`
 }
 export function downloadContent(content:string,filename:string,type:string) {
-  const url=URL.createObjectURL(new Blob([content],{type})),a=document.createElement('a');a.href=url;a.download=filename;a.click();setTimeout(()=>URL.revokeObjectURL(url),60000)
+  const attempt=startNamedAnalyticsOperation('download_requested')
+  try { const url=URL.createObjectURL(new Blob([content],{type})),a=document.createElement('a');a.href=url;a.download=filename;a.click();setTimeout(()=>URL.revokeObjectURL(url),60000);finishAnalyticsOperation(attempt,'success') }
+  catch(error){finishAnalyticsOperation(attempt,'failure');throw error}
 }
 // Immutable consultation snapshot. It never includes account IDs, tokens,
 // signed URLs or byte-less claims of offline media availability.

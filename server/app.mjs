@@ -1,4 +1,5 @@
 import { handleOpsEntry } from './ops/entry-shell.mjs'
+import { ProductAnalyticsService, readAnalyticsControls } from './analytics/service.mjs'
 import { FoodObservationService } from './food-observations/service.mjs'
 import { foodObservationRoute, foodObservationResult, observationSourceMutation, watchObservationMutation } from './food-observations/api.mjs'
 import { CareJourneyService } from './care-journey/service.mjs'
@@ -117,6 +118,15 @@ const ops = new OpsService({ ...sharedOptions, ...billingCollectors, collectorSt
 const stopOpsScheduler = startOpsScheduler(ops)
 const feedback = new FeedbackService(sharedOptions)
 const opsOverview = new OpsOverviewService({ ...sharedOptions, billing: ops, feedback })
+let productAnalytics
+try {
+  productAnalytics = new ProductAnalyticsService({ ...sharedOptions, secret: authConfig.tokenSecret,
+    controls: await readAnalyticsControls(staticDirectory), production: process.env.NODE_ENV === 'production' || Boolean(process.env.RAILWAY_ENVIRONMENT_ID), ownerEmail: authConfig.opsOwnerEmail })
+} catch {
+  console.warn('[Hoooho analytics] statistics storage unavailable; health services remain available')
+  const unavailable = () => { throw Object.assign(new Error('行为统计暂时不可用，请稍后重试'), { status: 503, code: 'ANALYTICS_UNAVAILABLE' }) }
+  productAnalytics = { ingest: unavailable, report: unavailable }
+}
 const productHelp = new HelpService(sharedOptions)
 const feedbackInterview = new FeedbackInterview(sharedOptions)
 const onlineConsultations = new OnlineConsultationService(sharedOptions)
@@ -255,6 +265,7 @@ async function handleOps(request, response, pathname) {
   assertOpsAccess(payload, { ownerEmail: authConfig.opsOwnerEmail })
   if (await handleCaptureApi({ request, response, pathname, readJson, send: sendJson, vault: captureWorker, ops, actorId: payload.sub })) return true
   if (pathname === '/api/ops/session' && request.method === 'GET') sendJson(response, 200, { authenticated: true, authorized: true, email: payload.email })
+  else if (pathname === '/api/ops/analytics' && request.method === 'GET') sendJson(response, 200, productAnalytics.report(new URL(request.url, 'http://localhost').searchParams))
   else if (pathname === '/api/ops/services' && request.method === 'GET') sendJson(response, 200, await opsWorkspace.services())
   else if (pathname === '/api/ops/versions' && request.method === 'GET') sendJson(response, 200, await opsWorkspace.versions())
   else if (pathname === '/api/ops/settings' && request.method === 'GET') sendJson(response, 200, await opsWorkspace.settings())
@@ -913,6 +924,17 @@ async function handleApi(request, response, pathname, searchParams) {
     })
     return true
   }
+  if (pathname === '/api/analytics/events') {
+    if (request.method !== 'POST') { sendJson(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: '仅支持POST' } }); return true }
+    browserSessions.assertSameOrigin(request)
+    let user = null
+    try {
+      const accountId = await readAccountId(request)
+      user = await auth.users.findById(accountId)
+    } catch (cause) { if (cause.status !== 401) throw cause }
+    sendJson(response, 200, productAnalytics.ingest(await readJson(request, 80000), user))
+    return true
+  }
   if (await handleAuth(request, response, pathname)) return true
   if (await handleOpsFeedback(request, response, pathname, searchParams)) return true
   if (await handleOps(request, response, pathname)) return true
@@ -1156,7 +1178,7 @@ async function handleRequest(request, response) {
     observeSessionRequest(request, response, pathname)
     const accessToken = /^Bearer\s+(.+)$/i.exec(request.headers.authorization ?? '')?.[1]
     const lockAccountId = accessToken ? tokens.verify(accessToken)?.sub : pathname.startsWith('/api/auth/') ? (await browserSessions.current(request))?.user.id : null
-    if (await withAccountLock(bypassAccountRequestLock(request.method,pathname)?null:lockAccountId, () => handleApi(request, response, pathname, url.searchParams))) return
+    if (await withAccountLock(pathname === '/api/analytics/events' || bypassAccountRequestLock(request.method,pathname)?null:lockAccountId, () => handleApi(request, response, pathname, url.searchParams))) return
     await handleStatic(request, response, pathname)
   } catch (error) {
     if(response.destroyed)return

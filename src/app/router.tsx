@@ -1,4 +1,5 @@
 import type { ComponentType } from 'react'
+import { AnalyticsPageView } from '../components/common/AnalyticsPageView'
 import { isProductPathVisible } from '../../shared/product-visibility.mjs'
 import { Navigate, createBrowserRouter, type RouteObject } from 'react-router-dom'
 import { installChildBodyHistory } from '../features/body-location/childBodyHistory'
@@ -12,7 +13,9 @@ function lazyPage(load: () => Promise<Record<string, unknown>>, exportName: stri
   return async () => {
     const module = await load()
     const Page = module[exportName] as ComponentType
-    return { Component: archive ? () => <ProfileSectionGate><Page /></ProfileSectionGate> : Page }
+    // These modules only redirect old URLs; they are not visited product screens.
+    if (/Redirect|RetiredIndexPage/.test(exportName) || ['CreateHealthEventPage', 'UsageGuidePage', 'HealthCalendarPage'].includes(exportName)) return { Component: Page }
+    return { Component: archive ? () => <ProfileSectionGate><AnalyticsPageView><Page /></AnalyticsPageView></ProfileSectionGate> : () => <AnalyticsPageView><Page /></AnalyticsPageView> }
   }
 }
 

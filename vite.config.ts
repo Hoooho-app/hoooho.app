@@ -1,4 +1,6 @@
 import { OPS_NAVIGATION_EXCLUSION } from './server/ops/entry-shell.mjs'
+import { analyticsInstrumentationPlugin } from './scripts/analytics-instrumentation.mjs'
+import { productAnalyticsApiPlugin } from './server/analytics/api.mjs'
 import { foodObservationApiPlugin } from './server/food-observations/api.mjs'
 import { careJourneyApiPlugin } from './server/care-journey/api.mjs'
 import { familySharingApiPlugin } from './server/family-sharing/api.mjs'
@@ -45,6 +47,8 @@ export default defineConfig({
     host: true
   },
   plugins: [
+    analyticsInstrumentationPlugin(),
+    productAnalyticsApiPlugin(),
     authApiPlugin(),
     foodObservationApiPlugin(),
     careJourneyApiPlugin({enabledProducts:['food-observation','growth-comparison','food-comparison','handoff-enhanced','medication-templates']}),

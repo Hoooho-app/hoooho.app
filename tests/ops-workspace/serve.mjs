@@ -1,3 +1,4 @@
+import { productAnalyticsApiPlugin } from '../../server/analytics/api.mjs'
 import { createServer } from 'vite'
 import { syntheticLogin, syntheticIframeLogin } from './capture-login.mjs'
 import { chromium } from 'playwright-core'
@@ -53,7 +54,7 @@ async function reset() {
 }
 await reset()
 const server = await createServer({ configFile: false, logLevel: 'error', server: { host: '127.0.0.1', port: 4217, strictPort: true }, plugins: [
-  react(),
+  react(), productAnalyticsApiPlugin(shared),
   { name: 'synthetic-no-service-worker', resolveId: id => id === 'virtual:pwa-register' ? '\0ops-pwa' : null, load: id => id === '\0ops-pwa' ? 'export function registerSW(){ return ()=>{} }' : null },
   { name: 'synthetic-fixtures-only', configureServer(server) { server.middlewares.use(async (request, response, next) => {
     if (!request.url?.startsWith('/__test/')) return next()

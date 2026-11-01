@@ -4,6 +4,8 @@ Hoooho V2 is quiet, trustworthy and information-first. Its product-owner-approve
 
 ## Foundations
 
+`BottomSheetSurface` 的可选 `analyticsId` 由构建期注入，透传为静态 `data-ha-surface`，用于记录症状、喂养、导出等弹层的可见回执。调用方的动态标题、成员姓名和正文不进入统计；此属性不改变视觉、焦点、开关或业务结果。
+
 - Brand: Hoooho Green `27 122 110` (`#1B7A6E`), Deep Teal `18 92 85`, Soft Mint `233 246 242`, Warm Clinical `245 248 246`, Ink `24 49 47` and Muted `82 105 102`.
 - Surfaces: page, primary, subtle and elevated roles; ordinary content uses borders instead of ubiquitous shadows.
 - Smart-record conversations and review cards opt into `--hoho-color-surface-white` over the existing paper page background. Other surfaces retain their existing roles.

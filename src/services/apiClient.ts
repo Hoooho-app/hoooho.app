@@ -1,4 +1,5 @@
 import { abortable } from './abortable'
+import { startAnalyticsOperation, finishAnalyticsOperation, completeAnalyticsRequest } from './productAnalytics'
 import { recoverSessionToken } from './sessionRecoveryCoordinator'
 import { useBrowserRecoveryState } from './browserRecoveryState'
 import type { AIUnverifiedPreview } from '../features/ai-business/AIResultPreview'
@@ -98,6 +99,14 @@ async function executeApiRequest<T>(path: string, options: ApiRequestOptions, ma
   return data as T
 }
 
-export function apiRequest<T>(path: string, options: ApiRequestOptions): Promise<T> {
-  return executeApiRequest<T>(path, options, true)
+export async function apiRequest<T>(path: string, options: ApiRequestOptions): Promise<T> {
+  const attempt = startAnalyticsOperation(path, options.method, options.body)
+  try {
+    const result = await executeApiRequest<T>(path, options, true)
+    completeAnalyticsRequest(attempt, result)
+    return result
+  } catch (cause) {
+    finishAnalyticsOperation(attempt, options.signal?.aborted ? 'cancel' : 'failure')
+    throw cause
+  }
 }

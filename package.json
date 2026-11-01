@@ -86,7 +86,9 @@
     "test:food-icons": "node scripts/check-dietary-food-icons.mjs",
     "test:family-gateway": "node --test server/family-project/*.test.mjs",
     "test:icons": "node scripts/check-material-icons.mjs",
-    "test:ops": "node --test server/ops/*.test.mjs server/help/feedback-service.test.mjs && node --import ./scripts/register-node-ts-loader.mjs --test src/pages/Ops/Feedback.contract.test.ts src/components/auth/RequireOpsAuth.contract.test.ts src/services/opsAuth.test.ts src/features/statistics/renderState.test.ts && playwright test --config tests/ops-workspace/playwright.config.ts"
+    "test:ops": "node --test server/ops/*.test.mjs server/help/feedback-service.test.mjs && node --import ./scripts/register-node-ts-loader.mjs --test src/pages/Ops/Feedback.contract.test.ts src/components/auth/RequireOpsAuth.contract.test.ts src/services/opsAuth.test.ts src/features/statistics/renderState.test.ts && playwright test --config tests/ops-workspace/playwright.config.ts",
+    "test:analytics": "node --test server/analytics/*.test.mjs",
+    "test:e2e:analytics": "npm run build && playwright test --config tests/product-analytics/playwright.config.ts"
   },
   "dependencies": {
     "@napi-rs/canvas": "0.1.100",
