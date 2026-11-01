@@ -79,6 +79,28 @@ test('isolated authorization requires consent, handles stale page actions, persi
   const restarted=await new BillingBrowserWorker({directory,launchFactory,storageKey:'b'.repeat(64)}).init();t.after(()=>restarted.close());assert.equal((await restarted.capture('railway')).facts.balance,12.5)
 })
 
+test('Aliyun modern cost homepage can be verified, saved and reread while login and unrelated hosts stay excluded',async t=>{
+  const directory=await fixture(t)
+  const home='https://billing-cost.console.aliyun.com/home'
+  const launchFactory=async dir=>{const context=await chromium.launchPersistentContext(dir,{headless:true,viewport:{width:1280,height:800},args:['--no-sandbox']});await context.route('https://**.aliyun.com/**',route=>route.fulfill({contentType:'text/html',body:route.request().url()===home?bill.replaceAll('USD','CNY'):'<main><label>Account</label><input aria-label="Account"/><button>Log in</button></main>'}));return context}
+  const worker=await new BillingBrowserWorker({directory,launchFactory,storageKey:'c'.repeat(64)}).init();t.after(()=>worker.close())
+  assert.equal(allowedBillingUrl('aliyun',home),true)
+  for(const url of ['http://billing-cost.console.aliyun.com/home','https://billing-cost.console.aliyun.com.evil.test/home','https://other.console.aliyun.com/home','https://user:secret@billing-cost.console.aliyun.com/home','https://billing-cost.console.aliyun.com:8443/home'])assert.equal(allowedBillingUrl('aliyun',url),false)
+  assert.equal(allowedBillingUrl('railway',home),false)
+  let session=await worker.start({sourceId:'aliyun',actor,consent:true});assert.equal(session.url,home)
+  const closedId=session.id;await worker.lease.page.close();session=await worker.start({sourceId:'aliyun',actor,consent:true});assert.notEqual(session.id,closedId);assert.equal(session.url,home)
+  assert.equal((await worker.probe()).verified,true);assert.equal((await worker.state(session.id)).id,session.id)
+  await worker.context.close();await assert.rejects(worker.state(session.id),e=>e.code==='CAPTURE_SESSION_ENDED');await assert.rejects(worker.probe(),e=>e.code==='CAPTURE_ENGINE_UNAVAILABLE');session=await worker.start({sourceId:'aliyun',actor,consent:true});assert.equal(session.url,home)
+  const login=await worker.action(session.id,{action:'navigate',url:'https://account.aliyun.com/login/login.htm',epoch:session.epoch})
+  await assert.rejects(worker.analyze(session.id,{currency:'CNY'}),/请先完成登录/)
+  await worker.action(session.id,{action:'navigate',url:home,epoch:login.epoch})
+  const inspected=await worker.analyze(session.id,{currency:'CNY'})
+  assert.equal(inspected.analysis.candidates.find(c=>c.key==='balance').parsed.currency,'CNY')
+  await worker.commit(session.id,{version:inspected.analysis.version,fields:['balance','currentCost'],privacyConfirmed:true})
+  const result=await worker.capture('aliyun')
+  assert.equal(result.facts.balance,12.5);assert.equal(result.facts.currency,'CNY');assert.equal(result.facts.metrics.currentCost.value,4.25)
+})
+
 test('private capture HTTP boundary exposes no profiles or images without its server credential',async t=>{
   const { createBillingBrowserServer }=await import('../../ops-browser-worker/http-server.mjs')
   const secret='synthetic-private-capture-token-00000000000000000'
