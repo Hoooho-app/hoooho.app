@@ -25,8 +25,15 @@
 - [原生CI #39](https://github.com/Hoooho-app/hoooho.app/actions/runs/41361565555) 已成功：current与oldest两套iOS各20项单元、4项UI测试通过，current设备归档成功。失败→显示真实编号→本人重试→本地WebKit夹具恢复是合成案例，不是真机Production恢复证明。
 - 原生CI对该精确main提交成功后，仅手动触发一次[上传 #10](https://github.com/Hoooho-app/hoooho.app/actions/runs/41362589116)，attempt1，精确源码仍为上述提交。任务及签名清理均SUCCESS。
 - Apple版本`0.1.0`、构建`1.10.1`：07:33:46上传成功，07:35:49完成processing。日志分别确认`Successfully uploaded the new binary`与`Successfully finished processing the build 0.1.0 - 1.10.1 for IOS`。
-- 分发状态：BLOCKED。当前App Store Connect停在登录页并显示身份核验失败，已交还本人恢复登录；未核验此新包合规状态、What to Test、原内部组「护护首轮内测」分配或TestFlight可更新状态。不使用其他会话绕过登录，不新增组/测试者，不提交正式App Store审核，不重复上传。
+- 07:35时分发状态：BLOCKED。App Store Connect停在登录页并显示身份核验失败，已交还本人恢复登录；当时未核验此新包合规状态、What to Test、原内部组「护护首轮内测」分配或TestFlight可更新状态。不使用其他会话绕过登录，不新增组/测试者，不提交正式App Store审核，不重复上传。此登录阻塞已在下方后续分发回执解除。
 - 手机启动问题仍未解决、根因未确定。本人恢复Apple后台登录后，继续处理同一个`0.1.0 (1.10.1)`并加入既有内部组；手机通过TestFlight原位更新，保留已有资料。只有本人实体设备成功进入护护才确认恢复；若仍失败，使用新版页面展示的受控系统错误编号继续排查。
 
-### 待登录后使用的 What to Test 草稿
+### 已保存的 What to Test
 本版调整启动失败后的重新连接，并显示版本、固定启动地址和系统错误编号。请原位更新后打开护护，确认能进入原页面；如仍失败，请截图错误详情，再尝试重新连接。保留登录和本机资料，不需要卸载。设置、Safari检查和复制诊断只在本人点击时执行。
+
+## 登录恢复后的实际分发（08:07核验）
+- 本人回复「已登录」后复用同一Chrome的App Store Connect会话，继续处理同一`0.1.0 (1.10.1)`，未重新构建或上传。
+- 构建页保存简体中文What to Test，出现Saved。核对原生源码仅Apple系统框架/WKWebView/HTTPS、无独立加密实现或加密依赖后，按现有原生分类在App Encryption Documentation保存`None of the algorithms mentioned above`；[Apple官方说明](https://developer.apple.com/help/app-store-connect/reference/app-information/export-compliance-documentation-for-encryption)确认仅使用Apple操作系统内加密无需上传文档。Missing Compliance已解除，没有接受新版开发者协议或提交App Store正式审核。
+- 只把新构建加入既有内部组「护护首轮内测」及其原1名测试者，组内Builds页的`0.1.0 (1.10.1)`状态为Testing、有效期90天。原组已有版本保留，未新增组/测试者/外部邀请或扩大账号权限。
+- 新观察纠正安装版本假设：此次已登录后台的原测试者状态仍记录`Installed 0.1.0 (1.7.1)`，旧`1.9.1`则仍Missing Compliance、没有测试组。此前按用户回答将1.9.1当作已安装事实的判断缺少Apple分发回执支持，不再据此排除旧包访问暂停域名的可能；后台状态也不能替代用户设备即时版本确认。
+- TestFlight分发完成，实体iPhone更新、打开页面及启动故障根因仍待本人实际验证。手机应原位更新到`0.1.0 (1.10.1)`，不卸载；若仍失败，提供新版错误页面显示的系统编号后再定位。不把Testing状态冒称真机启动已恢复。
