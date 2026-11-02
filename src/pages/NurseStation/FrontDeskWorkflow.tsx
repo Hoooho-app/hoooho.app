@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 import { HohoProgress } from '../../components/design-system'
-import { ArrowDown, Check, CircleCheck, FileText, MessageCircle, Mic } from '../../components/icons'
+import { ArrowDown, Check, Copy, Download, FileText, MessageCircle, Mic } from '../../components/icons'
 import symptomArm from '../../assets/nurse-triage/symptom-arm-20261102.webp'
 import nursePortrait from '../../assets/nurse-triage/front-desk-nurse-glasses-20261030.webp'
 import './frontDeskWorkflow.css'
 
-const steps = ['出现症状', '说出孩子的情况', '护护帮你问清楚', '确认并保存记录', '整理成完整情况']
-const durations = [3400, 4500, 4100, 5200, 6500]
+const steps = ['出现症状', '说出孩子的情况', '护护帮你问清楚', '确认并保存记录', '整理成完整情况', '保存导出，交给他人或AI']
+const durations = [3400, 4500, 4100, 5200, 6500, 5600]
 const transcript = '她今天下午手臂起了个小红包，有点痒。'
 const motionQuery = '(prefers-reduced-motion: reduce)'
 
@@ -101,7 +101,7 @@ export function FrontDeskWorkflow() {
     return () => window.clearInterval(timer)
   }, [blocked, paused, reduced])
 
-  const step = reduced ? 4 : playbackStep
+  const step = reduced ? steps.length - 1 : playbackStep
   const playing = !reduced && !paused && !blocked
   const saved = step === 3 && elapsed >= 3800
   return <article ref={root} className="front-desk-welcome__entry front-desk-workflow" aria-label="怎么用护护：虚构情景示意" aria-description="自动循环；鼠标悬停或键盘聚焦可暂停阅读" tabIndex={0} data-step={step} data-playing={playing}
@@ -137,14 +137,25 @@ export function FrontDeskWorkflow() {
         </div>
       </div>
       <div className="front-desk-workflow__scene" role="group" aria-label={steps[4]} hidden={step !== 4}>
-        <Origin icon={<CircleCheck size={14} aria-hidden="true"/>}>补充后，一次说清</Origin>
-        <div className="front-desk-workflow__panel front-desk-workflow__summary front-desk-workflow__arrival">
-          <div className="front-desk-workflow__summary-title"><FileText size={15} aria-hidden="true"/><strong>完整情况单</strong></div>
-          <p>下午，左前臂起红包、痒。</p>
-          <div className="front-desk-workflow__summary-update"><span>傍晚补充</span><p>未增多，未处理。</p></div>
+        <div className="front-desk-workflow__panel front-desk-workflow__summary front-desk-workflow__arrival" aria-label="情况单页面结构">
+          <div className="front-desk-workflow__summary-title"><FileText size={15} aria-hidden="true"/><strong>就诊情况单</strong></div>
+          <div className="front-desk-workflow__identity"><span>孩子信息</span><strong>女儿 · 2岁</strong></div>
+          <ol className="front-desk-workflow__outline" aria-label="情况单栏目">
+            {['目前情况', '相关经过与处理', '完整资料档案', '本次想问'].map((title, index) => <li key={title} style={{ '--row-delay': `${900 + index * 450}ms` } as CSSProperties}><span>{index === 1 ? <>相关经过<wbr/>与处理</> : title}</span></li>)}
+          </ol>
+        </div>
+      </div>
+      <div className="front-desk-workflow__scene" role="group" aria-label={steps[5]} hidden={step !== 5}>
+        <div className="front-desk-workflow__panel front-desk-workflow__export-file front-desk-workflow__arrival">
+          <FileText size={25} aria-hidden="true"/><strong>情况单已整理</strong><span>保存 · 导出</span>
+        </div>
+        <div className="front-desk-workflow__connector" aria-hidden="true"><ArrowDown size={14}/></div>
+        <div className="front-desk-workflow__handoffs">
+          <div className="front-desk-workflow__handoff" style={{ '--row-delay': '1100ms' } as CSSProperties}><div><Download size={15} aria-hidden="true"/><strong>保存情况单</strong></div><span>给家人、医生看</span></div>
+          <div className="front-desk-workflow__handoff" style={{ '--row-delay': '2100ms' } as CSSProperties}><div><Copy size={15} aria-hidden="true"/><strong>复制给 AI</strong></div><span>带着资料提问</span></div>
         </div>
       </div>
     </div>
-    <HohoProgress className="front-desk-workflow__progress" segmented max={5} value={reduced ? 5 : step + elapsed / durations[step]} label={`虚构使用情景，第${step + 1}步，共5步`}/>
+    <HohoProgress className="front-desk-workflow__progress" segmented max={steps.length} value={reduced ? steps.length : step + elapsed / durations[step]} label={`虚构使用情景，第${step + 1}步，共${steps.length}步`}/>
   </article>
 }
