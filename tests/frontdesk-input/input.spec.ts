@@ -16,49 +16,77 @@ async function type(page:Page,text:string){await page.getByRole('button',{name:'
 async function record(page:Page){await page.getByRole('button',{name:'按住记录症状',exact:true}).focus();await page.keyboard.down('Space');await expect(page.getByRole('button',{name:'正在录音，松开即结束',exact:true})).toBeVisible();await page.waitForTimeout(800)}
 async function home(page:Page){await page.getByRole('navigation',{name:'主要导航'}).getByRole('button',{name:'症状记录',exact:true}).click();await expect(page.locator('.hoho-dialogue-composer')).toBeVisible()}
 
-test('live speech uses a readable bubble above recording feedback and cancels without sending',async({page},info)=>{
+test('live speech occupies the latest timeline bubble behind lowered translucent feedback',async({page},info)=>{
+  await type(page,'孩子今天手背有点红。'.repeat(50));await page.getByRole('button',{name:'发送',exact:true}).click()
+  await expect(page.locator('.nurse-turn--assistant').last()).toBeVisible()
+  await page.getByRole('button',{name:'改用语音',exact:true}).click()
   let text='',revision=1,submitted=0
   page.on('request',request=>{if(request.method()==='POST'&&request.url().endsWith('/recognition-jobs'))submitted++})
   await page.unroute('**/api/ai/audio/live**')
   await page.route('**/api/ai/audio/live',route=>route.fulfill({json:{id:'preview-test',state:'listening',text:'',revision:1,sequence:0}}))
   await page.route('**/api/ai/audio/live/*',route=>route.fulfill({json:{id:'preview-test',state:route.request().method()==='DELETE'?'closed':'listening',text,revision,sequence:0}}))
-  const hold=page.getByRole('button',{name:'按住记录症状',exact:true})
+  const hold=page.getByRole('button',{name:'按住记录症状',exact:true}),history=await page.locator('.nurse-turn--user').count()
   const rect=(await hold.boundingBox())!
   await page.mouse.move(rect.x+rect.width/2,rect.y+rect.height/2);await page.mouse.down()
-  const feedback=page.locator('.hoho-hold-feedback'),preview=page.getByLabel('正在说的话',{exact:true})
-  await expect(preview).toBeVisible()
-  text='孩子今天有点咳嗽';revision++
-  await expect(preview.locator('p')).toHaveText(text)
-  text='孩子今天咳了两声，现在精神还好';revision++
-  await expect(preview.locator('p')).toHaveText(text)
-  await expect(feedback).not.toContainText('正在录音')
+  const feedback=page.locator('.hoho-hold-feedback'),preview=page.locator('.front-desk-live-voice'),copy=preview.getByLabel('正在说的话',{exact:true}),body=page.locator('.smart-record-page__body')
+  await expect(preview).toBeVisible();await expect(copy).toHaveText('')
+  await expect(page.locator('.hoho-dialogue-composer')).toHaveCSS('opacity','0')
+  await expect(feedback.locator('.hoho-hold-feedback__transcript')).toHaveCount(0)
+  expect(await preview.evaluate(e=>e.parentElement?.lastElementChild===e)).toBe(true)
+  expect(await preview.evaluate(e=>!!e.closest('.smart-record-page__body'))).toBe(true)
+  const node=await preview.elementHandle()
+  text='孩子今天有点咳嗽';revision++;await expect(copy).toHaveText(text)
+  text='孩子今天咳了两声，现在精神还好';revision++;await expect(copy).toHaveText(text)
+  expect(await node!.evaluate(e=>e.isConnected)).toBe(true)
+  await expect(feedback).not.toContainText('正在录音');await expect(feedback).not.toContainText('正在听你说')
   await expect(page.locator('.hoho-hold-feedback__time')).toContainText(/0:0[1-9]/)
-  expect(await preview.evaluate(e=>({background:getComputedStyle(e).backgroundColor,color:getComputedStyle(e).color}))).toEqual({background:'rgb(255, 255, 255)',color:'rgb(39, 51, 50)'})
-  const bubble=(await preview.boundingBox())!,wave=(await feedback.locator('.hoho-hold-feedback__wave').boundingBox())!
-  expect(bubble.y+bubble.height).toBeLessThan(wave.y)
-  await page.screenshot({path:info.outputPath('live-speech-white-bubble.png')})
-  await page.mouse.move(rect.x+rect.width/2,rect.y-80)
-  await expect(preview).toHaveCount(0);await expect(feedback).toContainText('松开取消')
-  await page.mouse.move(rect.x+rect.width/2,rect.y+rect.height/2)
-  await expect(preview.locator('p')).toHaveText(text)
-  text='孩子今天有点咳嗽。'.repeat(100)+'a'.repeat(150);revision++
-  await expect(preview.locator('p')).toHaveText(text)
-  for(const width of [320,375,430]){
-    await page.setViewportSize({width,height:667})
+  expect(await preview.locator('.nurse-turn-content').evaluate(e=>({background:getComputedStyle(e).backgroundColor,color:getComputedStyle(e).color}))).toEqual({background:'rgb(255, 255, 255)',color:'rgb(39, 51, 50)'})
+  for(const size of [{width:320,height:568},{width:375,height:667},{width:390,height:844},{width:430,height:932}]){
+    await page.setViewportSize(size)
+    await expect.poll(async()=>{const bubble=(await preview.boundingBox())!,controls=(await feedback.locator('.hoho-hold-feedback__status').boundingBox())!;return bubble.y+bubble.height<=controls.y}).toBe(true)
     const bounds=(await preview.boundingBox())!
-    expect(bounds.x).toBeGreaterThanOrEqual(0);expect(bounds.x+bounds.width).toBeLessThanOrEqual(width)
-    expect(bounds.y).toBeGreaterThanOrEqual(0)
+    expect(bounds.x).toBeGreaterThanOrEqual(0);expect(bounds.x+bounds.width).toBeLessThanOrEqual(size.width)
     expect(await preview.evaluate(e=>e.scrollWidth<=e.clientWidth)).toBe(true)
-    await expect.poll(()=>preview.locator('p').evaluate(e=>e.scrollTop+e.clientHeight>=e.scrollHeight-1)).toBe(true)
+    await page.screenshot({path:info.outputPath(`timeline-live-${size.width}.png`)})
   }
+  await page.mouse.move(100,0);await expect(feedback).toContainText('松开取消')
+  await expect(copy).toHaveText(text)
+  await page.mouse.move(rect.x+rect.width/2,rect.y+rect.height/2);await expect(feedback).not.toContainText('松开取消')
+  text='孩子今天有点咳嗽。'.repeat(100)+'a'.repeat(150);revision++;await expect(copy).toHaveText(text)
+  await expect.poll(()=>body.evaluate(e=>e.scrollTop+e.clientHeight>=e.scrollHeight-2)).toBe(true)
   await page.mouse.move(100,0);await expect(feedback).toContainText('松开取消');await page.mouse.up()
-  await expect(feedback).toHaveCount(0);expect(submitted).toBe(0)
-  await expect(page.locator('.nurse-turn--user')).toHaveCount(0)
+  await expect(feedback).toHaveCount(0);await expect(preview).toHaveCount(0)
+  await expect(page.locator('.hoho-dialogue-composer')).toHaveCSS('opacity','1')
+  await expect(page.locator('.nurse-turn--user')).toHaveCount(history);expect(submitted).toBe(0)
   text='';revision++
-  await hold.focus();await page.keyboard.down('Space');await expect(preview).toBeVisible()
-  await expect(preview.locator('p')).toHaveText('…')
+  await hold.focus();await page.keyboard.down('Space');await expect(preview).toBeVisible();await expect(copy).toHaveText('')
   await page.keyboard.press('Escape');await page.keyboard.up('Space')
-  await expect(feedback).toHaveCount(0);expect(submitted).toBe(0)
+  await expect(feedback).toHaveCount(0);await expect(preview).toHaveCount(0);expect(submitted).toBe(0)
+})
+
+test('releasing live text continues as one pending message until authoritative final transcription',async({page,request})=>{
+  const partial='孩子今天咳嗽',final='孩子今天咳了两声，现在精神还好。'
+  await page.unroute('**/api/ai/audio/live**')
+  await page.route('**/api/ai/audio/live',route=>route.fulfill({json:{id:'release-test',state:'listening',text:'',revision:1,sequence:0}}))
+  await page.route('**/api/ai/audio/live/*',route=>route.fulfill({json:{id:'release-test',state:route.request().method()==='DELETE'?'closed':'listening',text:partial,revision:2,sequence:0}}))
+  await request.get(`${control}/voice?text=${encodeURIComponent(final)}`);await request.get(`${control}/delay?ms=1600`)
+  await record(page);await expect(page.locator('.front-desk-live-voice p')).toHaveText(partial)
+  await page.keyboard.up('Space')
+  await expect(page.locator('.front-desk-live-voice')).toHaveCount(0)
+  await expect(page.locator('.nurse-turn--user')).toHaveCount(1)
+  await expect(page.locator('.nurse-turn--user p')).toHaveText(partial)
+  await expect(page.locator('.nurse-turn--user p')).toHaveText(final,{timeout:30000})
+  await expect(page.locator('.nurse-turn--user')).toHaveCount(1)
+})
+
+test('empty home recording temporarily shows a timeline bubble; cancelling restores welcome without history',async({page})=>{
+  await expect(page.getByRole('region',{name:'记录介绍',exact:true})).toBeVisible()
+  await record(page)
+  await expect(page.locator('.front-desk-live-voice')).toBeVisible()
+  await expect(page.getByRole('region',{name:'记录介绍',exact:true})).not.toBeVisible()
+  await page.keyboard.press('Escape');await page.keyboard.up('Space')
+  await expect(page.locator('.nurse-turn--user')).toHaveCount(0)
+  await expect(page.getByRole('region',{name:'记录介绍',exact:true})).toBeVisible()
 })
 
 test('unsent input switches without a prompt, appears in the sidebar and reopens without being sent',async({page,request},info)=>{
