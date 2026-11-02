@@ -83,7 +83,7 @@ test('empty home recording temporarily shows a timeline bubble; cancelling resto
   await expect(page.getByRole('region',{name:'记录介绍',exact:true})).toBeVisible()
   await record(page)
   await expect(page.locator('.front-desk-live-voice')).toBeVisible()
-  await expect(page.getByRole('region',{name:'记录介绍',exact:true})).toHaveCount(0)
+  await expect(page.getByRole('region',{name:'记录介绍',exact:true})).not.toBeVisible()
   await page.keyboard.press('Escape');await page.keyboard.up('Space')
   await expect(page.locator('.nurse-turn--user')).toHaveCount(0)
   await expect(page.getByRole('region',{name:'记录介绍',exact:true})).toBeVisible()

@@ -35,6 +35,7 @@
 .front-desk-notice{font-size:var(--hoho-font-size-caption);color:rgb(var(--hoho-color-text-secondary));margin-bottom:var(--hoho-space-4)}
 .smart-record-home .nurse-conversation{display:grid;gap:var(--hoho-space-4)}
 .front-desk-live-voice{min-width:0}
+.smart-record-home .smart-record-page__body:has(.front-desk-live-voice) .front-desk-welcome{display:none}
 .smart-record-home .hoho-dialogue-composer:has(.hoho-dialogue-hold.is-listening){opacity:0}
 .front-desk-live-placeholder{display:inline-flex;align-items:center;gap:var(--hoho-space-1);height:24px;min-width:32px;color:rgb(var(--hoho-color-text-secondary))}
 .front-desk-live-placeholder>span{width:4px;height:4px;border-radius:var(--hoho-radius-pill);background:currentColor;animation:front-desk-live-dot 1.2s ease-in-out infinite}
