@@ -19,3 +19,11 @@
 - 喂养直接入口的草稿/分类/计时暂停/刷新及母乳保存→历史查看→同ID修改/清空症状2/2回归通过，使用本地隔离合成数据。
 - 窄屏和宽屏截图已实际查看。相关旧测试仅同步新入口和文案预期，不降低原有行为断言。
 - 浏览器为Chromium手机仿真；没有把仿真当作实体iPhone验收。发布后继续回读实际部署和资源，不在生产账号写健康测试数据。
+
+
+## Production发布回执
+
+- 源码提交 `9a9318d1448cd2603d4b925a78a07f97826d62c1` 已进入main；保留并发提交 `7c0787d` 的对话/说明文字规则。GitHub创建的完整tree与本地已验证source tree一致；未覆盖其他工作。
+- Railway Production部署 `ca445e7b-1f02-4658-9add-13e303866595` 于2026-11-03 05:48（北京时间）为SUCCESS。未创建Staging或上传新原生包。
+- 临时生产入口 `https://hooohoapp-production.up.railway.app/nurse-station` 与健康接口返回200/status:ok。入口脚本 `/assets/index-DKlkIKEU.js` 引用 `JournalRecordDetail-DQG7hS8m.js` 及 `JournalRecordDetail-pWGcwvsF.css`，六项新名称及横向滚动样式均已回读确认；模块去除依赖文件名hash后与本地验证构建一致。
+- 线上验证只读部署与发布资源；六入口交互、返回、草稿及保存回归在本地隔离合成数据中验证，未写生产健康测试记录。实体iPhone与产品主人验收未执行。
