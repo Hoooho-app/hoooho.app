@@ -125,7 +125,7 @@
 
   --hoho-shadow-none: none;
   --hoho-shadow-card: inset 0 1px 0 rgb(255 255 255 / .95), 0 2px 4px rgb(39 51 50 / .065), 0 12px 30px rgb(39 51 50 / .11);
-  --hoho-shadow-inset: inset 0 2px 5px rgb(var(--hoho-color-ink) / .13), inset 0 -1px 0 rgb(var(--hoho-color-surface-white) / .7);
+  --hoho-shadow-inset: inset 0 3px 8px rgb(var(--hoho-color-ink) / .18), inset 0 -1px 0 rgb(var(--hoho-color-surface-white) / .9);
   --hoho-shadow-soft: var(--hoho-shadow-card);
   --hoho-shadow-floating: 0 14px 40px rgb(18 92 85 / .12);
   --hoho-shadow-overlay: 0 28px 72px rgb(18 49 47 / .18);
