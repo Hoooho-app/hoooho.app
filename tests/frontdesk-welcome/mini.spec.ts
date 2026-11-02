@@ -57,7 +57,7 @@ test('home fills available height with full images clear of copy and composer', 
 
 test('keyboard classifications and larger copy remain reachable without cropping content', async ({ page }, info) => {
   await page.getByRole('button', { name: '改用文字', exact: true }).click()
-  await expect(page.locator('.record-entry-actions--conversation .record-entry-grid button')).toHaveCount(4)
+  await expect(page.locator('.record-entry-actions--conversation .record-entry-grid button')).toHaveCount(6)
   await page.getByLabel('对话输入', { exact: true }).fill('这段还没有发送')
   await expect(page.locator('.front-desk-welcome--editorial')).toBeVisible()
   await page.addStyleTag({ content: '.front-desk-welcome__copy p {font-size:18px!important}' })

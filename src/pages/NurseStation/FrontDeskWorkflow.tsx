@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
-import type { CSSProperties, ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import type { CSSProperties } from 'react'
 import { HohoProgress } from '../../components/design-system'
-import { ArrowDown, Check, Copy, Download, FileText, MessageCircle, Mic } from '../../components/icons'
+import { ArrowDown, Check, Copy, Download, FileText, Mic } from '../../components/icons'
 import symptomArm from '../../assets/nurse-triage/symptom-arm-20261102.webp'
 import nursePortrait from '../../assets/nurse-triage/front-desk-nurse-glasses-20261030.webp'
 import './frontDeskWorkflow.css'
@@ -11,19 +11,28 @@ const durations = [3400, 4500, 4100, 5200, 6500, 5600]
 const transcript = '她今天下午手臂起了个小红包，有点痒。'
 const motionQuery = '(prefers-reduced-motion: reduce)'
 
-function Origin({ children, icon }: { children: ReactNode; icon: ReactNode }) {
-  return <><div className="front-desk-workflow__origin">{icon}<span>{children}</span></div><div className="front-desk-workflow__connector" aria-hidden="true"><ArrowDown size={14}/></div></>
-}
-
 /** Illustrates the existing recording flow; never sends example data or claims rewards. */
 export function FrontDeskWorkflow() {
   const root = useRef<HTMLElement>(null)
-  const [{ step: playbackStep, elapsed }, setPlayback] = useState({ step: 0, elapsed: 0 })
+  const [{ step: playbackStep, elapsed, cycle }, setPlayback] = useState({ step: 0, elapsed: 0, cycle: 0 })
+  const [heights, setHeights] = useState<number[]>([])
   const [hovered, setHovered] = useState(false)
   const [focused, setFocused] = useState(false)
   const paused = hovered || focused
   const [blocked, setBlocked] = useState(true)
   const [reduced, setReduced] = useState(() => matchMedia(motionQuery).matches)
+
+  useLayoutEffect(() => {
+    const scenes = [...root.current!.querySelectorAll<HTMLElement>('.front-desk-workflow__scene')]
+    const measure = () => {
+      const next = scenes.map(scene => scene.offsetHeight)
+      setHeights(previous => next.every((height, index) => height === previous[index]) ? previous : next)
+    }
+    const observer = new ResizeObserver(measure)
+    scenes.forEach(scene => observer.observe(scene))
+    measure()
+    return () => observer.disconnect()
+  }, [])
 
   useEffect(() => {
     const media = matchMedia(motionQuery)
@@ -94,8 +103,8 @@ export function FrontDeskWorkflow() {
         const elapsed = previous.elapsed + delta
         if (elapsed < durations[previous.step]) return { ...previous, elapsed }
         return previous.step === steps.length - 1
-          ? { step: 0, elapsed: 0 }
-          : { step: previous.step + 1, elapsed: 0 }
+          ? { step: 0, elapsed: 0, cycle: previous.cycle + 1 }
+          : { ...previous, step: previous.step + 1, elapsed: 0 }
       })
     }, 100)
     return () => window.clearInterval(timer)
@@ -103,57 +112,64 @@ export function FrontDeskWorkflow() {
 
   const step = reduced ? steps.length - 1 : playbackStep
   const playing = !reduced && !paused && !blocked
-  const saved = step === 3 && elapsed >= 3800
+  const saved = step !== 3 || elapsed >= 3800
+  const previous = !reduced && (step > 0 || cycle > 0) ? (step + steps.length - 1) % steps.length : -1
+  const sceneProps = (index: number) => ({
+    'data-state': index === step ? 'current' : index === previous ? 'previous' : 'outside',
+    'aria-hidden': index !== step,
+  })
+  const travel = ((heights[step] ?? 0) + (heights[previous] ?? 0)) / 2
   return <article ref={root} className="front-desk-welcome__entry front-desk-workflow" aria-label="怎么用护护：虚构情景示意" aria-description="自动循环；鼠标悬停或键盘聚焦可暂停阅读" tabIndex={0} data-step={step} data-playing={playing}
+    data-motion={reduced ? 'reduced' : 'scroll'} style={{ '--workflow-travel': `${travel}px`, '--workflow-min-height': `${Math.max(248, ...heights)}px` } as CSSProperties}
     onPointerEnter={event => { if (event.pointerType === 'mouse') setHovered(true) }} onPointerLeave={() => setHovered(false)}
     onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}>
     <div className="front-desk-workflow__stage" aria-label="虚构情景演示，不代表实际记录">
-      <div className="front-desk-workflow__scene" role="group" aria-label={steps[0]} hidden={step !== 0}>
+      <div className="front-desk-workflow__scene" role="group" aria-label={steps[0]} {...sceneProps(0)}>
         <div className="front-desk-workflow__panel front-desk-workflow__case">
           <img src={symptomArm} alt="小手臂上起了一个小红包" width={600} height={400}/>
           <strong>出现症状</strong>
         </div>
-        <span className="front-desk-workflow__case-next"><ArrowDown size={14} aria-hidden="true"/>直接跟护护说</span>
+        <div className="front-desk-workflow__connector" aria-hidden="true"><ArrowDown size={14}/></div>
       </div>
-      <div className="front-desk-workflow__scene" role="group" aria-label={steps[1]} hidden={step !== 1}>
-        <Origin icon={<MessageCircle size={14} aria-hidden="true"/>}>下午起了小红包</Origin>
-        <div className="front-desk-workflow__panel front-desk-workflow__voice front-desk-workflow__arrival">
+      <div className="front-desk-workflow__scene" role="group" aria-label={steps[1]} {...sceneProps(1)}>
+        <div className="front-desk-workflow__panel front-desk-workflow__voice">
           <div className="front-desk-workflow__microphone"><Mic size={14} aria-hidden="true"/><span>你说</span></div>
           <div className="front-desk-workflow__wave" aria-hidden="true">{[9, 17, 25, 15, 30, 21, 34, 24, 14, 26, 18, 10].map((height, index) => <span key={index} style={{ '--wave-height': `${height}px`, '--wave-delay': `${index * 55}ms` } as CSSProperties}/>)}</div>
           <p aria-label={transcript}>{Array.from(transcript).map((character, index) => <span key={index} aria-hidden="true" style={{ '--character-delay': `${850 + index * 95}ms` } as CSSProperties}>{character}</span>)}</p>
         </div>
+        <div className="front-desk-workflow__connector" aria-hidden="true"><ArrowDown size={14}/></div>
       </div>
-      <div className="front-desk-workflow__scene" role="group" aria-label={steps[2]} hidden={step !== 2}>
-        <Origin icon={<MessageCircle size={14} aria-hidden="true"/>}>手臂起红包，有点痒</Origin>
-        <div className="front-desk-workflow__reply front-desk-workflow__arrival"><div className="front-desk-workflow__nurse"><img src={nursePortrait} alt="护护记录员" width={480} height={786}/><span>护护</span></div><p>具体起在手臂哪里？</p></div>
-        <div className="front-desk-workflow__panel front-desk-workflow__answer"><span>你补充</span><strong>左前臂</strong></div>
+      <div className="front-desk-workflow__scene" role="group" aria-label={steps[2]} {...sceneProps(2)}>
+        <div className="front-desk-workflow__panel front-desk-workflow__reply"><div className="front-desk-workflow__nurse"><img src={nursePortrait} alt="护护记录员" width={480} height={786}/><span>护护</span></div><p>具体起在手臂哪里？</p><div className="front-desk-workflow__answer"><span>你补充</span><strong>左前臂</strong></div></div>
+        <div className="front-desk-workflow__connector" aria-hidden="true"><ArrowDown size={14}/></div>
       </div>
-      <div className="front-desk-workflow__scene" role="group" aria-label={steps[3]} hidden={step !== 3} data-saved={saved}>
-        <Origin icon={<FileText size={14} aria-hidden="true"/>}>整理成记录单</Origin>
-        <div className="front-desk-workflow__panel front-desk-workflow__record front-desk-workflow__arrival">
+      <div className="front-desk-workflow__scene" role="group" aria-label={steps[3]} {...sceneProps(3)} data-saved={saved}>
+        <div className="front-desk-workflow__panel front-desk-workflow__record">
           <div className="front-desk-workflow__record-head">记录单<span>{saved ? '已保存' : '待核对'}</span></div>
           <dl>{[['时间', '今天下午'], ['部位', '左前臂'], ['表现', '小红包、痒']].map(([label, value], index) => <div key={label} style={{ '--row-delay': `${1000 + index * 350}ms` } as CSSProperties}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
           <div className="front-desk-workflow__save" aria-hidden="true">{saved ? <><Check size={14}/>已保存</> : '确认并保存'}</div>
         </div>
+        <div className="front-desk-workflow__connector" aria-hidden="true"><ArrowDown size={14}/></div>
       </div>
-      <div className="front-desk-workflow__scene" role="group" aria-label={steps[4]} hidden={step !== 4}>
-        <div className="front-desk-workflow__panel front-desk-workflow__summary front-desk-workflow__arrival" aria-label="情况单页面结构">
+      <div className="front-desk-workflow__scene" role="group" aria-label={steps[4]} {...sceneProps(4)}>
+        <div className="front-desk-workflow__panel front-desk-workflow__summary" aria-label="情况单页面结构">
           <div className="front-desk-workflow__summary-title"><FileText size={15} aria-hidden="true"/><strong>就诊情况单</strong></div>
           <div className="front-desk-workflow__identity"><span>孩子信息</span><strong>女儿 · 2岁</strong></div>
           <ol className="front-desk-workflow__outline" aria-label="情况单栏目">
             {['目前情况', '相关经过与处理', '完整资料档案', '本次想问'].map((title, index) => <li key={title} style={{ '--row-delay': `${900 + index * 450}ms` } as CSSProperties}><span>{index === 1 ? <>相关经过<wbr/>与处理</> : title}</span></li>)}
           </ol>
         </div>
+        <div className="front-desk-workflow__connector" aria-hidden="true"><ArrowDown size={14}/></div>
       </div>
-      <div className="front-desk-workflow__scene" role="group" aria-label={steps[5]} hidden={step !== 5}>
-        <div className="front-desk-workflow__panel front-desk-workflow__export-file front-desk-workflow__arrival">
+      <div className="front-desk-workflow__scene" role="group" aria-label={steps[5]} {...sceneProps(5)}>
+        <div className="front-desk-workflow__panel front-desk-workflow__export-file">
           <FileText size={25} aria-hidden="true"/><strong>情况单已整理</strong><span>保存 · 导出</span>
+          <div className="front-desk-workflow__handoffs">
+            <div className="front-desk-workflow__handoff" style={{ '--row-delay': '1100ms' } as CSSProperties}><div><Download size={15} aria-hidden="true"/><strong>保存情况单</strong></div><span>给家人、医生看</span></div>
+            <div className="front-desk-workflow__handoff" style={{ '--row-delay': '2100ms' } as CSSProperties}><div><Copy size={15} aria-hidden="true"/><strong>复制给 AI</strong></div><span>带着资料提问</span></div>
+          </div>
         </div>
         <div className="front-desk-workflow__connector" aria-hidden="true"><ArrowDown size={14}/></div>
-        <div className="front-desk-workflow__handoffs">
-          <div className="front-desk-workflow__handoff" style={{ '--row-delay': '1100ms' } as CSSProperties}><div><Download size={15} aria-hidden="true"/><strong>保存情况单</strong></div><span>给家人、医生看</span></div>
-          <div className="front-desk-workflow__handoff" style={{ '--row-delay': '2100ms' } as CSSProperties}><div><Copy size={15} aria-hidden="true"/><strong>复制给 AI</strong></div><span>带着资料提问</span></div>
-        </div>
       </div>
     </div>
     <HohoProgress className="front-desk-workflow__progress" segmented max={steps.length} value={reduced ? steps.length : step + elapsed / durations[step]} label={`虚构使用情景，第${step + 1}步，共${steps.length}步`}/>
