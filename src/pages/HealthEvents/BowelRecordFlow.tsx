@@ -42,7 +42,7 @@ function readDraft(memberId: string): Draft {
 function toggle(values: string[], value: string) { return values.includes(value) ? values.filter((item) => item !== value) : [...values, value] }
 
 function Choice({ label, options, value, onChange, optional = true }: { label: string; options: readonly string[]; value?: string; onChange: (value?: string) => void; optional?: boolean }) {
-  return <fieldset className="bowel-fieldset"><legend>{label}{optional && <span>（可选）</span>}</legend><div className="bowel-choice-grid">{options.map((option) => <button aria-pressed={value === option} key={option} onClick={() => onChange(value === option ? undefined : option)} type="button">{option}</button>)}</div></fieldset>
+  return <fieldset className="bowel-fieldset"><legend>{label}{optional && <span className="record-optional-label">（可选）</span>}</legend><div className="bowel-choice-grid">{options.map((option) => <button aria-pressed={value === option} key={option} onClick={() => onChange(value === option ? undefined : option)} type="button">{option}</button>)}</div></fieldset>
 }
 
 function BowelPhotos({ model, disabled }: { model: ReturnType<typeof useQuickRecordPhotos>; disabled: boolean }) {

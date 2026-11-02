@@ -11,12 +11,13 @@ export const HohoInput = forwardRef<HTMLInputElement, HohoInputProps>(function H
   { error, hint, id, label, hideLabel = false, className = '', ...props },
   ref
 ) {
+  const optionalSuffix = label.endsWith('（可选）') ? '（可选）' : undefined
   const inputId = id ?? `input-${label}`
   const messageId = hint || error ? `${inputId}-message` : undefined
 
   return (
     <label className="hoho-field" htmlFor={inputId}>
-      <span className={hideLabel ? "sr-only" : "hoho-text-label"}>{label}</span>
+      <span className={hideLabel ? "sr-only" : "hoho-text-label"}>{optionalSuffix ? <>{label.slice(0, -optionalSuffix.length)}<span className="hoho-field__optional">{optionalSuffix}</span></> : label}</span>
       <input
         aria-describedby={messageId}
         aria-invalid={Boolean(error)}

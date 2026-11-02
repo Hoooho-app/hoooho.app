@@ -596,3 +596,5 @@
   .body-location-sheet .hoho-bottom-sheet__footer { padding-inline: var(--hoho-space-4); }
   .body-location-atlas-frame { min-height: 330px; }
 }
+
+.hoho-field__optional { color:rgb(var(--hoho-color-text-secondary)); font-size:var(--hoho-font-size-caption); font-style:normal; font-weight:400; }

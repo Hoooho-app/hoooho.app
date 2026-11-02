@@ -6,6 +6,7 @@ const focusableSelector = [
   'input:not([disabled])',
   'select:not([disabled])',
   'textarea:not([disabled])',
+  'summary',
   '[tabindex]:not([tabindex="-1"])'
 ].join(',')
 
@@ -17,7 +18,7 @@ export function useDialogFocus<T extends HTMLElement>(open: boolean, containerRe
     if (!container) return
 
     const focusable = () => Array.from(container.querySelectorAll<HTMLElement>(focusableSelector))
-      .filter((element) => !element.hidden && element.getAttribute('aria-hidden') !== 'true')
+      .filter((element) => !element.hidden && element.getAttribute('aria-hidden') !== 'true' && element.getClientRects().length > 0)
     const first = focusable()[0] ?? container
     window.requestAnimationFrame(() => first.focus({ preventScroll: true }))
 

@@ -3,3 +3,13 @@
 .diet-family-panel > * + * { margin-top:var(--hoho-space-3); }
 .diet-record-page--combined .diet-category-switches > .hoho-record-segmented-control:first-child > button { font-size:var(--hoho-font-size-body); }
 .diet-record-page--combined .diet-family-panel { margin-top:var(--hoho-space-3); }
+
+/* The modal stays still; only its body scrolls vertically, including at the edges. */
+.diet-record-page--combined { min-width:0; max-width:100%; overscroll-behavior:none; }
+.diet-record-page--combined .diet-record-scroll { min-width:0; overflow-x:hidden; overscroll-behavior:none; touch-action:pan-y pinch-zoom; }
+.diet-record-page--combined .diet-family-panel { min-width:0; }
+.diet-symptoms > summary { display:flex; min-height:var(--hoho-touch-target); align-items:center; justify-content:space-between; gap:var(--hoho-space-2); cursor:pointer; list-style:none; font-size:var(--hoho-font-size-body); font-weight:600; }
+.diet-symptoms > summary::-webkit-details-marker { display:none; }
+.diet-symptoms[open] > summary .diet-symptoms-chevron { transform:rotate(90deg); }
+.diet-symptoms-input { display:block; margin-top:var(--hoho-space-2); }
+.diet-symptoms-input textarea { display:block; width:100%; min-width:0; resize:vertical; }

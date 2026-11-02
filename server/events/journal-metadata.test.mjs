@@ -243,3 +243,15 @@ test('visit rejects false medical state, wrong category and reversed inpatient d
   assert.throws(() => validateJournal({ categories: ['other'], visit: { visitType: 'outpatient' } }), /必须归入就医分类/)
   assert.throws(() => validateJournal({ categories: ['visit'], visit: { visitType: 'inpatient', admittedAt: '2026-09-07T02:00:00Z', dischargedAt: '2026-09-06T02:00:00Z' } }), /出院时间/)
 })
+
+
+test('free text diet symptoms round trip without the former 80-character choice limit', () => {
+  for (const key of ['reactions', 'feedingStatuses']) {
+    const text = '进食后观察到的实际情况。'.repeat(50)
+    const diet = { kind: key === 'feedingStatuses' ? 'feeding' : 'meal', [key]: [text] }
+    assert.deepEqual(validateJournal({ categories: ['diet'], diet }).diet[key], [text])
+    assert.deepEqual(validateJournal({ categories: ['diet'], diet: { ...diet, [key]: [] } }).diet[key], [])
+    assert.throws(() => validateJournal({ categories: ['diet'], diet: { ...diet, [key]: ['字'.repeat(1001)] } }), /出现症状/)
+  }
+  assert.throws(() => validateJournal({ categories: ['diet'], diet: { kind: 'meal', foods: ['字'.repeat(81)] } }), /食物/)
+})

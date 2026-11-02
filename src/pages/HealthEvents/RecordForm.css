@@ -67,3 +67,6 @@
 .diet-record-page .occurrence-time-field:has(.diet-record-name){grid-template-columns:minmax(0,1fr) auto}
 .diet-record-page .occurrence-time-field>.hoho-field{min-width:0;max-width:180px}
 .diet-record-page .diet-record-name{width:100%;min-height:var(--hoho-touch-target);font-size:var(--hoho-font-size-body);padding-inline:var(--hoho-space-3)}
+
+/* Optional markers stay subordinate to headings on every manual record form. */
+.record-optional-label { color:rgb(var(--hoho-color-text-secondary)); font-size:var(--hoho-font-size-caption); font-style:normal; font-weight:400; }

@@ -48,9 +48,9 @@ const visitDocumentTypes = new Set(['medical_record', 'prescription', 'examinati
 const visitRecognitionStatuses = new Set(['not_used', 'draft_unverified', 'user_edited'])
 const resolver = new TimeResolverService()
 
-function cleanStrings(value, field, limit = 12) {
+function cleanStrings(value, field, limit = 12, maxLength = 80) {
   if (value === undefined) return undefined
-  if (!Array.isArray(value) || value.length > limit || value.some((item) => typeof item !== 'string' || !item.trim() || item.trim().length > 80)) {
+  if (!Array.isArray(value) || value.length > limit || value.some((item) => typeof item !== 'string' || !item.trim() || item.trim().length > maxLength)) {
     throw new HealthEventRecordError(`${field}无效`, 400, 'INVALID_JOURNAL_DIET')
   }
   return [...new Set(value.map((item) => item.trim()))]
@@ -85,8 +85,8 @@ function validateDiet(value) {
   }
   const foods = cleanStrings(value.foods, '食物')
   const firstTryFoods = cleanStrings(value.firstTryFoods, '首次尝试食物')
-  const reactions = cleanStrings(value.reactions, '进食后观察', 8)
-  const feedingStatuses = cleanStrings(value.feedingStatuses, '进食状态', 8)
+  const reactions = cleanStrings(value.reactions, '出现症状', 8, 1000)
+  const feedingStatuses = cleanStrings(value.feedingStatuses, '出现症状', 8, 1000)
   const supplementNames = cleanStrings(value.supplementNames, '补剂名称')
   if (foods !== undefined) result.foods = foods
   if (firstTryFoods !== undefined) {

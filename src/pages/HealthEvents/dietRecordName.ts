@@ -1,16 +1,17 @@
 import type { DietRecordKind, JournalDietDetails } from '../../types/journal'
 
-export type DietRecordNameKey = 'meal' | 'snack' | 'formula' | 'expressed' | 'mixed'
+export type DietRecordNameKey = 'complementary' | 'meal' | 'snack' | 'breast' | 'formula' | 'expressed' | 'mixed'
 export type DietRecordNames = Partial<Record<DietRecordNameKey, string>>
 
 export function dietRecordNameKey(kind: DietRecordKind, method?: JournalDietDetails['feedingMethod']): DietRecordNameKey | undefined {
-  if (kind === 'meal' || kind === 'snack') return kind
-  if (kind === 'feeding' && (method === 'formula' || method === 'expressed' || method === 'mixed')) return method
+  if (kind === 'complementary' || kind === 'meal' || kind === 'snack') return kind
+  if (kind === 'feeding' && (method === 'breast' || method === 'formula' || method === 'expressed' || method === 'mixed')) return method
   return undefined
 }
 
 /** Use the same local clock as the occurrence editor, including backfilled dates. */
 export function suggestedDietRecordName(key: DietRecordNameKey, occurredAt: string): string {
+  if (key === 'complementary') return '辅食'
   const hour = new Date(occurredAt).getHours()
   if (!Number.isFinite(hour)) return key === 'meal' ? '正餐' : key === 'snack' ? '零食' : '喂奶'
   if (key === 'meal') {
