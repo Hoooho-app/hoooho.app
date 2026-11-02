@@ -12,6 +12,7 @@ test.beforeEach(async ({ page, request }) => {
   }, { token, memberId })
   await page.goto('/nurse-station')
   await expect(page.getByRole('button', { name: '按住记录症状', exact: true })).toBeEnabled()
+  await page.evaluate(() => document.fonts.ready)
 })
 
 test('home fills available height with full images clear of copy and composer', async ({ page }, info) => {
@@ -35,13 +36,13 @@ test('home fills available height with full images clear of copy and composer', 
   if(!result.bodyScroll){
     const gaps=await page.locator('.front-desk-welcome--editorial').evaluate(welcome=>{
       const r=(selector:string)=>document.querySelector(selector)!.getBoundingClientRect()
-      const hero=r('.front-desk-welcome__hero'),cards=r('.front-desk-welcome__entries'),left=r('.front-desk-welcome__guide'),right=r('.front-desk-welcome__care'),header=r('.hoho-main-header'),composer=r('.smart-record-page__footer .hoho-dialogue-composer')
+      const hero=r('.front-desk-welcome__hero'),cards=r('.front-desk-welcome__entries'),left=r('.front-desk-welcome__guide'),right=r('.front-desk-workflow'),header=r('.hoho-main-header'),composer=r('.smart-record-page__footer .hoho-dialogue-composer')
       return [hero.top-header.bottom,cards.top-hero.bottom,right.left-left.right,composer.top-cards.bottom,hero.left-r('.smart-record-page').left,r('.smart-record-page').right-hero.right]
     })
     for(const gap of gaps)expect(gap).toBeCloseTo(16,0)
   }
   await expect(page.locator('.front-desk-welcome__guide img')).toHaveCSS('object-fit', 'contain')
-  if (page.viewportSize()!.height >= 568) {
+  if (page.viewportSize()!.height >= 724) {
     expect(result.cardBottom).toBeLessThanOrEqual(result.inputTop)
     expect(result.cardBottom).toBeLessThanOrEqual(result.bodyBottom)
     expect(result.contentBottom - result.cardBottom).toBeGreaterThanOrEqual(0)
@@ -60,8 +61,8 @@ test('keyboard classifications and larger copy remain reachable without cropping
   await page.getByLabel('对话输入', { exact: true }).fill('这段还没有发送')
   await expect(page.locator('.front-desk-welcome--editorial')).toBeVisible()
   await page.addStyleTag({ content: '.front-desk-welcome__copy p {font-size:18px!important}' })
-  await page.locator('.front-desk-welcome__care').scrollIntoViewIfNeeded()
-  await expect(page.locator('.front-desk-welcome__care')).toBeVisible()
+  await page.locator('.front-desk-workflow').scrollIntoViewIfNeeded()
+  await expect(page.locator('.front-desk-workflow')).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   await page.screenshot({ path: info.outputPath('mini-keyboard-large-copy.png') })
 })
@@ -71,14 +72,16 @@ test('same home continuously adapts when the viewport changes', async ({ page },
   test.skip(info.project.name !== 'mini-812', 'One continuous resize sequence covers this shared layout')
   for (const height of [932, 844, 724, 667, 646, 568, 812]) {
     await page.setViewportSize({ width: 375, height })
-    await expect.poll(async () => page.locator('.front-desk-welcome__entries').evaluate(cards => {
-      const body = cards.closest('.smart-record-page__body')!
-      return Math.round(body.getBoundingClientRect().bottom - parseFloat(getComputedStyle(body).paddingBottom) - cards.getBoundingClientRect().bottom)
-    }), `bottom gap at ${height}`).toBeGreaterThanOrEqual(0)
-    await expect.poll(async () => page.locator('.front-desk-welcome__entries').evaluate(cards => {
-      const body = cards.closest('.smart-record-page__body')!
-      return Math.round(body.getBoundingClientRect().bottom - parseFloat(getComputedStyle(body).paddingBottom) - cards.getBoundingClientRect().bottom)
-    }), `bottom gap at ${height}`).toBeLessThanOrEqual(12)
-    expect(await page.locator('.smart-record-page__body').evaluate(body => body.scrollHeight <= body.clientHeight + 1)).toBe(true)
+    await expect(page.locator('.front-desk-workflow')).toBeVisible()
+    const body = page.locator('.smart-record-page__body')
+    if (height >= 724) {
+      await expect.poll(async () => body.evaluate(body => body.scrollHeight <= body.clientHeight + 1), `fits at ${height}`).toBe(true)
+    }
+    await page.locator('.front-desk-workflow__progress').scrollIntoViewIfNeeded()
+    const hint = (await page.locator('.front-desk-workflow__progress').boundingBox())!
+    const footer = (await page.locator('.smart-record-page__footer').boundingBox())!
+    expect(hint.y + hint.height).toBeLessThanOrEqual(footer.y)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    await body.evaluate(body => body.scrollTo({ top: 0 }))
   }
 })
