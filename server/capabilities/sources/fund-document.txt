@@ -1,0 +1,155 @@
+Using Technology to Access Information
+Most client information in acute care, long-term care, and other clinical settings is now electronic and uses intranet technology for secure access by providers, nurses, and other health care team members to maintain client confidentiality. Intranet refers to a private computer network within an institution. An electronic health record (EHR) is a real-time, client-centered record that makes information available instantly and securely to authorized users. Computers used to access an EHR can be found in client rooms, on wheeled carts, in workstations, or even on handheld devices. See Figure 2.11 for an image of a nurse documenting in an EHR.
+
+Using Technology to Access Information
+The EHR for each client contains a great deal of information. The most frequent pieces of information that nurses access include the following:
+
+Using Technology to Access Information
+History and Physical (H&P): A history and physical (H&P) is a specific type of documentation created by the health care provider when the client is admitted to the facility. An H&P includes important information about the client’s current status, medical history, and the treatment plan in a concise format that is helpful for the nurse to review. Information typically includes the reason for admission, health history, surgical history, allergies, current medications, physical examination findings, medical diagnoses, and the treatment plan.
+
+Using Technology to Access Information
+Provider orders: This section includes the prescriptions, or medical orders, that the nurse must legally implement or appropriately communicate according to agency policy if not implemented.
+
+Using Technology to Access Information
+Medication Administration Records (MARs): Medications are charted through electronic medication administration records (MARs). These records interface the medication orders from providers with pharmacists and are also the location where nurses document medications administered.
+
+Using Technology to Access Information
+Treatment Administration Records (TARs): In many facilities, treatments such as wound care are documented on a treatment administration record.
+
+Using Technology to Access Information
+Laboratory results: This section includes results from blood work and other tests performed in the lab.
+
+Using Technology to Access Information
+Diagnostic test results: This section includes results from diagnostic tests ordered by the provider such as X-rays, ultrasounds, etc.
+
+Using Technology to Access Information
+Progress notes: This section contains notes created by nurses and other health care providers regarding clientcare. It is helpful for the nurse to review daily progress notes by all team members to ensure continuity of care.
+
+Legal Documentation
+Nurses and health care team members are legally required to document care provided to clients. Any type of documentation in the EHR is considered a legal document. In a court of law, it is generally viewed that, “If it wasn’t documented, it wasn’t done.” Other documentation guidelines include the following:
+
+Legal Documentation
+Documentation should be objective, factual, and professional. Only document what you personally assessed, observed, or performed.
+
+Legal Documentation
+Proper medical terminology, grammar, and spelling should be used.
+
+Legal Documentation
+All types of documentation must include the date, time, and signature of the person documenting.
+
+Legal Documentation
+Abbreviations should be avoided in legal documentation.
+
+Legal Documentation
+Documentation must be completed in an accurate and timely manner after the task is performed. Do not document in advance of completing a task.
+
+Legal Documentation
+Assessments, interventions, medications, or treatments that were not completed should never be charted as completed. This is considered falsification and can present serious legal ramifications for the nurse and the health care facility.
+
+Legal Documentation
+When using paper documentation, avoid leaving blank lines to prevent others from adding to your documentation. In the event of a charting error, draw a single line through the error and write, “mistaken entry” above the line with your initials. Errors should never be erased, scribbled out, or covered with white-out.
+
+Legal Documentation
+If electronic documentation is charted in error, it should be corrected with the details of the error and the correction noted in the background should the need arise to review the documentation.
+
+Legal Documentation
+Documentation is used for many purposes. It is used to ensure continuity of care across health care team members and across shifts; monitor standards of care for quality assurance activities; and provide information for reimbursement purposes by insurance companies, Medicare, and Medicaid. Documentation may also be used for research purposes or, in some instances, for legal concerns in a court of law.
+
+Legal Documentation
+Documentation by nurses includes recording client assessments, writing progress notes, and creating or addressing information included in nursing care plans. Nursing care plans are further discussed in the “Planning” section of the “Nursing Process” chapter.
+
+Common Types of Documentation
+Common formats used to document client care include charting by exception, focused DAR notes, narrative notes, SOAPIE progress notes, client discharge summaries, and Minimum Data Set (MDS) charting.
+
+Charting by Exception
+Charting by exception (CBE) documentation was designed to decrease the amount of time required to document care. CBE contains a list of normal findings. After performing an assessment, nurses confirm normal findings on the list found on assessment and write only brief progress notes for abnormal findings or to document communication with other team members.
+
+Focused DAR Notes
+Focused DAR notes are a type of progress note that are commonly used in combination with charting by exception documentation. DAR stands for Data, Action, and Response. Focused DAR notes are brief. Each note is focused on one client problem for efficiency in documenting and reading.
+
+Focused DAR Notes
+Data: This section contains information collected during the client assessment, including vital signs and physical examination findings found during the “Assessment” phase of the nursing process. The Assessment phase is further discussed in the “Nursing Process” chapter. Think of the “Data” section as describing the main problem.
+
+Focused DAR Notes
+Action: This section contains the nursing actions that are planned and implemented for the client’s focused problem. This section correlates to the “Planning” and “Implementation” phases of the nursing process and are further discussed in the “Nursing Process” chapter. Think of the “Action” section as describing what was done about the problem.
+
+Focused DAR Notes
+Response: This section contains information about the client’s response to the nursing actions and evaluates if the planned care was effective. This section correlates to the “Evaluation” phase of the nursing process that is further discussed in the “Nursing Process” chapter. Think of the “Response” section as describing the result of what happened after performing the actions.
+
+Narrative Notes
+Narrative notes, also called summary notes, are a type of progress note that chronicles assessment findings and nursing activities for the client that occurred throughout the entire shift or visit. View sample narrative note documentation for body system assessments in the Open RN Nursing Skills, 2e textbook.
+
+SOAPIE Notes
+SOAPIE is a mnemonic for a type of progress note that is organized by six categories: Subjective, Objective, Assessment, Plan, Interventions, and Evaluation. SOAPIE progress notes are written by nurses, as well as other members of the health care team.
+
+SOAPIE Notes
+Subjective: This section includes what the client said, such as, “I have a headache.” It can also contain information related to pertinent medical history and why the client is in need of care.
+
+SOAPIE Notes
+Objective: This section contains the observable and measurable data collected during a client assessment, such as the vital signs, physical examination findings, and lab/diagnostic test results.
+
+SOAPIE Notes
+Assessment: This section contains the interpretation of what was noted in the Subjective and Objective sections, such as a nursing diagnosis in a nursing progress note or the medical diagnosis in a progress note written by a health care provider.
+
+SOAPIE Notes
+Plan: This section outlines the plan of care based on the Assessment section, including goals and planned interventions.
+
+SOAPIE Notes
+Interventions: This section describes the actions implemented.
+
+SOAPIE Notes
+Evaluation: This section describes the client response to interventions and if the planned outcomes were met.
+
+Discharge Summary
+When a client is discharged from an agency, a discharge summary is documented in the client record, along with clear verbal and written client education and instructions provided to the client. Discharge summary information is frequently provided in a checklist format to ensure accuracy and includes the following:
+
+Discharge Summary
+Time of departure and method of transportation out of the hospital (e.g., wheelchair)
+
+Discharge Summary
+Name and relationship of person accompanying the client at discharge
+
+Discharge Summary
+Client education completed and associated educational materials or other information provided to the client
+
+Discharge Summary
+Discharge instructions on medications, treatments, diet, and activity
+
+Discharge Summary
+See Figure 2.12 for an image of a nurse providing discharge instructions to a client. Discharge teaching typically starts at admission and continues throughout the client’s stay because this allows for reinforcement of teaching topics.
+
+Minimum Data Set (MDS) Charting
+In long-term care settings, additional documentation is used to provide information for reimbursement by private insurance, Medicare, and Medicaid. The Resident Assessment Instrument Minimum Data Set (MDS) is a federally mandated assessment tool created by registered nurses in skilled nursing facilities to track a client’s goal achievement, as well as to coordinate the efforts of the health care team to optimize the resident’s quality of care and quality of life. This tool also guides nursing care plan development.
+
+Incident Reports
+Incident reports, also called variance reports, are a specific type of documentation that is completed when there is an unexpected occurrence, such as a medication error, client injury, client fall, or a near miss, where an error did not actually occur, but was prevented from occurring. Refer to agency policies for specific events requiring incident reports.
+
+Incident Reports
+Incident reports are completed by the staff member involved in the occurrence. Documentation includes the date and time of the event, client involved (if applicable), what occurred, what was done in response to the event, what else was happening at the time the incident occurred, as well as other facility specific required data. Abbreviations, assumptions, or interpretations should be avoided.
+
+Incident Reports
+Incident reports are intended to be used as a safety tool to identify system issues and process problems that could benefit from quality and safety improvements. Incident reports should be used as a component of a safety culture, not punitively. If used punitively, staff become reluctant to report errors or suggest process improvements for fear of “getting in trouble.”
+
+Incident Reports
+Incident reports are not a part of the medical record and should not be mentioned in the medical record. However, the specific event should be documented in the medical record, along with health care provider notification and interventions provided.
+
+Incident Reports
+A digital version of a patient’s paper chart. EHRs are real-time, patient-centered records that make information available instantly and securely to authorized users.
+
+Incident Reports
+A type of documentation where a list of “normal findings” are provided and nurses document assessment findings by confirming normal findings and writing brief documentation notes for any abnormal findings.
+
+Incident Reports
+A type of documentation often used in combination with charting by exception. DAR stands for Data, Action, and Response. Focused DAR notes are brief and each note is focused on one patient problem for efficiency in documenting, as well as for reading.
+
+Incident Reports
+A type of documentation that chronicles all of the patient’s assessment findings and nursing activities that occurred throughout the shift.
+
+Incident Reports
+A mnemonic for a type of documentation that is organized by six categories: Subjective, Objective, Assessment, Plan, Interventions, and Evaluation.
+
+Incident Reports
+A federally mandated assessment tool used in skilled nursing facilities to track a patient’s goal achievement, as well as to coordinate the efforts of the health care team to optimize the resident’s quality of care and quality of life.
+
+Incident Reports
+A specific type of documentation that is completed when there is an unexpected occurrence, such as a medication error, client injury, client fall, or a near miss, where an error did not actually occur, but was prevented from occurring.

@@ -1,0 +1,101 @@
+5.4 Culture of Safety
+In addition to implementing safety strategies to improve safe client care, leaders of a health care agency must also establish a culture of safety. A culture of safety reflects the behaviors, beliefs, and values within and across all levels of an organization as they relate to safety and clinical excellence, with a focus on people. In 2021 The Joint Commission released a sentinel event regarding the essential role of leadership in establishing a culture of safety. According to The Joint Commission, leadership has an obligation to be accountable for protecting the safety of all health care consumers, including clients, employees, and visitors. Without adequate leadership and an effective culture of safety, there is higher risk for adverse events. Inadequate leadership can contribute to adverse effects in a variety of ways, including, but not limited to, the following:
+
+5.4 Culture of Safety
+Insufficient support of client safety event reporting
+
+5.4 Culture of Safety
+Lack of feedback or response to staff and others who report safety vulnerabilities
+
+5.4 Culture of Safety
+Allowing intimidation of staff who report events
+
+5.4 Culture of Safety
+Refusing to consistently prioritize and implement safety recommendations
+
+5.4 Culture of Safety
+Three components of a culture of safety are the following:
+
+5.4 Culture of Safety
+Just Culture: People are encouraged, even rewarded, for providing essential safety-related information, but clear lines are drawn between human error and at-risk or reckless behaviors.
+
+5.4 Culture of Safety
+Reporting Culture: People report errors and near-misses.
+
+5.4 Culture of Safety
+Learning Culture: The willingness and the competence to draw the right conclusions from safety information systems, and the will to implement major reforms when their need is indicated.
+
+5.4 Culture of Safety
+The American Nurses Association further describes a culture of safety as one that includes openness and mutual respect when discussing safety concerns and solutions without shifting to individual blame, a learning environment with transparency and accountability, and reliable teams. In contrast, complexity, lack of clear measures, hierarchical authority, the “blame game,” and lack of leadership are examples of barriers that do not promote a culture of safety. If staff fear reprisal for mistakes and errors, they will be less likely to report errors, processes will not be improved, and client safety will continue to be impaired. See the following box for an example of safety themes established during a health care institution’s implementation of a culture of safety.
+
+5.4 Culture of Safety
+A strong safety culture encourages all members of the health care team to identify and reduce risks to client safety by reporting errors and near misses so that root cause analysis can be performed and identified risks are removed from the system. However, in a poorly defined and implemented culture of safety, staff often conceal errors due to fear or shame. Nurses have been traditionally trained to believe that clinical perfection is attainable, and that “good” nurses do not make errors. Errors are perceived as being caused by carelessness, inattention, indifference, or uninformed decisions. Although expecting high standards of performance is appropriate and desirable, it can become counterproductive if it creates an expectation of perfection that impacts the reporting of errors and near misses. If employees feel shame when they make an error, they may feel pressure to hide or cover up errors. Evidence indicates that approximately three of every four errors are detected by those committing them, as opposed to being detected by an environmental cue or another person. Therefore, employees need to be able to trust that they can fully report errors without fear of being wrongfully blamed. This provides the agency with the opportunity to learn how to further improve processes and prevent future errors from occurring. For many organizations, the largest barrier in establishing a culture of safety is the establishment of trust. A model called “Just Culture” has successfully been implemented in many agencies to decrease the “blame game,” promote trust, and improve the reporting of errors.
+
+Just Culture
+The American Nurses Association (ANA) officially endorses the Just Culture model. In 2019 the ANA published a position statement on Just Culture, stating, “Traditionally, healthcare’s culture has held individuals accountable for all errors or mishaps that befall clients under their care. By contrast, a Just Culture recognizes that individual practitioners should not be held accountable for system failings over which they have no control. A Just Culture also recognizes many individual or ‘active’ errors represent predictable interactions between human operators and the systems in which they work. However, in contrast to a culture that touts ‘no blame’ as its governing principle, a Just Culture does not tolerate conscious disregard of clear risks to clients or gross misconduct (e.g., falsifying a record or performing professional duties while intoxicated).”
+
+Just Culture
+The Just Culture model categorizes human behavior into three causes of errors. Consequences of errors are based on whether the error is a simple human error or caused by at-risk or reckless behavior.
+
+Just Culture
+Simple human error: A simple human error occurs when an individual inadvertently does something other than what should have been done. Most medical errors are the result of human error due to poor processes, programs, education, environmental issues, or situations. These errors are managed by correcting the cause, looking at the process, and fixing the deviation. For example, a nurse appropriately checks the rights of medication administration three times, but due to the similar appearance and names of two different medications stored next to each other in the medication dispensing system, administers the incorrect medication to a client. In this example, a root cause analysis reveals a system issue that must be modified to prevent future errors (e.g., change the labelling and storage of look alike-sound alike medication).
+
+Just Culture
+At-risk behavior: An error due to at-risk behavior occurs when a behavioral choice is made that increases risk where the risk is not recognized or is mistakenly believed to be justified. For example, a nurse scans a client’s medication with a barcode scanner prior to administration, but an error message appears on the scanner. The nurse mistakenly interprets the error to be a technology problem and proceeds to administer the medication instead of stopping the process and further investigating the error message, resulting in the wrong dosage of a medication being administered to the client. In this case, ignoring the error message on the scanner can be considered “at-risk behavior” because the behavioral choice was considered justified by the nurse at the time.
+
+Just Culture
+Reckless behavior: Reckless behavior is an error that occurs when an action is taken with conscious disregard for a substantial and unjustifiable risk. For example, a nurse arrives at work intoxicated and administers the wrong medication to the wrong client. This error is considered due to reckless behavior because the decision to arrive intoxicated was made with conscious disregard for substantial risk.
+
+Just Culture
+These examples show three different causes of medication errors that would result in different consequences to the employee based on the Just Culture model. Under the Just Culture model, after root cause analysis is completed, system-wide changes are made to decrease factors that contributed to the error. Managers appropriately hold individuals accountable for errors if they were due to simple human error, at-risk behavior, or reckless behaviors.
+
+Just Culture
+If an individual commits a simple human error, managers console the individual and consider changes in training, procedures, and processes. In the “simple human error” above, system-wide changes would be made to change the label and location of the medication to prevent future errors from occurring with the same medication.
+
+Just Culture
+Individuals committing at-risk behavior are held accountable for their behavioral choice and often require coaching with incentives for less risky behaviors and situational awareness. In the “at-risk behavior” example above where the nurse ignored an error message on the barcode scanner, mandatory training on using a barcode scanner and responding to errors would be implemented, and the manager would track the employee’s correct usage of the barcode scanner for several months following training.
+
+Just Culture
+If an individual demonstrates reckless behavior, remedial action and/or punitive action is taken.In the “reckless behavior” example above, the manager would report the nurse’s behavior to the state’s Board of Nursing with mandatory substance misuse counseling to maintain their nursing license. Employment may be terminated with consideration of patterns of behavior.
+
+Just Culture
+A Just Culture in which employees aren’t afraid to report errors is a highly successful way to enhance client safety, increase staff and client satisfaction, and improve outcomes. Success is achieved through good communication, effective management of resources, and an openness to changing processes to ensure the safety of clients and employees. The infographic in Figure 5.4illustrates the components of a culture of safety and Just Culture.
+
+Just Culture
+The principles of culture of safety, including Just Culture, Reporting Culture, and Learning Culture are also being adopted in nursing education. It’s understood that mistakes are part of learning and that a shared accountability model promotes individual- and system-level learning for improved client safety. Under a shared accountability model, students are responsible for the following:
+
+Just Culture
+Being fully prepared for clinical experiences, including laboratory and simulation assignments
+
+Just Culture
+Being rested and mentally ready for a challenging learning environment
+
+Just Culture
+Accepting accountability for their part in contributing to a safe learning environment
+
+Just Culture
+Keeping up-to-date with current evidence-based practice
+
+Just Culture
+Students know they will be held accountable for their actions, but will not be blamed for system faults that lie beyond their control. They can trust that a fair process will be used to determine what went wrong if a client care error or near miss occurs. Student errors and near misses are addressed based on an investigation determining if it was simple human error, an at-risk behavior, or reckless behavior. For example, a simple human error by a student can be addressed with coaching and additional learning opportunities to remedy the knowledge deficit. However, if a student acts with recklessness (for example, repeatedly arrives to clinical unprepared despite previous faculty feedback or falsely documents an assessment or procedure), they are appropriately and fairly disciplined, which may include dismissal from the program.
+
+Just Culture
+The behaviors, beliefs, and values within and across all levels of an organization as they relate to safety and clinical excellence, with a focus on people.
+
+Just Culture
+A quality of an institutional culture of safety where people are encouraged, even rewarded, for providing essential safety-related information, but clear lines are drawn between human error and at-risk or reckless behaviors.
+
+Just Culture
+A quality of an institutional culture of safety where people report errors and near misses.
+
+Just Culture
+A quality of an institutional culture of safety that demonstrates the willingness and the competence to draw the right conclusions from safety information systems, and the will to implement major reforms when their need is indicated.
+
+Just Culture
+According to the Just Culture model, an error that occurs when an individual inadvertently does something other than what should have been done.
+
+Just Culture
+According to the just culture model, an error that occurs when a behavioral choice is made that increases risk where risk is not recognized or is mistakenly believed to be justified.
+
+Just Culture
+According to the Just Culture model, an error that occurs when an action is taken with conscious disregard for a substantial and unjustifiable risk.

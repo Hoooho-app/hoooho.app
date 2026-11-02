@@ -10,6 +10,7 @@ const navigation: { path: string; title: string; icon: MaterialIconName }[] = [
   { path: '/ops/billing', title: '费用监控', icon: 'monitoring' },
   { path: '/ops/feedback', title: '反馈中心', icon: 'chat_bubble' },
   { path: '/ops/marketing', title: '产品运营', icon: 'lightbulb' },
+  { path: '/ops/capabilities', title: '专业能力', icon: 'assignment' },
   { path: '/ops/services', title: '服务链接', icon: 'link' },
   { path: '/ops/versions', title: '版本管理', icon: 'archive' }
 ]

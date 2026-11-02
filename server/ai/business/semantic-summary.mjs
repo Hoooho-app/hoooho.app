@@ -1,3 +1,4 @@
+import { retrieveRecordingMethods, capabilityPolicy } from '../../capabilities/library.mjs'
 import {nursingObservationContext} from './nursing-observation-context.mjs'
 import {fingerprint,fail} from './contract.mjs'
 import {clinicalAssertions,clinicalContext} from '../../../shared/clinical-evidence.mjs'
@@ -158,7 +159,7 @@ export async function generateSemanticSummaries(items,{model,sources,buildFacts,
  generationContract.properties.items.items.properties.itemId.enum=packets.map(p=>p.itemId)
  generationContract.properties.items.items.properties.claims.items.properties.factIds.items.enum=[...new Set(packets.flatMap(p=>p.facts.flatMap(f=>f.factIds)))]
  onCall?.()
- const generated=await model.structured({task:'professional-summary-generate',schema:generationContract,signal,samplingTemperature:0,instructions:candidateScopePolicy+correctionRolePolicy+'把已核验事实整理成自然、简洁、适合交接的中文标题和逐句摘要。只用facts，不诊断、不建议治疗、不加事实。factIds精确使用给定ID，每句关联所有依据。标题表达部位与表现，例如已有脚小拇指和被踢破的证据可规范为足小趾被踢后破损；不要只写破了。保留人物、时间、否定、未知、自述/观察/转述、数字和单位。没有提到不能写没有，建议不能写已经执行，先后不写因果。不要照搬字段名拼接；同一事件连贯表达；完整覆盖所有重要事实及已绑定回答。不把已更正内容写成当前事实。scope.timeText非空时，摘要至少一句必须逐字保留该时间原话，不从当前日期补时间。scope的成员归属只是人物范围，不必复述归属操作。repairHints若存在，只用于提醒上轮遗漏，不是新事实；其中requiredFactIds必须逐一在claims.factIds出现，并用正文完整表达对应facts，不能只塞ID而漏正文；仍只使用本轮facts，不把确认归属/要求整理的操作原话当症状。只能输出schema对象。',input:JSON.stringify({items:packets,...(generationRepair?{repairHints:generationRepair}:{})})})
+ const generated=await model.structured({task:'professional-summary-generate',schema:generationContract,signal,samplingTemperature:0,instructions:capabilityPolicy+candidateScopePolicy+correctionRolePolicy+'把已核验事实整理成自然、简洁、适合交接的中文标题和逐句摘要。只用facts，不诊断、不建议治疗、不加事实。factIds精确使用给定ID，每句关联所有依据。标题表达部位与表现，例如已有脚小拇指和被踢破的证据可规范为足小趾被踢后破损；不要只写破了。保留人物、时间、否定、未知、自述/观察/转述、数字和单位。没有提到不能写没有，建议不能写已经执行，先后不写因果。不要照搬字段名拼接；同一事件连贯表达；完整覆盖所有重要事实及已绑定回答。不把已更正内容写成当前事实。scope.timeText非空时，摘要至少一句必须逐字保留该时间原话，不从当前日期补时间。scope的成员归属只是人物范围，不必复述归属操作。repairHints若存在，只用于提醒上轮遗漏，不是新事实；其中requiredFactIds必须逐一在claims.factIds出现，并用正文完整表达对应facts，不能只塞ID而漏正文；仍只使用本轮facts，不把确认归属/要求整理的操作原话当症状。只能输出schema对象。',input:JSON.stringify({recordingMethods:retrieveRecordingMethods(packets.flatMap(p=>p.facts.map(f=>f.text??f.value??'')).join('，')+'整理记录摘要'),items:packets,...(generationRepair?{repairHints:generationRepair}:{})})})
  const candidates=generated.value?.items
  if(!Array.isArray(candidates)||candidates.length!==packets.length||new Set(candidates.map(c=>c?.itemId)).size!==packets.length)throw fail('摘要未完整返回，原话仍保留',503,'AI_SUMMARY_INVALID')
  for(const packet of packets){
