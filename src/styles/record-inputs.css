@@ -1,0 +1,45 @@
+/* Manual record text uses the smaller V2 body role. Scope stays out of chat,
+   account settings and saved/read-only record content. Repeated root classes
+   keep lazy page styles from overriding the shared input convention. */
+:is(
+  .symptom-record-page.symptom-record-page,
+  .diet-record-page.diet-record-page,
+  .sleep-record-page.sleep-record-page,
+  .medication-record-page.medication-record-page,
+  .medication-reminder-sheet.medication-reminder-sheet,
+  .vm-sheet.vm-sheet,
+  .duplicate-record-change.duplicate-record-change,
+  .symptom-voice-sheet.symptom-voice-sheet,
+  .symptom-record-editor.symptom-record-editor,
+  .activity-interval-detail.activity-interval-detail,
+  .sleep-correction-fields.sleep-correction-fields,
+  .journal-recorder-sheet.journal-recorder-sheet,
+  .daily-record-settings.daily-record-settings
+) :is(input:not([type='checkbox'], [type='radio'], [type='range'], [type='file'], [type='hidden'], [type='button'], [type='submit'], [type='reset'], [readonly]), textarea:not([readonly])) {
+  font-size: var(--hoho-font-size-body-small);
+}
+
+:is(
+  .symptom-record-page.symptom-record-page,
+  .diet-record-page.diet-record-page,
+  .sleep-record-page.sleep-record-page,
+  .medication-record-page.medication-record-page,
+  .medication-reminder-sheet.medication-reminder-sheet,
+  .vm-sheet.vm-sheet,
+  .duplicate-record-change.duplicate-record-change,
+  .symptom-voice-sheet.symptom-voice-sheet,
+  .symptom-record-editor.symptom-record-editor,
+  .activity-interval-detail.activity-interval-detail,
+  .sleep-correction-fields.sleep-correction-fields,
+  .journal-recorder-sheet.journal-recorder-sheet,
+  .daily-record-settings.daily-record-settings
+) :is(input, textarea)::placeholder {
+  color: rgb(var(--hoho-color-text-weak) / .64);
+  font-size: var(--hoho-font-size-body-small);
+  opacity: 1;
+}
+
+/* Dose remains a prominent value, reduced by one V2 data step. */
+.medication-record-page.medication-record-page .medication-amount-row input[type='number'] {
+  font-size: var(--hoho-font-size-data);
+}

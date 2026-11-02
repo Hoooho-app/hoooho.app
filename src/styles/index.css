@@ -6,6 +6,7 @@
 @import './visit-summary-stability.css';
 @import './paper.css';
 @import './light.css';
+@import './record-inputs.css';
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
