@@ -1,5 +1,5 @@
-/* Secondary guidance stays near-white and neutral; all colors derive from V2 roles. */
-.front-desk-welcome__entries{--welcome-recess-surface:color-mix(in srgb,rgb(var(--hoho-color-surface-white)) 96%,rgb(var(--hoho-color-ink)));--welcome-panel-surface:color-mix(in srgb,rgb(var(--hoho-color-surface-white)) 98%,rgb(var(--hoho-color-ink)))}
+/* Keep the outer guidance cards flat and pale green; only inner panels are neutral and recessed. */
+.front-desk-welcome__entries{--welcome-panel-surface:color-mix(in srgb,rgb(var(--hoho-color-surface-white)) 98%,rgb(var(--hoho-color-ink)))}
 .front-desk-welcome__entry.front-desk-workflow{--workflow-play-state:paused;min-height:288px;gap:var(--hoho-space-1)}
 .front-desk-workflow[data-playing="true"]{--workflow-play-state:running}
 .front-desk-workflow__stage{position:relative;isolation:isolate;flex:1;width:100%;min-height:248px;font-size:var(--hoho-font-size-caption);line-height:var(--hoho-line-height-caption)}
@@ -57,8 +57,7 @@
 .front-desk-workflow__summary-title{display:flex;align-items:center;gap:var(--hoho-space-1);color:rgb(var(--hoho-color-primary))}
 .front-desk-workflow .front-desk-workflow__summary-title strong{font-size:var(--hoho-font-size-body-small);line-height:var(--hoho-line-height-body)}
 
-/* Secondary guidance is recessed into the page, below the primary banner. */
-.front-desk-welcome__entries>.front-desk-welcome__entry,
+/* Only the small illustration panels carry recessed shadows. */
 .front-desk-workflow__origin,.front-desk-workflow__reply,.front-desk-workflow__save{box-shadow:var(--hoho-shadow-inset)}
 .front-desk-workflow__summary-title{padding-inline:var(--hoho-space-1);padding-bottom:0;border-bottom:1px solid rgb(var(--hoho-color-primary-border))}
 .front-desk-workflow__identity{display:flex;flex-direction:column;align-items:center;gap:0;padding:calc(var(--hoho-space-1)/2) var(--hoho-space-1);margin-top:var(--hoho-space-1);border:1px solid rgb(var(--hoho-color-primary-border));border-radius:var(--hoho-radius-small);background:var(--welcome-panel-surface);box-shadow:var(--hoho-shadow-inset);text-align:center}
@@ -82,6 +81,6 @@
 
 .front-desk-workflow__outline li>span{word-break:keep-all;overflow-wrap:anywhere}
 
-.front-desk-welcome__entries>.front-desk-welcome__entry{background:var(--welcome-recess-surface)}
+.front-desk-welcome__entries>.front-desk-welcome__entry{background:rgb(var(--hoho-color-primary-soft));box-shadow:none}
 .front-desk-workflow__panel,.front-desk-workflow__origin,.front-desk-workflow__reply,
 .front-desk-workflow__identity,.front-desk-workflow__outline li,.front-desk-workflow__handoff{border-color:rgb(var(--hoho-color-ink)/.1)}

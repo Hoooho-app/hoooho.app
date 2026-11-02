@@ -164,3 +164,9 @@ V2 token、HohoButton、HohoProgress 五段线与现有Material图标复用；�
 - 线上只读核验：`/api/health`、`/nurse-station` 均200、`no-store`。入口 `/assets/index-jFVZNsHc.js`，功能包 `JournalRecordDetail-3C81hPpx.js`，样式 `JournalRecordDetail-BQaeOi8J.css`，全局样式 `index-BQhA8bLm.css` 已实际读取；确认近白灰色外壳/内框派生值、较深的3px/8px内阴影、多色目录行覆盖已删除，六幕与横幅说明标记保留。
 - 没有Production健康数据写入、下载/复制用户资料或领取。线上为资源和端点核验，视觉证据为前述本地真实浏览器截图；本轮未重新操作登录后的Production页面或实体iPhone，不冒称实机验收。
 - 实现、相关验证、main集成、正式部署和线上资源核验完成，视觉最终验收仍由主人实际查看决定。本条只补文档，不重部署相同应用。
+
+## 外层浅绿无阴影纠正 · 2026-11-02
+
+基线 `4d09cfe`，分支 `codex/home-green-flat-shell-20261102`，起始工作区干净并与origin/main一致。主人明确：大的背景仍为浅绿，且不需要阴影。本轮覆盖上一轮外层灰槽规则；只把下方两张介绍卡恢复V2 primary-soft浅绿并移除外层阴影，内框保留现有近白灰与内凹阴影。主Banner、纸底、内容、六幕节奏、输入暂停、帮助入口、数据与API均保持。家长进入首页先看主Banner，再按需看介绍；不新增状态、保存或副作用。复用现有入口与320/390逐幕检查，外层断言按最新决定改为浅绿且无阴影；内框仍检查inset-only。验证与Production回执后补。
+
+本地完整构建通过；320/390px共8项既有浏览器检查通过，包括浅绿无阴影外壳、六幕内部边界与内阴影、帮助返回及输入保留、减少动态效果。已人工查看320px完整首页截图，外壳平面浅绿，内框近白灰凹槽。首轮检查暴露护士图片尚未解码的同步断言竞态，改为等待原有complete/480px条件，断言要求不降低；复跑通过。未写Production健康数据，未进行实体iPhone验收。
