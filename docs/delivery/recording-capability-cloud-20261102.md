@@ -45,5 +45,5 @@
 - 正式服务地址`https://hooohoapp-production.up.railway.app`：公开能力接口200，19个来源与全部数字一致，知识版本`31a255fae9794772cbc28da9`；健康接口200；未登录管理接口401且no-store；首页与后台路径HTML均200；从线上入口发现并读取能力JS/CSS，两者均200且MIME正确。检查只读，未登录、未写真实健康数据、未调用付费模型。
 - 额外客户端检查819/819通过；原轮播10个浏览器场景通过，覆盖6秒/560ms、减少动态效果、图片失败、后台及首气泡卸载。
 - 本轮访问`hoooho.com`遇到超时/503；`docs/release-environments.md`明确ICP审核期间两个主域名保持关闭，应使用现有Railway正式临时入口。本次遵循既有入口策略，未修改域名或原生安装包。
-- 远端Frontdesk welcome verification（run 41380168569）已成功；智能记录CI仍在运行，本地上述检查全部通过，不将尚未结束的远端检查冒称完成。
+- 远端Frontdesk welcome verification（run 41380168569）与Smart record verification（run 41380168537，含core与4个协议分片）均已完成并成功。
 - 功能已发布；“完整掌握72项专业岗位能力”的要求尚未达到，特别是未导入商业全文、真实模型语义验证和专业临床审阅；后台如实展示缺口。
