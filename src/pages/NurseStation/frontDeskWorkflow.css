@@ -1,17 +1,18 @@
-/* A small UI demonstration, with one scene visible at a time. Uses the existing V2 palette. */
+/* Secondary guidance stays near-white and neutral; all colors derive from V2 roles. */
+.front-desk-welcome__entries{--welcome-recess-surface:color-mix(in srgb,rgb(var(--hoho-color-surface-white)) 96%,rgb(var(--hoho-color-ink)));--welcome-panel-surface:color-mix(in srgb,rgb(var(--hoho-color-surface-white)) 98%,rgb(var(--hoho-color-ink)))}
 .front-desk-welcome__entry.front-desk-workflow{--workflow-play-state:paused;min-height:288px;gap:var(--hoho-space-1)}
 .front-desk-workflow[data-playing="true"]{--workflow-play-state:running}
 .front-desk-workflow__stage{position:relative;isolation:isolate;flex:1;width:100%;min-height:248px;font-size:var(--hoho-font-size-caption);line-height:var(--hoho-line-height-caption)}
 .front-desk-workflow__scene{display:flex;position:absolute;inset:0;flex-direction:column;justify-content:center;align-items:center;padding-bottom:var(--hoho-space-2)}
 .front-desk-workflow__scene[hidden]{display:none}
-.front-desk-workflow__panel{width:100%;min-width:0;border:1px solid rgb(var(--hoho-color-primary-border));border-radius:var(--hoho-radius-control);background:rgb(var(--hoho-color-record-material-surface));box-shadow:var(--hoho-shadow-inset)}
-.front-desk-workflow__origin{width:100%;min-width:0;display:flex;align-items:center;justify-content:center;gap:var(--hoho-space-1);padding:var(--hoho-space-1);border:1px solid rgb(var(--hoho-color-primary-border));border-radius:var(--hoho-radius-small);background:rgb(var(--hoho-color-record-daily-surface));color:rgb(var(--hoho-color-text-secondary));text-align:center}
+.front-desk-workflow__panel{width:100%;min-width:0;border:1px solid rgb(var(--hoho-color-primary-border));border-radius:var(--hoho-radius-control);background:var(--welcome-panel-surface);box-shadow:var(--hoho-shadow-inset)}
+.front-desk-workflow__origin{width:100%;min-width:0;display:flex;align-items:center;justify-content:center;gap:var(--hoho-space-1);padding:var(--hoho-space-1);border:1px solid rgb(var(--hoho-color-primary-border));border-radius:var(--hoho-radius-small);background:var(--welcome-panel-surface);color:rgb(var(--hoho-color-text-secondary));text-align:center}
 .front-desk-workflow__origin svg{flex:none;color:rgb(var(--hoho-color-primary))}
 .front-desk-workflow__origin span{min-width:0;overflow-wrap:anywhere}
 .front-desk-workflow__connector{height:16px;flex:none;display:grid;place-items:center;color:rgb(var(--hoho-color-primary))}
 .front-desk-workflow__scene:not([hidden]) .front-desk-workflow__connector{animation:front-desk-workflow-connect 500ms 200ms both;animation-play-state:var(--workflow-play-state)}
 .front-desk-workflow__scene:not([hidden]) .front-desk-workflow__arrival{animation:front-desk-workflow-arrive 600ms 500ms both;animation-play-state:var(--workflow-play-state)}
-.front-desk-workflow__case{position:relative;display:flex;align-items:center;flex-direction:column;overflow:hidden;padding:var(--hoho-space-3) var(--hoho-space-1);background:rgb(var(--hoho-color-calendar-symptom-surface))}
+.front-desk-workflow__case{position:relative;display:flex;align-items:center;flex-direction:column;overflow:hidden;padding:var(--hoho-space-3) var(--hoho-space-1);background:var(--welcome-panel-surface)}
 .front-desk-workflow .front-desk-workflow__case strong{font-size:var(--hoho-font-size-body-small);line-height:var(--hoho-line-height-body);margin-top:var(--hoho-space-3);text-align:center}
 .front-desk-workflow__case img{display:block;width:100%;height:112px;object-fit:contain;object-position:center;margin-top:var(--hoho-space-1)}
 .front-desk-workflow__case-next{display:flex;align-items:center;gap:var(--hoho-space-1);margin-top:var(--hoho-space-2);color:rgb(var(--hoho-color-primary))}
@@ -24,11 +25,11 @@
 .front-desk-workflow__scene:not([hidden]) .front-desk-workflow__wave>span{animation:front-desk-workflow-wave 640ms var(--wave-delay) 5 alternate ease-in-out;animation-play-state:var(--workflow-play-state)}
 .front-desk-workflow__voice p{margin:var(--hoho-space-1) 0 0;line-height:1.7;overflow-wrap:anywhere;color:rgb(var(--hoho-color-text-primary))}
 .front-desk-workflow__scene:not([hidden]) .front-desk-workflow__voice p>span{animation:front-desk-workflow-character 100ms var(--character-delay) both;animation-play-state:var(--workflow-play-state)}
-.front-desk-workflow__reply{width:100%;border:1px solid rgb(var(--hoho-color-primary-border));border-radius:var(--hoho-radius-small) var(--hoho-radius-control) var(--hoho-radius-control) var(--hoho-radius-control);padding:var(--hoho-space-2);background:rgb(var(--hoho-color-primary-border)/.34)}
+.front-desk-workflow__reply{width:100%;border:1px solid rgb(var(--hoho-color-primary-border));border-radius:var(--hoho-radius-small) var(--hoho-radius-control) var(--hoho-radius-control) var(--hoho-radius-control);padding:var(--hoho-space-2);background:var(--welcome-panel-surface)}
 .front-desk-workflow__nurse{display:flex;align-items:center;gap:var(--hoho-space-1);color:rgb(var(--hoho-color-text-secondary))}
 .front-desk-workflow__nurse img{height:26px;width:20px;object-fit:cover;object-position:center 10%}
 .front-desk-workflow__reply p{margin:var(--hoho-space-1) 0 0;color:rgb(var(--hoho-color-text-primary))}
-.front-desk-workflow__record{overflow:hidden;background:rgb(var(--hoho-color-record-organize-surface))}
+.front-desk-workflow__record{overflow:hidden;background:var(--welcome-panel-surface)}
 .front-desk-workflow__record-head{display:flex;justify-content:space-between;gap:var(--hoho-space-1);padding:var(--hoho-space-1) var(--hoho-space-2);border-bottom:1px solid rgb(var(--hoho-color-border));font-weight:500;color:rgb(var(--hoho-color-text-primary))}
 .front-desk-workflow__record-head>span{font-weight:400;color:rgb(var(--hoho-color-text-secondary))}
 .front-desk-workflow__record dl{margin:0;padding:0 var(--hoho-space-2)}
@@ -37,7 +38,7 @@
 .front-desk-workflow__record dt{flex:none;color:rgb(var(--hoho-color-text-secondary))}
 .front-desk-workflow__record dd{margin:0;text-align:right;overflow-wrap:anywhere;min-width:0;color:rgb(var(--hoho-color-text-primary))}
 .front-desk-workflow__scene:not([hidden]) .front-desk-workflow__record dl>div{animation:front-desk-workflow-arrive 400ms var(--row-delay) both;animation-play-state:var(--workflow-play-state)}
-.front-desk-workflow__save{display:flex;align-items:center;justify-content:center;gap:var(--hoho-space-1);min-height:32px;margin:var(--hoho-space-1) var(--hoho-space-2) var(--hoho-space-2);border-radius:var(--hoho-radius-small);background:rgb(var(--hoho-color-primary));color:rgb(var(--hoho-color-action-text))}
+.front-desk-workflow__save{display:flex;align-items:center;justify-content:center;gap:var(--hoho-space-1);min-height:32px;margin:var(--hoho-space-1) var(--hoho-space-2) var(--hoho-space-2);border-radius:var(--hoho-radius-small);background:var(--welcome-panel-surface);color:rgb(var(--hoho-color-text-primary))}
 .front-desk-workflow__scene:not([hidden]) .front-desk-workflow__save{animation:front-desk-workflow-save 500ms 3300ms both;animation-play-state:var(--workflow-play-state)}
 .front-desk-workflow__progress.hoho-progress{flex:none;height:var(--hoho-space-1);margin-top:var(--hoho-space-2)}
 @keyframes front-desk-workflow-arrive{from{opacity:0;transform:translateY(12px) scale(.96)}to{opacity:1;transform:translateY(0) scale(1)}}
@@ -49,10 +50,10 @@
 @media(prefers-reduced-motion:reduce){.front-desk-workflow .front-desk-workflow__scene *{animation:none!important;transition:none!important}}
 
 .front-desk-workflow:focus-visible{outline:2px solid rgb(var(--hoho-color-primary));outline-offset:2px}
-.front-desk-workflow__answer{display:flex;justify-content:space-between;align-items:center;gap:var(--hoho-space-1);padding:var(--hoho-space-2);margin-top:var(--hoho-space-2);background:rgb(var(--hoho-color-record-medication-surface));color:rgb(var(--hoho-color-text-secondary))}
+.front-desk-workflow__answer{display:flex;justify-content:space-between;align-items:center;gap:var(--hoho-space-1);padding:var(--hoho-space-2);margin-top:var(--hoho-space-2);background:var(--welcome-panel-surface);color:rgb(var(--hoho-color-text-secondary))}
 .front-desk-workflow .front-desk-workflow__answer strong{font-size:var(--hoho-font-size-body-small);color:rgb(var(--hoho-color-text-primary))}
 .front-desk-workflow__scene:not([hidden]) .front-desk-workflow__answer{animation:front-desk-workflow-arrive 600ms 1700ms both;animation-play-state:var(--workflow-play-state)}
-.front-desk-workflow__summary{padding:var(--hoho-space-2) var(--hoho-space-1);background:rgb(var(--hoho-color-record-symptom-surface))}
+.front-desk-workflow__summary{padding:var(--hoho-space-2) var(--hoho-space-1);background:var(--welcome-panel-surface)}
 .front-desk-workflow__summary-title{display:flex;align-items:center;gap:var(--hoho-space-1);color:rgb(var(--hoho-color-primary))}
 .front-desk-workflow .front-desk-workflow__summary-title strong{font-size:var(--hoho-font-size-body-small);line-height:var(--hoho-line-height-body)}
 
@@ -60,24 +61,20 @@
 .front-desk-welcome__entries>.front-desk-welcome__entry,
 .front-desk-workflow__origin,.front-desk-workflow__reply,.front-desk-workflow__save{box-shadow:var(--hoho-shadow-inset)}
 .front-desk-workflow__summary-title{padding-inline:var(--hoho-space-1);padding-bottom:0;border-bottom:1px solid rgb(var(--hoho-color-primary-border))}
-.front-desk-workflow__identity{display:flex;flex-direction:column;align-items:center;gap:0;padding:calc(var(--hoho-space-1)/2) var(--hoho-space-1);margin-top:var(--hoho-space-1);border:1px solid rgb(var(--hoho-color-primary-border));border-radius:var(--hoho-radius-small);background:rgb(var(--hoho-color-record-daily-surface));box-shadow:var(--hoho-shadow-inset);text-align:center}
+.front-desk-workflow__identity{display:flex;flex-direction:column;align-items:center;gap:0;padding:calc(var(--hoho-space-1)/2) var(--hoho-space-1);margin-top:var(--hoho-space-1);border:1px solid rgb(var(--hoho-color-primary-border));border-radius:var(--hoho-radius-small);background:var(--welcome-panel-surface);box-shadow:var(--hoho-shadow-inset);text-align:center}
 .front-desk-workflow__identity>span{color:rgb(var(--hoho-color-text-secondary))}
 .front-desk-workflow .front-desk-workflow__identity strong{font-size:var(--hoho-font-size-caption);line-height:var(--hoho-line-height-caption);font-weight:500}
 .front-desk-workflow__outline{position:relative;display:flex;flex-direction:column;gap:var(--hoho-space-1);list-style:none;padding:0 0 0 var(--hoho-space-2);margin:var(--hoho-space-2) 0 0}
 .front-desk-workflow__outline::before{position:absolute;top:calc(var(--hoho-space-2)*-1);bottom:16px;left:calc(var(--hoho-space-1)/2);width:1px;background:rgb(var(--hoho-color-primary));opacity:.4;content:""}
-.front-desk-workflow__outline li{position:relative;min-height:28px;display:flex;align-items:center;padding:calc(var(--hoho-space-1)/2) var(--hoho-space-1);border:1px solid rgb(var(--hoho-color-primary-border));border-radius:var(--hoho-radius-small);background:rgb(var(--hoho-color-record-material-surface));box-shadow:var(--hoho-shadow-inset);color:rgb(var(--hoho-color-text-primary))}
+.front-desk-workflow__outline li{position:relative;min-height:28px;display:flex;align-items:center;padding:calc(var(--hoho-space-1)/2) var(--hoho-space-1);border:1px solid rgb(var(--hoho-color-primary-border));border-radius:var(--hoho-radius-small);background:var(--welcome-panel-surface);box-shadow:var(--hoho-shadow-inset);color:rgb(var(--hoho-color-text-primary))}
 .front-desk-workflow__outline li::before{position:absolute;left:calc(var(--hoho-space-2)*-1);width:var(--hoho-space-2);height:1px;background:rgb(var(--hoho-color-primary));opacity:.4;content:""}
-.front-desk-workflow__outline li:nth-child(2){background:rgb(var(--hoho-color-record-daily-surface))}
-.front-desk-workflow__outline li:nth-child(3){background:rgb(var(--hoho-color-record-medication-surface))}
-.front-desk-workflow__outline li:nth-child(4){background:rgb(var(--hoho-color-record-organize-surface))}
 .front-desk-workflow__scene:not([hidden]) .front-desk-workflow__outline li,
 .front-desk-workflow__scene:not([hidden]) .front-desk-workflow__handoff{animation:front-desk-workflow-arrive 450ms var(--row-delay) both;animation-play-state:var(--workflow-play-state)}
-.front-desk-workflow__export-file{display:flex;flex-direction:column;align-items:center;gap:var(--hoho-space-1);padding:var(--hoho-space-2) var(--hoho-space-1);background:rgb(var(--hoho-color-record-symptom-surface));color:rgb(var(--hoho-color-primary));text-align:center}
+.front-desk-workflow__export-file{display:flex;flex-direction:column;align-items:center;gap:var(--hoho-space-1);padding:var(--hoho-space-2) var(--hoho-space-1);background:var(--welcome-panel-surface);color:rgb(var(--hoho-color-primary));text-align:center}
 .front-desk-workflow .front-desk-workflow__export-file strong{font-size:var(--hoho-font-size-caption);line-height:var(--hoho-line-height-caption)}
 .front-desk-workflow__export-file>span{color:rgb(var(--hoho-color-text-secondary))}
 .front-desk-workflow__handoffs{display:flex;flex-direction:column;gap:var(--hoho-space-2);width:100%}
-.front-desk-workflow__handoff{padding:var(--hoho-space-2) var(--hoho-space-1);border:1px solid rgb(var(--hoho-color-primary-border));border-radius:var(--hoho-radius-control);background:rgb(var(--hoho-color-record-daily-surface));box-shadow:var(--hoho-shadow-inset);text-align:center}
-.front-desk-workflow__handoff:last-child{background:rgb(var(--hoho-color-record-medication-surface))}
+.front-desk-workflow__handoff{padding:var(--hoho-space-2) var(--hoho-space-1);border:1px solid rgb(var(--hoho-color-primary-border));border-radius:var(--hoho-radius-control);background:var(--welcome-panel-surface);box-shadow:var(--hoho-shadow-inset);text-align:center}
 .front-desk-workflow__handoff>div{display:flex;align-items:center;justify-content:center;gap:var(--hoho-space-1);color:rgb(var(--hoho-color-primary))}
 .front-desk-workflow__handoff svg{flex:none}
 .front-desk-workflow .front-desk-workflow__handoff strong{font-size:var(--hoho-font-size-caption);line-height:var(--hoho-line-height-caption);font-weight:500}
@@ -85,6 +82,6 @@
 
 .front-desk-workflow__outline li>span{word-break:keep-all;overflow-wrap:anywhere}
 
-.front-desk-welcome__entries>.front-desk-welcome__entry{background:rgb(var(--hoho-color-surface-subtle))}
+.front-desk-welcome__entries>.front-desk-welcome__entry{background:var(--welcome-recess-surface)}
 .front-desk-workflow__panel,.front-desk-workflow__origin,.front-desk-workflow__reply,
-.front-desk-workflow__identity,.front-desk-workflow__outline li,.front-desk-workflow__handoff{border-color:rgb(var(--hoho-color-primary-border)/.65)}
+.front-desk-workflow__identity,.front-desk-workflow__outline li,.front-desk-workflow__handoff{border-color:rgb(var(--hoho-color-ink)/.1)}
