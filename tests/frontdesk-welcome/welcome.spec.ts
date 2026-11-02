@@ -39,7 +39,7 @@ test('home keeps one fixed sprout entrance and replaces daily care with the read
   await expect(flow.locator('.front-desk-workflow__header')).toHaveCount(0)
   await expect(flow.getByRole('button')).toHaveCount(0)
   await expect(flow.getByText(/^(怎么用护护|重播|演示)$/)).toHaveCount(0)
-  expect(await welcome.locator('.front-desk-welcome__entry').evaluateAll(nodes => nodes.every(node => getComputedStyle(node).boxShadow !== 'none'))).toBe(true)
+  expect(await welcome.locator('.front-desk-welcome__entry').evaluateAll(nodes => nodes.every(node => getComputedStyle(node).boxShadow.split(/, (?![^()]*\))/).every(shadow => shadow.includes('inset'))))).toBe(true)
   await expect(flow.locator('.front-desk-workflow__case img')).toHaveAttribute('src', /symptom-arm/)
   await expect(flow.getByText('出现症状', { exact: true })).toBeVisible()
   await expect(flow.getByRole('progressbar').locator(':scope > span')).toHaveCount(6)
@@ -270,7 +270,7 @@ test('live scene panels remain inside the card throughout the real animation', a
       expect(content.y).toBeGreaterThanOrEqual(stage.y)
       expect(content.y + content.height).toBeLessThanOrEqual(progress.y)
       expect(content.y + content.height).toBeLessThanOrEqual(bounds.y + bounds.height)
-      expect(await frame.evaluate(node => getComputedStyle(node).boxShadow)).not.toBe('none')
+      expect(await frame.evaluate(node => getComputedStyle(node).boxShadow.split(/, (?![^()]*\))/).every(shadow => shadow.includes('inset')))).toBe(true)
     }
     await flow.screenshot({ animations: 'disabled', path: info.outputPath(`live-scene-${step}.png`) })
   }
