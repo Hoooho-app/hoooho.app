@@ -7,9 +7,9 @@ const source = readFileSync(new URL('./BowelRecordFlow.tsx', import.meta.url), '
 test('bowel form exposes the confirmed fields without diagnostic or low-value choices', () => {
   for (const label of ['硬小颗粒', '细小颗粒', '成团偏硬', '光滑条状', '松散软块', '糊状', '水样', '1–2分钟', '超过10分钟', '疑似看到', '少量', '多量', '奶瓣或食物残渣']) assert.match(source, new RegExp(label))
   assert.doesNotMatch(source, /很臭|许多屁|胃痉挛|布里斯托|正常|异常|便秘|腹泻|过敏|腹胀|肚子痛|没有特别发现|无法判断|拖动选择/)
-  assert.equal((source.match(/type="range"/g) ?? []).length, 1)
-  assert.match(source, /<ScaleChoice label="分量"/)
-  assert.match(source, /<ScaleChoice label="排便大约用了多久？"/)
+  assert.doesNotMatch(source, /type="range"|ScaleChoice/)
+  assert.match(source, /<Choice label="分量"/)
+  assert.match(source, /<Choice label="排便大约用了多久？"/)
 })
 
 test('bowel form omits member identity and places time before the final daily settings row', () => {
@@ -23,7 +23,8 @@ test('bowel form omits member identity and places time before the final daily se
   assert.match(source, /useOccurrenceTime\(selectedDay, today,initialOccurredAt\)/)
   assert.match(source, /initialJournal\?:JournalBowelDetails/)
   assert.match(source, /useQuickRecordPhotos\(memberId, token, 6\)/)
-  assert.match(source, />上传照片<\/HohoButton>/)
+  assert.match(source, /aria-label="添加排便照片"/)
+  assert.match(source, /disabled=\{saving\} className="bowel-form-fields"/)
   assert.doesNotMatch(source, /capture="environment"|>拍照<|从相册选择|照片只用于记录所见/)
   assert.match(source, /hoooho-bowel-record-draft:/)
 })
