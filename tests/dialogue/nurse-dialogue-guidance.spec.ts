@@ -62,7 +62,7 @@ test('[legacy protocol2] cold narrative asks relevant questions before the summa
 test('reduced motion keeps a visible static nurse while real processing continues',async({page,request})=>{
   const reply='身体有点冷的描述收到了，可以先核对原话。'
   const unknown={kind:'unknown',memberId:null,label:null,sources:[]}
-  await request.post('http://127.0.0.1:4198/front-reply-data',{data:{reply,contextId:'new',responseMode:'record',taskRelation:'new',subject:unknown,recordChanges:[{type:'add',targetId:null,text:'身体有点冷',scope:'record',polarity:'affirmed',subject:unknown,sources:[{messageId:'@latest',attachmentId:null,quote:'身体有点冷'}]}],nextQuestion:null,requestedAction:{type:'none',targetIds:[],targetVersion:null,confirmation:'none',quote:''},uncertainties:[],emergency:{currentChild:false,quote:''}}})
+  await request.post('http://127.0.0.1:4198/front-reply-data',{data:{reply,contextId:'new',responseMode:'record',taskRelation:'new',subject:unknown,recordChanges:[{type:'add',targetId:null,text:'身体有点冷',scope:'record',polarity:'affirmed',subject:unknown,sources:[{messageId:'@latest',attachmentId:null,quote:'身体有点冷'}]}],nextQuestion:null,requestedAction:{type:'none',targetIds:[],targetVersion:null,confirmation:'none',quote:''},diagnosisRequested:false,uncertainties:[],emergency:{currentChild:false,quote:''}}})
   await page.emulateMedia({reducedMotion:'reduce'})
   await page.getByLabel('对话输入').fill('身体有点冷')
   await page.getByRole('button',{name:'发送',exact:true}).click()

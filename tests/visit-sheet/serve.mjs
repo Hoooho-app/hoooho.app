@@ -57,7 +57,7 @@ if (process.env.VISIT_AI_TEST === '1') {
       const options=node?.options.length>4?[...node.options.filter(o=>o.label!=='没注意').slice(0,3),node.options.find(o=>o.label==='没注意')??node.options[3]]:node?.options
       const question=node?{text:node.text,slot,predicate,unit:null,options}:null
       const decision=semanticDecision?{subjectResolution:null,...semanticDecision}:{subjectResolution:null,intent:'record',subject:'current',status:node?'ask':finish?'incomplete':'ready',topic,question,unresolvedItems:finish?['未观察的具体情况']:[],media:input.latest.kind==='image'?'document':'none'}
-      return fixtureResponse({output:[{content:[{type:'output_text',text:JSON.stringify({reply:input.latest.kind==='image'?'我看到了图片里的测试图形。':'这次观察收到了，可以接着补充。',contextId,action:'record',questionId:node?.id??null,emergency:{currentChild:false,quote:''},...(body.text.format.schema.properties.decision?{decision}:{})})}]}]})
+      return fixtureResponse({output:[{content:[{type:'output_text',text:JSON.stringify({...(body.text.format.schema.properties.diagnosisRequested?{diagnosisRequested:false}:{}),reply:input.latest.kind==='image'?'我看到了图片里的测试图形。':'这次观察收到了，可以接着补充。',contextId,action:'record',questionId:node?.id??null,emergency:{currentChild:false,quote:''},...(body.text.format.schema.properties.decision?{decision}:{})})}]}]})
     }
     if(body.text.format.name==='front_desk_visual_source')return fixtureResponse({output:[{content:[{type:'output_text',text:JSON.stringify(visualOutput??{kind:'document',status:'readable',text:ocrText??'测试机构\n2026-09-29\n红细胞 4.2 mmol/L 参考3.5-5.5',observations:[]})}]}]})
     if(body.text.format.name==='professional_summary_generate'){

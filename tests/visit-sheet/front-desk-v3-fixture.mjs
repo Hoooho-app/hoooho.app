@@ -58,6 +58,6 @@ export function extendedFrontDeskFixtureOutput(input,{semanticDecision,visualOut
  const question=controlledQuestion?{id:null,text:controlledQuestion.text,target:`fixture:${controlledQuestion.slot??'observation'}`,sourceMessageId:input.latest.id}:null
  return {
   reply:courtesy.test(input.latest.text)?'好的，需要补充时接着说。':question?.text??(image&&!changes.length?'测试图片已收到，可继续补充说明。':'测试替身已收到这条原文。'),
-  contextId,responseMode:question?'clarification':changes.length?'record':'conversation',taskRelation:contextId==='new'?'new':changes.length?'continue':'side_topic',subject:unknown(),recordChanges:changes,nextQuestion:question,requestedAction:noAction(),uncertainties:[],emergency:{currentChild:false,quote:''}
+  contextId,responseMode:question?'clarification':changes.length?'record':'conversation',taskRelation:contextId==='new'?'new':changes.length?'continue':'side_topic',subject:unknown(),recordChanges:changes,nextQuestion:question,requestedAction:noAction(),diagnosisRequested:false,uncertainties:[],emergency:{currentChild:false,quote:''}
  }
 }
