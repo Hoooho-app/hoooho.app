@@ -1,4 +1,4 @@
-import { ChevronDown, Menu } from '../icons'
+import { Menu } from '../icons'
 import type { ReactNode } from 'react'
 import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
@@ -8,7 +8,7 @@ import { consumeMemberProfileRestore, getCurrentPath, readMemberProfileRestore, 
 import { useAppStore } from '../../store/useAppStore'
 import { useCurrentMember } from '../../hooks/useCurrentMember'
 import { Avatar } from '../common/Avatar'
-import { compactIdentityAge, maskIdentityName } from '../../utils/privateIdentity'
+import { maskIdentityName } from '../../utils/privateIdentity'
 import { MainBottomNavigation } from './MainBottomNavigation'
 import sproutArt from '../../assets/care-journey/two-leaf-sprout-20261030.webp'
 
@@ -73,7 +73,7 @@ export function MainAppHeader({ title, compact = false, action, childSelectionRe
         <button className="absolute left-3 grid h-11 w-11 place-items-center rounded-full hover:bg-primary-soft" type="button" aria-label="打开菜单" onClick={() => setOpen(true)}>
           <Menu size={24} strokeWidth={1.8} />
         </button>
-        {childIdentity || conversation && title === '症状记录' ? <div className="hoho-main-header__identity" aria-label="当前记录对象">{childIdentity&&<h1 className="sr-only">{title}</h1>}{hasMembers && <button className="hoho-main-header__child" type="button" aria-label="切换记录对象" onClick={() => setChildSheetOpen(true)}><Avatar name={privateName} src={member.avatar} size="sm" /><span>{privateName}{member.age ? ` · ${compactIdentityAge(member.age)}` : ''}</span><ChevronDown size={13} aria-hidden="true" /></button>}{careJourneyEntry && <button type="button" className="hoho-main-header__care" aria-label="呵护之旅" onClick={() => navigate('/care-journey')}><img src={sproutArt} width={28} height={28} alt="" aria-hidden="true"/></button>}</div> : <h1 className="hoho-text-section-title w-full truncate text-center">{title}{conversation && title==='护护' && <span className="hoho-conversation-ai" aria-label="AI 助手">AI</span>}</h1>}
+        {childIdentity || conversation && title === '症状记录' ? <div className="hoho-main-header__identity" aria-label="当前记录对象">{childIdentity&&<h1 className="sr-only">{title}</h1>}{hasMembers && <button className="hoho-main-header__child" type="button" aria-label="切换记录对象" onClick={() => setChildSheetOpen(true)}><Avatar name={privateName} src={member.avatar} size="sm" /><span>{privateName}</span></button>}{careJourneyEntry && <button type="button" className="hoho-main-header__care" aria-label="呵护之旅" onClick={() => navigate('/care-journey')}><img src={sproutArt} width={28} height={28} alt="" aria-hidden="true"/></button>}</div> : <h1 className="hoho-text-section-title w-full truncate text-center">{title}{conversation && title==='护护' && <span className="hoho-conversation-ai" aria-label="AI 助手">AI</span>}</h1>}
         {action && <div className="hoho-main-header__actions absolute right-3 flex min-h-11 items-center">
           {action}
         </div>}

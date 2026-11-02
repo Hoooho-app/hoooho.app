@@ -42,7 +42,7 @@ test('calendar has no creation controls and its month fills the space above bott
   await page.getByRole('button', { name: '切换日历视图', exact: true }).click()
   await expect(page.getByRole('region', { name: '单日时间轴', exact: true })).toBeVisible()
   await expect(page.locator('.journal-record-actions, .record-entry-actions')).toHaveCount(0)
-  await expect(page.getByRole('navigation', { name: '主要导航' }).getByRole('button')).toHaveText(['症状记录', '健康日历', '孩子档案', '一键整理'])
+  await expect(page.getByRole('navigation', { name: '主要导航' }).getByRole('button')).toHaveText(['症状记录', '健康日历', '档案', '一键整理'])
 })
 
 test('saved full text remains readable from the month and recording still starts at the symptom page', async ({ page, request }) => {

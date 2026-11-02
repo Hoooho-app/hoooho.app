@@ -53,7 +53,7 @@ test('clean light canvas and light surfaces cover navigation, forms and shared p
  }
  for(const path of ['/health-events?view=day','/health-events?view=month','/health-profile','/health-profile/growth','/health-profile/basic','/health-profile/allergy','/conversation-history','/quick-search','/recent-review','/settings','/help','/about','/account/security']){
   await page.goto(path);await expect(page.locator('.app-shell:not(.session-recovery-screen)')).toBeVisible();await noOverflow(page)
-  if(path==='/health-profile')await readable(page.getByRole('heading',{name:'孩子档案',exact:true}))
+  if(path==='/health-profile')await readable(page.getByRole('heading',{name:'档案',exact:true}))
   if(path==='/health-profile/growth')await readable(page.locator('.growth-empty-state p'))
   if(path==='/health-profile/basic'){await readable(page.getByRole('tab',{name:'身高曲线',exact:true}));await page.getByRole('button',{name:/— cm/}).click();await page.getByLabel('手动编辑身高 cm').fill('82.0');await page.getByLabel('手动编辑身高 cm').blur();await page.getByRole('button',{name:/— kg/}).click();await page.getByLabel('手动编辑体重 kg').fill('11.0');await page.getByLabel('手动编辑体重 kg').blur();await page.getByRole('button',{name:'保存本次更新',exact:true}).click();await expect(page.locator('.growth-chart-record')).toHaveCount(1)}
   await page.screenshot({path:info.outputPath(path.replace(/[^a-z0-9]/gi,'-')+'.png')})

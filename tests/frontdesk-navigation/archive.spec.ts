@@ -76,11 +76,12 @@ test('switching children updates the header and counts; installation UI is absen
   await sheet.getByRole('button', { name: '切换到*安' }).click()
   await expect(sheet).toBeHidden()
   await expect(page.locator('.hoho-main-header__child')).toContainText('*安')
-  await expect(page.locator('.hoho-main-header__child')).toContainText('1岁')
+  await expect(page.locator('.hoho-main-header__child')).not.toContainText('岁')
+  await expect(page.locator('.hoho-main-header__child [data-icon=expand_more]')).toHaveCount(0)
   await expect(page.getByRole('region', { name: '健康史', exact: true }).getByRole('button')).toHaveText(['过敏史未记录', '慢性病史未记录', '家族史未记录', '手术史未记录'])
   const identity=await page.locator('.hoho-main-header__child').innerText()
   for (const path of ['/health-profile', '/health-events', '/nurse-station']) {
-    await page.getByRole('navigation',{name:'主要导航'}).getByRole('button',{name:path==='/health-profile'?'孩子档案':path==='/health-events'?'健康日历':'症状记录',exact:true}).click()
+    await page.getByRole('navigation',{name:'主要导航'}).getByRole('button',{name:path==='/health-profile'?'档案':path==='/health-events'?'健康日历':'症状记录',exact:true}).click()
     await expect.poll(()=>new URL(page.url()).pathname).toBe(path)
     if(path==='/health-events')await expect(page.getByRole('heading',{name:'健康日历',exact:true})).toBeVisible()
     if(path==='/nurse-station'){
@@ -92,4 +93,41 @@ test('switching children updates the header and counts; installation UI is absen
     await expect(page.getByRole('button', { name: /添加.*主屏/ })).toHaveCount(0)
     await expect(page.locator('.install-app-trigger, .install-guide-layer, .install-app-notice')).toHaveCount(0)
   }
+})
+
+test('basic overview shows saved values and dates, clears on child switch and recovers failed growth reads', async ({ page, request }) => {
+  expect((await request.patch(`/api/members/${memberId}`, { headers, data: { bloodType: 'AB', rhBloodType: 'negative' } })).ok()).toBe(true)
+  for (const values of [{ measuredAt: '2026-09-10', heightCm: 88.2, weightKg: null }, { measuredAt: '2026-09-11', heightCm: null, weightKg: 12.3 }]) {
+    expect((await request.post('/api/growth-measurements', { headers, data: { memberId, ...values, measurementType: 'height', dataStatus: 'confirmed', standardId: 'who-2006' } })).ok()).toBe(true)
+  }
+  await page.reload()
+  const summary = page.getByLabel('基本资料摘要', { exact: true })
+  await expect(summary).toContainText('AB型')
+  await expect(summary).toContainText('RhD 阴性')
+  await expect(summary).toContainText('88.2cm')
+  await expect(summary).toContainText('12.3kg')
+  await expect(summary).toContainText('2026-09-10')
+  await expect(summary).toContainText('2026-09-11')
+  await expect(page.locator('.hoho-main-header__child')).toHaveText('合**宝')
+  await expect(page.locator('.hoho-main-header__child [data-icon]')).toHaveCount(0)
+  await expect(page.getByRole('navigation', { name: '主要导航' }).getByRole('button', { name: '档案', exact: true })).toHaveAttribute('aria-current', 'page')
+  expect(await summary.evaluate(el => el.getBoundingClientRect().bottom)).toBeLessThanOrEqual((await page.getByRole('button', { name: '身份与出生背景', exact: true }).boundingBox())!.y)
+
+  await page.route('**/api/growth-measurements?**', route => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: { message: '合成读取失败' } }) }))
+  await page.reload()
+  await expect(page.getByRole('alert')).toContainText('身高、体重读取失败')
+  await expect(summary).toContainText('暂不可用')
+  await expect(summary).not.toContainText('88.2')
+  await page.unroute('**/api/growth-measurements?**')
+  await page.getByRole('button', { name: '重试', exact: true }).click()
+  await expect(summary).toContainText('88.2cm')
+
+  expect((await request.post('/api/members', { headers, data: { name: '小安', relationship: 'child', birthday: '2025-10-01', gender: 'male' } })).ok()).toBe(true)
+  await page.reload()
+  await page.getByRole('button', { name: '切换记录对象', exact: true }).click()
+  await page.getByRole('dialog', { name: '我的孩子', exact: true }).getByRole('button', { name: '切换到*安' }).click()
+  await expect(page.locator('.hoho-main-header__child')).toHaveText('*安')
+  await expect(summary).not.toContainText('88.2')
+  await expect(summary).not.toContainText('AB型')
+  await expect(summary.getByText('未填写', { exact: true })).toHaveCount(3)
 })
