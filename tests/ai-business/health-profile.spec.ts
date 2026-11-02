@@ -9,8 +9,8 @@ test('HP首页实机尺寸、顺序与全部真实入口，失败数量不伪装
   await page.goto('/health-profile');await expect(page.getByText(/待排查 \d+ · 已明确 \d+/)).toBeVisible()
   const labels=['过敏史','慢性病史','家族史','手术史','疫苗接种记录']
   expect(await page.locator('.health-profile-entry strong').allTextContents()).toEqual(labels)
-  await expect(page.getByRole('heading',{name:'孩子档案',exact:true})).toHaveCount(1)
-  await expect(page.locator('header').getByRole('heading',{name:'孩子档案',exact:true})).toBeVisible()
+  await expect(page.getByRole('heading',{name:'档案',exact:true})).toHaveCount(1)
+  await expect(page.locator('header').getByRole('heading',{name:'档案',exact:true})).toBeVisible()
   const smart=page.locator('.health-profile-smart-record')
   await expect(smart.locator('strong')).toHaveText('上传资料')
   await expect(smart.locator('small')).toHaveText('报告、病历、接种回执，自动整理到各项档案')

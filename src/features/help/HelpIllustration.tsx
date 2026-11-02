@@ -16,7 +16,7 @@ const captions: Record<Family,string[]> = {
 export function HelpIllustration({ article, compact = false }: { article: Pick<HelpArticle,'id'|'title'>; compact?: boolean }) {
   const family = families[article.id] ?? (article.id.includes('account') || article.id.includes('email') ? 'account' : 'trouble')
   const lines = captions[family]
-  const headings: Record<Family,string> = { record:'记录新情况',sleep:'记录睡眠',voice:'选择输入方式',child:'孩子档案',find:'健康日历',export:'就诊情况单',review:'近期情况回顾',growth:'成长数据',account:'账户与安全',permission:'输入与权限',trouble:'保留内容，继续操作' }
+  const headings: Record<Family,string> = { record:'记录新情况',sleep:'记录睡眠',voice:'选择输入方式',child:'档案',find:'健康日历',export:'就诊情况单',review:'近期情况回顾',growth:'成长数据',account:'账户与安全',permission:'输入与权限',trouble:'保留内容，继续操作' }
   return <figure className={'help-illustration help-illustration--' + family + (compact ? ' is-small' : '')} aria-label={article.title + '操作示意'}>
     <div className="help-illustration-scene" aria-hidden="true">
       <div className="help-mini-note"><span className="help-mini-note__dot"/>{family === 'sleep' ? '一段完整睡眠' : family === 'export' ? '把情况讲清楚' : family === 'find' ? '记下的，能找到' : family === 'child' ? '资料各有归属' : family === 'review' ? '回看真实变化' : family === 'voice' ? '选顺手的方式' : '不用拍照，也能记'}</div>

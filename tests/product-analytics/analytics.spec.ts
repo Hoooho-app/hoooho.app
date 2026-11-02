@@ -65,7 +65,7 @@ test('actual browser visits and clicks are persisted and readable in the replace
   const saved = page.waitForResponse(response => response.url().endsWith('/api/quick-records') && response.status() === 201)
   await form.getByRole('button', { name: '保存记录', exact: true }).click(); await saved
   await expect(form).toHaveCount(0)
-  await nav.getByRole('button', { name: '孩子档案', exact: true }).click()
+  await nav.getByRole('button', { name: '档案', exact: true }).click()
   await expect(page).toHaveURL(/health-profile/)
   await page.goto('/help')
   await expect.poll(async () => (await report()).pages.find((row: { id: string }) => row.id === '/health-events')?.views).toBeGreaterThan(0)

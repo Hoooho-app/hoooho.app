@@ -92,9 +92,9 @@ test('empty home recording temporarily shows a timeline bubble; cancelling resto
 test('unsent input switches without a prompt, appears in the sidebar and reopens without being sent',async({page,request},info)=>{
   const text='昨晚睡得不安稳，这段还没发送'
   await type(page,text)
-  for(const target of ['孩子档案','健康日历']){
+  for(const target of ['档案','健康日历']){
     await page.getByRole('navigation',{name:'主要导航'}).getByRole('button',{name:target,exact:true}).click()
-    await expect(page).toHaveURL(target==='孩子档案'?/\/health-profile$/:/\/health-events(?:\?|$)/)
+    await expect(page).toHaveURL(target==='档案'?/\/health-profile$/:/\/health-events(?:\?|$)/)
     await expect(page.getByRole('dialog',{name:'退出智能记录',exact:true})).toHaveCount(0)
     await home(page);await expect(page.getByLabel('对话输入',{exact:true})).toHaveValue(text)
   }
@@ -125,7 +125,7 @@ test('released voice shows only loading and its accepted task survives a page sw
   await expect(bubble.locator('svg')).toHaveCount(1)
   await page.screenshot({path:info.outputPath('voice-loading-only.png')})
   const job=await(await accepted).json()
-  await page.getByRole('navigation',{name:'主要导航'}).getByRole('button',{name:'孩子档案',exact:true}).click()
+  await page.getByRole('navigation',{name:'主要导航'}).getByRole('button',{name:'档案',exact:true}).click()
   await expect(page).toHaveURL(/health-profile$/);await home(page)
   await expect.poll(async()=>{const value=await(await request.get(`/api/members/${memberId}/recognition-jobs/${job.id}`,{headers})).json();return value.inputStates?.[0]?.status},{timeout:30000}).toBe('completed')
   await expect(page.locator('.nurse-turn--user p').first()).not.toBeEmpty()
@@ -136,7 +136,7 @@ test('released voice shows only loading and its accepted task survives a page sw
 
 test('leaving during recording retains original bytes before immediate reentry',async({page})=>{
   await record(page)
-  await page.getByRole('navigation',{name:'主要导航'}).getByRole('button',{name:'孩子档案',exact:true}).click()
+  await page.getByRole('navigation',{name:'主要导航'}).getByRole('button',{name:'档案',exact:true}).click()
   await page.keyboard.up('Space');await expect(page).toHaveURL(/health-profile$/)
   await home(page)
   await expect.poll(()=>page.evaluate(async memberId=>{

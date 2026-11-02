@@ -23,8 +23,8 @@ test('primary destinations stay in bottom navigation and help has homepage and s
 })
 
 test('four primary actions use approved copy without a duplicated sidebar menu or a fifth personal tab', () => {
-  for (const label of ['症状记录', '健康日历', '孩子档案', '一键整理']) assert.match(bottom, new RegExp(label))
-  assert.doesNotMatch(drawer, /label: '服务前台'|label: '健康日历'|label: '孩子档案'|label: '一键整理'/)
+  for (const label of ['症状记录', '健康日历', '档案', '一键整理']) assert.match(bottom, new RegExp(label))
+  assert.doesNotMatch(drawer, /label: '服务前台'|label: '健康日历'|label: '档案'|label: '一键整理'/)
   assert.doesNotMatch(bottom, />我的</)
   assert.doesNotMatch(drawer, /label: '健康随记'|label: '健康月历'/)
   assert.doesNotMatch(drawer, /label: '设置'|to: '\/settings'/)

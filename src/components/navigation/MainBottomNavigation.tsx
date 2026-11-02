@@ -7,7 +7,7 @@ import './primary-navigation.css'
 export const primaryDestinations = [
   { label: '症状记录', to: '/nurse-station', icon: SymptomIcon },
   { label: '健康日历', to: '/health-events', icon: CalendarDays },
-  { label: '孩子档案', to: '/health-profile', icon: Folder },
+  { label: '档案', to: '/health-profile', icon: Folder },
 ] as const
 
 export function MainBottomNavigation({ embedded = false }: { embedded?: boolean }) {

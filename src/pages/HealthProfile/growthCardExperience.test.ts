@@ -11,13 +11,13 @@ const editor = readFileSync(new URL('./BasicHealthProfilePage.tsx', import.meta.
 const polish = readFileSync(new URL('../../styles/product-polish.css', import.meta.url), 'utf8')
 
 test('孩子档案复用首页对象顶栏，正文保留分组手动档案入口', () => {
-  assert.match(home, /MainAppHeader childIdentity title="孩子档案"/)
+  assert.match(home, /MainAppHeader childIdentity title="档案"/)
   assert.doesNotMatch(home, /HealthRecordSubjectHeader/)
   assert.doesNotMatch(healthEvents, /HealthRecordSubjectHeader/)
   assert.match(healthEvents, /<MainAppHeader title="健康日历"/)
   assert.match(subjectHeader, /journal-subject-row/)
   assert.match(subjectHeader, /就诊情况单/)
-  assert.match(subjectHeader, /formatAgeFromBirthday/)
+  assert.doesNotMatch(subjectHeader, /formatAgeFromBirthday|journal-subject-meta/)
   assert.match(home, /profile-list\/\$\{id\}/)
   assert.doesNotMatch(home, /查看与补充/)
   assert.doesNotMatch(home, /建议优先补充|搜索健康档案|重要健康事实/)

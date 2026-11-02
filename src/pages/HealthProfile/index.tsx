@@ -6,6 +6,7 @@ import { MainAppHeader } from '../../components/navigation'
 import { subscribeProfileSectionInvalidation } from '../../services/profileSectionStorage'
 import { apiRequest } from '../../services/apiClient'
 import { useAppStore } from '../../store/useAppStore'
+import { BasicProfileSummary } from './BasicProfileSummary'
 import './healthProfileHome.css'
 
 const sections = [
@@ -51,8 +52,9 @@ export function HealthProfilePage() {
   }, [token, currentMemberId, member?.id, authUser?.id, retry])
 
   return <main className="app-shell health-profile-overview">
-    <MainAppHeader childIdentity title="孩子档案" />
+    <MainAppHeader childIdentity title="档案" />
     <nav className="page-content health-profile-home" aria-label="档案分类">{sections.map(section => <HohoSection className="health-profile-group" title={section.title} aria-label={section.title} key={section.id}>
+    {section.id === 'basic' && member && <BasicProfileSummary key={`${authUser?.id}:${member.id}`} member={member} />}
     <div className="health-profile-entries" data-hoho-surface="light">{section.entries.map(({ id, title, icon: Icon, path }) => <button className="health-profile-entry" disabled={!member} key={id} onClick={() => navigate(path)} type="button">
       <span className="health-profile-entry__icon"><Icon aria-hidden="true" size={22} strokeWidth={1.7} /></span>
       <span className="health-profile-entry__text"><strong>{title}</strong></span>{counts.memberId===currentMemberId&&counts.values[id]!=null&&<small className="health-profile-entry__count">{counts.values[id]?`${counts.values[id]}条`:'未记录'}</small>}<ChevronRight aria-hidden="true" size={19} strokeWidth={1.6} />
