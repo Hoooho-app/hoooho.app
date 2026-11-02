@@ -46,3 +46,14 @@ V2 token、HohoButton、HohoProgress 五段线与现有Material图标复用；�
 主人随后明确回复“上线”，承接上一条已明确命名 `Hoooho-app/hoooho.app` 的推送与部署请求，现已授权将本次改动推送至该仓库、合入main并部署Production。先同步最新 `050acfb`，保留刚上线的录音时间线修正；本次相对main的运行改动仍仅首页入口与介绍卡。
 
 发布按分支/PR检查→main集成→Railway Production SUCCESS→线上核验继续，保留既有单环境，不创建Staging，也不重发原生包。最终回执后补。
+
+
+## Production发布回执
+
+- 本机Git无推送凭据，使用已连接GitHub保存已验证的14文件差异；远端tree `b4e1c13d5ab9d4f2c8b0989e2896428dc9719a9e` 与本地已验证tree完全相同。分支提交 `bb39d12ea8c0ffadc49e7829ce9a4951accc4a53`，不是重新生成另一份实现。
+- [PR #615](https://github.com/Hoooho-app/hoooho.app/pull/615) 已合入main，运行提交 `f3b82f50845fbb695426d5af59e1947bf6e14f29`。保留同期已上线录音修正与新建对话优化。
+- 三条远程检查均成功：[首页介绍](https://github.com/Hoooho-app/hoooho.app/actions/runs/41375118039)、[记录全链路及四组协议](https://github.com/Hoooho-app/hoooho.app/actions/runs/41375118109)、[原知识阅读兼容](https://github.com/Hoooho-app/hoooho.app/actions/runs/41375117953)。首页检查中60项移动场景、3项导航、4项帮助及10项引导通过。
+- Railway Production部署 `a12ffacc-0e57-49a8-853f-6ed6a989eca2` 已观察终态 **SUCCESS**，匹配运行提交 `f3b82f5`；平台更新时间为北京时间 2026/11/2 10:14:15。服务及环境仍是原 `hoooho.app / production`，无新环境、数据迁移或原生上传。
+- 线上只读核验：临时入口 `https://hooohoapp-production.up.railway.app/nurse-station` 与 `/api/health` 均200、`Cache-Control: no-store`。入口引用新 `/assets/index-BaC5UCzo.js`，实际功能包 `JournalRecordDetail-RPL_YCcp.js` 返回200，包含“帮助中心”“怎么用护护”、逐幕stage、五段progress和“记录已保存”示意；内容地址资源按immutable缓存，入口每次重新核对。
+- 浏览器健康端当前要求登录，因此未把登录后的Production视觉或实体iPhone写成已复验；已恢复原运营标签页，没有写真实健康数据或领取奖励。设计已由主人确认，线上体验仍待主人查看。
+- 状态：实现、构建/相关回归、main集成、正式部署及线上资源核验已完成。本条回执只更新文档，不重部署相同应用。
