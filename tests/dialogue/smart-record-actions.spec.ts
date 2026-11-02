@@ -66,7 +66,7 @@ test('full review edits one field, adds and deletes cards, saves together',async
 test('a zero-fact thank-you preserves the acknowledged candidate and new composer input',async({page,request})=>{
  const before=await(await request.get(`/api/members/${memberId}/front-desk-record`,{headers})).json()
  const reply='不客气，刚才那份草稿还保留着。'
- await request.post('http://127.0.0.1:4198/front-reply-data',{data:{reply,contextId:'@context',responseMode:'conversation',taskRelation:'continue',subject:{kind:'unknown',memberId:null,label:null,sources:[]},recordChanges:[],nextQuestion:null,requestedAction:{type:'none',targetIds:[],targetVersion:null,confirmation:'none',quote:''},uncertainties:[],emergency:{currentChild:false,quote:''}}})
+ await request.post('http://127.0.0.1:4198/front-reply-data',{data:{reply,contextId:'@context',responseMode:'conversation',taskRelation:'continue',subject:{kind:'unknown',memberId:null,label:null,sources:[]},recordChanges:[],nextQuestion:null,requestedAction:{type:'none',targetIds:[],targetVersion:null,confirmation:'none',quote:''},diagnosisRequested:false,uncertainties:[],emergency:{currentChild:false,quote:''}}})
  await page.getByLabel('对话输入').fill('谢谢')
  await page.getByRole('button',{name:'发送',exact:true}).click()
  await page.getByLabel('对话输入').fill('这段尚未发送的新补充')

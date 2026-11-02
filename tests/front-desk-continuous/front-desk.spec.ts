@@ -10,7 +10,7 @@ let memberId:string,memberName:string
 const noAction={type:'none',targetIds:[],targetVersion:null,confirmation:'none',quote:''}
 const subject={kind:'unknown',memberId:null,label:null,sources:[]}
 async function reply(request:APIRequestContext,text:string,question:string|null=null,polarity='affirmed'){
- const r=await request.post(`${control}/front-reply-data`,{data:{reply:question?`收到。${question}`:'收到。',contextId:'@context',responseMode:'record',taskRelation:'continue',subject,recordChanges:[{type:'add',targetId:null,text,scope:'record',polarity,subject,sources:[{messageId:'@latest',attachmentId:null,quote:text}]}],nextQuestion:question?{id:null,text:question,target:'observation',sourceMessageId:'@latest'}:null,requestedAction:noAction,uncertainties:[],emergency:{currentChild:false,quote:''}}});expect(r.ok()).toBe(true)
+ const r=await request.post(`${control}/front-reply-data`,{data:{reply:question?`收到。${question}`:'收到。',contextId:'@context',responseMode:'record',taskRelation:'continue',subject,recordChanges:[{type:'add',targetId:null,text,scope:'record',polarity,subject,sources:[{messageId:'@latest',attachmentId:null,quote:text}]}],nextQuestion:question?{id:null,text:question,target:'observation',sourceMessageId:'@latest'}:null,requestedAction:noAction,diagnosisRequested:false,uncertainties:[],emergency:{currentChild:false,quote:''}}});expect(r.ok()).toBe(true)
 }
 async function send(page:Page,text:string){const input=page.getByRole('textbox',{name:'对话输入'});if(!await input.isVisible())await page.getByRole('button',{name:'改用文字',exact:true}).click();await input.fill(text);const accepted=page.waitForResponse(r=>r.url().endsWith('/recognition-jobs')&&r.request().method()==='POST');await page.getByRole('button',{name:'发送',exact:true}).click();const r=await accepted;expect(r.ok()).toBe(true);return r.json()}
 async function settle(request:APIRequestContext,id:string,revision:number){let job:any;await expect.poll(async()=>{job=await(await request.get(`/api/members/${memberId}/recognition-jobs/${id}`,{headers,maxRetries:2})).json();return job.state==='failed'||job.resultRevision===revision&&['ready','needs_review'].includes(job.state)}).toBe(true);expect(job.state,JSON.stringify(job.error)).not.toBe('failed');return job}
@@ -120,7 +120,7 @@ test('key information: saying a measurement was taken still needs an actual nume
  await expect(progress.getByRole('listitem',{name:'体温数值，已完成',exact:true})).toHaveAttribute('data-state','answered')
 })
 async function discussVisit(page:Page,request:APIRequestContext){
- await request.post(`${control}/front-reply-data`,{data:{reply:'可以把已有情况整理成就诊资料，供就诊时核对。',contextId:'@context',responseMode:'consultation',taskRelation:'continue',subject,recordChanges:[],nextQuestion:null,requestedAction:noAction,uncertainties:[],emergency:{currentChild:false,quote:''}}})
+ await request.post(`${control}/front-reply-data`,{data:{reply:'可以把已有情况整理成就诊资料，供就诊时核对。',contextId:'@context',responseMode:'consultation',taskRelation:'continue',subject,recordChanges:[],nextQuestion:null,requestedAction:noAction,diagnosisRequested:false,uncertainties:[],emergency:{currentChild:false,quote:''}}})
  const job=await send(page,'我准备去医院，挂什么科？');await settle(request,job.id,job.inputRevision)
  await expect(page.getByRole('region',{name:'就诊情况单'})).toBeVisible()
 }
@@ -160,7 +160,7 @@ test('second follow-up offers text consent, unknown location opens picker, and r
  expect((await(await request.get(`${control}/status`)).json()).calls).toBe(callsBefore+1)
  await expect(page.getByRole('button',{name:'选择症状部位',exact:true})).toBeVisible()
  const unknown='说不清具体位置。'
- await request.post(`${control}/front-reply-data`,{data:{reply:'可以点选部位。洗完澡后更明显吗？',contextId:'@context',responseMode:'record',taskRelation:'continue',subject,recordChanges:[{type:'add',targetId:null,text:unknown,scope:'record',polarity:'unknown',subject,sources:[{messageId:'@latest',attachmentId:null,quote:unknown}]}],nextQuestion:{id:null,text:'洗完澡后更明显吗？',target:'bath_comparison',sourceMessageId:'@latest'},requestedAction:noAction,uncertainties:[],emergency:{currentChild:false,quote:''}}})
+ await request.post(`${control}/front-reply-data`,{data:{reply:'可以点选部位。洗完澡后更明显吗？',contextId:'@context',responseMode:'record',taskRelation:'continue',subject,recordChanges:[{type:'add',targetId:null,text:unknown,scope:'record',polarity:'unknown',subject,sources:[{messageId:'@latest',attachmentId:null,quote:unknown}]}],nextQuestion:{id:null,text:'洗完澡后更明显吗？',target:'bath_comparison',sourceMessageId:'@latest'},requestedAction:noAction,diagnosisRequested:false,uncertainties:[],emergency:{currentChild:false,quote:''}}})
  job=await send(page,unknown);await settle(request,job.id,job.inputRevision)
  const confirm=page.getByRole('button',{name:'确认整理',exact:true});await expect(confirm).toBeVisible()
  await expect(page.getByRole('list',{name:'本轮询问进度'}).getByRole('listitem',{name:'症状部位，未完成',exact:true})).toHaveAttribute('data-state','uncertain')
@@ -185,7 +185,7 @@ test('second follow-up offers text consent, unknown location opens picker, and r
  expect((await(await request.get(`${control}/status`)).json()).calls).toBe(beforeEmpty)
  await expect(page.getByRole('list',{name:'本轮询问进度'}).getByRole('listitem',{name:'症状部位，未完成',exact:true})).toHaveAttribute('data-state','uncertain')
  const noComparison='洗澡之前没有观察，无法比较。'
- await request.post(`${control}/front-reply-data`,{data:{reply:'明白。洗澡后会更明显吗？',contextId:'@context',responseMode:'record',taskRelation:'continue',subject,recordChanges:[{type:'add',targetId:null,text:noComparison,scope:'record',polarity:'unknown',subject,sources:[{messageId:'@latest',attachmentId:null,quote:noComparison}]}],nextQuestion:{id:null,text:'洗澡后会更明显吗？',target:'after_bathing',sourceMessageId:'@latest'},requestedAction:noAction,uncertainties:[],emergency:{currentChild:false,quote:''}}})
+ await request.post(`${control}/front-reply-data`,{data:{reply:'明白。洗澡后会更明显吗？',contextId:'@context',responseMode:'record',taskRelation:'continue',subject,recordChanges:[{type:'add',targetId:null,text:noComparison,scope:'record',polarity:'unknown',subject,sources:[{messageId:'@latest',attachmentId:null,quote:noComparison}]}],nextQuestion:{id:null,text:'洗澡后会更明显吗？',target:'after_bathing',sourceMessageId:'@latest'},requestedAction:noAction,diagnosisRequested:false,uncertainties:[],emergency:{currentChild:false,quote:''}}})
  job=await send(page,noComparison);await settle(request,job.id,job.inputRevision)
  await expect(page.getByText('明白。洗澡后会更明显吗？',{exact:true})).toHaveCount(0)
  await expect(confirm).toBeVisible();const readyCalls=(await(await request.get(`${control}/status`)).json()).calls
@@ -389,7 +389,7 @@ test('correction updates the original record and leaves a single current card',a
  const card=page.getByRole('region',{name:'当前记录单'});await expect(card.getByRole('status',{name:'记录已保存'})).toBeVisible();await expect(card.getByRole('button',{name:'查看记录',exact:true})).toBeVisible()
  const before=await(await request.get(`/api/members/${memberId}/front-desk-record`,{headers})).json(),fact=before.facts.find((f:any)=>f.status==='active'),correction='左脚小趾碰疼了'
  await reply(request,correction)
-  await request.post(`${control}/front-reply-data`,{data:{reply:'收到，已修改为左脚小趾。',contextId:'@context',responseMode:'record',taskRelation:'continue',subject,recordChanges:[{type:'correct',targetId:fact.id,text:correction,scope:'record',polarity:'affirmed',subject,sources:[{messageId:'@latest',attachmentId:null,quote:correction}]}],nextQuestion:null,requestedAction:noAction,uncertainties:[],emergency:{currentChild:false,quote:''}}})
+  await request.post(`${control}/front-reply-data`,{data:{reply:'收到，已修改为左脚小趾。',contextId:'@context',responseMode:'record',taskRelation:'continue',subject,recordChanges:[{type:'correct',targetId:fact.id,text:correction,scope:'record',polarity:'affirmed',subject,sources:[{messageId:'@latest',attachmentId:null,quote:correction}]}],nextQuestion:null,requestedAction:noAction,diagnosisRequested:false,uncertainties:[],emergency:{currentChild:false,quote:''}}})
  job=await send(page,'刚才说错了，是左脚小趾碰疼了');try{await settle(request,job.id,job.inputRevision)}catch(error){const proof=await(await request.get(`${control}/continuous-record-proof?contextId=${before.id}`)).json();await writeFile(test.info().outputPath('synthetic-revision-proof.json'),JSON.stringify(proof,null,2));throw error}
  await generate(page);await expect(card).toHaveCount(1);await expect(card).toContainText('左脚小趾');await expect(card.getByRole('status',{name:'记录已保存'})).toBeVisible();await expect(card.getByRole('button',{name:'查看记录',exact:true})).toBeVisible();const after=await(await request.get(`/api/members/${memberId}/front-desk-record`,{headers})).json();expect(after.currentRecord.recordId).toBe(before.currentRecord.recordId)
  const record=(await(await request.get(`/api/events/${after.currentRecord.eventId}/records`,{headers})).json()).find((r:any)=>r.id===after.currentRecord.recordId);expect(record.content).toContain('左脚');expect(record.sourceText).toContain(text);expect(record.sourceText).toContain('刚才说错了')
@@ -424,7 +424,7 @@ test('a failed model still leaves a viewable raw record without false structured
 
 test('blank input does not submit; punctuation remains conversation with no automatic save',async({page,request})=>{
  await page.getByRole('button',{name:'改用文字',exact:true}).click();const input=page.getByRole('textbox',{name:'对话输入'});await input.fill('   ');await expect(page.getByRole('button',{name:'发送',exact:true})).toHaveCount(0);const callsBefore=(await(await request.get(`${control}/status`)).json()).calls;await input.press('Enter');expect((await(await request.get(`${control}/status`)).json()).calls).toBe(callsBefore);await expect(page.locator('.nurse-turn--user')).toHaveCount(0)
- await request.post(`${control}/front-reply-data`,{data:{reply:'收到，可以慢慢说。',contextId:'new',responseMode:'conversation',taskRelation:'new',subject,recordChanges:[],nextQuestion:null,requestedAction:noAction,uncertainties:[],emergency:{currentChild:false,quote:''}}})
+ await request.post(`${control}/front-reply-data`,{data:{reply:'收到，可以慢慢说。',contextId:'new',responseMode:'conversation',taskRelation:'new',subject,recordChanges:[],nextQuestion:null,requestedAction:noAction,diagnosisRequested:false,uncertainties:[],emergency:{currentChild:false,quote:''}}})
  const job=await send(page,'。');await settle(request,job.id,job.inputRevision);const context=await(await request.get(`/api/members/${memberId}/front-desk-record`,{headers})).json();expect(context.currentRecord).toBeUndefined();expect(context.review?.items??[]).toHaveLength(0)
 })
 
@@ -433,7 +433,7 @@ test('real browser audio and synthetic ASR correction update the same record',as
  const card=page.getByRole('region',{name:'当前记录单'});await expect(card.getByRole('status',{name:'记录已保存'})).toBeVisible();await expect(card.getByRole('button',{name:'查看记录',exact:true})).toBeVisible()
  const before=await(await request.get(`/api/members/${memberId}/front-desk-record`,{headers})).json(),fact=before.facts.find((f:any)=>f.status==='active'),corrected='手心有点痒'
  await request.get(`${control}/voice?text=${encodeURIComponent('改成手心有点痒')}`)
- await request.post(`${control}/front-reply-data`,{data:{reply:'收到，部位已修改为手心。',contextId:'@context',responseMode:'record',taskRelation:'continue',subject,recordChanges:[{type:'correct',targetId:fact.id,text:corrected,scope:'record',polarity:'affirmed',subject,sources:[{messageId:'@latest',attachmentId:null,quote:corrected}]}],nextQuestion:null,requestedAction:noAction,uncertainties:[],emergency:{currentChild:false,quote:''}}})
+ await request.post(`${control}/front-reply-data`,{data:{reply:'收到，部位已修改为手心。',contextId:'@context',responseMode:'record',taskRelation:'continue',subject,recordChanges:[{type:'correct',targetId:fact.id,text:corrected,scope:'record',polarity:'affirmed',subject,sources:[{messageId:'@latest',attachmentId:null,quote:corrected}]}],nextQuestion:null,requestedAction:noAction,diagnosisRequested:false,uncertainties:[],emergency:{currentChild:false,quote:''}}})
  await page.getByRole('button',{name:'改用语音',exact:true}).click();const hold=page.getByRole('button',{name:'按住记录症状',exact:true});await hold.focus();await page.keyboard.down('Space');await expect(page.getByRole('button',{name:'正在录音，松开即结束',exact:true})).toBeVisible();await page.waitForTimeout(1400)
  const accepted=page.waitForResponse(r=>r.url().endsWith('/recognition-jobs')&&r.request().method()==='POST');await page.keyboard.up('Space');const result=await accepted;expect(result.ok()).toBe(true);job=await result.json();await expect(page.getByRole('status',{name:'正在转写和处理这段语音'})).toBeVisible();await expect(page.getByText('收到',{exact:true})).toHaveCount(0);await settle(request,job.id,job.inputRevision)
  await generate(page);await expect(card.getByRole('status',{name:'记录已保存'})).toBeVisible();await expect(card.getByRole('button',{name:'查看记录',exact:true})).toBeVisible();await expect(page.locator('.nurse-turn--user').last()).toContainText('改成手心有点痒');await expect(card).toContainText('手心')
@@ -460,7 +460,7 @@ test('member switch fences a delayed response and keeps the welcome private',asy
 
 test('photo-only upload retains its bytes and saves a readable original without a manufactured symptom',async({page,request})=>{
  const bytes=await sharp({create:{width:48,height:48,channels:3,background:'#bdd7c7'}}).png().toBuffer()
- await request.post(`${control}/front-reply-data`,{data:{reply:'收到，图片里是一片浅绿色区域。',contextId:'new',responseMode:'conversation',taskRelation:'new',subject,recordChanges:[],nextQuestion:null,requestedAction:noAction,uncertainties:[],emergency:{currentChild:false,quote:''}}})
+ await request.post(`${control}/front-reply-data`,{data:{reply:'收到，图片里是一片浅绿色区域。',contextId:'new',responseMode:'conversation',taskRelation:'new',subject,recordChanges:[],nextQuestion:null,requestedAction:noAction,diagnosisRequested:false,uncertainties:[],emergency:{currentChild:false,quote:''}}})
  const accepted=page.waitForResponse(r=>r.url().endsWith('/recognition-jobs')&&r.request().method()==='POST')
  const picker=page.waitForEvent('filechooser');await page.getByRole('button',{name:'添加照片、视频或文件'}).click();await(await picker).setFiles({name:'合成照片.png',mimeType:'image/png',buffer:bytes})
  const response=await accepted;expect(response.ok()).toBe(true);const job=await response.json();await settle(request,job.id,job.inputRevision);await generate(page)
@@ -502,7 +502,7 @@ test('uncertain uploaded text can be reviewed without losing its warning and sav
  const observation='合成照片可见局部发红'
  const bytes=await sharp({create:{width:80,height:80,channels:3,background:'#bb7766'}}).png().toBuffer(),dataUrl=`data:image/png;base64,${bytes.toString('base64')}`,attachmentId=`file-${fingerprint(dataUrl).slice(0,24)}`
  await request.post(`${control}/draft-data`,{data:{visualOutput:{kind:'document',status:'uncertain',text:observation,observations:[]},items:[{category:'symptom',title:'待核对照片',timeText:null,subject:'current',archiveCategory:null,relationKey:null,fields:[{name:'symptom',value:observation,quote:observation,sourceId:'@first',page:1}]}]}})
- await request.post(`${control}/front-reply-data`,{data:{reply:'已看到部分资料，请对照原件核对。',contextId:'new',responseMode:'record',taskRelation:'new',subject,recordChanges:[{type:'add',targetId:null,text:observation,scope:'record',polarity:'affirmed',subject,sources:[{messageId:'@latest',attachmentId,quote:observation}]}],nextQuestion:null,requestedAction:noAction,uncertainties:[],emergency:{currentChild:false,quote:''}}})
+ await request.post(`${control}/front-reply-data`,{data:{reply:'已看到部分资料，请对照原件核对。',contextId:'new',responseMode:'record',taskRelation:'new',subject,recordChanges:[{type:'add',targetId:null,text:observation,scope:'record',polarity:'affirmed',subject,sources:[{messageId:'@latest',attachmentId,quote:observation}]}],nextQuestion:null,requestedAction:noAction,diagnosisRequested:false,uncertainties:[],emergency:{currentChild:false,quote:''}}})
  const accepted=page.waitForResponse(r=>r.url().endsWith('/recognition-jobs')&&r.request().method()==='POST')
  const picker=page.waitForEvent('filechooser');await page.getByRole('button',{name:'添加照片、视频或文件'}).click();await(await picker).setFiles({name:'合成不完整照片.png',mimeType:'image/png',buffer:bytes})
  const job=await(await accepted).json();await settle(request,job.id,job.inputRevision)
@@ -560,4 +560,17 @@ test('a late generation response cannot display an obsolete card over a newer qu
   await expect(page.getByText('收到。还有流鼻涕吗？',{exact:true})).toBeVisible()
   const context=await(await request.get(`/api/members/${memberId}/front-desk-record`,{headers})).json();expect(context.currentRecord.evidenceVersion).toBeLessThan(context.evidenceVersion)
  }finally{release?.()}
+})
+
+test('diagnosis requests show the recorder boundary while preserving the current observations',async({page,request})=>{
+ await reply(request,'脖子有红点');let job=await send(page,'脖子有红点');await settle(request,job.id,job.inputRevision)
+ const before=await(await request.get(`/api/members/${memberId}/front-desk-record`,{headers})).json()
+ await request.post(`${control}/front-reply-data`,{data:{reply:'无法仅凭这些确定病因，可能是感染。',contextId:'@context',responseMode:'consultation',diagnosisRequested:true,taskRelation:'continue',subject,recordChanges:[],nextQuestion:{id:null,text:'红点是什么形状？',target:'appearance',sourceMessageId:'@latest'},requestedAction:noAction,uncertainties:[],emergency:{currentChild:false,quote:''}}})
+ job=await send(page,'判断一下这个大概是什么情况');await settle(request,job.id,job.inputRevision)
+ await expect(page.getByText(/护护只负责记录和整理健康信息，不负责诊断/)).toBeVisible()
+ await expect(page.getByText(/无法仅凭这些确定病因|可能是感染/)).toHaveCount(0)
+ const after=await(await request.get(`/api/members/${memberId}/front-desk-record`,{headers})).json()
+ expect(after.id).toBe(before.id)
+ expect(after.facts.filter((fact:any)=>fact.status==='active').map((fact:any)=>fact.text)).toEqual(['脖子有红点'])
+ expect(after.interview.question).toBeNull()
 })
