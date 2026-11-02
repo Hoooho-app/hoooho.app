@@ -17,10 +17,20 @@
 
 ## 验证与发布
 
-待本轮实际验证后补充；不代表产品主人已验收。
+以下为本轮实际验证与发布证据；不代表产品主人已验收。
 
 - 完整 `npm run build` 通过（类型、图标、人体/头像/图片素材、Vite、viewport、认证构建及安装配置）。
 - 字段校验26项及命名/时间/排便直接依赖10项通过。
 - `tests/diet-form` 13项实际 Chromium 操作通过：从首页改用文字→日常→喂养与饮食；七类型保存/详情/同ID修改与清空，超过80字症状回填，草稿/刷新、失败重试、重复点击、成员隔离、补剂保存，以及375/390/430宽度拖拽与间距。
 - 追加短屏360px高度、输入可达与保存可达检查。截图在 `outputs/diet-form`，追踪由Playwright保存；合成数据只写本地临时数据目录，无真实AI/邮件或线上健康记录写入。
 - 实体iPhone/Safari未验收；WebKit环境依赖不全，未把Chromium模拟当作真机结果。产品主人视觉/真机验收待实际使用。
+
+
+## Production发布回执
+
+- 源码提交：`05497ab3cdfce4ca992bfad1e3df51c4ec61f37e`，已集成至main。Shell无GitHub推送凭据后，使用已连接GitHub原子提交；远程tree与本地验证tree一致。保留截至`d0fa395`的其他任务。
+- Railway Production部署：`909500b8-e2a4-4907-96f6-dbe419c7456e`，2026-11-03 04:41（北京时间）为SUCCESS，健康检查通过。未创建Staging或上传原生包。
+- 临时生产入口`https://hooohoapp-production.up.railway.app/nurse-station`和`/api/health`返回200/status:ok。
+- 线上入口`/assets/index-DqaEw8ai.js`实际引用`JournalRecordDetail-DYautWuL.js`及`JournalRecordDetail-X5gS8WZJ.css`；症状描述、默认折叠及固定滚动样式均存在。模块去除依赖文件名hash后与本地已验证构建一致，CSS含overscroll-behavior:none和touch-action:pan-y pinch-zoom。
+- 额外三个宽度的360px短屏检查通过；再次验证375px输入时标题保持在y=0、保存可达，通过。
+- 线上核验为部署及实际资源回读；保存、回填和失败恢复在本地隔离数据中验证。未在生产账号写测试健康数据，实体iPhone/产品主人验收未执行。
