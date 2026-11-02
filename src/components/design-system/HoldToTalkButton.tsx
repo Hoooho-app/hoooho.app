@@ -5,11 +5,11 @@ import { HohoButton } from './HohoButton'
 import './HoldToTalkButton.css'
 
 /** Shared press feedback; microphone and transcript ownership stay with the caller. */
-export function HoldToTalkButton({ onStart, onStop, onDiscard, listening = false, requesting = false, processing = false, disabled = false, audioLevel = 0, releaseLabel = '松开即结束', idleLabel = '按住说话', discardOnBlur = true, className = '', fullWidth = false, expandedFeedback = false, feedbackHint, liveTranscript, liveStatus, presentation='floating' }: {
+export function HoldToTalkButton({ onStart, onStop, onDiscard, listening = false, requesting = false, processing = false, disabled = false, audioLevel = 0, releaseLabel = '松开即结束', idleLabel = '按住说话', discardOnBlur = true, className = '', fullWidth = false, expandedFeedback = false, feedbackHint, liveTranscript, liveStatus, recordingInConversation = false, presentation='floating' }: {
   onStart: () => void; onStop: () => void; onDiscard?: () => void
   listening?: boolean; requesting?: boolean; processing?: boolean; disabled?: boolean
   audioLevel?: number; releaseLabel?: string; idleLabel?: string; discardOnBlur?: boolean; className?: string; fullWidth?: boolean
-  expandedFeedback?: boolean; feedbackHint?: string; liveTranscript?:string; liveStatus?:string
+  expandedFeedback?: boolean; feedbackHint?: string; liveTranscript?:string; liveStatus?:string; recordingInConversation?:boolean
   presentation?:'floating'|'conversation'
 }) {
   const [press, setPress] = useState<{ x: number; y: number }>(), [cancelling, setCancelling] = useState(false)
@@ -67,10 +67,10 @@ export function HoldToTalkButton({ onStart, onStop, onDiscard, listening = false
       onKeyUp={e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); finish() } }} onBlur={() => finish(discardOnBlur)}>
       <Mic size={20} aria-hidden="true" />{status}
     </HohoButton>
-    {press && createPortal(<div className={`hoho-hold-feedback${expandedFeedback ? ' hoho-hold-feedback--expanded' : ''}${cancelling ? ' is-cancelling' : ''}${presentation==='conversation'?' hoho-hold-feedback--conversation':''}`} style={{ left: press.x, top: press.y, '--voice-level': Math.min(1, Math.max(0, audioLevel)) } as CSSProperties}>
+    {press && createPortal(<div className={`hoho-hold-feedback${expandedFeedback ? ' hoho-hold-feedback--expanded' : ''}${cancelling ? ' is-cancelling' : ''}${presentation==='conversation'?' hoho-hold-feedback--conversation':''}${recordingInConversation?' hoho-hold-feedback--in-conversation':''}`} style={{ left: press.x, top: press.y, '--voice-level': Math.min(1, Math.max(0, audioLevel)) } as CSSProperties}>
       <div className="hoho-hold-feedback__halo" aria-hidden="true" />
       <div className="hoho-hold-feedback__status" role="status" style={{ left: (expandedFeedback ? window.innerWidth / 2 : Math.max(96, Math.min(window.innerWidth - 96, press.x))) - press.x }}>
-        {liveTranscript!==undefined&&listening&&!cancelling&&<div className="hoho-hold-feedback__transcript" aria-label="正在说的话" aria-live="polite">{!liveTranscript&&<small>{liveStatus||'正在听你说'}</small>}<p ref={liveTextElement}>{liveTranscript||'…'}</p></div>}
+        {!recordingInConversation&&liveTranscript!==undefined&&listening&&!cancelling&&<div className="hoho-hold-feedback__transcript" aria-label="正在说的话" aria-live="polite">{!liveTranscript&&<small>{liveStatus||'正在听你说'}</small>}<p ref={liveTextElement}>{liveTranscript||'…'}</p></div>}
         <div className="hoho-hold-feedback__wave" aria-hidden="true">{(presentation==='conversation'?Array.from({length:21},(_,i)=>i):[0,1,2,3,4]).map(i=><span key={i} style={{height:`${4+audioLevel*(presentation==='conversation'?10+10*Math.abs(Math.sin(i*1.2)):18-Math.abs(i-2)*5)}px`}}/>)}</div>
         {presentation==='conversation'?<>
           {(cancelling||!listening)&&<span>{cancelling?'松开取消':status}</span>}

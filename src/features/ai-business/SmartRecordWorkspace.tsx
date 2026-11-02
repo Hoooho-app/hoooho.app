@@ -469,11 +469,23 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
     await persist({...current.current,rawSaveTarget:undefined,...(!page||eventId?{smartReview:current.current.smartReview?{...current.current.smartReview,state:'changed'}:undefined}:{}),capturedAt:current.current.capturedAt??new Date().toISOString(),pendingVoice:file,files:[...current.current.files,file],conversationTurns:[...current.current.conversationTurns??[],turn]})
     if(!leaving.current)void submitTurn(turn).catch(()=>undefined)
   },onTranscript:async()=>undefined})
-  useEffect(()=>{
-    if(!home||voice.state!=='listening'||!followScroll.current)return
-    const frame=requestAnimationFrame(()=>scrollBody.current?.scrollTo({top:scrollBody.current.scrollHeight,behavior:'auto'}))
-    return()=>cancelAnimationFrame(frame)
-  },[home,voice.state,voice.liveText])
+  const liveRecording=home&&voice.state==='listening'
+  useLayoutEffect(()=>{
+    if(!liveRecording)return
+    nurseScrollAnchor.current=null;recoveryFollowing.current=false;followScroll.current=true;setShowJump(false)
+  },[liveRecording])
+  useLayoutEffect(()=>{
+    if(!liveRecording||!followScroll.current)return
+    const element=scrollBody.current
+    if(!element)return
+    const showLatest=()=>{if(followScroll.current)element.scrollTo({top:element.scrollHeight,behavior:'auto'})}
+    showLatest()
+    const observer=new ResizeObserver(showLatest)
+    observer.observe(element)
+    const conversation=element.querySelector('.nurse-conversation')
+    if(conversation)observer.observe(conversation)
+    return()=>observer.disconnect()
+  },[liveRecording,voice.liveText])
   voiceBusy.current=voice.busy
   useEffect(()=>{
     const snapshot=local.recognitionSnapshot,receipt=receivedJob.current
@@ -713,7 +725,7 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
       setError(e instanceof Error?e.message:'保存未完成，草稿保留，可重试');setStatus('')
     }}finally{pending.current=false;if(mounted.current)setBusy(false)}
   }
-  const conversationFooter=<DialogueComposer key={home?homeInputEpoch:undefined} variant={home?'frontdesk':'default'} onTypingChange={home?setHomeTyping:undefined} holdLabel={home?'按住记录症状':undefined} busyLabel={home&&startingConversation?'正在新建对话':undefined} initialTyping={Boolean(local.conversationInput?.trim())} placeholder={home?'输入孩子的情况…':undefined} expandedFeedback liveTranscript={home?voice.liveText:undefined} liveStatus={voice.liveUnavailable?'实时文字暂不可用，松开后完整转写':'正在听你说'} feedbackHint={home?(voice.liveUnavailable?'录音继续，松开后整理':'边说边显示文字，松开后整理'):'松开后显示文字'} discardOnBlur={!page} directPhoto={home||page} text={local.conversationInput??''} onTextChange={conversationInput=>change({conversationInput})} maxLength={5000} disabled={!ready||pending.current||completed||!!resumeChoices||exitOpen||!!local.rawSavedGuide} voiceDisabled={!!local.rawSavedGuide} allowTextWhileProcessing audioLevel={voice.audioLevel} requesting={voice.state==='requesting'} listening={voice.state==='listening'} processing={voice.state==='transcribing'} onStart={()=>{void voice.start()}} onStop={voice.stop} onDiscard={voice.discard} onPhoto={source=>home?chooseAttachment():({camera,album,video:videoCamera,file:filePicker}[source]).current?.click()} onSend={()=>void sendText()}/>
+  const conversationFooter=<DialogueComposer key={home?homeInputEpoch:undefined} variant={home?'frontdesk':'default'} onTypingChange={home?setHomeTyping:undefined} holdLabel={home?'按住记录症状':undefined} busyLabel={home&&startingConversation?'正在新建对话':undefined} initialTyping={Boolean(local.conversationInput?.trim())} placeholder={home?'输入孩子的情况…':undefined} expandedFeedback recordingInConversation={home} liveTranscript={home?voice.liveText:undefined} liveStatus={voice.liveUnavailable?'实时文字暂不可用，松开后完整转写':'正在听你说'} feedbackHint={home?(voice.liveUnavailable?'录音继续，松开后整理':'边说边显示文字，松开后整理'):'松开后显示文字'} discardOnBlur={!page} directPhoto={home||page} text={local.conversationInput??''} onTextChange={conversationInput=>change({conversationInput})} maxLength={5000} disabled={!ready||pending.current||completed||!!resumeChoices||exitOpen||!!local.rawSavedGuide} voiceDisabled={!!local.rawSavedGuide} allowTextWhileProcessing audioLevel={voice.audioLevel} requesting={voice.state==='requesting'} listening={voice.state==='listening'} processing={voice.state==='transcribing'} onStart={()=>{void voice.start()}} onStop={voice.stop} onDiscard={voice.discard} onPhoto={source=>home?chooseAttachment():({camera,album,video:videoCamera,file:filePicker}[source]).current?.click()} onSend={()=>void sendText()}/>
   const saveBlocked=busy||jobBusy||!!localStage||voice.busy||!canSave||!review?.items.length||!!review.documentWarnings?.length||!!review.unmappedRows?.length||review.sources?.some(s=>s.status==='uncertain')
   const reviewFooter=<div className="smart-record-review-footer">
     {subjectConfirmation}
@@ -928,7 +940,7 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
   const hasChecklist=Boolean(continuousCard?.checklist?.text.trim()&&continuousCard.checklist.version===continuousCard.evidenceVersion)
   const topEntries=home&&(hasSavedCard||hasChecklist)&&<nav className="front-desk-top-entries" aria-label="当前记录入口">{hasSavedCard&&<button type="button" data-front-entry="record" disabled={!ready||currentCardDisabled} onClick={()=>void openCurrentCard()}>症状记录单</button>}{hasChecklist&&<button type="button" data-front-entry="checklist" disabled={!ready||currentCardDisabled} onClick={()=>void openChecklist()}>就诊清单</button>}</nav>
   const processingLabel=localStage==='uploading'?'接收中':localStage==='converting'||job?.stage==='converting'||job?.stage==='transcribing'?'转写中':job?.stage==='reading'?'读图中':['organizing','publishing'].includes(job?.stage??'')?'整理中':'理解中'
-  const showHomeWelcome=home&&ready&&stage==='conversation'&&!resumeChoices&&!timeline.length&&!recoveryMessageId&&!local.rawSavedGuide&&!uploadPreview&&!recordGenerated&&!generationOffer&&!error
+  const showHomeWelcome=home&&ready&&!liveRecording&&stage==='conversation'&&!resumeChoices&&!timeline.length&&!recoveryMessageId&&!local.rawSavedGuide&&!uploadPreview&&!recordGenerated&&!generationOffer&&!error
   const hasHomeConversation=ready&&Boolean(timeline.length||recoveryMessageId||local.rawSavedGuide||uploadPreview||recordGenerated)
   const homeActions=<><HohoButton variant="text" size="icon" aria-label="快速查找" onClick={()=>navigate('/quick-search')}><Search size={22} aria-hidden="true" /></HohoButton>{hasHomeConversation&&<HohoButton variant="text" size="icon" aria-label="新建对话" loading={startingConversation} disabled={conversationDisabled} onClick={startHomeConversation}>{!startingConversation&&<ConversationBubblePlus size={24}/>}</HohoButton>}</>
   const body=<>
@@ -966,8 +978,7 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
       {error&&review?.state==='failed'&&<HohoButton variant="text" disabled={busy||voice.busy||dialogueBusy} onClick={()=>void (job?taskCommand('retry'):prepare())}>重试</HohoButton>}
       {!home&&!!review?.unmappedRows?.length&&<NurseMessage conversation={home} role="assistant"><p>还有这些内容没有整理完整，请补充或更正后让我再试一次：{review.unmappedRows.map(row=>row.text).join('；')}</p></NurseMessage>}
       {!home&&(!!review?.documentWarnings?.length||review?.sources?.some(s=>s.status==='uncertain'))&&<NurseMessage conversation={home} role="assistant"><p>有些资料需要逐页核对，请到健康档案的智能记录继续核对，你的内容会保留。</p></NurseMessage>}
-
-
+      {liveRecording&&<div className="front-desk-live-voice"><NurseMessage conversation role="user" messageId="live-voice" recorderName={recorderName}><p aria-label="正在说的话" aria-live="polite">{voice.liveText||<span className="front-desk-live-placeholder" role="status" aria-label="等待识别文字"><span/><span/><span/></span>}</p>{voice.liveUnavailable&&<small className="front-desk-live-unavailable">实时文字暂不可用，松开后完整转写</small>}</NurseMessage></div>}
     </div>}
     {completed&&<CaseMergePrompt key={`${accountId}:${memberId}`} focusIds={(local.savedGuides??[]).filter(g=>completedGuideIds.current.has(g.id)).map(g=>g.eventId)}/>}
     {home&&<FrontDeskVideoRecorder key={`${accountId}:${memberId}`} accountId={accountId} memberId={memberId} token={token} incoming={incomingVideo} onIncomingConsumed={id=>setIncomingVideo(value=>value?.id===id?undefined:value)} onSavedGuide={async guide=>{
