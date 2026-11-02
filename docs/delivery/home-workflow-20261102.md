@@ -154,3 +154,13 @@ V2 token、HohoButton、HohoProgress 五段线与现有Material图标复用；�
 ### 灰色强化版本本地验证
 
 完整构建通过；既有14项移动浏览器检查全部通过，覆盖320/390px六幕逐帧边界与inset-only阴影、帮助往返、输入/弹层暂停与自动循环、减少动态效果，以及724px与320×568短屏/大字可达。本轮为低影响配色/阴影调整，未新增重复实现的测试。人工查看390px完整首页、情况单结构图和320px交接幕，确认下方为近白浅灰层次、内侧暗边更明确、原多色底已移除，文字与插画清晰，主Banner配色与尺寸保持。
+
+
+### 灰色强化版本Production回执
+
+- [PR #621](https://github.com/Hoooho-app/hoooho.app/pull/621) 已合入main，运行提交 `c6fa86127ed74874f12748558d95e8dd53091f68`；远端分支 `2ef6e61` 的tree `3dfba79dcba28f538effe432f1968f0881c43d28` 与本地已验证树一致，相对基线仅4文件，保留同期诊断边界修正。
+- [完整首页发布检查](https://github.com/Hoooho-app/hoooho.app/actions/runs/41399208905) 终态 **success**，包含构建、客户端/帮助/媒体/领取服务、手机首页矩阵、导航和保存引导。
+- 原Railway Production部署 `b6da9c8a-bf8d-4c19-aafa-c231e5bbf0aa` 已观察终态 **SUCCESS**，匹配 `c6fa861`，平台更新时间为北京时间2026/11/2 14:28:21；环境/服务与原生发布保持原规则。
+- 线上只读核验：`/api/health`、`/nurse-station` 均200、`no-store`。入口 `/assets/index-jFVZNsHc.js`，功能包 `JournalRecordDetail-3C81hPpx.js`，样式 `JournalRecordDetail-BQaeOi8J.css`，全局样式 `index-BQhA8bLm.css` 已实际读取；确认近白灰色外壳/内框派生值、较深的3px/8px内阴影、多色目录行覆盖已删除，六幕与横幅说明标记保留。
+- 没有Production健康数据写入、下载/复制用户资料或领取。线上为资源和端点核验，视觉证据为前述本地真实浏览器截图；本轮未重新操作登录后的Production页面或实体iPhone，不冒称实机验收。
+- 实现、相关验证、main集成、正式部署和线上资源核验完成，视觉最终验收仍由主人实际查看决定。本条只补文档，不重部署相同应用。
