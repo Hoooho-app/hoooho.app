@@ -23,3 +23,6 @@
 发布状态：BLOCKED，尚未上线。推送现有公开仓库时，自动审批拒绝，理由是当前请求没有明确授权该公开目的地及源码／测试的公开发布。未通过其他路径绕过，待主人明确批准推送 `Hoooho-app/hoooho.app` 并更新 Production 后续接。
 
 发布续接：2026-11-02 主人在上述明确目的地的询问后回复“部署”，授权推送该既有公开仓库并更新 Production。本轮重新 fetch 核对 main 仍为 `a5fc915`，无新增上游差异，本地工作区干净；沿用已通过的构建和定向浏览器检查，不重复无变化测试。仅发布本记录及上述录音反馈改动。
+
+
+发布完成：PR #613 已合入 main，运行提交 `e2b3ab820dee1d293886ec25a18930f682487ce2`；Railway Production 部署 `7dae4df8-b833-42b2-a7a3-7d40688cfd62` 于 2026-11-02 08:32（Asia/Shanghai）达到 SUCCESS。临时生产首页及 /api/health 均 HTTP 200；首页入口 JS 包含该运行提交，实际引用的 `HohoSpotlightGuide-DSCJfXou.css` HTTP 200，确认包含白底、深字及气泡圆角的新样式。没有执行生产健康数据写入或真实 ASR 调用；实体 iPhone 录音与主人体验验收仍未验证。
