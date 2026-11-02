@@ -132,3 +132,13 @@ V2 token、HohoButton、HohoProgress 五段线与现有Material图标复用；�
 ### 内凹版本本地验证
 
 完整构建通过。复用现有移动浏览器验收，14项通过：320/390px首页、帮助往返、六幕自动循环与弹层/输入暂停、减少动态效果、逐幕边界、724px与320×568短屏/大字可达。所有外壳与内部有框对象逐层核对计算阴影的每一层均为inset，不允许混入外投影；没有添加仅为样式实现服务的新测试套件。人工看过完整首页、情况单结构图与第六幕交接截图，确认下方两卡贴近纸底、内凹边缘清楚、文本与原框范围保持，主Banner仍保持原视觉。此证据为本地浏览器，非实体设备验收。
+
+
+### 内凹版本Production回执
+
+- [PR #619](https://github.com/Hoooho-app/hoooho.app/pull/619) 已合入main，运行提交 `c1152c491f045f4a8dfab56657c6eb20d67b4a7f`；远端分支 `0cddaef` 的tree `84fa4f673176ff93f800454f847329af20fde625` 与本地已验证版本一致。
+- [完整首页发布检查](https://github.com/Hoooho-app/hoooho.app/actions/runs/41392571190) 终态 **success**，包含构建、客户端/帮助/媒体/领取服务、手机首页、导航及保存引导检查。
+- 原Railway Production部署 `7cfc3c72-695d-454d-9227-d6b255a9684e` 已观察终态 **SUCCESS**，匹配 `c1152c4`，平台更新时间为北京时间2026/11/2 13:19:26；沿用原服务/环境，无原生上传。
+- 线上只读核验：`/api/health` 与 `/nurse-station` 均200、`no-store`。实际入口 `/assets/index-CoUjageK.js`，功能包 `JournalRecordDetail-Bwl-o2IP.js`，样式 `JournalRecordDetail-DxMkR31w.css`，全局样式 `index-CE_Uqehb.css` 均已读取；确认新增inset token、流程框内阴影与纸底浅槽外壳，六幕及横幅说明标记保留。
+- 本轮没有Production健康写入、下载/复制用户资料或领取；线上为只读样式/资源核验，逐幕视觉证据为前述本地真实浏览器截图，未冒称登录后线上操作或实体iPhone复验。
+- 代码、相关验证、main集成、部署和线上资源核验完成；视觉最终验收仍由主人查看决定。本条只补文档，不重部署相同应用。
