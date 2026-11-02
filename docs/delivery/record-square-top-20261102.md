@@ -20,4 +20,8 @@
 - PASS：既有 `tests/front-desk-continuous/front-desk.spec.ts` 的 `key information: paper home` 用例，375/320/390/430px四项目共4项通过。覆盖真实本地页面、生成/保存、同ID编辑、刷新重开、入口查看和横向溢出检查；供应商为合成响应，无真实模型调用或正式健康数据写入。
 - 已查看375px实际页面截图：标签直角上沿与横线贴合，白色单据上角直角；未取得实体iPhone与产品主人视觉验收。
 - PASS：`git diff --check`。本轮仅样式与本交付记录，不新增测试文件；不适用独立API/数据迁移测试，仓库无独立lint脚本。
-- Production部署回执在取得后补充；沿用既有main自动发布，不创建Staging、不重打iOS包。
+- 本地Chromium读取实际CSS的布局值：入口上角0/0、下角10/10px，内嵌单据上角0/0、下角6/6px，入口到横线内沿间距0px。首次使用完整Chrome二进制受容器socket限制，改用项目默认headless Chromium后读取成功；上方四项完整流程亦使用项目浏览器配置通过。
+- 实现提交：`abbd0626b2f9558832f40f7d5a46fb633941c1b1`，已通过GitHub连接器安全快进进入main（本机git无推送凭据）；本地分支已同步该实现提交，工作树干净。
+- Production：`creative-nurturing / production / hoooho.app`。本提交的自动构建被后续main合并版本取代，最终部署 `7dae4df8-b833-42b2-a7a3-7d40688cfd62` / `e2b3ab820dee1d293886ec25a18930f682487ce2` 已观察到 **SUCCESS**；已确认实现提交是该版本祖先。未创建Staging、改配置或重打iOS包。
+- 线上只读验收：临时生产入口 `/nurse-station`、`/api/health` 和当前HTML引用的JS/CSS均200。当前入口JS `index-Dw5eQXdY.js` 引用 `JournalRecordDetail-DBI-_5QM.css`；已读取该真实生产CSS，三条目标规则全部含新样式。没有登录正式账号或写入健康数据；线上登录后实际操作与实体iPhone尚未验收。
+- 状态：实现、构建、浏览器模拟、main集成、Production部署和线上资源核对通过；产品主人视觉验收待进行。日后main继续演进时以本回执对应版本为证据，不把此记录当作未来版本实时状态。
