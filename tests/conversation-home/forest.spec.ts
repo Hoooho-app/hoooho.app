@@ -38,15 +38,15 @@ test('clean light canvas and light surfaces cover navigation, forms and shared p
  await readable(page.getByRole('dialog',{name:'侧边栏菜单'}).getByRole('button',{name:'反馈',exact:true}))
  await page.screenshot({path:info.outputPath('drawer-390.png')})
  await page.keyboard.press('Escape')
- for(const [entry,form] of [['记录症状','记录症状'],['喂养与饮食','喂养/饮食'],['用药','记录用药'],['治疗复诊','就诊资料']]){
-  await page.goto('/nurse-station');await page.getByRole('button',{name:'改用文字',exact:true}).click();if(entry==='喂养与饮食')await page.getByRole('button',{name:'日常',exact:true}).click();await page.getByRole('button',{name:entry,exact:true}).click()
+ for(const [entry,form] of [['记录症状','记录症状'],['喂养与饮食','喂养/饮食'],['记载用药','记录用药'],['回传就诊资料','就诊资料']]){
+  await page.goto('/nurse-station');await page.getByRole('button',{name:'改用文字',exact:true}).click();await page.getByRole('button',{name:entry,exact:true}).click()
   await expect(page.getByRole('dialog')).toBeVisible();await noOverflow(page)
   await readable(page.getByRole('dialog').locator('header h1').first());await readable(page.getByRole('dialog').locator('header>button').first())
   await page.screenshot({path:info.outputPath(`form-${entry.replace('/','-')}.png`)})
   await page.keyboard.press('Escape')
  }
  for(const entry of ['睡眠','排便']){
-  await page.goto('/nurse-station');await page.getByRole('button',{name:'改用文字',exact:true}).click();await page.getByRole('button',{name:'日常',exact:true}).click();await page.getByRole('button',{name:entry,exact:true}).click()
+  await page.goto('/nurse-station');await page.getByRole('button',{name:'改用文字',exact:true}).click();await page.getByRole('button',{name:entry,exact:true}).click()
   await expect(page.getByRole('dialog')).toBeVisible();await readable(page.getByRole('dialog').locator('header h1'));await readable(page.getByRole('dialog').locator('header>button').first());await noOverflow(page)
   if(entry==='排便')await readable(page.locator('.bowel-fieldset>legend').first())
   await page.screenshot({path:info.outputPath(`form-${entry}.png`)})

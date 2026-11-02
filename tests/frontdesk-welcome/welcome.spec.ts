@@ -257,22 +257,34 @@ test('reduced motion presents the static final handoff without replay controls',
   await expect(flow.getByText('保存情况单', { exact: true })).toBeVisible()
   await expect(flow.getByText('复制给 AI', { exact: true })).toBeVisible()
   await expect(flow.getByRole('button')).toHaveCount(0)
-  expect(await flow.locator('.front-desk-workflow__scene:not([hidden]) *').evaluateAll(nodes => nodes.every(node => getComputedStyle(node).animationName === 'none'))).toBe(true)
+  expect(await flow.locator('.front-desk-workflow__scene[data-state="current"], .front-desk-workflow__scene[data-state="current"] *').evaluateAll(nodes => nodes.every(node => getComputedStyle(node).animationName === 'none'))).toBe(true)
 })
 
 
 test('live scene panels remain inside the card throughout the real animation', async ({ page }, info) => {
+  test.setTimeout(180000)
   test.skip(!['mobile-320', 'mobile-390'].includes(info.project.name), 'Live narrow and normal widths; other projects cover responsive state and navigation')
   const flow = page.getByRole('article', { name: '怎么用护护：虚构情景示意' })
   await page.mouse.move(0, 0)
   for (const step of [0, 1, 2, 3, 4, 5]) {
-    await expect(flow).toHaveAttribute('data-step', String(step))
-    const scene = flow.locator('.front-desk-workflow__scene:not([hidden])')
+    await expect(flow).toHaveAttribute('data-step', String(step), { timeout: 30000 })
+    const scene = flow.locator('.front-desk-workflow__scene[data-state="current"]')
+    await expect(scene).toHaveCSS('opacity', '1')
     const frames = scene.locator('.front-desk-workflow__panel, .front-desk-workflow__origin, .front-desk-workflow__reply, .front-desk-workflow__identity, .front-desk-workflow__outline li, .front-desk-workflow__handoff, .front-desk-workflow__save')
     for (const frame of await frames.all()) await expect(frame).toHaveCSS('opacity', '1')
+    // Hold the real UI once its arrival finishes; screenshots must not race the next entity.
+    await flow.hover()
+    await expect(flow).toHaveAttribute('data-playing', 'false')
     const bounds = (await flow.boundingBox())!
     const stage = (await flow.locator('.front-desk-workflow__stage').boundingBox())!
     const progress = (await flow.getByRole('progressbar').boundingBox())!
+    const current = (await scene.boundingBox())!
+    expect(current.y + current.height / 2).toBeCloseTo(stage.y + stage.height / 2, 0)
+    if (step > 0) {
+      const previous = flow.locator('.front-desk-workflow__scene[data-state="previous"]')
+      await expect(previous).toHaveCSS('opacity', '0.28')
+      expect((await previous.boundingBox())!.y + (await previous.boundingBox())!.height).toBeLessThan(current.y)
+    }
     for (const frame of await frames.all()) {
       const content = (await frame.boundingBox())!
       expect(content.x).toBeGreaterThanOrEqual(bounds.x)
@@ -283,5 +295,52 @@ test('live scene panels remain inside the card throughout the real animation', a
       expect(await frame.evaluate(node => getComputedStyle(node).boxShadow.split(/, (?![^()]*\))/).every(shadow => shadow.includes('inset')))).toBe(true)
     }
     await flow.screenshot({ animations: 'disabled', path: info.outputPath(`live-scene-${step}.png`) })
+    await page.mouse.move(0, 0)
   }
+  await expect(flow).toHaveAttribute('data-step', '0')
+  const first = flow.locator('.front-desk-workflow__scene[data-state="current"]')
+  await expect(first).toHaveCSS('opacity', '1')
+  const previous = flow.locator('.front-desk-workflow__scene[data-state="previous"]')
+  await expect(previous).toHaveAttribute('aria-label', '保存导出，交给他人或AI')
+  expect((await previous.boundingBox())!.y).toBeLessThan((await first.boundingBox())!.y)
+})
+
+test('new entities move upward, keep the previous entity and freeze their position while paused', async ({ page }, info) => {
+  test.skip(info.project.name !== 'mobile-390', 'One real-time motion sample; scene geometry is covered at both mobile widths')
+  const flow = page.locator('.front-desk-workflow')
+  await page.mouse.move(0, 0)
+  const samples = await flow.evaluate(root => new Promise<{ first: number; later: number; previousFirst: number; previousLater: number }>(resolve => {
+    const observer = new MutationObserver(() => {
+      if (root.getAttribute('data-step') !== '1') return
+      observer.disconnect()
+      const current = root.querySelector('[data-state="current"]')!
+      const previous = root.querySelector('[data-state="previous"]')!
+      requestAnimationFrame(() => {
+        const first = current.getBoundingClientRect().y
+        const previousFirst = previous.getBoundingClientRect().y
+        setTimeout(() => resolve({ first, previousFirst, later: current.getBoundingClientRect().y, previousLater: previous.getBoundingClientRect().y }), 200)
+      })
+    })
+    observer.observe(root, { attributes: true, attributeFilter: ['data-step'] })
+  }))
+  expect(samples.later).toBeLessThan(samples.first - 5)
+  expect(samples.previousLater).toBeLessThan(samples.previousFirst - 5)
+  await flow.hover()
+  await expect(flow).toHaveAttribute('data-playing', 'false')
+  const current = flow.locator('[data-state="current"]')
+  const pausedY = (await current.boundingBox())!.y
+  await page.waitForTimeout(1000)
+  expect((await current.boundingBox())!.y).toBeCloseTo(pausedY, 0)
+  await page.mouse.move(0, 0)
+  await expect(current).toHaveCSS('opacity', '1')
+  const stage = (await flow.locator('.front-desk-workflow__stage').boundingBox())!
+  const settled = (await current.boundingBox())!
+  expect(settled.y + settled.height / 2).toBeCloseTo(stage.y + stage.height / 2, 0)
+  await flow.hover()
+  await page.addStyleTag({ content: '.front-desk-workflow {--hoho-font-size-caption:20px}' })
+  await expect.poll(() => flow.evaluate(root => {
+    const stage = root.querySelector('.front-desk-workflow__stage')!.getBoundingClientRect()
+    const current = root.querySelector('[data-state="current"]')!.getBoundingClientRect()
+    return current.top >= stage.top && current.bottom <= stage.bottom
+  })).toBe(true)
 })
