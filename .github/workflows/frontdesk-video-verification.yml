@@ -22,6 +22,7 @@ on:
       - 'src/features/ai-business/SmartRecordWorkspace.tsx'
       - 'shared/product-visibility.mjs'
       - 'src/assets/nurse-triage/care-recording-*'
+      - 'src/assets/nurse-triage/symptom-arm-*'
       - 'src/assets/nurse-triage/front-desk-nurse-*'
       - 'src/assets/nurse-triage/record-archive-*'
       - 'src/assets/nurse-triage/visit-summary-banner-*'
