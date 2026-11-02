@@ -51,6 +51,7 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
   const navigate=useNavigate(),location=useLocation()
   const [homeTyping,setHomeTyping]=useState(false)
   const [homeInputEpoch,setHomeInputEpoch]=useState(0)
+  const [startingConversation,setStartingConversation]=useState(false)
   const handledNewConversation=useRef<string>()
   const accountId=useAppStore(s=>s.authUser?.id??'guest'),key=`${conversational?'home-smart':'smart'}:${accountId}:${memberId}:${eventId??'new'}`
   const [local,setLocal]=useState<CaptureDraft>(()=>({text:initialText,files:[],occurredAt:localDateTimeValue(),timeUnknown:false,requestId:crypto.randomUUID(),eventId}))
@@ -712,7 +713,7 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
       setError(e instanceof Error?e.message:'保存未完成，草稿保留，可重试');setStatus('')
     }}finally{pending.current=false;if(mounted.current)setBusy(false)}
   }
-  const conversationFooter=<DialogueComposer key={home?homeInputEpoch:undefined} variant={home?'frontdesk':'default'} onTypingChange={home?setHomeTyping:undefined} holdLabel={home?'按住记录症状':undefined} initialTyping={Boolean(local.conversationInput?.trim())} placeholder={home?'输入孩子的情况…':undefined} expandedFeedback liveTranscript={home?voice.liveText:undefined} liveStatus={voice.liveUnavailable?'实时文字暂不可用，松开后完整转写':'正在听你说'} feedbackHint={home?(voice.liveUnavailable?'录音继续，松开后整理':'边说边显示文字，松开后整理'):'松开后显示文字'} discardOnBlur={!page} directPhoto={home||page} text={local.conversationInput??''} onTextChange={conversationInput=>change({conversationInput})} maxLength={5000} disabled={!ready||pending.current||completed||!!resumeChoices||exitOpen||!!local.rawSavedGuide} voiceDisabled={!!local.rawSavedGuide} allowTextWhileProcessing audioLevel={voice.audioLevel} requesting={voice.state==='requesting'} listening={voice.state==='listening'} processing={voice.state==='transcribing'} onStart={()=>{void voice.start()}} onStop={voice.stop} onDiscard={voice.discard} onPhoto={source=>home?chooseAttachment():({camera,album,video:videoCamera,file:filePicker}[source]).current?.click()} onSend={()=>void sendText()}/>
+  const conversationFooter=<DialogueComposer key={home?homeInputEpoch:undefined} variant={home?'frontdesk':'default'} onTypingChange={home?setHomeTyping:undefined} holdLabel={home?'按住记录症状':undefined} busyLabel={home&&startingConversation?'正在新建对话':undefined} initialTyping={Boolean(local.conversationInput?.trim())} placeholder={home?'输入孩子的情况…':undefined} expandedFeedback liveTranscript={home?voice.liveText:undefined} liveStatus={voice.liveUnavailable?'实时文字暂不可用，松开后完整转写':'正在听你说'} feedbackHint={home?(voice.liveUnavailable?'录音继续，松开后整理':'边说边显示文字，松开后整理'):'松开后显示文字'} discardOnBlur={!page} directPhoto={home||page} text={local.conversationInput??''} onTextChange={conversationInput=>change({conversationInput})} maxLength={5000} disabled={!ready||pending.current||completed||!!resumeChoices||exitOpen||!!local.rawSavedGuide} voiceDisabled={!!local.rawSavedGuide} allowTextWhileProcessing audioLevel={voice.audioLevel} requesting={voice.state==='requesting'} listening={voice.state==='listening'} processing={voice.state==='transcribing'} onStart={()=>{void voice.start()}} onStop={voice.stop} onDiscard={voice.discard} onPhoto={source=>home?chooseAttachment():({camera,album,video:videoCamera,file:filePicker}[source]).current?.click()} onSend={()=>void sendText()}/>
   const saveBlocked=busy||jobBusy||!!localStage||voice.busy||!canSave||!review?.items.length||!!review.documentWarnings?.length||!!review.unmappedRows?.length||review.sources?.some(s=>s.status==='uncertain')
   const reviewFooter=<div className="smart-record-review-footer">
     {subjectConfirmation}
@@ -759,7 +760,6 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
     </div>
   }
   const [homeNotice,setHomeNotice]=useState('')
-  const [startingConversation,setStartingConversation]=useState(false)
   const newConversation=async()=>{
     if(!ready||busy||dialogueBusy||jobBusy||localStage||voice.busy||pending.current)return
     pending.current=true;setBusy(true);setStartingConversation(true);setError('');workEpoch.current++;uploadAbort.current?.abort()

@@ -385,12 +385,14 @@ test('new conversation does not wait for background history and a late read cann
  await expect(page.getByLabel('对话输入',{exact:true})).toHaveValue('尚未发送的补充')
 })
 
-test('new conversation reports progress, ignores duplicate clicks and keeps originals after close failure',async({page})=>{
+test('new conversation reports progress, ignores duplicate clicks and keeps originals after close failure',async({page},info)=>{
  await page.goto(`/nurse-station?conversation=${contextId}`)
  await expect(page.getByText(original,{exact:true})).toBeVisible()
  // Return to the current home so the top button exercises the reset itself.
  await page.goto('/nurse-station')
  await expect(page.getByText(original,{exact:true})).toBeVisible()
+ await page.getByRole('button',{name:'改用文字',exact:true}).click()
+ await page.getByLabel('对话输入',{exact:true}).fill('新建前未发送的文字')
  let release!:()=>void,closed=0
  const held=new Promise<void>(resolve=>{release=resolve})
  await page.route('**/front-desk-record',async route=>{
@@ -403,14 +405,20 @@ test('new conversation reports progress, ignores duplicate clicks and keeps orig
   const button=page.getByRole('button',{name:'新建对话',exact:true})
   await expect(button).toBeDisabled()
   await expect(button).toHaveAttribute('aria-busy','true')
+  await expect(page.getByRole('button',{name:'正在新建对话',exact:true})).toBeDisabled()
+  await expect(page.getByRole('button',{name:'正在新建对话',exact:true})).toHaveText('正在新建对话')
+  await page.screenshot({path:info.outputPath('new-conversation-button-status.png')})
  }finally{release()}
  await expect(page.getByRole('alert')).toContainText('新对话尚未建立')
  await expect(page.getByText(original,{exact:true})).toBeVisible()
+ await expect(page.getByRole('button',{name:'正在新建对话',exact:true})).toHaveCount(0)
+ await expect(page.getByLabel('对话输入',{exact:true})).toHaveValue('新建前未发送的文字')
  await expect(page.getByRole('button',{name:'新建对话',exact:true})).toBeEnabled()
  expect(closed).toBe(1)
  await page.unroute('**/front-desk-record')
  await page.getByRole('button',{name:'新建对话',exact:true}).click()
  await expect(page.getByRole('region',{name:'记录介绍',exact:true})).toBeVisible()
+ await expect(page.getByRole('button',{name:'按住记录症状',exact:true})).toBeEnabled()
 })
 
 test('new conversation still waits for legacy migration writes before closing the old session',async({page})=>{
