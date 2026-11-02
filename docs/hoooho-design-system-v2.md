@@ -19,6 +19,21 @@ Hoooho V2 is quiet, trustworthy and information-first. Its product-owner-approve
 - Motion: 140ms feedback, 200ms ordinary transitions, 280ms complex transitions using standard and emphasized easing. `prefers-reduced-motion` removes decorative movement.
 - Layout: responsive gutters, 680px compact content and 1120px application maximum.
 
+
+### 对话与说明文字分层（2026-11-03，产品主人确认）
+
+本规则适用于护护全产品，按文字的用途分层，不限于单条诊断职责提示。
+
+| 文字用途 | 表达规则 |
+| --- | --- |
+| 主要对话、症状询问、追问、实际情况描述 | 黑色正文，使用 `--hoho-color-text-primary` 与现有正文大小。 |
+| 系统性、说明性、辅助提示，例如记录职责、能力边界、操作解释 | 蓝色小字，使用 `--hoho-color-info` 与现有 caption 字号，保持清晰可读。 |
+| “确认整理”等系统引导语 | 可以使用蓝色，与主要对话分层。 |
+
+同一气泡含两类内容时，分别使用独立结构：先正常交流并询问记录所需的症状信息，再展示次要说明。记录职责说明位于“情况描述”下方；不将大段说明作为黑色主回复代替正常对话。两层之间保留清晰、适度的间距；整理确认区域的文字与操作上下居中。
+
+后续页面设计、实现与审查按此规则处理。颜色语义配合字号、位置和结构共同表达，仍遵守既有可访问性及共享 token 约定。
+
 ## Component contracts
 
 - `HohoButton`: primary, secondary, tertiary, ghost, danger and text levels; small/medium/large/icon sizes; disabled and loading states.
