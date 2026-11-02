@@ -85,3 +85,11 @@ test('protocol 2 also replaces speculative replies and does not append a diagnos
  assert.equal(result.context.messages.find(m=>m.id==='old-ask:reply').text,diagnosisBoundaryReply)
  assert.equal(result.context.interview.question,null)
 })
+
+test('a single mixed clause keeps its observation even when it starts by addressing Hoooho',()=>{
+ const text='你看孩子脖子有红点判断是什么情况'
+ const value=response({recordChanges:[{type:'add',text,scope:'record',polarity:'affirmed'}]})
+ assert.deepEqual(applyDiagnosisBoundary(value,{text,activeContextId:'ctx'}).recordChanges,value.recordChanges)
+ const worry=response({diagnosisRequested:true,recordChanges:[{type:'add',text:'我担心是不是肺炎',scope:'record',polarity:'concern'}]})
+ assert.deepEqual(applyDiagnosisBoundary(worry,{text:'我担心是不是肺炎'}).recordChanges,worry.recordChanges)
+})

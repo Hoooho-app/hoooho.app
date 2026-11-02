@@ -30,5 +30,8 @@ export function applyDiagnosisBoundary(value,{text,activeContextId,emergency=fal
 
 export const isDiagnosisRequestOnly = text => {
   const clauses=String(text??'').split(/[，,。；;！!？?\n]/u).filter(s=>s.trim())
-  return clauses.length>0&&clauses.every(s=>/^(?:请(?:问)?|你|您|护护|帮|判断|分析|推断|诊断|确诊|大概|到底|这(?:是|个大概|种情况)|会不会|是不是|是否|怎么|什么|扮演)/u.test(s.trim())&&requestsDiagnosis(s))
+  return clauses.length>0&&clauses.every(s=>{
+    const request=s.trim().replace(/^(?:(?:请问?|你|您|护护|帮我|帮忙|能不能|可以|麻烦|再|直接|扮演医生|给我|给个|做个|为我|替我|能|根据这些|根据我说的)\s*)+/u,'')
+    return /^(?:(?:判断|分析|推断|猜|看看|看下|看一下)(?:一下|下|看看)?(?:这|这个|这种情况|这个病情|病情)?(?:大概|到底|可能|目前|现在|究竟|大致)?(?:是|属于)?(?:什么病|什么情况|什么原因|怎么回事|病因)|(?:诊断|确诊)(?:一下|下|看看)?|(?:这|这个|这种情况|这个病情|病情|大概|到底|可能|目前|现在|究竟|大致|是)*(?:什么病|什么情况|什么原因|怎么回事|严重吗|严重不严重)|(?:是不是|是否|会不会|像不像)[^\d，,。?？]{0,6}(?:病|炎|感染|骨折|骨裂|过敏|湿疹|癌))$/u.test(request)
+  })
 }
