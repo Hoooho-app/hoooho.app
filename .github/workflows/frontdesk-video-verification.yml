@@ -6,7 +6,8 @@ on:
     paths:
       - 'src/pages/HealthEvents/NurseStationIdleVideo.tsx'
       - 'src/pages/NurseStation/FrontDeskWelcome.tsx'
-      - 'src/pages/NurseStation/FrontDeskCareCard.tsx'
+      - 'src/pages/NurseStation/FrontDeskWorkflow.tsx'
+      - 'src/pages/NurseStation/frontDeskWorkflow.css'
       - 'src/features/care-journey/**'
       - 'server/care-journey/**'
       - 'src/pages/NurseStation/FrontDeskBanner.tsx'

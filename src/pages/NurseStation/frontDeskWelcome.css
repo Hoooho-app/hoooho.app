@@ -1,6 +1,6 @@
 /* Owner-approved welcome composition; shared product tokens remain authoritative.
    The editorial variant must win over generic welcome rules across lazy CSS load orders. */
-body .smart-record-home .front-desk-welcome.front-desk-welcome--editorial{display:grid;grid-template-rows:minmax(min-content,1.25fr) minmax(200px,1fr);height:calc(100cqh - var(--hoho-space-1) - var(--hoho-space-2));gap:var(--hoho-space-3);margin:var(--hoho-space-1) 0 var(--hoho-space-2)}
+body .smart-record-home .front-desk-welcome.front-desk-welcome--editorial{display:grid;grid-template-rows:minmax(min-content,1.25fr) minmax(min-content,1fr);height:calc(100cqh - var(--hoho-space-1) - var(--hoho-space-2));gap:var(--hoho-space-3);margin:var(--hoho-space-1) 0 var(--hoho-space-2)}
 .front-desk-welcome--editorial{--welcome-portrait-width:128px}
 .smart-record-home .smart-record-page__body:has(>.front-desk-welcome--editorial){container:front-desk-body / size}
 .front-desk-welcome--editorial .front-desk-welcome__hero{position:relative;isolation:isolate;overflow:hidden;display:flex;align-items:center;min-height:176px;border-radius:var(--hoho-radius-overlay);background:radial-gradient(ellipse at 72% 76%,rgb(var(--hoho-color-primary-border)/.54),rgb(var(--hoho-color-primary-soft)) 74%)}
@@ -18,10 +18,6 @@ body .smart-record-home .front-desk-welcome.front-desk-welcome--editorial{displa
 .front-desk-welcome__guide img{display:block;flex:1;min-height:96px;width:100%;height:0;object-fit:contain;object-position:center bottom;margin-top:auto}
 .front-desk-welcome__excerpt{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden;font-size:var(--hoho-font-size-caption);line-height:1.8;color:rgb(var(--hoho-color-text-secondary))}
 .front-desk-welcome__read{flex-shrink:0;margin-top:auto;padding-top:var(--hoho-space-2);font-size:var(--hoho-font-size-caption);line-height:var(--hoho-line-height-caption);color:rgb(var(--hoho-color-primary))}
-.front-desk-welcome__care-link{position:absolute;inset:0;z-index:2;border-radius:inherit}
-.front-desk-welcome__care-claim{position:relative;z-index:3;margin-top:auto;align-self:center;max-width:100%}
-.front-desk-welcome__care-claim .hoho-button{max-width:100%;background:rgb(var(--hoho-color-sprout-border)/.45);color:rgb(var(--hoho-color-sprout-text))}
-.front-desk-welcome__care-sprout{display:block;width:28px;height:28px;flex-shrink:0;object-fit:contain}
 @media(max-width:370px){
  .front-desk-welcome--editorial{--welcome-portrait-width:112px}
  .front-desk-welcome--editorial .front-desk-welcome__copy{padding-inline:var(--hoho-space-4)}
@@ -46,7 +42,7 @@ body .smart-record-home .front-desk-welcome.front-desk-welcome--editorial{displa
  .smart-record-home .smart-record-page__body:has(>.front-desk-welcome--editorial){padding-block:var(--hoho-space-2)}
 }
 @container front-desk-body (max-height:360px){
- body .smart-record-home .front-desk-welcome.front-desk-welcome--editorial{grid-template-rows:minmax(min-content,1.25fr) minmax(168px,1fr)}
+ body .smart-record-home .front-desk-welcome.front-desk-welcome--editorial{grid-template-rows:minmax(min-content,1.25fr) minmax(min-content,1fr)}
  .front-desk-welcome--editorial .front-desk-welcome__hero{min-height:140px}
  .front-desk-welcome--editorial .front-desk-welcome__copy{padding:var(--hoho-space-3)}
  .front-desk-welcome--editorial .front-desk-welcome__media{height:calc(100% - var(--hoho-space-1));max-height:170px}

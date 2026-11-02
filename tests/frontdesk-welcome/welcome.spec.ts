@@ -18,9 +18,11 @@ test.beforeEach(async ({ page, request }) => {
   await expect(page.locator(intro)).toBeVisible()
 })
 
-test('approved composition uses a static nurse, left 3D guide and right daily care card', async ({ page }, info) => {
+test('home keeps one fixed sprout entrance and replaces daily care with the readable recording workflow', async ({ page }, info) => {
   const welcome = page.locator(intro)
-  await expect(page.getByRole('button', { name: '呵护之旅', exact: true })).toHaveCount(0)
+  const entry = page.getByRole('button', { name: '呵护之旅', exact: true })
+  await expect(entry).toBeVisible()
+  await expect(entry.locator('img')).toHaveAttribute('src', /two-leaf-sprout/)
   await expect(welcome.locator('video, canvas')).toHaveCount(0)
   const portrait = welcome.locator('.front-desk-welcome__portrait')
   await expect(portrait).toHaveAttribute('alt', '戴眼镜与口罩的黑发护士，一手拿病历夹、一手拿笔')
@@ -28,31 +30,36 @@ test('approved composition uses a static nurse, left 3D guide and right daily ca
   await expect(portrait).toHaveCSS('object-fit', 'contain')
   await expect(welcome.locator('.front-desk-welcome__entry')).toHaveCount(2)
   const entries = await welcome.locator('.front-desk-welcome__entry').evaluateAll(nodes => nodes.map(el => ({ name: el.getAttribute('aria-label'), x: el.getBoundingClientRect().x, y: el.getBoundingClientRect().y })))
-  expect(entries[0].name).toContain('怎么用护护')
-  expect(entries[1].name).toBe('今日呵护')
+  expect(entries[0].name).toContain('帮助中心')
+  expect(entries[1].name).toBe('怎么用护护：情景演示')
   expect(entries[0].x).toBeLessThan(entries[1].x)
   expect(entries[0].y).toBe(entries[1].y)
-  await expect(welcome.locator('.front-desk-welcome__guide img')).toHaveCount(1)
-  expect(await welcome.locator('.front-desk-welcome__guide img').evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true)
-  await expect(welcome.locator('.front-desk-welcome__care img')).toHaveCount(1)
+  const flow = page.getByRole('article', { name: '怎么用护护：情景演示' })
+  await expect(flow.getByRole('group')).toHaveCount(1)
+  await expect(flow.locator('.front-desk-workflow__header')).toContainText('怎么用护护')
+  await expect(flow.locator('.front-desk-workflow__header svg, .front-desk-workflow__header img')).toHaveCount(0)
+  await expect(flow.getByRole('progressbar').locator(':scope > span')).toHaveCount(5)
+  await expect(flow.getByText(/一个例子|共5步|0[1-5] \/ 05/)).toHaveCount(0)
+  await expect(welcome.getByRole('button', { name: /领取/ })).toHaveCount(0)
+  await expect(welcome.getByText('今日呵护', { exact: true })).toHaveCount(0)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  const entryBox = (await entry.boundingBox())!
+  const childBox = (await page.getByRole('button', { name: '切换记录对象', exact: true }).boundingBox())!
+  const searchBox = (await page.getByRole('button', { name: '快速查找', exact: true }).boundingBox())!
+  expect(entryBox.x).toBeGreaterThanOrEqual(childBox.x + childBox.width)
+  expect(entryBox.x + entryBox.width).toBeLessThanOrEqual(searchBox.x)
+  expect(entryBox.height).toBeGreaterThanOrEqual(44)
   await page.screenshot({ path: info.outputPath('welcome.png'), fullPage: true })
-  const card = welcome.locator('.front-desk-welcome__care')
-  const sprout = card.getByRole('button').locator('img')
-  await expect(sprout).toHaveAttribute('src', /two-leaf-sprout/)
-  expect(await sprout.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth === 160)).toBe(true)
-  await expect(card.locator('strong')).toHaveText(/已守护 \d+ 天/)
-  const before = await card.locator('strong').innerText()
-  await page.getByRole('link', { name: '今日呵护：查看呵护之旅', exact: true }).click()
+  await entry.click()
   await expect(page).toHaveURL(/\/care-journey$/)
   await expect(page.getByRole('heading', { name: '呵护之旅', exact: true })).toBeVisible()
-  await expect(page.getByText('共同照顾', { exact: true })).toHaveCount(0)
-  await page.goBack()
-  await expect(card.locator('strong')).toHaveText(before)
+  await page.getByRole('button', { name: '返回', exact: true }).click()
+  await expect(flow).toBeVisible()
+  await expect(entry).toBeVisible()
 })
 
 test('home guide opens help and returns without posting; unsent text, refresh and cancelled media retain the introduction', async ({ page }, info) => {
-  const guide = page.getByRole('button', { name: '怎么用护护：边照顾，边记录', exact: true })
+  const guide = page.getByRole('button', { name: '帮助中心：边照顾，边记录', exact: true })
   await guide.click()
   await expect(page).toHaveURL(/\/help$/)
   await expect(page.getByRole('heading', { name: '帮助中心', exact: true })).toBeVisible()
@@ -120,7 +127,7 @@ test('first bubble removes every intro area; restored history stays clear and an
   await drawer.getByRole('button', { name: '新建对话', exact: true }).click()
   await expect(page.locator(intro)).toBeVisible()
   await expect(page.locator('.nurse-turn')).toHaveCount(0)
-  await expect(careEntry).toHaveCount(0)
+  await expect(careEntry).toBeVisible()
 })
 
 test('failed first input keeps its retry bubble instead of returning the introduction', async ({ page, request }) => {
@@ -151,4 +158,90 @@ test('cancelling a recording keeps the intro; releasing a voice message removes 
   await expect(page.locator('.nurse-turn--user')).toHaveCount(1)
   await expect(page.locator(intro)).toHaveCount(0)
   await expect(page.locator('.nurse-turn--user [role="status"]')).toBeVisible()
+})
+
+
+test('workflow is presentation only, pauses for input and explicit pause, stops after one pass and can replay', async ({ page }, info) => {
+  await page.clock.install()
+  const writes: string[] = []
+  page.on('request', request => { if (request.method() === 'POST' && /\/api\/(?:care-journey|ai\/front-desk|events)/.test(request.url())) writes.push(request.url()) })
+  await page.reload()
+  const flow = page.getByRole('article', { name: '怎么用护护：情景演示' })
+  await expect(flow).toHaveAttribute('data-playing', 'true')
+  await page.getByRole('button', { name: '暂停使用流程动画' }).click()
+  const held = await flow.getAttribute('data-step')
+  await page.clock.runFor(10000)
+  await expect(flow).toHaveAttribute('data-step', held!)
+  await page.getByRole('button', { name: '继续使用流程动画' }).click()
+  const nextScene = async (expected: string) => {
+    for (let i = 0; i < 260 && await flow.getAttribute('data-step') !== expected; i++) await page.clock.runFor(100)
+    await expect(flow).toHaveAttribute('data-step', expected)
+    await expect(flow.getByRole('group')).toHaveCount(1)
+  }
+  await nextScene('1')
+  await expect(flow.getByRole('group')).toHaveAttribute('aria-label', '说出孩子的情况')
+  await page.clock.runFor(3000)
+  await flow.screenshot({ animations: 'disabled', path: info.outputPath('workflow-voice.png') })
+  await nextScene('2')
+  await page.clock.runFor(2400)
+  await flow.screenshot({ animations: 'disabled', path: info.outputPath('workflow-question.png') })
+  await nextScene('3')
+  await page.clock.runFor(2000)
+  await expect(flow.getByText('待核对', { exact: true })).toBeVisible()
+  await page.clock.runFor(2100)
+  await expect(flow.locator('.front-desk-workflow__record-head')).toContainText('已保存')
+  await flow.screenshot({ animations: 'disabled', path: info.outputPath('workflow-record.png') })
+  await nextScene('complete')
+  await flow.screenshot({ animations: 'disabled', path: info.outputPath('workflow-history.png') })
+  await page.getByRole('button', { name: '重播使用流程' }).click()
+  await expect(flow).toHaveAttribute('data-step', '0')
+  await page.getByRole('button', { name: '改用文字', exact: true }).click()
+  await page.getByLabel('对话输入', { exact: true }).fill('还未发送的内容')
+  await expect(flow).toHaveAttribute('data-playing', 'false')
+  const editing = await flow.getAttribute('data-step')
+  await page.clock.runFor(10000)
+  await expect(flow).toHaveAttribute('data-step', editing!)
+  await expect(page.getByLabel('对话输入', { exact: true })).toHaveValue('还未发送的内容')
+  expect(writes).toEqual([])
+  await expect(page.locator('.nurse-turn')).toHaveCount(0)
+})
+
+test('reduced motion keeps one static scene and provides next-step access to every scene', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await page.reload()
+  const flow = page.getByRole('article', { name: '怎么用护护：情景演示' })
+  for (let step = 0; step < 5; step++) {
+    await expect(flow).toHaveAttribute('data-step', String(step))
+    await expect(flow).toHaveAttribute('data-playing', 'false')
+    await expect(flow.getByRole('group')).toHaveCount(1)
+    expect(await flow.locator('.front-desk-workflow__scene:not([hidden]) *').evaluateAll(nodes => nodes.every(node => getComputedStyle(node).animationName === 'none'))).toBe(true)
+    if (step < 4) await page.getByRole('button', { name: '查看下一步使用流程' }).click()
+  }
+  await page.getByRole('button', { name: '重播使用流程' }).click()
+  await expect(flow).toHaveAttribute('data-step', '0')
+})
+
+
+test('live scene panels remain inside the card throughout the real animation', async ({ page }, info) => {
+  test.skip(!['mobile-320', 'mobile-390'].includes(info.project.name), 'Live narrow and normal widths; other projects cover responsive state and navigation')
+  const flow = page.getByRole('article', { name: '怎么用护护：情景演示' })
+  await page.mouse.move(0, 0)
+  for (const step of [0, 1, 2, 3, 4]) {
+    await expect(flow).toHaveAttribute('data-step', String(step))
+    const scene = flow.locator('.front-desk-workflow__scene:not([hidden])')
+    const panel = scene.locator('.front-desk-workflow__panel').last()
+    await expect(panel).toHaveCSS('opacity', '1')
+    const bounds = (await flow.boundingBox())!
+    const content = (await panel.boundingBox())!
+    expect(content.x).toBeGreaterThanOrEqual(bounds.x)
+    expect(content.x + content.width).toBeLessThanOrEqual(bounds.x + bounds.width)
+    const header = (await flow.locator('.front-desk-workflow__header').boundingBox())!
+    const progress = (await flow.getByRole('progressbar').boundingBox())!
+    const origin = scene.locator('.front-desk-workflow__origin')
+    if (await origin.count()) expect((await origin.boundingBox())!.y).toBeGreaterThanOrEqual(header.y + header.height)
+    expect(content.y).toBeGreaterThanOrEqual(header.y + header.height)
+    expect(content.y + content.height).toBeLessThanOrEqual(progress.y)
+    expect(content.y + content.height).toBeLessThanOrEqual(bounds.y + bounds.height)
+    await flow.screenshot({ animations: 'disabled', path: info.outputPath(`live-scene-${step}.png`) })
+  }
 })
