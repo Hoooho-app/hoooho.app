@@ -616,3 +616,15 @@ test('merged extraction contract preserves unassigned provenance, verbatim/visua
  assert.equal(mergeItems(repeated).length,1);assert.equal(mergeItems(repeated,{preserveOccurrences:true}).length,2)
  assert.equal(buildJournal({category:'symptom',fields:[{name:'chiefComplaint',value:'小腿有红点'}]},{semanticVersion:2}).symptom.narrative,'小腿有红点')
 })
+
+
+test('runtime summary receives sourced recording methods outside the fact namespace',async()=>{
+ const delegate=fakeModel(),requests=[]
+ const model={structured:async request=>{requests.push(request);return delegate.structured(request)}}
+ await run(factsFixture(),model)
+ const generation=JSON.parse(requests[0].input)
+ assert.ok(generation.recordingMethods.length>0)
+ assert.ok(generation.recordingMethods.every(m=>m.use==='recording_method_not_patient_fact'&&!m.factId))
+ assert.match(requests[0].instructions,/不得从教材添加/)
+ assert.equal(JSON.parse(requests[1].input).recordingMethods,undefined)
+})

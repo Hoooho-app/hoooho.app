@@ -1,0 +1,5 @@
+2.4 Demographic and Biological Data
+Demographic and biographic data includes basic characteristics about the patient, such as their name, contact information, birthdate, age, gender and preferred pronouns, allergies, languages spoken and preferred language, relationship status, occupation, and resuscitation status.See Table 2.4a for sample focused questions used to gather demographic and biological data.
+
+2.4 Demographic and Biological Data
+See Table 2.4b for a sample demographic form used during a complete health history.

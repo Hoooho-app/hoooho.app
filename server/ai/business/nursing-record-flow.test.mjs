@@ -19,7 +19,7 @@ async function fixture(t){
   }}
   const business=new AIBusinessService({dataDirectory,model:extraction,now,logger:{info(){}}})
   let call=0
-  const dialogue={structured:async()=>({value:{reply:'内容已收到。',contextId:'new',action:'record',questionId:call++===0?'resp-effort':'cough-pattern',emergency:{currentChild:false,quote:''}},diagnostics:{provider:'synthetic'}})}
+  const dialogue={structured:async request=>{const payload=JSON.parse(request.input[0].content[0].text);assert.ok(payload.recordingMethods.length>0);assert.ok(payload.recordingMethods.every(m=>m.use==='recording_method_not_patient_fact'));assert.match(request.instructions,/不得从教材添加/);return ({value:{reply:'内容已收到。',contextId:'new',action:'record',questionId:call++===0?'resp-effort':'cough-pattern',emergency:{currentChild:false,quote:''}},diagnostics:{provider:'synthetic'}})}}
   const front=new FrontDeskRecord({dataDirectory,events:business.events,business,model:dialogue,now})
   return {front,business,member}
 }

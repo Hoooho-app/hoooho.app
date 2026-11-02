@@ -1,0 +1,258 @@
+{
+  "version": "recording-methods-20261102-v1",
+  "methods": [
+    {
+      "id": "listening",
+      "title": "完整接住描述",
+      "text": "先保留用户的完整表达，再围绕当前事项回应，避免用自己的猜测替换原意。",
+      "tags": [
+        "communication"
+      ],
+      "terms": [
+        "说",
+        "描述",
+        "听",
+        "补充"
+      ],
+      "sourceId": "fund-patient",
+      "section": "Active Listening and Attending Behaviors",
+      "quote": "Listening is obviously an important part of communication. There are three main types of listening: competitive, passive, and active. Competitive listening happens when we are focused on sharing our own point of view instead of listening to someone else. Passive listening occurs when we are not interested in listening to the other person and we assume we understand what the person is communicating correctly without verifying. During active listening, we are communicating verbally and nonverbally that we are interested in what the other person is saying while also actively verifying our understanding with the speaker. For example, an active listening technique is to restate what the person sa",
+      "status": "recording_method",
+      "review": "editorial_mapping_only_not_clinical_validation"
+    },
+    {
+      "id": "clarification",
+      "title": "澄清关键信息",
+      "text": "存在关键歧义时只核对必要的一项；未确认内容保持未知，不由观察推断事实。",
+      "tags": [
+        "interview",
+        "quality"
+      ],
+      "terms": [
+        "不知道",
+        "不清楚",
+        "可能",
+        "好像",
+        "矛盾",
+        "更正"
+      ],
+      "sourceId": "fund-assess",
+      "section": "Interviewing",
+      "quote": "Be alert and attentive to how the client answers questions, as well as when they do not answer a question. Nonverbal communication and body language can be cues to important information that requires further investigation. A keen sense of observation is important. To avoid making inappropriate inferences, the nurse should validate cues for accuracy. For example, a nurse may make an inference that a client appears depressed when the client avoids making eye contact during an interview. However, upon further questioning, the nurse may discover that the client’s cultural background believes direct eye contact to be disrespectful and this is why they are avoiding eye contact. To read more inform",
+      "status": "recording_method",
+      "review": "editorial_mapping_only_not_clinical_validation"
+    },
+    {
+      "id": "subject",
+      "title": "区分记录对象与叙述者",
+      "text": "区分本人描述和家属等第二来源；记录对象不明时先核对，不把家属表现归给孩子。",
+      "tags": [
+        "subject"
+      ],
+      "terms": [
+        "孩子",
+        "宝宝",
+        "妈妈",
+        "爸爸",
+        "姐姐",
+        "哥哥",
+        "奶奶",
+        "本人"
+      ],
+      "sourceId": "fund-assess",
+      "section": "Subjective Assessment Data",
+      "quote": "There are two types of subjective information, primary and secondary. Primary data is information provided directly by the client. Clients are the best source of information about their bodies and feelings, and the nurse who actively listens to a client will often learn valuable information while also promoting a sense of well-being. Information collected from a family member, chart, or other sources is known as secondary data. Family members can provide important information, especially for individuals with memory impairments, infants, children, or when clients are unable to speak for themselves.",
+      "status": "recording_method",
+      "review": "editorial_mapping_only_not_clinical_validation"
+    },
+    {
+      "id": "uncertainty",
+      "title": "区分观察与推测",
+      "text": "主观感受与可核对的观察分别保留；未知、未观察或推测不能写成正常、没有或确诊。",
+      "tags": [
+        "quality"
+      ],
+      "terms": [
+        "没测",
+        "未测",
+        "不确定",
+        "怀疑",
+        "好像",
+        "没有",
+        "没注意"
+      ],
+      "sourceId": "fund-assess",
+      "section": "4.3 Assessment",
+      "quote": "Nurses assess clients to gather information, then use critical thinking to analyze the data and recognized cues. Data is considered subjective or objective and can be collected from multiple sources.",
+      "status": "recording_method",
+      "review": "editorial_mapping_only_not_clinical_validation"
+    },
+    {
+      "id": "source",
+      "title": "信息来源可核对",
+      "text": "资料仅作记录方法参考；健康事实必须来自本次提供的原话、原件或已授权的个人记录。",
+      "tags": [
+        "documentation",
+        "quality"
+      ],
+      "terms": [
+        "报告",
+        "照片",
+        "附件",
+        "原话",
+        "医生说",
+        "转述"
+      ],
+      "sourceId": "fund-assess",
+      "section": "4.3 Assessment",
+      "quote": "Nurses assess clients to gather information, then use critical thinking to analyze the data and recognized cues. Data is considered subjective or objective and can be collected from multiple sources.",
+      "status": "recording_method",
+      "review": "editorial_mapping_only_not_clinical_validation"
+    },
+    {
+      "id": "numbers",
+      "title": "准确保留数值",
+      "text": "忠实保留已提供的数字与单位，缺失时标记待确认，不从教材补入患者数值。",
+      "tags": [
+        "quality"
+      ],
+      "terms": [
+        "度",
+        "毫升",
+        "mg",
+        "ml",
+        "次",
+        "体温",
+        "剂量"
+      ],
+      "sourceId": "fund-document",
+      "section": "Legal Documentation",
+      "quote": "Documentation must be completed in an accurate and timely manner after the task is performed. Do not document in advance of completing a task.",
+      "status": "recording_method",
+      "review": "editorial_mapping_only_not_clinical_validation"
+    },
+    {
+      "id": "correction",
+      "title": "保留更正线索",
+      "text": "发现记录疑点应核对和更正；原始内容与当前有效表达保持可对照，不能静默改写事实。",
+      "tags": [
+        "quality"
+      ],
+      "terms": [
+        "说错",
+        "更正",
+        "改成",
+        "不是",
+        "记错",
+        "修改"
+      ],
+      "sourceId": "fund-document",
+      "section": "Legal Documentation",
+      "quote": "When using paper documentation, avoid leaving blank lines to prevent others from adding to your documentation. In the event of a charting error, draw a single line through the error and write, “mistaken entry” above the line with your initials. Errors should never be erased, scribbled out, or covered with white-out.",
+      "status": "recording_method",
+      "review": "editorial_mapping_only_not_clinical_validation"
+    },
+    {
+      "id": "chronology",
+      "title": "整理当前与既往经过",
+      "text": "当前情况与既往背景分别整理；保留原话所述的发生顺序及处理前后变化。",
+      "tags": [
+        "history"
+      ],
+      "terms": [
+        "昨天",
+        "今天",
+        "昨晚",
+        "之前",
+        "后来",
+        "之后",
+        "开始"
+      ],
+      "sourceId": "skills-current",
+      "section": "2.6 Current and Past Medical History",
+      "quote": "After exploring a patient’s chief complaint, their current and past medical histories are reviewed to obtain a full understanding of their “human response” to medical conditions and life processes. While obtaining this information, it is also helpful to determine their understanding of the condition and its associated treatment. If a patient has a prior medical diagnosis, but is unaware of what it means or does not understand the recommended treatment, they may not be following instructions intended. For example, a patient diagnosed with “high blood pressure” may erroneously think they only need to take their medications when they feel as if their blood pressure is high, instead of daily at ",
+      "status": "recording_method",
+      "review": "editorial_mapping_only_not_clinical_validation"
+    },
+    {
+      "id": "summary",
+      "title": "提炼就诊原因",
+      "text": "围绕用户自己描述的主要问题提炼摘要；不得把专业资料中的症状和诊断补成用户事实。",
+      "tags": [
+        "documentation"
+      ],
+      "terms": [
+        "整理",
+        "摘要",
+        "情况",
+        "症状",
+        "记录"
+      ],
+      "sourceId": "skills-reason",
+      "section": "2.5 Reason for Seeking Health Care",
+      "quote": "It is helpful to begin the health history by obtaining the reason why the patient is seeking health care in their own words. During a visit to a clinic or emergency department or on admission to a health care agency, the patient’s reasons for seeking care are referred to as the chief complaint. After a patient has been admitted, the term main health needs is used to classify what the patient feels is most important at that time. Whichever term is used, it recognizes that patients are complex beings, with potentially multiple coexisting health needs, but there is often a pressing issue that requires most immediate care. This is not to suggest that other issues be ignored, but rather it allows",
+      "status": "recording_method",
+      "review": "editorial_mapping_only_not_clinical_validation"
+    },
+    {
+      "id": "handoff",
+      "title": "按结构交接信息",
+      "text": "交接说明优先组织身份、当前问题、相关背景与已有处理；未确认的医生意见或后续计划单独标明。",
+      "tags": [
+        "handoff"
+      ],
+      "terms": [
+        "医生",
+        "就诊",
+        "交接",
+        "医院",
+        "清单"
+      ],
+      "sourceId": "fund-team",
+      "section": "Reports to Health Care Team Members",
+      "quote": "Standardized methods of communication have been developed to allow information to be exchanged between health care team members in a structured, concise, and accurate manner to ensure safe client care. One common format used by health care team members to exchange client information is ISBARR, a mnemonic for the components of Introduction, Situation, Background, Assessment, Request/Recommendations, and Repeat back or a simpler version called SBAR:",
+      "status": "recording_method",
+      "review": "editorial_mapping_only_not_clinical_validation"
+    },
+    {
+      "id": "history",
+      "title": "按需收集背景",
+      "text": "根据当前问题选择相关既往、用药、过敏与家庭背景，不把健康史目录逐项问完。",
+      "tags": [
+        "interview",
+        "history"
+      ],
+      "terms": [
+        "病史",
+        "过敏",
+        "用药",
+        "家族",
+        "既往"
+      ],
+      "sourceId": "skills-components",
+      "section": "2.3 Components of a Health History",
+      "quote": "The purpose of obtaining a health history is to gather subjective data from the patient and/or their care partners to collaboratively create a nursing care plan that will promote health and maximize functioning. A comprehensive health history is completed by a registered nurse and may not be delegated. It is typically done on admission to a health care agency or during the initial visit to a health care provider, and information is reviewed for accuracy and currency at subsequent admissions or visits.",
+      "status": "recording_method",
+      "review": "editorial_mapping_only_not_clinical_validation"
+    },
+    {
+      "id": "teachback",
+      "title": "核对双方理解",
+      "text": "用简短、清楚的语言核对已理解的要点，让用户可以直接纠正；不将理解回执冒称正式保存。",
+      "tags": [
+        "communication"
+      ],
+      "terms": [
+        "确认",
+        "核对",
+        "听懂",
+        "明白"
+      ],
+      "sourceId": "fund-patient",
+      "section": "Active Listening and Attending Behaviors",
+      "quote": "Listening is obviously an important part of communication. There are three main types of listening: competitive, passive, and active. Competitive listening happens when we are focused on sharing our own point of view instead of listening to someone else. Passive listening occurs when we are not interested in listening to the other person and we assume we understand what the person is communicating correctly without verifying. During active listening, we are communicating verbally and nonverbally that we are interested in what the other person is saying while also actively verifying our understanding with the speaker. For example, an active listening technique is to restate what the person sa",
+      "status": "recording_method",
+      "review": "editorial_mapping_only_not_clinical_validation"
+    }
+  ]
+}

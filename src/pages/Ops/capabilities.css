@@ -1,0 +1,15 @@
+.capability-page{color:rgb(var(--hoho-color-text-primary));line-height:var(--hoho-line-height-body);font-size:var(--hoho-font-size-body);max-width:100%;overflow-wrap:anywhere}
+.capability-page h1{font-size:var(--hoho-font-size-page-title)}.capability-page h2{font-size:var(--hoho-font-size-section-title)}.capability-page h3,.capability-page h4{font-size:var(--hoho-font-size-card-title)}
+.capability-page small{display:block;font-weight:normal;font-size:var(--hoho-font-size-caption);color:rgb(var(--hoho-color-text-secondary))}
+.capability-page a{color:rgb(var(--hoho-color-primary));text-decoration:underline}
+.capability-metrics{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:var(--hoho-space-4);margin:var(--hoho-space-6) 0}
+.capability-metrics>div{border-bottom:1px solid rgb(var(--hoho-color-border));padding:var(--hoho-space-3) 0}.capability-metrics span,.capability-metrics strong{display:block}.capability-metrics strong{font-size:var(--hoho-font-size-display)}
+.capability-section{padding:var(--hoho-space-4) 0;border-bottom:1px solid rgb(var(--hoho-color-border))}
+.capability-tabs,.capability-filters{display:flex;flex-wrap:wrap;gap:var(--hoho-space-3);margin:var(--hoho-space-4) 0}
+.capability-filters label,.capability-query{display:grid;gap:var(--hoho-space-2)}
+.capability-filters input,.capability-filters select,.capability-query textarea{font:inherit;border:1px solid rgb(var(--hoho-color-border));border-radius:var(--hoho-radius-control);background:rgb(var(--hoho-color-surface));color:inherit;padding:var(--hoho-space-2) var(--hoho-space-3);min-height:44px;max-width:100%}
+.capability-query textarea{min-height:110px;width:100%;box-sizing:border-box;margin-bottom:var(--hoho-space-3)}
+.capability-table{max-width:100%;overflow-x:auto}.capability-table table{border-collapse:collapse;width:100%;min-width:650px;text-align:left}.capability-table th,.capability-table td{padding:var(--hoho-space-3);border-bottom:1px solid rgb(var(--hoho-color-border));vertical-align:top}.capability-table thead{color:rgb(var(--hoho-color-text-secondary))}.capability-table tbody th{width:30%;font-weight:600}
+.capability-result{padding:var(--hoho-space-4) 0;border-bottom:1px solid rgb(var(--hoho-color-border))}.capability-result summary{cursor:pointer;min-height:44px;align-content:center}.capability-result p{white-space:pre-wrap}
+@media(max-width:900px){.capability-metrics{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:450px){.capability-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.capability-filters label{width:100%}}

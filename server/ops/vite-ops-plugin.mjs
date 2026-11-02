@@ -10,6 +10,8 @@ import { TokenService } from '../auth/token-service.mjs'
 import { authConfig } from '../auth/config.mjs'
 import { FeedbackService } from '../help/feedback-service.mjs'
 import { OpsOverviewService } from './overview-service.mjs'
+import { CapabilityService } from '../capabilities/service.mjs'
+import { publicCapabilityProfile, readCapabilitySource } from '../capabilities/library.mjs'
 
 const readJson = (request, maxLength = 16_384) => new Promise((resolve, reject) => {
   let body = '', settled = false
@@ -29,6 +31,7 @@ const send = (response, status, data) => { response.statusCode = status; respons
 const decode = (value) => { try { return decodeURIComponent(value) } catch { throw Object.assign(new Error('请求路径格式错误'), { status: 400, code: 'INVALID_PATH' }) } }
 
 export function opsApiPlugin(options = {}) {
+  const capabilities = new CapabilityService({ dataDirectory: options.dataDirectory ?? authConfig.dataDirectory })
   const captureWorker = options.captureWorker ?? new CaptureWorkerClient()
   const workspace = options.workspace ?? new OpsWorkspaceService({ dataDirectory: options.dataDirectory ?? authConfig.dataDirectory, captureWorker })
   const capture = createBillingCollectors({ worker: captureWorker })
@@ -38,6 +41,7 @@ export function opsApiPlugin(options = {}) {
   const ownerEmail = options.opsOwnerEmail ?? authConfig.opsOwnerEmail
   return { name: 'hoooho-local-ops-api', configureServer(server) { server.middlewares.use(async (request, response, next) => {
     const pathname = new URL(request.url ?? '/', 'http://localhost').pathname
+    if (pathname === '/api/capabilities/profile') return send(response, request.method === 'GET' ? 200 : 405, request.method === 'GET' ? publicCapabilityProfile() : {error:{message:'仅支持GET'}})
     if (await handleOpsEntry(request, response, { readIndex: async () => server.transformIndexHtml('/ops/billing', await readFile(path.join(server.config.root, 'index.html'), 'utf8')) })) return
     if (!pathname.startsWith('/api/ops')) return next()
     try {
@@ -45,6 +49,11 @@ export function opsApiPlugin(options = {}) {
       const payload = token ? tokens.verify(token) : null
       if (!payload) throw Object.assign(new Error('登录状态无效或已过期'), { status: 401, code: 'UNAUTHORIZED' })
       assertOpsAccess(payload, { ownerEmail })
+      if (pathname === '/api/ops/capabilities' && request.method === 'GET') return send(response, 200, await capabilities.overview())
+      if (pathname === '/api/ops/capabilities/search' && request.method === 'POST') return send(response, 200, capabilities.search((await readJson(request)).query))
+      if (pathname === '/api/ops/capabilities/evaluate' && request.method === 'POST') return send(response, 200, await capabilities.evaluate())
+      const capabilitySource = /^\/api\/ops\/capabilities\/sources\/([a-z0-9-]+)$/.exec(pathname)
+      if (capabilitySource && request.method === 'GET') return send(response, 200, readCapabilitySource(capabilitySource[1]))
       if (await handleCaptureApi({ request, response, pathname, readJson, send, vault: captureWorker, ops: service, actorId: payload.sub })) return
       if (pathname === '/api/ops/services' && request.method === 'GET') return send(response, 200, await workspace.services())
       if (pathname === '/api/ops/versions' && request.method === 'GET') return send(response, 200, await workspace.versions())

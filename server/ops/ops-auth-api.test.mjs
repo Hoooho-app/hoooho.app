@@ -59,7 +59,12 @@ test('all Operations APIs share the same owner-only authorization', async () => 
     assert.equal(createdFeedbackResponse.status, 201)
     const createdFeedback = await createdFeedbackResponse.json()
 
+    const publicProfile = await json(`${base}/api/capabilities/profile`)
+    assert.equal(publicProfile.status, 200)
+    assert.equal((await publicProfile.json()).metrics.books, 3)
+    assert.equal((await json(`${base}/api/ops/capabilities`)).status, 401)
     const protectedRequests = [
+      ['/api/ops/capabilities', 'GET'], ['/api/ops/capabilities/search', 'POST', {query:'合成孩子没测体温'}], ['/api/ops/capabilities/evaluate', 'POST'], ['/api/ops/capabilities/sources/fund-patient', 'GET'],
       ['/api/ops/capture/runtime', 'GET'], ['/api/ops/services', 'GET'], ['/api/ops/settings', 'GET'], ['/api/ops/settings', 'PATCH', { reminders: { noticeDays: 30, warningDays: 7, criticalDays: 3, quotaWarningPercent: 20, quotaCriticalPercent: 5 } }], ['/api/ops/versions', 'GET'],
       ['/api/ops/overview', 'GET'], ['/api/ops/overview/viewed', 'POST', { id: `feedback:${createdFeedback.id}:0` }],
       ['/api/ops/session', 'GET'], ['/api/ops/sources', 'GET'], ['/api/ops/sources', 'POST', { name: 'Test', platformUrl: 'https://example.com/billing', method: 'manual-screenshot', frequency: 'manual' }],

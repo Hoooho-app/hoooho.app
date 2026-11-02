@@ -65,7 +65,7 @@ export function authApiPlugin(options = {}) {
       server.middlewares.use(async (request, response, next) => {
         const pathname = new URL(request.url ?? '/', 'http://localhost').pathname
         const publicHandoff = request.method === 'GET' && /^\/api\/care-handoffs\/shared\/[^/]+$/.test(pathname)
-        if (pathname.startsWith('/api/') && !pathname.startsWith('/api/auth/') && !pathname.startsWith('/api/ops/auth/') && !publicHandoff) {
+        if (pathname !== '/api/capabilities/profile' && pathname.startsWith('/api/') && !pathname.startsWith('/api/auth/') && !pathname.startsWith('/api/ops/auth/') && !publicHandoff) {
           try {
             const token = /^Bearer\s+(.+)$/i.exec(request.headers.authorization ?? '')?.[1]
             const payload = token ? auth.tokens.verify(token) : null

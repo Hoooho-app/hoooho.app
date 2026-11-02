@@ -1,4 +1,6 @@
 import { handleOpsEntry } from './ops/entry-shell.mjs'
+import { CapabilityService } from './capabilities/service.mjs'
+import { publicCapabilityProfile, readCapabilitySource } from './capabilities/library.mjs'
 import { ProductAnalyticsService, readAnalyticsControls } from './analytics/service.mjs'
 import { FoodObservationService } from './food-observations/service.mjs'
 import { foodObservationRoute, foodObservationResult, observationSourceMutation, watchObservationMutation } from './food-observations/api.mjs'
@@ -117,6 +119,7 @@ const billingCollectors = createBillingCollectors({ worker: captureWorker })
 const ops = new OpsService({ ...sharedOptions, ...billingCollectors, collectorStatus: billingCollectors.status, beforeCollection: () => captureWorker.refreshMetadata(), getConnectedFields: item => Object.keys(captureWorker.profile(item.id)?.fields || {}), logger: event => console.info('[Hoooho Ops collection]', JSON.stringify(event)), getReminderRules: async () => (await opsWorkspace.settings()).reminders })
 const stopOpsScheduler = startOpsScheduler(ops)
 const feedback = new FeedbackService(sharedOptions)
+const capabilities = new CapabilityService(sharedOptions)
 const opsOverview = new OpsOverviewService({ ...sharedOptions, billing: ops, feedback })
 let productAnalytics
 try {
@@ -264,6 +267,11 @@ async function handleOps(request, response, pathname) {
   const payload = await readAuthPayload(request)
   assertOpsAccess(payload, { ownerEmail: authConfig.opsOwnerEmail })
   if (await handleCaptureApi({ request, response, pathname, readJson, send: sendJson, vault: captureWorker, ops, actorId: payload.sub })) return true
+  if (pathname === '/api/ops/capabilities' && request.method === 'GET') { sendJson(response, 200, await capabilities.overview()); return true }
+  if (pathname === '/api/ops/capabilities/search' && request.method === 'POST') { sendJson(response, 200, capabilities.search((await readJson(request)).query)); return true }
+  if (pathname === '/api/ops/capabilities/evaluate' && request.method === 'POST') { sendJson(response, 200, await capabilities.evaluate()); return true }
+  const capabilitySource = /^\/api\/ops\/capabilities\/sources\/([a-z0-9-]+)$/.exec(pathname)
+  if (capabilitySource && request.method === 'GET') { sendJson(response, 200, readCapabilitySource(capabilitySource[1])); return true }
   if (pathname === '/api/ops/session' && request.method === 'GET') sendJson(response, 200, { authenticated: true, authorized: true, email: payload.email })
   else if (pathname === '/api/ops/analytics' && request.method === 'GET') sendJson(response, 200, productAnalytics.report(new URL(request.url, 'http://localhost').searchParams))
   else if (pathname === '/api/ops/services' && request.method === 'GET') sendJson(response, 200, await opsWorkspace.services())
@@ -917,6 +925,7 @@ async function handleApi(request, response, pathname, searchParams) {
     sendEmpty(response)
     return true
   }
+  if (pathname === '/api/capabilities/profile') { sendJson(response, request.method === 'GET' ? 200 : 405, request.method === 'GET' ? publicCapabilityProfile() : {error:{message:'仅支持GET'}}); return true }
   if (pathname === '/api/health' && request.method === 'GET') {
     sendJson(response, 200, {
       status: 'ok',
