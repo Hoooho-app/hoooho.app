@@ -46,17 +46,17 @@ test('default home has the approved headline, private header and four real navig
 test('keyboard reveals categories, voice hides them, and unsent text survives both switching and reload', async ({ page }, info) => {
   await page.getByRole('button', { name: '改用文字', exact: true }).click()
   const categories = page.locator('.record-entry-actions--conversation .record-entry-grid')
-  await expect(categories.getByRole('button')).toHaveCount(4)
+  await expect(categories.getByRole('button')).toHaveCount(6)
   await expect(page.locator('.hoho-main-header').getByRole('button', { name: '新建对话', exact: true })).toHaveCount(0)
   await expect(categories.locator('svg, img, small')).toHaveCount(0)
   const categoryRows = await categories.getByRole('button').evaluateAll(buttons => buttons.map(button => { const rect=button.getBoundingClientRect(); return {y:rect.y,height:rect.height} }))
   expect(new Set(categoryRows.map(rect=>rect.y)).size).toBe(1)
   expect(Math.max(...categoryRows.map(rect=>rect.height))).toBeLessThanOrEqual(44)
   await expect(categories.locator('[data-record-entry="symptom"]')).toHaveText('记录症状')
-  await expect(categories.locator('[data-record-entry="materials"]')).toContainText('治疗复诊')
+  await expect(categories.locator('[data-record-entry="materials"]')).toContainText('回传就诊资料')
   const text = '今天早上开始流鼻涕，这句还没有发送'
   await page.getByLabel('对话输入', { exact: true }).fill(text)
-  const colors = await categories.evaluate(root => ({ daily: getComputedStyle(root.querySelector('[data-record-entry="daily"]')!).backgroundColor, medication: getComputedStyle(root.querySelector('[data-record-entry="medication"]')!).backgroundColor }))
+  const colors = await categories.evaluate(root => ({ daily: getComputedStyle(root.querySelector('[data-record-entry="feeding"]')!).backgroundColor, medication: getComputedStyle(root.querySelector('[data-record-entry="medication"]')!).backgroundColor }))
   expect(colors.daily).not.toBe(colors.medication)
   await page.screenshot({ path: info.outputPath('keyboard.png'), fullPage: true })
   await page.getByRole('button', { name: '改用语音', exact: true }).click()
@@ -66,7 +66,7 @@ test('keyboard reveals categories, voice hides them, and unsent text survives bo
   await expect(page.getByLabel('对话输入', { exact: true })).toHaveValue(text)
   await page.reload()
   await expect(page.getByLabel('对话输入', { exact: true })).toHaveValue(text)
-  await expect(categories.getByRole('button')).toHaveCount(4)
+  await expect(categories.getByRole('button')).toHaveCount(6)
 })
 
 test('drawer uses exactly two private identity rows and direct utility links', async ({ page }, info) => {
@@ -180,7 +180,7 @@ test('leaving through bottom navigation keeps the unsent draft and restores keyb
   await expect(page).toHaveURL(/\/health-profile$/)
   await page.getByRole('navigation', { name: '主要导航' }).getByRole('button', { name: '症状记录', exact: true }).click()
   await expect(page.getByLabel('对话输入', { exact: true })).toHaveValue('这段情况还没有发送，稍后继续')
-  await expect(page.locator('.record-entry-actions--conversation .record-entry-grid button')).toHaveCount(4)
+  await expect(page.locator('.record-entry-actions--conversation .record-entry-grid button')).toHaveCount(6)
 })
 
 test('confirmation pins the record only after its automatic save receipt succeeds', async ({ page }) => {

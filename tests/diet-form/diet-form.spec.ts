@@ -13,15 +13,14 @@ async function prepare(page:Page,member='child-one') {
     }
   },{token,member,accountId})
   await page.goto('/nurse-station')
-  await expect(page.getByRole('button',{name:'改用文字',exact:true}).or(page.getByRole('button',{name:'日常',exact:true}))).toBeVisible()
+  await expect(page.getByRole('button',{name:'改用文字',exact:true}).or(page.getByRole('button',{name:'喂养与饮食',exact:true}))).toBeVisible()
   const typing=page.getByRole('button',{name:'改用文字',exact:true});if(await typing.count())await typing.click()
-  await expect(page.getByRole('button',{name:'日常',exact:true})).toBeEnabled()
+  await expect(page.getByRole('button',{name:'喂养与饮食',exact:true})).toBeEnabled()
 }
 async function diet(page:Page) {
   if(!page.url().includes('/nurse-station'))await page.goto('/nurse-station')
-  await expect(page.getByRole('button',{name:'改用文字',exact:true}).or(page.getByRole('button',{name:'日常',exact:true}))).toBeVisible()
+  await expect(page.getByRole('button',{name:'改用文字',exact:true}).or(page.getByRole('button',{name:'喂养与饮食',exact:true}))).toBeVisible()
   const typing=page.getByRole('button',{name:'改用文字',exact:true});if(await typing.count())await typing.click()
-  await page.getByRole('button',{name:'日常',exact:true}).click()
   await page.getByRole('button',{name:'喂养与饮食',exact:true}).click()
   return page.getByRole('dialog',{name:'喂养/饮食',exact:true})
 }

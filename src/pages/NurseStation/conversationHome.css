@@ -119,14 +119,14 @@ body .smart-record-home .nurse-turn--user>.nurse-turn-content{background:rgb(var
 .front-desk-top-entries>button{min-height:36px;padding:0 var(--hoho-space-3);border:1px solid rgb(var(--hoho-color-border));border-radius:var(--hoho-radius-control);font-size:var(--hoho-font-size-caption);background:rgb(var(--hoho-color-surface));color:rgb(var(--hoho-color-text-primary));white-space:nowrap}
 .front-desk-top-entries>button[data-front-entry='record']{border-radius:0 0 var(--hoho-radius-control) var(--hoho-radius-control);background:rgb(var(--hoho-color-record-symptom-pinned));color:rgb(var(--hoho-color-record-symptom-text));border-color:rgb(var(--hoho-color-record-symptom-text)/.14)}
 .front-desk-top-entries>button[data-front-entry='checklist']{background:rgb(var(--hoho-color-record-material-pinned));color:rgb(var(--hoho-color-record-material-text));border-color:rgb(var(--hoho-color-record-material-text)/.14)}
-.smart-record-home .record-entry-actions--conversation .record-entry-grid{grid-template-columns:1fr 1.35fr .6fr .6fr}
+
 .smart-record-home .record-entry-actions--conversation .record-entry-grid>button{font-size:var(--hoho-font-size-caption);box-shadow:none;border-color:transparent}
 .smart-record-home .record-entry-actions--conversation .record-entry-grid>button[data-record-entry='symptom']{--record-entry-surface:rgb(var(--hoho-color-record-symptom-surface));color:rgb(var(--hoho-color-record-symptom-text))}
 .smart-record-home .record-entry-actions--conversation .record-entry-grid>button[data-record-entry='materials']{--record-entry-surface:rgb(var(--hoho-color-record-material-surface));color:rgb(var(--hoho-color-record-material-text))}
 .smart-record-home .record-entry-actions--conversation .record-entry-grid>button[data-record-entry='medication']{--record-entry-surface:rgb(var(--hoho-color-record-medication-surface));color:rgb(var(--hoho-color-record-medication-text))}
-.smart-record-home .record-entry-actions--conversation .record-entry-grid>button[data-record-entry='daily']{--record-entry-surface:rgb(var(--hoho-color-record-daily-surface));color:rgb(var(--hoho-color-record-daily-text))}
+.smart-record-home .record-entry-actions--conversation .record-entry-grid>button[data-record-entry='feeding']{--record-entry-surface:rgb(var(--hoho-color-record-daily-surface));color:rgb(var(--hoho-color-record-daily-text))}
 .smart-record-home .record-entry-actions--conversation .record-entry-grid>button[aria-pressed='true']{border-color:currentColor}
-.smart-record-home .record-entry-actions--conversation .daily-record-options{grid-template-columns:repeat(3,minmax(0,1fr))}
+
 .smart-record-home .hoho-dialogue-composer--conversation:focus-within{outline:none;border-color:rgb(var(--hoho-color-primary)/.14);box-shadow:var(--hoho-shadow-card)}
 .smart-record-home .hoho-dialogue-composer--conversation>textarea:focus-visible{outline:none}
 .continuous-record-card{display:grid;gap:var(--hoho-space-3);padding:var(--hoho-space-4);border:1px solid rgb(var(--hoho-color-border));border-radius:var(--hoho-radius-card);background:rgb(var(--hoho-color-surface-white));min-width:0;overflow-wrap:anywhere}
@@ -192,7 +192,13 @@ body .front-desk-welcome__media>.idle-nurse-visual[data-cutout="true"]{backgroun
 .idle-nurse-visual[data-cutout-ready="true"]>.idle-nurse-visual__cutout-poster{opacity:0}
 .idle-nurse-visual[data-reduced-motion="true"]>.idle-nurse-visual__cutout{opacity:0}
 .idle-nurse-visual[data-reduced-motion="true"]>.idle-nurse-visual__cutout-poster{opacity:1}
-.smart-record-home .record-entry-actions--conversation .record-entry-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--hoho-space-2)}
+/* Six direct shortcuts keep their full labels in one horizontally scrollable row. */
+.smart-record-home .record-entry-actions--conversation{min-width:0;max-width:100%}
+.smart-record-home .record-entry-actions--conversation .record-entry-grid{display:flex;flex-wrap:nowrap;min-width:0;max-width:100%;gap:var(--hoho-space-2);overflow-x:auto;overscroll-behavior-x:contain;touch-action:pan-x pinch-zoom;scrollbar-width:none}
+.smart-record-home .record-entry-actions--conversation .record-entry-grid::-webkit-scrollbar{display:none}
+.smart-record-home .record-entry-actions--conversation .record-entry-grid>button{flex:0 0 auto;min-width:var(--hoho-touch-target);padding-inline:var(--hoho-space-3)}
+.smart-record-home .record-entry-actions--conversation .record-entry-grid>button[data-record-entry='sleep']{--record-entry-surface:rgb(var(--hoho-color-record-sleep-surface));color:rgb(var(--hoho-color-text-primary))}
+.smart-record-home .record-entry-actions--conversation .record-entry-grid>button[data-record-entry='elimination']{--record-entry-surface:rgb(var(--hoho-color-record-bowel-surface));color:rgb(var(--hoho-color-record-daily-text))}
 @media(max-height:650px){.front-desk-welcome__media{height:180px}.front-desk-welcome__copy h2{font-size:var(--hoho-font-size-page-title)}body .smart-record-home .front-desk-welcome{margin-top:var(--hoho-space-2);gap:var(--hoho-space-2)}}
 
 /* Owner-approved key-information flow. Scope stays on the front desk. */
