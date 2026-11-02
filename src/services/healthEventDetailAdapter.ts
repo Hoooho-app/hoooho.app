@@ -76,6 +76,7 @@ export function adaptFamilyMember(member: FamilyMemberApiDto): Member {
         : undefined),
     heightCm: member.heightCm ?? undefined,
     weightKg: member.weightKg ?? undefined,
+    growthBaseline: member.growthBaseline,
     bloodType: member.bloodType ?? undefined,
     waistCircumferenceCm: member.waistCircumferenceCm ?? undefined,
     bodyFatPercentage: member.bodyFatPercentage ?? undefined,

@@ -687,7 +687,7 @@ export function buildVisitSheet(input, preferences = {}, now = new Date()) {
     ['heightCm', '身高', 'cm'],
     ['weightKg', '体重', 'kg'],
   ]) {
-    const points = input.growth
+    const measurements = input.growth
       .filter((g) => finite(g[field]) && date(g.measuredAt))
       .map((g) => {
         const id = add({
@@ -709,6 +709,9 @@ export function buildVisitSheet(input, preferences = {}, now = new Date()) {
         }
       })
       .sort((a, b) => Date.parse(a.at) - Date.parse(b.at))
+    const pending = measurements.filter(point => point.detail === '待核对')
+    if (pending.length) block('growth', `${title}待核对`, pending.map(point => `${point.at.slice(0, 10)}：${point.value} ${unit}（待核对，不计入变化统计）`), pending.map(point => point.sourceId))
+    const points = measurements.filter(point => point.detail !== '待核对')
     if (points.length)
       block(
         'growth',

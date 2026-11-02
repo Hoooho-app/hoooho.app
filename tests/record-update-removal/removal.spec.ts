@@ -95,7 +95,6 @@ test('saving a real daily record, retrying and reopening its calendar detail nev
   }, legacyKey)
   await page.goto('/nurse-station')
   await page.getByRole('button', { name: '改用文字', exact: true }).click()
-  await page.getByRole('button', { name: '日常', exact: true }).click()
   await page.getByRole('button', { name: '喂养与饮食', exact: true }).click()
   const form = page.getByRole('dialog', { name: '喂养/饮食', exact: true })
   await form.getByRole('radio', { name: '配方奶', exact: true }).click()

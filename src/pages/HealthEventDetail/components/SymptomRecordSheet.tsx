@@ -78,6 +78,7 @@ export function SymptomRecordSheet({ origin, entry, memberId, memberName, record
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [confirmExit, setConfirmExit] = useState(false)
   const [temperature, setTemperature] = useState('')
+  const [maxTemperature, setMaxTemperature] = useState('')
   const [content, setContent] = useState('')
   const [occurredAt, setOccurredAt] = useState('')
   const [measurementMethod, setMeasurementMethod] = useState<HealthMeasurementMethod>('unspecified')
@@ -122,6 +123,7 @@ export function SymptomRecordSheet({ origin, entry, memberId, memberName, record
     setGeneratedSummary(record?.journal?.symptom?.generatedSummary ?? '')
     setShortNote(record?.journal?.symptom?.shortNote ?? '')
     setTemperature(String(record?.journal?.symptom?.symptomSpecificData?.currentTemperature ?? ''))
+    setMaxTemperature(String(record?.journal?.symptom?.symptomSpecificData?.maxTemperature ?? ''))
     setBusy(false)
     setNurseMetadata(record?.journal?.aiNurse)
     setError('')
@@ -140,13 +142,16 @@ export function SymptomRecordSheet({ origin, entry, memberId, memberName, record
   const detailKeywords = isSymptomRecord ? visibleSymptomKeywords(originalNarrative, record?.journal?.symptom?.keywords ?? []) : []
   const detailLocation = symptomLocationDisplay(record?.journal?.symptom)
   const hasStructuredTemperature = typeof record?.journal?.symptom?.symptomSpecificData?.currentTemperature === 'number'
-  const isMeasurement = entry.source.type === 'measurement' || entry.kind === 'temperature' || hasStructuredTemperature
+  const hasMaxTemperature = typeof record?.journal?.symptom?.symptomSpecificData?.maxTemperature === 'number'
+  const isMeasurement = entry.source.type === 'measurement' || entry.kind === 'temperature' || hasStructuredTemperature || hasMaxTemperature
   const canEdit = Boolean(record)
 
   const save = async () => {
     if (!record || busy) return
     if (!content.trim()) { setError('记录内容不能为空'); return }
     if (hasStructuredTemperature && (!temperature.trim() || !Number.isFinite(Number(temperature)))) { setError('请填写有效的体温数值'); return }
+    if (hasMaxTemperature && maxTemperature.trim() && (!Number.isFinite(Number(maxTemperature)) || Number(maxTemperature) < 20 || Number(maxTemperature) > 50)) { setError('请填写20至50℃之间的最高体温，未确定时可留空'); return }
+    if (hasStructuredTemperature && hasMaxTemperature && maxTemperature.trim() && Number(maxTemperature) < Number(temperature)) { setError('最高体温不能低于本次体温，请核对数值和记录范围'); return }
     if (!occurredAt&&!occurrenceUnknown) { setError('请填写发生时间'); return }
     if (occurredAt&&isFutureOccurredAt(occurredAt)) { setError('发生时间不能晚于现在'); return }
     const explicitTime=Boolean(occurredAt)&&(occurrenceUnknown||occurredAt!==localDateTimeValue(new Date(record.occurredAt)))
@@ -155,13 +160,16 @@ export function SymptomRecordSheet({ origin, entry, memberId, memberName, record
     try {
       const extraction = extractSymptomNarrative(content)
       const symptom = record.journal?.symptom
+      const specific = { ...symptom?.symptomSpecificData }
+      if (hasStructuredTemperature) specific.currentTemperature = Number(temperature)
+      if (hasMaxTemperature) { if (maxTemperature.trim()) specific.maxTemperature = Number(maxTemperature); else delete specific.maxTemperature }
       await onUpdate(record.id, {
         content: content.trim(),
         ...(explicitTime?{occurredAt:new Date(occurredAt).toISOString()}:{}),
         measurementMethod: isMeasurement ? measurementMethod : null,
         measurementDevice: isMeasurement ? measurementDevice.trim() || null : null,
         note: note.trim() || null,
-        ...(symptom ? { journal: { ...record.journal, ...(nurseMetadata ? { aiNurse: nurseMetadata } : {}), symptom: { ...symptom, locations: toSymptomLocations(locations), ...(hasStructuredTemperature ? { symptomSpecificData: { ...symptom.symptomSpecificData, currentTemperature: Number(temperature) } } : {}), narrative: content, keywords: extraction.keywords, symptomCategory: inferSymptomCategory(extraction.keywords), linkedRecordIds, ...(generatedSummary.trim() ? { generatedSummary: generatedSummary.trim() } : { generatedSummary: undefined }), ...(locationText.trim() ? { locationText: locationText.trim() } : { locationText: undefined }), ...(impactLevel ? { impactLevel } : { impactLevel: undefined }), ...(triggerText.trim() ? { triggerText: triggerText.trim() } : { triggerText: undefined }), ...(trend ? { trend } : { trend: undefined }), ...(recurrent ? { recurrent: true } : { recurrent: undefined }), ...(shortNote.trim() ? { shortNote: shortNote.trim() } : { shortNote: undefined }) }, ...(explicitTime?{timeLabel:undefined,timePrecision:'exact' as const}:{}) } } : explicitTime&&record.journal?{journal:{...record.journal,timeLabel:undefined,timePrecision:'exact' as const}}:{})
+        ...(symptom ? { journal: { ...record.journal, ...(nurseMetadata ? { aiNurse: nurseMetadata } : {}), symptom: { ...symptom, locations: toSymptomLocations(locations), ...(hasStructuredTemperature || hasMaxTemperature ? { symptomSpecificData: specific } : {}), narrative: content, keywords: extraction.keywords, symptomCategory: inferSymptomCategory(extraction.keywords), linkedRecordIds, ...(generatedSummary.trim() ? { generatedSummary: generatedSummary.trim() } : { generatedSummary: undefined }), ...(locationText.trim() ? { locationText: locationText.trim() } : { locationText: undefined }), ...(impactLevel ? { impactLevel } : { impactLevel: undefined }), ...(triggerText.trim() ? { triggerText: triggerText.trim() } : { triggerText: undefined }), ...(trend ? { trend } : { trend: undefined }), ...(recurrent ? { recurrent: true } : { recurrent: undefined }), ...(shortNote.trim() ? { shortNote: shortNote.trim() } : { shortNote: undefined }) }, ...(explicitTime?{timeLabel:undefined,timePrecision:'exact' as const}:{}) } } : explicitTime&&record.journal?{journal:{...record.journal,timeLabel:undefined,timePrecision:'exact' as const}}:{})
       })
       onClose()
     } catch (reason) {
@@ -213,7 +221,7 @@ export function SymptomRecordSheet({ origin, entry, memberId, memberName, record
     || shortNote !== (originalSymptom?.shortNote ?? '')
     || JSON.stringify(linkedRecordIds) !== JSON.stringify(originalSymptom?.linkedRecordIds ?? {})
   )
-  const detailDirty = dirty || (editing && (measurementMethod !== (record?.measurementMethod ?? entry.source.measurementMethod ?? 'unspecified') || measurementDevice !== (record?.measurementDevice ?? entry.source.measurementDevice ?? '') || note !== (record?.note ?? entry.source.note ?? '') || temperature !== String(record?.journal?.symptom?.symptomSpecificData?.currentTemperature ?? '')))
+  const detailDirty = dirty || (editing && (measurementMethod !== (record?.measurementMethod ?? entry.source.measurementMethod ?? 'unspecified') || measurementDevice !== (record?.measurementDevice ?? entry.source.measurementDevice ?? '') || note !== (record?.note ?? entry.source.note ?? '') || temperature !== String(record?.journal?.symptom?.symptomSpecificData?.currentTemperature ?? '') || maxTemperature !== String(record?.journal?.symptom?.symptomSpecificData?.maxTemperature ?? '')))
   const close = () => { if (busy) return; if (detailDirty) setConfirmExit(true); else onClose() }
 
   return <>
@@ -236,6 +244,7 @@ export function SymptomRecordSheet({ origin, entry, memberId, memberName, record
           <label><span>发生时间</span><input className="hoho-input" max={localDateTimeValue()} onChange={(event) => { setOccurredAt(event.target.value); setError('') }} type="datetime-local" value={occurredAt} /></label>
           <div className="symptom-record-readonly"><span>记录来源</span><strong>{entry.source.label}</strong></div>
           {isMeasurement && <>
+            {hasMaxTemperature && <label><span>本条记录最高体温 ℃（未确定可留空）</span><input type="number" min="20" max="50" step="any" className="hoho-input" value={maxTemperature} onChange={event=>setMaxTemperature(event.target.value)}/></label>}
             {hasStructuredTemperature && <label><span>本次体温 ℃</span><input type="number" step="any" className="hoho-input" value={temperature} onChange={event=>setTemperature(event.target.value)}/></label>}
             <label><span>测量设备</span><input className="hoho-input" onChange={(event) => setMeasurementDevice(event.target.value)} placeholder="未说明" value={measurementDevice} /></label>
             <label><span>测量方式</span><select className="hoho-input" onChange={(event) => setMeasurementMethod(event.target.value as HealthMeasurementMethod)} value={measurementMethod}>{measurementMethods.map((method) => <option key={method.value} value={method.value}>{method.label}</option>)}</select></label>

@@ -17,6 +17,10 @@ export class GrowthMeasurementRepository {
       const existing = data.measurements.find((item) => item.accountId === input.accountId && item.memberId === input.memberId && item.measuredAt === input.measuredAt)
       if (existing) {
         saved = { ...existing, ...input, id: existing.id, createdAt: existing.createdAt, updatedAt: now.toISOString() }
+        // Adding another metric on the same day must not erase a blank one.
+        // Explicit clearing/confirmation belongs to the PATCH edit operation.
+        for (const field of ['heightCm', 'weightKg']) if (input[field] == null) saved[field] = existing[field] ?? null
+        if (existing.dataStatus === 'pending_confirmation') saved.dataStatus = existing.dataStatus
         return { ...data, measurements: data.measurements.map((item) => item.id === existing.id ? saved : item) }
       }
       saved = { id: randomUUID(), ...input, createdAt: now.toISOString(), updatedAt: now.toISOString() }

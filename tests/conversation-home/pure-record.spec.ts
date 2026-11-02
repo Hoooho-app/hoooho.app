@@ -17,7 +17,7 @@ async function openDiet(page:Page){
  if(new URL(page.url()).pathname==='/health-events')await page.getByRole('navigation',{name:'主要导航'}).getByRole('button',{name:'症状记录',exact:true}).click()
  await expect(page).toHaveURL(/\/nurse-station$/)
  await expect(page.locator('.hoho-dialogue-composer')).toBeVisible()
- const keyboard=page.getByRole('button',{name:'改用文字',exact:true});if(await keyboard.isVisible())await keyboard.click();await page.getByRole('button',{name:'日常',exact:true}).click();await page.getByRole('button',{name:'喂养与饮食',exact:true}).click()
+ const keyboard=page.getByRole('button',{name:'改用文字',exact:true});if(await keyboard.isVisible())await keyboard.click();await page.getByRole('button',{name:'喂养与饮食',exact:true}).click()
  return form
 }
 
@@ -44,8 +44,8 @@ test('daily care opens while other hidden features stay closed and core records 
  await page.goto('/health-profile/growth');await expect(page.locator('.growth-reference-entry')).toHaveCount(0)
  await page.goto('/recent-review?voucher=hidden&snapshot=hidden');await expect(page.locator('.review-snapshot-tools')).toHaveCount(0)
  await page.goto('/health-events');await expect(page.locator('.journal-record-actions')).toHaveCount(0)
- await page.getByRole('navigation',{name:'主要导航'}).getByRole('button',{name:'症状记录',exact:true}).click();await page.getByRole('button',{name:'改用文字',exact:true}).click();await expect(page.getByRole('button',{name:'用药',exact:true})).toBeEnabled()
- await page.getByRole('button',{name:'用药',exact:true}).click()
+ await page.getByRole('navigation',{name:'主要导航'}).getByRole('button',{name:'症状记录',exact:true}).click();await page.getByRole('button',{name:'改用文字',exact:true}).click();await expect(page.getByRole('button',{name:'记载用药',exact:true})).toBeEnabled()
+ await page.getByRole('button',{name:'记载用药',exact:true}).click()
  await expect(page.getByText('设置用药提醒',{exact:true})).toHaveCount(0)
  await page.keyboard.press('Escape')
  await page.goto('/help?q=配料表')
@@ -69,8 +69,8 @@ for(const width of [375,390,430])test(`time names are type-specific, editable an
  await expect(name()).toHaveValue('奶奶喂的夜奶')
  await form.getByRole('radio',{name:'瓶喂母乳',exact:true}).click();await expect(name()).toHaveValue('夜奶')
  await form.getByRole('radio',{name:'混合喂养',exact:true}).click();await expect(name()).toHaveValue('夜奶')
- await form.getByRole('radio',{name:'母乳',exact:true}).click();await expect(name()).toHaveCount(0)
- await form.getByRole('radio',{name:'饮食',exact:true}).click();await expect(name()).toHaveCount(0)
+ await form.getByRole('radio',{name:'母乳',exact:true}).click();await expect(name()).toHaveValue('夜奶')
+ await form.getByRole('radio',{name:'饮食',exact:true}).click();await expect(name()).toHaveValue('辅食')
  await form.getByRole('radio',{name:'正餐',exact:true}).click()
  await form.getByLabel('记录时间',{exact:true}).fill('2026-10-20T08:00');await expect(name()).toHaveValue('早餐')
  await name().fill('家里的早餐')

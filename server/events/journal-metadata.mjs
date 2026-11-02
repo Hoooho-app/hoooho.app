@@ -279,9 +279,11 @@ function validateSymptom(value, allowEmptyNarrative = false) {
     for (const [key, item] of Object.entries(value.symptomSpecificData)) {
       if (!/^[A-Za-z][A-Za-z0-9_]{0,39}$/.test(key) || !(typeof item === 'string' && item.length <= 160 || typeof item === 'number' && Number.isFinite(item) || typeof item === 'boolean' || Array.isArray(item) && item.length <= 12 && item.every((entry) => typeof entry === 'string' && entry.length <= 80))) throw new HealthEventRecordError('症状专属信息无效', 400, 'INVALID_JOURNAL_SYMPTOM')
       if (['currentTemperature', 'maxTemperature'].includes(key) && (typeof item !== 'number' || !Number.isFinite(item) || item < 20 || item > 50)) throw new HealthEventRecordError('体温应为20至50℃之间的有效数值，未测量时请留空', 400, 'INVALID_JOURNAL_TEMPERATURE')
+      if (key === 'approximateCount' && (!Number.isInteger(item) || item < 0)) throw new HealthEventRecordError('次数应为非负整数，未确定时请留空', 400, 'INVALID_JOURNAL_COUNT')
       symptomSpecificData[key] = item
     }
   }
+  if (symptomSpecificData?.currentTemperature !== undefined && symptomSpecificData?.maxTemperature !== undefined && symptomSpecificData.maxTemperature < symptomSpecificData.currentTemperature) throw new HealthEventRecordError('最高体温不能低于本次体温，请核对数值和记录范围', 400, 'INCONSISTENT_JOURNAL_TEMPERATURE')
   if (!allowEmptyNarrative && !narrative && !otherCategoryText && !keywords?.length && !descriptors.length) throw new HealthEventRecordError('请填写主要症状', 400, 'INVALID_JOURNAL_SYMPTOM')
   return { symptomCategory: value.symptomCategory, locations, descriptors, ...(narrative ? { narrative } : {}), ...(keywords?.length ? { keywords } : {}), ...(locationText ? { locationText } : {}), ...(linkedRecordIds && Object.keys(linkedRecordIds).length ? { linkedRecordIds } : {}), ...(supplementalCounts && Object.keys(supplementalCounts).length ? { supplementalCounts } : {}), ...(otherCategoryText ? { otherCategoryText } : {}), ...(value.impactLevel ? { impactLevel: value.impactLevel } : {}), ...(value.onsetApprox ? { onsetApprox: value.onsetApprox } : {}), ...(value.recurrent === true ? { recurrent: true } : {}), ...(value.trend ? { trend: value.trend } : {}), ...(associatedSymptoms?.length ? { associatedSymptoms } : {}), ...(symptomSpecificData ? { symptomSpecificData } : {}), ...(shortNote ? { shortNote } : {}), ...(triggerText ? { triggerText } : {}), ...(generatedSummary ? { generatedSummary } : {}) }
 }
@@ -412,6 +414,8 @@ function validateVisit(value, now = new Date()) {
   }
   if (value.isCurrentlyHospitalized !== undefined) { if (typeof value.isCurrentlyHospitalized !== 'boolean') throw new HealthEventRecordError('住院状态无效', 400, 'INVALID_JOURNAL_VISIT'); result.isCurrentlyHospitalized = value.isCurrentlyHospitalized }
   if (result.dischargedAt && result.admittedAt && Date.parse(result.dischargedAt) < Date.parse(result.admittedAt)) throw new HealthEventRecordError('出院时间不能早于入院时间', 400, 'INVALID_JOURNAL_VISIT')
+  if (result.emergencyArrivalAt && result.emergencyDepartureAt && Date.parse(result.emergencyDepartureAt) < Date.parse(result.emergencyArrivalAt)) throw new HealthEventRecordError('离院时间不能早于到院时间', 400, 'INVALID_JOURNAL_VISIT')
+  if (result.isCurrentlyHospitalized === true && result.dischargedAt) throw new HealthEventRecordError('已填写出院时间，请核对是否仍在住院', 400, 'INVALID_JOURNAL_VISIT')
   if (value.recognitionStatus !== undefined) { if (!visitRecognitionStatuses.has(value.recognitionStatus)) throw new HealthEventRecordError('资料识别状态无效', 400, 'INVALID_JOURNAL_VISIT'); result.recognitionStatus = value.recognitionStatus }
   return result
 }

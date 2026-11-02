@@ -14,7 +14,7 @@ const metricValue = (record: GrowthMeasurementApiDto, measure: GrowthMeasure) =>
 
 export function metricRecords(records: readonly GrowthMeasurementApiDto[], measure: GrowthMeasure) {
   return [...records]
-    .filter((record) => metricValue(record, measure) != null)
+    .filter((record) => record.dataStatus === 'confirmed' && metricValue(record, measure) != null)
     .sort((a, b) => a.measuredAt.localeCompare(b.measuredAt) || a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id))
 }
 

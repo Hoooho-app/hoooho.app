@@ -3,6 +3,7 @@ import {recognitionOwnerLifecycle} from '../ai/recognition-lifecycle.mjs'
 import {familyChildLifecycle} from '../family-sharing/lifecycle.mjs'
 import {careMemberLifecycle} from '../care-journey/member-lifecycle.mjs'
 import { FamilyMemberRepository } from './repositories/family-member-repository.mjs'
+import { GrowthMeasurementRepository } from '../growth/repositories/growth-measurement-repository.mjs'
 import path from 'node:path'
 import { JsonStore } from '../auth/storage/json-store.mjs'
 import { localDateKey } from '../time/local-calendar.mjs'
@@ -238,6 +239,7 @@ export class FamilyMemberService {
   }
 
   async update(accountId, id, input, now = new Date(), timeZone) {
+    return withStorageLock(async () => {
     assertMemberInput(input)
     const member = await this.get(accountId, id)
     const changes = {}
@@ -269,7 +271,19 @@ export class FamilyMemberService {
       if (key === 'dietFrequentFoods') changes.dietFrequentFoods = validateDietFrequentFoods(input.dietFrequentFoods)
     }
     if (!Object.keys(changes).length) throw new FamilyMemberError('没有可更新的成员字段', 400, 'NO_MEMBER_CHANGES')
+    if (changes.birthday && changes.birthday !== member.birthday && this.dataDirectory) {
+      const growth = await new GrowthMeasurementRepository(this.dataDirectory).list(accountId, id)
+      if (growth.some(item => item.measuredAt < changes.birthday)) throw new FamilyMemberError('出生日期晚于已有测量日期，请先核对成长记录', 400, 'BIRTHDAY_CONFLICTS_WITH_GROWTH')
+    }
+    if (member.growthBaseline) {
+      const baseline = { ...member.growthBaseline }
+      for (const field of ['heightCm', 'weightKg']) {
+        if (Object.hasOwn(changes, field) && changes[field] !== member[field]) baseline[field] = changes[field]
+      }
+      changes.growthBaseline = baseline
+    }
     return this.repository.update(id, changes, now)
+    })
   }
 
   async delete(accountId, id) {

@@ -34,7 +34,7 @@ test('home navigation and record entries retain the conversation without exit pr
  await waitForNurseReply(page)
  await typeText(page,'这句补充还没有发送')
  const context=await(await request.get(`/api/members/${memberId}/front-desk-record`,{headers})).json()
- await page.getByRole('button',{name:'日常',exact:true}).click();await page.getByRole('button',{name:'喂养与饮食',exact:true}).click()
+ await page.getByRole('button',{name:'喂养与饮食',exact:true}).click()
  await expect(page.getByRole('dialog',{name:'退出智能记录',exact:true})).toHaveCount(0)
  const feeding=page.getByRole('dialog',{name:'喂养/饮食',exact:true})
  await expect(feeding).toBeVisible()
@@ -194,7 +194,7 @@ test('camera retains the original image upload and feeding label opens its origi
  await expect(page.getByRole('img',{name:'合成观察.png',exact:true})).toBeVisible()
  await startNew(page)
  await page.getByRole('button',{name:'改用文字',exact:true}).click()
- await page.getByRole('button',{name:'日常',exact:true}).click();await page.getByRole('button',{name:'喂养与饮食',exact:true}).click()
+ await page.getByRole('button',{name:'喂养与饮食',exact:true}).click()
  await expect(page.getByRole('dialog',{name:'喂养/饮食',exact:true})).toBeVisible()
 })
 

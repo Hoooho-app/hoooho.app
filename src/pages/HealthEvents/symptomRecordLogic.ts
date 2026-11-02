@@ -166,7 +166,7 @@ export function generateSymptomSummary(details: JournalSymptomDetails, photoCoun
   const subject = details.symptomCategory === 'other' ? details.otherCategoryText?.trim() || '不舒服' : categoryLabel[details.symptomCategory]
   const facts = [locations && `${locations}${subject}`, details.descriptors.length ? `表现为${details.descriptors.join('、')}` : '', details.impactLevel ? impactLabels[details.impactLevel] : ''].filter(Boolean).join('，')
   const specific = details.symptomSpecificData ?? {}
-  const specificFacts = [specific.currentTemperature ? `当前体温${specific.currentTemperature}℃` : '', specific.maxTemperature ? `最高体温${specific.maxTemperature}℃` : '', specific.approximateCount ? `今天大概${specific.approximateCount}次` : '', Array.isArray(specific.stoolAppearance) && specific.stoolAppearance.length ? `大便呈${specific.stoolAppearance.join('、')}` : ''].filter(Boolean)
+  const specificFacts = [specific.currentTemperature ? `当前体温${specific.currentTemperature}℃` : '', specific.maxTemperature ? `最高体温${specific.maxTemperature}℃` : '', Number.isInteger(specific.approximateCount) && Number(specific.approximateCount) >= 0 ? `今天大概${specific.approximateCount}次` : '', Array.isArray(specific.stoolAppearance) && specific.stoolAppearance.length ? `大便呈${specific.stoolAppearance.join('、')}` : ''].filter(Boolean)
   const extras = [details.onsetApprox ? onsetLabels[details.onsetApprox] : '', details.trend ? trendLabels[details.trend] : '', details.associatedSymptoms?.length ? `同时记录了${details.associatedSymptoms.join('、')}` : '', ...specificFacts, details.shortNote?.trim() || ''].filter(Boolean)
   const photo = photoCount ? `已上传${photoCount}张现场照片。` : ''
   return [`孩子${facts || subject}。`, extras.length ? `${extras.join('；')}。` : '', photo].filter(Boolean).join('')

@@ -2,6 +2,7 @@ import { GrowthMeasurementRepository } from './repositories/growth-measurement-r
 import { FamilyMemberRepository } from '../members/repositories/family-member-repository.mjs'
 import { localDateKey } from '../time/local-calendar.mjs'
 import { validCalendarDate } from '../time/strict-date.mjs'
+import { accountTransaction, withStorageLock } from '../auth/storage/transaction.mjs'
 
 export class GrowthMeasurementError extends Error {
   constructor(message, status = 400, code = 'GROWTH_MEASUREMENT_ERROR') { super(message); this.status = status; this.code = code }
@@ -18,6 +19,7 @@ function optionalNumber(value, label, min, max, precision = 1) {
 }
 export class GrowthMeasurementService {
   constructor(options = {}) {
+    this.dataDirectory = options.dataDirectory
     this.repository = options.repository ?? new GrowthMeasurementRepository(options.dataDirectory)
     this.members = options.members ?? new FamilyMemberRepository(options.dataDirectory)
   }
@@ -27,6 +29,21 @@ export class GrowthMeasurementService {
     return member
   }
   async list(accountId, memberId) { await this.assertMember(accountId, memberId); return this.repository.list(accountId, memberId) }
+  transaction(operation) {
+    return this.dataDirectory ? accountTransaction(this.dataDirectory, operation) : withStorageLock(operation)
+  }
+  assertBirthday(member, measuredAt) {
+    if (validCalendarDate(member.birthday) && measuredAt < member.birthday) throw new GrowthMeasurementError('测量日期不能早于出生日期', 400, 'MEASUREMENT_BEFORE_BIRTH')
+  }
+  async syncMember(member, now) {
+    // A separately entered basic value is a fallback, never a copy of a new
+    // measurement. Unknown legacy provenance is retained rather than guessed.
+    const growthBaseline = member.growthBaseline ?? { heightCm: member.heightCm ?? null, weightKg: member.weightKg ?? null }
+    const confirmed = (await this.repository.list(member.accountId, member.id)).filter(item => item.dataStatus === 'confirmed' && (!validCalendarDate(member.birthday) || item.measuredAt >= member.birthday))
+    const changes = { growthBaseline }
+    for (const field of ['heightCm', 'weightKg']) changes[field] = confirmed.find(item => item[field] != null)?.[field] ?? growthBaseline[field] ?? null
+    await this.members.update(member.id, changes, now)
+  }
   normalize(input, now, partial = false, timeZone) {
     if (!input || typeof input !== 'object' || Array.isArray(input)) throw new GrowthMeasurementError('请求格式错误', 400, 'INVALID_MEASUREMENT_INPUT')
     const result = {}
@@ -54,24 +71,39 @@ export class GrowthMeasurementService {
     return result
   }
   async upsert(accountId, input, now = new Date(), timeZone) {
-    await this.assertMember(accountId, String(input.memberId ?? ''))
-    return this.repository.upsert({ accountId, memberId: input.memberId, ...this.normalize(input, now, false, timeZone) }, now)
+    const normalized = this.normalize(input, now, false, timeZone)
+    return this.transaction(async () => {
+      const member = await this.assertMember(accountId, String(input.memberId ?? ''))
+      this.assertBirthday(member, normalized.measuredAt)
+      const saved = await this.repository.upsert({ accountId, memberId: member.id, ...normalized }, now)
+      await this.syncMember(member, now)
+      return saved
+    })
   }
   async update(accountId, id, input, now = new Date(), timeZone) {
+    return this.transaction(async () => {
     const existing = await this.repository.findById(id)
     if (!existing || existing.accountId !== accountId) throw new GrowthMeasurementError('成长记录不存在', 404, 'GROWTH_MEASUREMENT_NOT_FOUND')
-    await this.assertMember(accountId, existing.memberId)
+    const member = await this.assertMember(accountId, existing.memberId)
     const changes = this.normalize(input, now, true, timeZone)
     const merged = { ...existing, ...changes }
     if (merged.heightCm == null && merged.weightKg == null) throw new GrowthMeasurementError('请填写身长、身高或体重', 400, 'EMPTY_MEASUREMENT')
     const targetDate = changes.measuredAt ?? existing.measuredAt
+    this.assertBirthday(member, targetDate)
     if ((await this.repository.list(accountId, existing.memberId)).some((item) => item.id !== id && item.measuredAt === targetDate)) throw new GrowthMeasurementError('该日期已有成长记录', 409, 'MEASUREMENT_DATE_EXISTS')
-    return this.repository.update(id, changes, now)
+    const saved = await this.repository.update(id, changes, now)
+    await this.syncMember(member, now)
+    return saved
+    })
   }
-  async delete(accountId, id) {
+  async delete(accountId, id, now = new Date()) {
+    return this.transaction(async () => {
     const existing = await this.repository.findById(id)
     if (!existing || existing.accountId !== accountId) throw new GrowthMeasurementError('成长记录不存在', 404, 'GROWTH_MEASUREMENT_NOT_FOUND')
+    const member = await this.assertMember(accountId, existing.memberId)
     await this.repository.delete(id)
+    await this.syncMember(member, now)
     return { success: true }
+    })
   }
 }
