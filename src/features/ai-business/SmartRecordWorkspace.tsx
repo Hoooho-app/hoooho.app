@@ -99,6 +99,7 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
   const switchingDraft=useRef(false)
   const [exitOpen,setExitOpen]=useState(false),[exiting,setExiting]=useState(false),[exitError,setExitError]=useState('')
   const leaving=useRef(false),allowLeave=useRef(false),voiceBusy=useRef(false),initialization=useRef<Promise<void>>(Promise.resolve())
+  const recoveryWrites=useRef<Promise<void>>(Promise.resolve())
   const unfinished=!completed&&(hasCaptureContent(local)||Boolean(local.conversationTurns?.some(t=>t.role!=='assistant'&&t.status&&t.status!=='completed')))
   const blocker=useBlocker(({currentLocation,nextLocation})=>{
     // Home changes are already checkpointed. Navigation never discards them.
@@ -149,6 +150,8 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
   const change=(patch:Partial<CaptureDraft>)=>void persist({...current.current,...patch}).catch(()=>undefined)
   useEffect(()=>{
     let active=true;mounted.current=true
+    let finishRecoveryWrites!:()=>void
+    recoveryWrites.current=new Promise<void>(resolve=>{finishRecoveryWrites=resolve})
     const historyController=new AbortController();setHistoryError('')
     if(historyTarget)setReady(false)
     const openingTask=(async()=>{
@@ -180,7 +183,10 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
           if(!active)return
           try{const draft=choice.draft,media=await Promise.all(draft.files.filter(f=>f!==draft.pendingVoice).map(async f=>({name:f.name,mimeType:f.type,lastModified:f.lastModified,dataUrl:await fileDataUrl(f)})));const acknowledged=await request<FrontContext|null>(frontUrl,'POST',{kind:'legacy',requestId:draft.requestId,updatedAt:draft.updatedAt??Number(choice.key.split(':retained:')[1]?.split(':')[0]),turns:draft.conversationTurns??(draft.text?[{text:draft.text}]:[]),files:media.filter(f=>!f.mimeType.startsWith('audio/')),voiceFiles:media.filter(f=>f.mimeType.startsWith('audio/')),draftId:draft.smartReview?.id});if(acknowledged&&!draft.pendingVoice&&!draft.conversationInput?.trim())await captureDraft(choice.key,null)}catch{/* A failed migration retains this exact older draft and its byte originals. */}
         }
-        try{const server=cancellationPending?null:await request<FrontContext|null>(frontUrl,'GET');if(!active)return;if(server)for(const message of [...server.previousMessages??[],...server.messages])for(const original of [...message.files??[],...message.voices??[]]){const file=restoreFrontFile(original);visibleMedia.current.set(fileIdentity(file),file)}if(server&&(!saved?.conversationResetAt||Date.parse(server.updatedAt)>saved.conversationResetAt)&&(!saved?.frontContextId||Date.parse(server.updatedAt)>(saved.updatedAt??0)))saved=restoreFrontContext(server,saved??freshDraft())}catch{/* Local recovery remains usable while the server is unavailable. */}
+        // New conversation must order itself after migration/cancellation writes,
+        // but the background latest read is not a prerequisite for closing it.
+        finishRecoveryWrites()
+        try{const server=cancellationPending?null:await request<FrontContext|null>(frontUrl,'GET');if(!active||current.current!==opening)return;if(server)for(const message of [...server.previousMessages??[],...server.messages])for(const original of [...message.files??[],...message.voices??[]]){const file=restoreFrontFile(original);visibleMedia.current.set(fileIdentity(file),file)}if(server&&(!saved?.conversationResetAt||Date.parse(server.updatedAt)>saved.conversationResetAt)&&(!saved?.frontContextId||Date.parse(server.updatedAt)>(saved.updatedAt??0)))saved=restoreFrontContext(server,saved??freshDraft())}catch{/* Local recovery remains usable while the server is unavailable. */}
         // Start talking immediately from local recovery. A late history read
         // must never replace text, media or a new intent entered since opening.
         if(current.current!==opening)return
@@ -196,7 +202,7 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
       setReady(true)
     })()
     initialization.current=openingTask
-    void openingTask.catch(()=>{if(active)setError('草稿读取失败，请重新打开后重试')})
+    void openingTask.finally(finishRecoveryWrites).catch(()=>{if(active)setError('草稿读取失败，请重新打开后重试')})
     return()=>{active=false;historyController.abort();mounted.current=false;abort.current?.abort()}
   },[key,historyTarget?.contextId,historyTarget?.draftKey,historyRevision])
   useEffect(()=>{
@@ -753,11 +759,16 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
     </div>
   }
   const [homeNotice,setHomeNotice]=useState('')
+  const [startingConversation,setStartingConversation]=useState(false)
   const newConversation=async()=>{
     if(!ready||busy||dialogueBusy||jobBusy||localStage||voice.busy||pending.current)return
-    pending.current=true;setBusy(true);setError('');workEpoch.current++;uploadAbort.current?.abort()
+    pending.current=true;setBusy(true);setStartingConversation(true);setError('');workEpoch.current++;uploadAbort.current?.abort()
+    // Invalidate the initial read immediately, even while local writes finish.
+    // A late response must not restore a conversation the user is closing.
+    current.current={...current.current}
     try{
-      await initialization.current;await writes.current
+      await recoveryWrites.current;await writes.current
+      if(!mounted.current||accountId!==(useAppStore.getState().authUser?.id??'guest')||memberId!==useAppStore.getState().currentMemberId)return
       const previous=current.current
       if(hasCaptureContent(previous)||previous.conversationTurns?.length)await captureDraft(`${key}:retained:${Date.now()}:${previous.requestId}`,{...previous,archivedConversation:true})
       // Closing a session preserves server originals and formal records.
@@ -765,8 +776,8 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
       await persist(freshDraft())
       setHomeTyping(false);setHomeInputEpoch(value=>value+1)
       hiddenTurns.current.clear();liveVoicePreview.current.clear();completedGuideIds.current.clear();setShowJump(false);setCompleted(false);setStage('conversation');setOriginalsNeedReview(false);voice.clearError();setStatus('');setHomeNotice('已开始新对话，之前的内容可在侧栏的「对话记录」中查看。');followScroll.current=true;scrollOpened.current=false
-    }catch{setError('新对话尚未建立，原内容仍然保留，请重试。')}
-    finally{pending.current=false;setBusy(false)}
+    }catch{if(mounted.current)setError('新对话尚未建立，原内容仍然保留，请重试。')}
+    finally{pending.current=false;if(mounted.current){setBusy(false);setStartingConversation(false)}}
   }
   useEffect(()=>{
     if(!home)return
@@ -919,7 +930,7 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
   const processingLabel=localStage==='uploading'?'接收中':localStage==='converting'||job?.stage==='converting'||job?.stage==='transcribing'?'转写中':job?.stage==='reading'?'读图中':['organizing','publishing'].includes(job?.stage??'')?'整理中':'理解中'
   const showHomeWelcome=home&&ready&&stage==='conversation'&&!resumeChoices&&!timeline.length&&!recoveryMessageId&&!local.rawSavedGuide&&!uploadPreview&&!recordGenerated&&!generationOffer&&!error
   const hasHomeConversation=ready&&Boolean(timeline.length||recoveryMessageId||local.rawSavedGuide||uploadPreview||recordGenerated)
-  const homeActions=<><HohoButton variant="text" size="icon" aria-label="快速查找" onClick={()=>navigate('/quick-search')}><Search size={22} aria-hidden="true" /></HohoButton>{hasHomeConversation&&<HohoButton variant="text" size="icon" aria-label="新建对话" disabled={conversationDisabled} onClick={startHomeConversation}><ConversationBubblePlus size={24}/></HohoButton>}</>
+  const homeActions=<><HohoButton variant="text" size="icon" aria-label="快速查找" onClick={()=>navigate('/quick-search')}><Search size={22} aria-hidden="true" /></HohoButton>{hasHomeConversation&&<HohoButton variant="text" size="icon" aria-label="新建对话" loading={startingConversation} disabled={conversationDisabled} onClick={startHomeConversation}>{!startingConversation&&<ConversationBubblePlus size={24}/>}</HohoButton>}</>
   const body=<>
     {resumeChoices ? <div className="smart-record-resume">
       <Typography variant="sectionTitle">上次还有未保存的草稿</Typography>

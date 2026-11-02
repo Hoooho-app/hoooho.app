@@ -353,3 +353,89 @@ test('server resume starts while deliberately slow device reads are still pendin
  await expect(page.getByRole('group',{name:'我的消息',exact:true}).getByText(original,{exact:true})).toBeVisible()
  expect(parallel).toBe(true)
 })
+
+test('new conversation does not wait for background history and a late read cannot restore old messages',async({page,request},info)=>{
+ const snapshot=await(await request.get(`/api/members/${memberId}/front-desk-record/contexts/${contextId}`,{headers})).json()
+ await seedDeviceDraft(page,memberId,{requestId:contextId,frontContextId:contextId,text:original,conversationInput:'尚未发送的补充',conversationTurns:[{id:'local-user',contextId,role:'user',text:original,status:'completed'}],files:[],occurredAt:'',timeUnknown:true,updatedAt:Date.now()})
+ let release!:()=>void,reading=false,closed=0
+ const held=new Promise<void>(resolve=>{release=resolve})
+ await page.route('**/front-desk-record',async route=>{
+  if(route.request().method()==='GET'&&!reading){reading=true;await held;await route.fulfill({json:snapshot}).catch(()=>undefined);return}
+  if(route.request().method()==='DELETE')closed++
+  await route.continue()
+ })
+ try{
+  await page.goto('/nurse-station')
+  await expect(page.getByText(original,{exact:true})).toBeVisible()
+  await expect.poll(()=>reading).toBe(true)
+  const started=Date.now()
+  await page.getByRole('button',{name:'新建对话',exact:true}).click()
+  await expect(page.getByRole('region',{name:'记录介绍',exact:true})).toBeVisible({timeout:1500})
+  await expect(page.getByRole('button',{name:'按住记录症状',exact:true})).toBeEnabled()
+  await info.attach('new-conversation-timing',{body:JSON.stringify({milliseconds:Date.now()-started,backgroundReadStillHeld:true}),contentType:'application/json'})
+  expect(closed).toBe(1)
+  await page.screenshot({path:info.outputPath('new-conversation-ready.png')})
+ }finally{release()}
+ await expect(page.getByText(original,{exact:true})).toHaveCount(0)
+ await page.reload()
+ await expect(page.getByRole('region',{name:'记录介绍',exact:true})).toBeVisible()
+ await page.getByRole('button',{name:'打开菜单',exact:true}).click()
+ await page.locator('.drawer-history-open').filter({hasText:'小痘痘'}).click()
+ await expect(page.getByText(original,{exact:true})).toBeVisible()
+ await expect(page.getByLabel('对话输入',{exact:true})).toHaveValue('尚未发送的补充')
+})
+
+test('new conversation reports progress, ignores duplicate clicks and keeps originals after close failure',async({page})=>{
+ await page.goto(`/nurse-station?conversation=${contextId}`)
+ await expect(page.getByText(original,{exact:true})).toBeVisible()
+ // Return to the current home so the top button exercises the reset itself.
+ await page.goto('/nurse-station')
+ await expect(page.getByText(original,{exact:true})).toBeVisible()
+ let release!:()=>void,closed=0
+ const held=new Promise<void>(resolve=>{release=resolve})
+ await page.route('**/front-desk-record',async route=>{
+  if(route.request().method()!=='DELETE'){await route.continue();return}
+  closed++;await held;await route.fulfill({status:503,json:{error:{message:'合成关闭失败'}}})
+ })
+ try{
+  await page.getByRole('button',{name:'新建对话',exact:true}).dblclick()
+  await expect.poll(()=>closed).toBe(1)
+  const button=page.getByRole('button',{name:'新建对话',exact:true})
+  await expect(button).toBeDisabled()
+  await expect(button).toHaveAttribute('aria-busy','true')
+ }finally{release()}
+ await expect(page.getByRole('alert')).toContainText('新对话尚未建立')
+ await expect(page.getByText(original,{exact:true})).toBeVisible()
+ await expect(page.getByRole('button',{name:'新建对话',exact:true})).toBeEnabled()
+ expect(closed).toBe(1)
+ await page.unroute('**/front-desk-record')
+ await page.getByRole('button',{name:'新建对话',exact:true}).click()
+ await expect(page.getByRole('region',{name:'记录介绍',exact:true})).toBeVisible()
+})
+
+test('new conversation still waits for legacy migration writes before closing the old session',async({page})=>{
+ await seedDeviceDraft(page,memberId,{requestId:contextId,frontContextId:contextId,text:original,conversationTurns:[{id:'local-user',contextId,role:'user',text:original,status:'completed'}],files:[],occurredAt:'',timeUnknown:true,updatedAt:Date.now()})
+ await page.evaluate(async memberId=>new Promise<void>((resolve,reject)=>{
+  const open=indexedDB.open('hoooho-smart-record-drafts',1)
+  open.onsuccess=()=>{const db=open.result,tx=db.transaction('drafts','readwrite');tx.objectStore('drafts').put({requestId:'legacy-before-reset',text:'旧设备补充',files:[],occurredAt:'',timeUnknown:true,updatedAt:Date.now()-10000},`home-smart:visit-test:${memberId}:new:retained:legacy-before-reset`);tx.oncomplete=()=>{db.close();resolve()};tx.onerror=()=>reject(tx.error)}
+ }),memberId)
+ let releaseMigration!:()=>void,releaseRead!:()=>void,migrating=false,closed=0
+ const migration=new Promise<void>(resolve=>{releaseMigration=resolve}),read=new Promise<void>(resolve=>{releaseRead=resolve})
+ await page.route('**/front-desk-record',async route=>{
+  if(route.request().method()==='POST'&&route.request().postDataJSON()?.kind==='legacy'){migrating=true;await migration}
+  if(route.request().method()==='GET')await read
+  if(route.request().method()==='DELETE')closed++
+  await route.continue().catch(()=>undefined)
+ })
+ try{
+  await page.goto('/nurse-station')
+  await expect(page.getByText(original,{exact:true})).toBeVisible()
+  await expect.poll(()=>migrating).toBe(true)
+  await page.getByRole('button',{name:'新建对话',exact:true}).click()
+  await expect(page.getByRole('button',{name:'新建对话',exact:true})).toHaveAttribute('aria-busy','true')
+  expect(closed).toBe(0)
+  releaseMigration()
+  await expect(page.getByRole('region',{name:'记录介绍',exact:true})).toBeVisible({timeout:1500})
+  expect(closed).toBe(1)
+ }finally{releaseMigration();releaseRead()}
+})
