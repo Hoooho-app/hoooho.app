@@ -26,7 +26,7 @@ test('home keeps one fixed sprout entrance and replaces daily care with the read
   await expect(welcome.locator('video, canvas')).toHaveCount(0)
   const portrait = welcome.locator('.front-desk-welcome__portrait')
   await expect(portrait).toHaveAttribute('alt', '戴眼镜与口罩的黑发护士，一手拿病历夹、一手拿笔')
-  expect(await portrait.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth === 480)).toBe(true)
+  await expect.poll(() => portrait.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth === 480)).toBe(true)
   await expect(portrait).toHaveCSS('object-fit', 'contain')
   await expect(welcome.locator('.front-desk-welcome__entry')).toHaveCount(2)
   const entries = await welcome.locator('.front-desk-welcome__entry').evaluateAll(nodes => nodes.map(el => ({ name: el.getAttribute('aria-label'), x: el.getBoundingClientRect().x, y: el.getBoundingClientRect().y })))
@@ -39,7 +39,17 @@ test('home keeps one fixed sprout entrance and replaces daily care with the read
   await expect(flow.locator('.front-desk-workflow__header')).toHaveCount(0)
   await expect(flow.getByRole('button')).toHaveCount(0)
   await expect(flow.getByText(/^(怎么用护护|重播|演示)$/)).toHaveCount(0)
-  expect(await welcome.locator('.front-desk-welcome__entry').evaluateAll(nodes => nodes.every(node => getComputedStyle(node).boxShadow.split(/, (?![^()]*\))/).every(shadow => shadow.includes('inset'))))).toBe(true)
+  for (const card of await welcome.locator('.front-desk-welcome__entry').all()) {
+    await expect(card).toHaveCSS('box-shadow', 'none')
+    expect(await card.evaluate(node => {
+      const reference = document.createElement('span')
+      reference.style.backgroundColor = 'rgb(var(--hoho-color-primary-soft))'
+      node.append(reference)
+      const matches = getComputedStyle(node).backgroundColor === getComputedStyle(reference).backgroundColor
+      reference.remove()
+      return matches
+    })).toBe(true)
+  }
   await expect(flow.locator('.front-desk-workflow__case img')).toHaveAttribute('src', /symptom-arm/)
   await expect(flow.getByText('出现症状', { exact: true })).toBeVisible()
   await expect(flow.getByRole('progressbar').locator(':scope > span')).toHaveCount(6)
