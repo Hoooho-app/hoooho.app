@@ -19,3 +19,6 @@
 首页临时收起采用保持欢迎组件挂载、仅在录音时隐藏布局的方式，取消后恢复原轮播位置，避免将未发送录音当作正式消息而重建欢迎区。已额外验证键盘按住暂停轮播及取消恢复的原有用例。
 
 CI 校核：旧首页语音用例仍要求识别文字位于浮层，该断言按本次主人纠正改为对话末尾气泡且浮层无识别文字，保留取消不提交及重开无残留断言。语音取消协议用例曾在等待对象顶栏后即聚焦录音按钮、未等待按钮可用而未能启动录音；本地同用例通过，补齐按钮可用的前置等待，保留完整录音、取消回执和后续附件整理断言，不降低业务验收。
+
+
+发布结果：PR #614 已合入 main，运行提交 `eed32d947050173e8472ae079d26a4fa8e319e34`。最终提交 `1ea6e88` 的 core、四组 protocol、Smart record verify 及首页 verify 全部成功。Railway Production 部署 `2498cb2c-e6b5-41a0-b823-f078e767e2a5` 于 2026-11-02 09:14（Asia/Shanghai）达到 SUCCESS。生产首页及 /api/health 均 HTTP 200；入口 `/assets/index-KvugLLfU.js` 包含该运行提交；实际引用的 `HohoSpotlightGuide-DiGGQUMm.css` 包含下移录音层，`JournalRecordDetail-DFuXkZlP.css` 包含对话末尾气泡样式，两者 HTTP 200。线上没有执行真实 ASR 调用或写入健康测试记录。实体 iPhone 实际录音及主人体验验收仍待确认。
