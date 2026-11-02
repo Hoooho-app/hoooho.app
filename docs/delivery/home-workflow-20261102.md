@@ -170,3 +170,11 @@ V2 token、HohoButton、HohoProgress 五段线与现有Material图标复用；�
 基线 `4d09cfe`，分支 `codex/home-green-flat-shell-20261102`，起始工作区干净并与origin/main一致。主人明确：大的背景仍为浅绿，且不需要阴影。本轮覆盖上一轮外层灰槽规则；只把下方两张介绍卡恢复V2 primary-soft浅绿并移除外层阴影，内框保留现有近白灰与内凹阴影。主Banner、纸底、内容、六幕节奏、输入暂停、帮助入口、数据与API均保持。家长进入首页先看主Banner，再按需看介绍；不新增状态、保存或副作用。复用现有入口与320/390逐幕检查，外层断言按最新决定改为浅绿且无阴影；内框仍检查inset-only。验证与Production回执后补。
 
 本地完整构建通过；320/390px共8项既有浏览器检查通过，包括浅绿无阴影外壳、六幕内部边界与内阴影、帮助返回及输入保留、减少动态效果。已人工查看320px完整首页截图，外壳平面浅绿，内框近白灰凹槽。首轮检查暴露护士图片尚未解码的同步断言竞态，改为等待原有complete/480px条件，断言要求不降低；复跑通过。未写Production健康数据，未进行实体iPhone验收。
+
+### 外层浅绿版本Production回执
+
+- [PR #622](https://github.com/Hoooho-app/hoooho.app/pull/622) 已合入main，运行提交 `cb3d3effe9038f56cd8849efede988f27c0ef9a5`；远端分支提交 `8d1efd7` 与本地验证提交 `8afebcb` 的树均为 `184899afc52ac5ba91ab6195a6e3b39671d41455`，与main运行树一致。
+- [完整发布检查](https://github.com/Hoooho-app/hoooho.app/actions/runs/41407316489) 终态success，构建、客户端、帮助、媒体、领取及手机首页/导航/保存引导均通过。
+- 原Railway Production部署 `391e8630-265b-4459-b6a8-ce69ce103baf` 已观察终态SUCCESS，对应 `cb3d3ef`；平台更新时间北京时间2026/11/2 15:43:11。无新环境或原生上传。
+- 线上只读核验：`/nurse-station`及`/api/health`均200/no-store；入口`index-Bmb0vK2k.js`引用功能包`JournalRecordDetail-D5kwPMvJ.js`与样式`JournalRecordDetail-DsxFBISg.css`，均200。实际样式包含外层primary-soft浅绿与box-shadow:none；内层近白灰派生色和inset阴影保留。
+- 本轮未写Production健康数据，未重验登录后的线上界面或实体iPhone。移动视觉为本地真实浏览器截图，视觉最终验收由主人查看决定。此回执只改文档，不重部署相同应用。
