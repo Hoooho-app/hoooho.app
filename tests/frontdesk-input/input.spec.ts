@@ -16,6 +16,51 @@ async function type(page:Page,text:string){await page.getByRole('button',{name:'
 async function record(page:Page){await page.getByRole('button',{name:'按住记录症状',exact:true}).focus();await page.keyboard.down('Space');await expect(page.getByRole('button',{name:'正在录音，松开即结束',exact:true})).toBeVisible();await page.waitForTimeout(800)}
 async function home(page:Page){await page.getByRole('navigation',{name:'主要导航'}).getByRole('button',{name:'症状记录',exact:true}).click();await expect(page.locator('.hoho-dialogue-composer')).toBeVisible()}
 
+test('live speech uses a readable bubble above recording feedback and cancels without sending',async({page},info)=>{
+  let text='',revision=1,submitted=0
+  page.on('request',request=>{if(request.method()==='POST'&&request.url().endsWith('/recognition-jobs'))submitted++})
+  await page.unroute('**/api/ai/audio/live**')
+  await page.route('**/api/ai/audio/live',route=>route.fulfill({json:{id:'preview-test',state:'listening',text:'',revision:1,sequence:0}}))
+  await page.route('**/api/ai/audio/live/*',route=>route.fulfill({json:{id:'preview-test',state:route.request().method()==='DELETE'?'closed':'listening',text,revision,sequence:0}}))
+  const hold=page.getByRole('button',{name:'按住记录症状',exact:true})
+  const rect=(await hold.boundingBox())!
+  await page.mouse.move(rect.x+rect.width/2,rect.y+rect.height/2);await page.mouse.down()
+  const feedback=page.locator('.hoho-hold-feedback'),preview=page.getByLabel('正在说的话',{exact:true})
+  await expect(preview).toBeVisible()
+  text='孩子今天有点咳嗽';revision++
+  await expect(preview.locator('p')).toHaveText(text)
+  text='孩子今天咳了两声，现在精神还好';revision++
+  await expect(preview.locator('p')).toHaveText(text)
+  await expect(feedback).not.toContainText('正在录音')
+  await expect(page.locator('.hoho-hold-feedback__time')).toContainText(/0:0[1-9]/)
+  expect(await preview.evaluate(e=>({background:getComputedStyle(e).backgroundColor,color:getComputedStyle(e).color}))).toEqual({background:'rgb(255, 255, 255)',color:'rgb(39, 51, 50)'})
+  const bubble=(await preview.boundingBox())!,wave=(await feedback.locator('.hoho-hold-feedback__wave').boundingBox())!
+  expect(bubble.y+bubble.height).toBeLessThan(wave.y)
+  await page.screenshot({path:info.outputPath('live-speech-white-bubble.png')})
+  await page.mouse.move(rect.x+rect.width/2,rect.y-80)
+  await expect(preview).toHaveCount(0);await expect(feedback).toContainText('松开取消')
+  await page.mouse.move(rect.x+rect.width/2,rect.y+rect.height/2)
+  await expect(preview.locator('p')).toHaveText(text)
+  text='孩子今天有点咳嗽。'.repeat(100)+'a'.repeat(150);revision++
+  await expect(preview.locator('p')).toHaveText(text)
+  for(const width of [320,375,430]){
+    await page.setViewportSize({width,height:667})
+    const bounds=(await preview.boundingBox())!
+    expect(bounds.x).toBeGreaterThanOrEqual(0);expect(bounds.x+bounds.width).toBeLessThanOrEqual(width)
+    expect(bounds.y).toBeGreaterThanOrEqual(0)
+    expect(await preview.evaluate(e=>e.scrollWidth<=e.clientWidth)).toBe(true)
+    await expect.poll(()=>preview.locator('p').evaluate(e=>e.scrollTop+e.clientHeight>=e.scrollHeight-1)).toBe(true)
+  }
+  await page.mouse.move(100,0);await expect(feedback).toContainText('松开取消');await page.mouse.up()
+  await expect(feedback).toHaveCount(0);expect(submitted).toBe(0)
+  await expect(page.locator('.nurse-turn--user')).toHaveCount(0)
+  text='';revision++
+  await hold.focus();await page.keyboard.down('Space');await expect(preview).toBeVisible()
+  await expect(preview.locator('p')).toHaveText('…')
+  await page.keyboard.press('Escape');await page.keyboard.up('Space')
+  await expect(feedback).toHaveCount(0);expect(submitted).toBe(0)
+})
+
 test('unsent input switches without a prompt, appears in the sidebar and reopens without being sent',async({page,request},info)=>{
   const text='昨晚睡得不安稳，这段还没发送'
   await type(page,text)

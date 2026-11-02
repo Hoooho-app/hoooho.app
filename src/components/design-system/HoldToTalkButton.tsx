@@ -49,7 +49,15 @@ export function HoldToTalkButton({ onStart, onStop, onDiscard, listening = false
   }
   const status = cancelling ? '松开取消' : listening ? releaseLabel : requesting || press ? '正在开启麦克风…' : processing ? '识别中…' : idleLabel
   const liveTextElement=useRef<HTMLParagraphElement>(null)
-  useEffect(()=>{if(liveTextElement.current)liveTextElement.current.scrollTop=liveTextElement.current.scrollHeight},[liveTranscript])
+  useEffect(()=>{
+    const text=liveTextElement.current
+    if(!text)return
+    const showLatest=()=>{text.scrollTop=text.scrollHeight}
+    showLatest()
+    const observer=new ResizeObserver(showLatest)
+    observer.observe(text)
+    return()=>observer.disconnect()
+  },[liveTranscript,listening,cancelling])
   return <>
     <HohoButton variant="primary" fullWidth={fullWidth} className={`hoho-hold-to-talk ${className}${press ? ' is-pressed' : ''}${listening ? ' is-listening' : ''}${cancelling ? ' is-cancelling' : ''}`} disabled={disabled || processing} aria-label={listening ? `正在录音，${status}` : status} aria-pressed={!!press || listening} aria-busy={requesting || processing}
       onPointerDown={e => { if (e.button !== 0 || holding.current || disabled || processing || listening || requesting) return; e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); pointer.current = e.pointerId; start(e.clientX, e.clientY) }}
@@ -62,14 +70,14 @@ export function HoldToTalkButton({ onStart, onStop, onDiscard, listening = false
     {press && createPortal(<div className={`hoho-hold-feedback${expandedFeedback ? ' hoho-hold-feedback--expanded' : ''}${cancelling ? ' is-cancelling' : ''}${presentation==='conversation'?' hoho-hold-feedback--conversation':''}`} style={{ left: press.x, top: press.y, '--voice-level': Math.min(1, Math.max(0, audioLevel)) } as CSSProperties}>
       <div className="hoho-hold-feedback__halo" aria-hidden="true" />
       <div className="hoho-hold-feedback__status" role="status" style={{ left: (expandedFeedback ? window.innerWidth / 2 : Math.max(96, Math.min(window.innerWidth - 96, press.x))) - press.x }}>
-        {liveTranscript!==undefined&&listening&&!cancelling&&<div className="hoho-hold-feedback__transcript" aria-label="正在说的话" aria-live="polite"><small>{liveStatus||'正在听你说'}</small><p ref={liveTextElement}>{liveTranscript||'说出的内容会显示在这里…'}</p></div>}
+        {liveTranscript!==undefined&&listening&&!cancelling&&<div className="hoho-hold-feedback__transcript" aria-label="正在说的话" aria-live="polite">{!liveTranscript&&<small>{liveStatus||'正在听你说'}</small>}<p ref={liveTextElement}>{liveTranscript||'…'}</p></div>}
         <div className="hoho-hold-feedback__wave" aria-hidden="true">{(presentation==='conversation'?Array.from({length:21},(_,i)=>i):[0,1,2,3,4]).map(i=><span key={i} style={{height:`${4+audioLevel*(presentation==='conversation'?10+10*Math.abs(Math.sin(i*1.2)):18-Math.abs(i-2)*5)}px`}}/>)}</div>
         {presentation==='conversation'?<>
-          <span>{cancelling?'松开取消':listening?'正在录音':status}</span>
+          {(cancelling||!listening)&&<span>{cancelling?'松开取消':status}</span>}
           {listening&&<span className="hoho-hold-feedback__time" aria-label={`已录音${elapsed}秒`}>{`${Math.floor(elapsed/60)}:${String(elapsed%60).padStart(2,'0')}`}</span>}
           <small>{cancelling?'移回继续录音':onDiscard?'松开记录，上滑取消':'松开结束'}</small>
         </>:<>
-          <span>{expandedFeedback && listening && !cancelling ? '正在录音' : listening && !cancelling ? `正在录音 · ${releaseLabel}` : status}</span>
+          {(!listening||cancelling||!expandedFeedback)&&<span>{status}</span>}
           {expandedFeedback && listening && <span className="hoho-hold-feedback__time" aria-label={`已录音${elapsed}秒`}>{`${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, '0')}`}</span>}
           {expandedFeedback && !cancelling && <small>{listening ? releaseLabel : '请保持按住'}</small>}
           {expandedFeedback && feedbackHint && !cancelling && <small>{feedbackHint}</small>}
