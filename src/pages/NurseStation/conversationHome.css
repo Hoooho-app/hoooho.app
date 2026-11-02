@@ -196,7 +196,7 @@ body .front-desk-welcome__media>.idle-nurse-visual[data-cutout="true"]{backgroun
 @media(max-height:650px){.front-desk-welcome__media{height:180px}.front-desk-welcome__copy h2{font-size:var(--hoho-font-size-page-title)}body .smart-record-home .front-desk-welcome{margin-top:var(--hoho-space-2);gap:var(--hoho-space-2)}}
 
 /* Owner-approved key-information flow. Scope stays on the front desk. */
-body .smart-record-home .hoho-bottom-navigation{margin-top:0;background-color:rgb(var(--hoho-color-page-background));background-image:var(--hoho-page-grain);padding-bottom:calc(var(--hoho-space-2) + env(safe-area-inset-bottom))}
+body .smart-record-home .hoho-bottom-navigation{margin-top:0;background-color:rgb(var(--hoho-color-page-background));background-image:var(--hoho-page-grain)}
 .smart-record-home .nurse-turn--conversation .nurse-turn-content>p{display:block}
 .smart-record-home .front-desk-message-loading>svg{animation-duration:1.8s}
 .smart-record-home .front-desk-record-status{display:flex;align-items:center;justify-content:space-between;gap:var(--hoho-space-2);flex-wrap:wrap}
