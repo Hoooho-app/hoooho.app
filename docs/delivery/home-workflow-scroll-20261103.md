@@ -21,3 +21,11 @@
 首轮远端客户端检查失败，本地重现为820项中819通过、1失败：HealthEvents.contract.test仍要求已经移除的feedingStatusOptions、reactionOptions与旧diet-reaction-section。该遗留也已在档案摘要交付记录中注明。按现存`diet-symptoms-20261103.md`主人确认契约，症状应为默认折叠、可选自由文本、兼容原数组。本轮只更新这条验证：保留其他五类/保存/时间/附件断言，验证奶类与食物均使用自由文本栏、1000字输入、空值与数组保存兼容，禁止旧选项常量；不修改DietRecordFlow或任何喂养业务。作为既有发布检查的直接依赖修正，不跳过失败项。
 
 旧断言修正后，本地完整客户端820项全部通过；仅测试/文档变化，不重复构建相同运行代码，运行版本仍为前述已验证连续上滚实现。
+
+## Production发布回执
+
+- [PR #626](https://github.com/Hoooho-app/hoooho.app/pull/626) 已合入main，运行提交`0127dbf55d2e3c40a44add8a35a2816def06163a`。远端分支最终提交`a3006eb`的树`9300f337989c88e873dff2b7d1e9715595ad6001`与本地验证版本一致；main同期仅追加档案/输入字号交付文档，已保留。
+- [完整发布检查](https://github.com/Hoooho-app/hoooho.app/actions/runs/41534624408) 终态success：构建、820项客户端、帮助/领取/媒体、手机首页矩阵、导航、帮助中心与保存引导全部通过。旧断言失败已修正，未跳过检查。
+- 原Railway Production部署`ae286ef2-4ace-40ef-a7ab-6287cb562379`观察终态SUCCESS，对应`0127dbf`；平台更新时间北京时间2026/11/3 06:19:21。无新环境或原生上传。
+- 线上只读核验：首页与`/api/health`均200/no-store。入口`index-ClFxQ3_J.js`实际引用`JournalRecordDetail-DsiBZNTd.js`和`JournalRecordDetail-Bw9CVwc9.css`，均200；读取到current/previous实体状态、减少动态效果标记、向上进入/向上淡出关键帧、实际内容最小高度以及浅绿无阴影外壳。
+- 本轮没有Production健康数据写入、领取、下载/复制或真实模型调用；线上为资源/端点核验，移动视觉为前述真实本地浏览器。登录后线上界面、实体iPhone与主人最终验收未冒称完成。此回执只改文档，不重复部署相同应用。
