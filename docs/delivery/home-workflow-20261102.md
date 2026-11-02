@@ -80,3 +80,14 @@ V2 token、HohoButton、HohoProgress 五段线与现有Material图标复用；�
 最终 `npm run build` 通过，819项客户端检查通过。构建完成后以Headless Shell执行320/390/430px、724/812高度及320×568短屏：36项通过，3项按既有项目条件跳过。包含自动走完五幕并回第一幕、鼠标/键盘暂停独立性、输入暂停和无业务POST、减少动态效果静态完整情况、帮助往返与草稿保留、首气泡卸载、固定小芽和领取幂等。
 
 真实时钟核对320/390px五幕面板与前因都位于stage/进度线之间；逐幕截图人工检查了首幕手臂、彩色追问/回复和完整情况单，修正后的末幕不溢出。未将本地合成供应商场景当作Production真实健康写入或实体iPhone验收。
+
+
+### 此轮Production发布回执
+
+- [PR #616](https://github.com/Hoooho-app/hoooho.app/pull/616) 已合入main，运行提交 `27c9a8ff904f9a56b5c1574d5fd6e19b65862bfc`。远端提交 `ed8347c` 的tree `414c40bbeaa2427eeb74fbab59fac448946e9daa` 与本地已验证版本一致，未覆盖同期其他功能。
+- [首页完整发布检查](https://github.com/Hoooho-app/hoooho.app/actions/runs/41378630654) 终态成功，包含生产构建、客户端/帮助/媒体/领取服务检查、首页手机矩阵、导航、帮助中心及保存引导。
+- 原Railway Production部署 `55127673-935e-4c19-bd28-e251ada84db5` 已观察终态 **SUCCESS**，对应提交 `27c9a8f`，平台更新时间 `2026-11-02T02:43:59.153Z`。未创建环境或更改原生发布。
+- 线上只读核对：`/api/health` 与 `/nurse-station` 均200；新入口 `/assets/index-Bafwp5o_.js` 加载功能包 `JournalRecordDetail-DbnCstWw.js` 与样式 `JournalRecordDetail-DeXCi3NF.css`。功能包包含新虚构情景标签与完整情况单；样式包含summary且已没有旧header样式。
+- 实际插画 `symptom-arm-20261102-BJwrZfIZ.webp` 返回200，27074字节，与本地最终素材逐字节一致，SHA-256 `67008128d48f813680e2e66eb5e625dca2f198ff274a00a60fd59c61c414ca52`。
+- 本轮未执行登录后的Production界面或实体iPhone复验；移动尺寸逐幕视觉与交互证据为上述本地真实浏览器检查。没有向Production发送示例健康数据或领取奖励。
+- 实现、相关回归、main集成、正式部署与线上资源核验已完成。此回执仅改文档，不重复部署相同应用。
