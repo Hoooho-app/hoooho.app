@@ -184,6 +184,7 @@ test('a transcribed but cancelled voice stays cancelled and a new document can s
  }
  await page.route('**/recognition-jobs',loseCancelledVoiceAck)
  const hold=page.getByRole('button',{name:'按住记录症状',exact:true})
+ await expect(hold).toBeEnabled()
  await hold.focus();await page.keyboard.down('Space')
  await expect(page.getByRole('button',{name:'正在录音，松开即结束',exact:true})).toBeVisible()
  await page.waitForTimeout(1100)
