@@ -1,6 +1,6 @@
 import type { GrowthMeasurementApiDto, Member } from '../../../types'
 
-type GrowthSource = Pick<Member, 'heightCm' | 'weightKg'>
+type GrowthSource = Pick<Member, 'heightCm' | 'weightKg' | 'growthBaseline'>
 
 export interface CurrentGrowthMeasurements {
   heightCm: number | null
@@ -26,13 +26,13 @@ export function resolveCurrentGrowthSnapshot(
     .filter((item) => item.memberId === memberId)
     .sort((left, right) => right.measuredAt.localeCompare(left.measuredAt) || right.createdAt.localeCompare(left.createdAt))
   const confirmed = matching.filter((item) => item.dataStatus === 'confirmed')
-  const preferred = confirmed.length ? confirmed : matching
-  const height = preferred.find(item => item.heightCm != null)
-  const weight = preferred.find(item => item.weightKg != null)
+  const height = confirmed.find(item => item.heightCm != null)
+  const weight = confirmed.find(item => item.weightKg != null)
+  const fallback = member.growthBaseline ?? member
 
   return {
-    heightCm: height?.heightCm ?? member.heightCm ?? null,
-    weightKg: weight?.weightKg ?? member.weightKg ?? null,
+    heightCm: height?.heightCm ?? fallback.heightCm ?? null,
+    weightKg: weight?.weightKg ?? fallback.weightKg ?? null,
     heightMeasuredAt: height?.measuredAt ?? null,
     weightMeasuredAt: weight?.measuredAt ?? null,
   }

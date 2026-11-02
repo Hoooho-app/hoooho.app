@@ -12,6 +12,7 @@ export interface Member {
   avatar?: string
   heightCm?: number
   weightKg?: number
+  growthBaseline?: { heightCm: number | null; weightKg: number | null }
   bloodType?: 'A' | 'B' | 'AB' | 'O'
   waistCircumferenceCm?: number
   bodyFatPercentage?: number
@@ -85,6 +86,7 @@ export interface FamilyMemberApiDto {
   avatar: string | null
   heightCm?: number | null
   weightKg?: number | null
+  growthBaseline?: { heightCm: number | null; weightKg: number | null }
   bloodType?: 'A' | 'B' | 'AB' | 'O' | null
   waistCircumferenceCm?: number | null
   bodyFatPercentage?: number | null

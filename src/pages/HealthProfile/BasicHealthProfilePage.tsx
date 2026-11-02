@@ -62,15 +62,16 @@ export function BasicHealthProfilePage({ member }: { member: Member }) {
     growthMeasurementService.list(openedMemberId, token, controller.signal).then((items) => {
       if (useAppStore.getState().currentMemberId !== openedMemberId) return
       setRecords(items)
+      const current = resolveCurrentGrowthMeasurements(member, items, openedMemberId)
+      const nextHeight = current.heightCm == null ? '' : current.heightCm.toFixed(1), nextWeight = formatWeightKg(current.weightKg)
       const restored = readDraft(openedMemberId)
       if (restored) {
-        setMeasure(routeState?.selectedMeasure ?? restored.measure); setHeight(restored.height); setWeightKg(restored.weightKg); setHeightTouched(restored.heightTouched); setWeightTouched(restored.weightTouched)
-        initialHeightRef.current = validHeight(restored.height) ? Number(restored.height) : null
+        const restoredHeight = restored.heightTouched ? restored.height : nextHeight
+        setMeasure(routeState?.selectedMeasure ?? restored.measure); setHeight(restoredHeight); setWeightKg(restored.weightTouched ? restored.weightKg : nextWeight); setHeightTouched(restored.heightTouched); setWeightTouched(restored.weightTouched)
+        initialHeightRef.current = validHeight(restoredHeight) ? Number(restoredHeight) : null
         requestAnimationFrame(() => contentRef.current?.scrollTo({ top: restored.scrollTop ?? 0 }))
         return
       }
-      const current = resolveCurrentGrowthMeasurements(member, items, openedMemberId)
-      const nextHeight = current.heightCm == null ? '' : current.heightCm.toFixed(1), nextWeight = formatWeightKg(current.weightKg)
       setHeight(nextHeight); setWeightKg(nextWeight); setHeightTouched(false); setWeightTouched(false)
       initialHeightRef.current = validHeight(nextHeight) ? Number(nextHeight) : null
     }).catch((reason) => {
@@ -120,12 +121,11 @@ export function BasicHealthProfilePage({ member }: { member: Member }) {
       setRecords(nextRecords)
       setHeightTouched(false); setWeightTouched(false); initialHeightRef.current = saved.heightCm; sessionStorage.removeItem(draftKey(openedMemberId))
       try {
-        const current = resolveCurrentGrowthMeasurements(member, nextRecords, openedMemberId)
-        const updated = await familyMemberService.update(openedMemberId, current, token)
+        const updated = await familyMemberService.getById(openedMemberId, token)
         if (useAppStore.getState().currentMemberId !== openedMemberId) return
         const store = useAppStore.getState(); setMembers(store.members.map((item) => item.id === updated.id ? adaptFamilyMember(updated) : item))
         setSaveState('saved'); setMessage('已保存，并加入成长记录')
-      } catch { setSaveState('saved'); setMessage('成长记录已保存，基础资料将在刷新后同步') }
+      } catch { setSaveState('saved'); setMessage('成长记录已保存，基础资料读取失败，请稍后刷新') }
     } catch (error) { setSaveState('error'); setMessage(error instanceof Error ? error.message : '保存失败，已保留当前填写内容，请重试') }
   }
 
