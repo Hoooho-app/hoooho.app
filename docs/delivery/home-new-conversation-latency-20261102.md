@@ -27,4 +27,8 @@
 
 ## 发布
 
-待同步 `main` 并核验现有 Railway Production；不重发原生安装包。
+- 已同步 `main`：`a5fc915a5be9c5c38a469e70b5ed02b5baa8738a`。远端3个文件的 Git blob 与本地已测文件完全一致，完整 Git tree 亦一致。
+- 现有 Railway Production 部署 `db4bd8bd-98a6-4ebe-9e37-d6d91a5d2272` 为 `SUCCESS`，构建、启动及 `/api/health` 检查通过；未增加服务或重发原生安装包。
+- 上线后浏览器正式入口正常显示登录页面；取得线上入口脚本 `/assets/index-CQWtjLkj.js`，确认包含上述提交号并指向新版对话组件 `JournalRecordDetail-D6HANNm6.js`。
+- 当前浏览器没有健康产品登录态，因此未操作生产账号内的新建对话，也未测实体 iPhone。已登录流程的结论来自本地真实浏览器及合成账号；用户现场实际耗时与产品主人验收仍待核对。
+- 后续本发布回执只修改文档，无需重部署同一应用。
