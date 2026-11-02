@@ -775,7 +775,7 @@ export function SmartRecordWorkspace({memberId,token,eventId,eventTitle,onClose,
       await request(frontUrl,'DELETE')
       await persist(freshDraft())
       setHomeTyping(false);setHomeInputEpoch(value=>value+1)
-      hiddenTurns.current.clear();liveVoicePreview.current.clear();completedGuideIds.current.clear();setShowJump(false);setCompleted(false);setStage('conversation');setOriginalsNeedReview(false);voice.clearError();setStatus('');setHomeNotice('已开始新对话，之前的内容可在侧栏的「对话记录」中查看。');followScroll.current=true;scrollOpened.current=false
+      hiddenTurns.current.clear();liveVoicePreview.current.clear();completedGuideIds.current.clear();setShowJump(false);setCompleted(false);setStage('conversation');setOriginalsNeedReview(false);voice.clearError();setStatus('');setHomeNotice('');followScroll.current=true;scrollOpened.current=false
     }catch{if(mounted.current)setError('新对话尚未建立，原内容仍然保留，请重试。')}
     finally{pending.current=false;if(mounted.current){setBusy(false);setStartingConversation(false)}}
   }
