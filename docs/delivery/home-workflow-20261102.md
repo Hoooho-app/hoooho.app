@@ -110,3 +110,13 @@ V2 token、HohoButton、HohoProgress 五段线与现有Material图标复用；�
 发布前发现main已推进到 `2a9b32b`（刚上线能力云与横幅说明）。本轮将干净合入此基线，保留其服务、路由与横幅弹层，随后对整合版本重建并复核直接相关页面；本轮差异仍仅首页六幕UI、样式、测试及交付规则/记录。
 
 整合 `2a9b32b` 后完整构建再次通过；同一手机矩阵36项通过、3项按项目条件跳过。新增实际横幅弹层联动检查：打开“认识你的记录员”后六幕冻结，10秒仍保持当前幕，Escape关闭后恢复；之后六幕完整播放并自动回第一幕，无业务POST。同期main推进至 `062f4df` 的两项差异仅为能力云交付文档，按文档变更规则同步保留，不重复构建相同运行代码。
+
+
+### 六幕Production发布回执
+
+- [PR #618](https://github.com/Hoooho-app/hoooho.app/pull/618) 已合入main，运行提交 `19f7fd0726d706e624361cad60f11b00e1184029`。远端分支提交 `62f92b3` 的tree `efbdaa1cf88bd25c8cce73c8917ef15cf093363d` 与本地已验证树完全一致；相对当时main仅5文件变化，保留同期能力云/横幅说明与文档。
+- [完整首页发布检查](https://github.com/Hoooho-app/hoooho.app/actions/runs/41381718298) 终态 **success**，包含构建、客户端/帮助/媒体/领取服务检查，以及手机首页矩阵、导航、帮助中心和真实保存引导。
+- 原Railway Production部署 `da10b1a5-e9bb-4760-b7a9-7af0ee83ff1e` 已观察终态 **SUCCESS**，对应运行提交 `19f7fd0`，平台更新时间 `2026-11-02T03:19:29.842Z`。沿用原服务/环境，无原生上传或新环境。
+- 线上只读核验 `/api/health` 与 `/nurse-station` 均200、`Cache-Control: no-store`。当前入口 `/assets/index-D6RqJDIg.js`、功能包 `JournalRecordDetail-D9plGqtq.js`、样式 `JournalRecordDetail-DhgLkJem.css` 均实际读取；包含第六幕标签、孩子信息、四栏目、outline/handoff新UI与AI复制用途，也保留“认识你的记录员”。样式包含结构图/身份框/交接卡，旧外标题样式仍已移除。
+- 本轮Production核验只读资源与健康端点；没有发送示例健康记录、复制/导出用户资料或领取奖励。登录后的线上界面与实体iPhone未在本轮重新操作，逐幕移动视觉/交互证据为上述本地真实浏览器及远端回归。
+- 实现、相关验证、main集成、正式部署和线上资源核验完成。视觉最终验收仍由产品主人实际查看决定；本条仅文档回执，不重部署相同应用。
