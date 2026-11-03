@@ -3,6 +3,7 @@ import { AuthService } from '../auth/auth-service.mjs'
 import { TokenService } from '../auth/token-service.mjs'
 import { authConfig } from '../auth/config.mjs'
 import { AccountService } from './account-service.mjs'
+import { usageService } from '../usage/service.mjs'
 
 const json = (request) => new Promise((resolve, reject) => {
   let body = ''
@@ -23,6 +24,7 @@ export function accountApiPlugin(options = {}) {
   const auth = new AuthService(config)
   const service = new AccountService({ ...config, auth, users: auth.users, data: auth.accountData })
   const tokens = new TokenService(config.tokenSecret, config.tokenTtlMs)
+  const resources = usageService(config)
   return {
     name: 'hoooho-local-account-api',
     configureServer(server) {
@@ -31,6 +33,13 @@ export function accountApiPlugin(options = {}) {
         if (!pathname.startsWith('/api/account/') || pathname === '/api/account/entry-state') return next()
         const token = /^Bearer\s+(.+)$/i.exec(request.headers.authorization ?? '')?.[1]
         const payload = token ? tokens.verify(token) : null
+        if (pathname === '/api/account/usage' && request.method === 'GET' && payload) {
+          try {
+            const user = await auth.users.findById(payload.sub)
+            if ((!payload.guest && (!user || !tokens.isCurrentForUser(payload, user))) || user?.mergedInto) return send(response, 401, { error: { code: 'UNAUTHORIZED', message: '请重新登录后查看用量' } })
+            return send(response, 200, await resources.account(payload.sub))
+          } catch { return send(response, 503, { error: { code: 'USAGE_UNAVAILABLE', message: '用量暂时无法读取，请稍后重试' } }) }
+        }
         if (!payload || payload.guest) return send(response, 401, { error: { code: 'UNAUTHORIZED', message: '请先登录或注册' } })
         try {
           const body = request.method === 'GET' ? {} : await json(request)

@@ -1,4 +1,5 @@
 import { handleOpsEntry } from './ops/entry-shell.mjs'
+import { usageService } from './usage/service.mjs'
 import { CapabilityService } from './capabilities/service.mjs'
 import { publicCapabilityProfile, readCapabilitySource } from './capabilities/library.mjs'
 import { ProductAnalyticsService, readAnalyticsControls } from './analytics/service.mjs'
@@ -115,12 +116,14 @@ const tokens = new TokenService(authConfig.tokenSecret, authConfig.tokenTtlMs)
 const captureWorker = new CaptureWorkerClient()
 await captureWorker.refreshMetadata()
 const opsWorkspace = new OpsWorkspaceService({ ...sharedOptions, captureWorker })
+const resources = usageService(sharedOptions)
+const stopResourceMonitor = resources.start()
 const billingCollectors = createBillingCollectors({ worker: captureWorker })
 const ops = new OpsService({ ...sharedOptions, ...billingCollectors, collectorStatus: billingCollectors.status, beforeCollection: () => captureWorker.refreshMetadata(), getConnectedFields: item => Object.keys(captureWorker.profile(item.id)?.fields || {}), logger: event => console.info('[Hoooho Ops collection]', JSON.stringify(event)), getReminderRules: async () => (await opsWorkspace.settings()).reminders })
 const stopOpsScheduler = startOpsScheduler(ops)
 const feedback = new FeedbackService(sharedOptions)
 const capabilities = new CapabilityService(sharedOptions)
-const opsOverview = new OpsOverviewService({ ...sharedOptions, billing: ops, feedback })
+const opsOverview = new OpsOverviewService({ ...sharedOptions, billing: ops, feedback, resources })
 let productAnalytics
 try {
   productAnalytics = new ProductAnalyticsService({ ...sharedOptions, secret: authConfig.tokenSecret,
@@ -275,6 +278,7 @@ async function handleOps(request, response, pathname) {
   if (pathname === '/api/ops/session' && request.method === 'GET') sendJson(response, 200, { authenticated: true, authorized: true, email: payload.email })
   else if (pathname === '/api/ops/analytics' && request.method === 'GET') sendJson(response, 200, productAnalytics.report(new URL(request.url, 'http://localhost').searchParams))
   else if (pathname === '/api/ops/services' && request.method === 'GET') sendJson(response, 200, await opsWorkspace.services())
+  else if (pathname === '/api/ops/resources' && request.method === 'GET') sendJson(response, 200, await resources.overview())
   else if (pathname === '/api/ops/versions' && request.method === 'GET') sendJson(response, 200, await opsWorkspace.versions())
   else if (pathname === '/api/ops/settings' && request.method === 'GET') sendJson(response, 200, await opsWorkspace.settings())
   else if (pathname === '/api/ops/settings' && request.method === 'PATCH') sendJson(response, 200, await opsWorkspace.saveSettings(await readJson(request)))
@@ -896,6 +900,10 @@ async function handleOnlineConsultations(request, response, pathname) {
 }
 
 async function handleApi(request, response, pathname, searchParams) {
+  if (pathname === '/api/account/usage' && request.method === 'GET') {
+    sendJson(response, 200, await resources.account(await readAccountId(request)))
+    return
+  }
   if (observationSourceMutation(pathname, request.method)) {
     try { watchObservationMutation(request, response, foodObservations, await readCareAccountId(request,{tokens,service:careJourney,sessions:browserSessions})) } catch { /* The source route owns its authentication response. */ }
   }
@@ -1228,6 +1236,7 @@ function shutdown(signal) {
   liveAudioPreview.destroy()
   void recognitionJobs.close()
   stopOpsScheduler()
+  stopResourceMonitor()
   server.closeAllConnections?.()
   server.close((error) => {
     if (error) {

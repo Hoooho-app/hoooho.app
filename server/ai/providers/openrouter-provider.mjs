@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto'
 import { OpenAIProvider } from './openai-provider.mjs'
 import { openRouterConfiguration, configurationError } from './provider-config.mjs'
 import { controlledCall } from './call-control.mjs'
+import { meteredFetch } from '../../usage/ai-meter.mjs'
 import { linkedAISignal, traceMetadata } from './telemetry.mjs'
 import { readOpenAIErrorDetails, safeOpenAIErrorDetails, safeOpenAIFailureCodes } from './openai-error.mjs'
 import { outputFailure, schemaFailureDiagnostic } from './output-diagnostics.mjs'
@@ -37,7 +38,7 @@ export class OpenRouterProvider extends OpenAIProvider {
     this.visionModel = config.visionModel
     this.requestTimeoutMs = config.timeoutMs
     this.logger = options.logger ?? console
-    const transport = options.fetchImpl ?? fetch
+    const transport = meteredFetch(options.fetchImpl ?? fetch, 'openrouter', config.model)
     this.fetch = async (url, init = {}) => {
       if (url !== `${config.baseUrl}/responses`) throw configurationError('OpenRouter 此接入仅用于文字与图片整理；语音使用独立配置', 'AI_MODALITY_NOT_CONFIGURED')
       let body

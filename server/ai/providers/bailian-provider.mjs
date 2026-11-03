@@ -5,6 +5,7 @@ import { createHash } from 'node:crypto'
 import { OpenAIProvider } from './openai-provider.mjs'
 import { bailianConfiguration, configurationError } from './provider-config.mjs'
 import { controlledCall } from './call-control.mjs'
+import { meteredFetch } from '../../usage/ai-meter.mjs'
 import { readOpenAIErrorDetails, safeOpenAIErrorDetails, safeOpenAIFailureCodes } from './openai-error.mjs'
 import { outputFailure, schemaFailureDiagnostic } from './output-diagnostics.mjs'
 import {syntheticEvidenceProof,safeSyntheticStage} from '../business/synthetic-evidence-proof.mjs'
@@ -42,7 +43,7 @@ export class BailianProvider extends OpenAIProvider {
     this.config = config
     this.requestTimeoutMs = config.timeoutMs
     this.logger = options.logger ?? console
-    const transport = options.fetchImpl ?? createBailianTransport(config.baseUrl)
+    const transport = meteredFetch(options.fetchImpl ?? createBailianTransport(config.baseUrl), 'bailian', config.model)
     this.fetch = async (url, init = {}) => {
       if (url !== `${config.baseUrl}/responses`) throw configurationError('百炼文字模型不能代替语音识别或朗读服务', 'AI_MODALITY_NOT_CONFIGURED')
       const body = JSON.parse(init.body)

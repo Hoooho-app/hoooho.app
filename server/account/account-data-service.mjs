@@ -6,6 +6,7 @@ import { access, unlink } from 'node:fs/promises'
 import { DatabaseSync } from 'node:sqlite'
 import { JsonStore } from '../auth/storage/json-store.mjs'
 import { accountTransaction, withStorageLock } from '../auth/storage/transaction.mjs'
+import { activeUsageMeter } from '../usage/ai-meter.mjs'
 
 export const accountCollections = [
   ['food-observations.json', 'preferences'],
@@ -61,6 +62,7 @@ export class AccountDataService {
   async mergeGuest(guestAccountId, accountId, now = new Date()) {
     const result=await accountTransaction(this.dataDirectory, () => this.mergeGuestTransaction(guestAccountId, accountId, now))
     if(guestAccountId.startsWith('guest:')&&guestAccountId!==accountId)await recognitionOwnerLifecycle(this.dataDirectory,guestAccountId,{mergeInto:accountId})
+    if(guestAccountId.startsWith('guest:')&&guestAccountId!==accountId)activeUsageMeter()?.merge(guestAccountId, accountId)
     return result
   }
 
@@ -135,6 +137,7 @@ export class AccountDataService {
     await Promise.all([...storageKeys].map((storageKey) =>
       unlink(path.join(this.dataDirectory, 'quick-record-photo-files', storageKey)).catch(() => undefined)
     ))
+    activeUsageMeter()?.remove(accountId)
     })
   }
 }

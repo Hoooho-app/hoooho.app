@@ -8,6 +8,7 @@ import './workspace.css'
 const navigation: { path: string; title: string; icon: MaterialIconName }[] = [
   { path: '/ops', title: 'Overview', icon: 'assignment' },
   { path: '/ops/billing', title: '费用监控', icon: 'monitoring' },
+  { path: '/ops/resources', title: '资源监控', icon: 'monitoring' },
   { path: '/ops/feedback', title: '反馈中心', icon: 'chat_bubble' },
   { path: '/ops/marketing', title: '产品运营', icon: 'lightbulb' },
   { path: '/ops/capabilities', title: '专业能力', icon: 'assignment' },

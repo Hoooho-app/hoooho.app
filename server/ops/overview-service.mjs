@@ -5,15 +5,16 @@ import { DEFAULT_OPS_PROJECT_ID, opsProjectId } from '../../shared/ops-projects.
 const validTime = value => typeof value === 'string' && Number.isFinite(Date.parse(value))
 const feedbackId = item => `feedback:${item.id}:${item.supplementCount ?? 0}`
 export class OpsOverviewService {
-  constructor({ billing, feedback, dataDirectory, store }) {
+  constructor({ billing, feedback, resources, dataDirectory, store }) {
     this.billing = billing
     this.feedback = feedback
+    this.resources = resources
     this.store = store ?? new JsonStore(path.join(dataDirectory, 'ops', 'overview-receipts.json'), { receipts: [] })
   }
   async list() {
     const [billing, feedback, saved] = await Promise.all([this.billing.list(), this.feedback.listForOps(), this.store.read()])
     const receipts = Array.isArray(saved?.receipts) ? saved.receipts : []
-    const events = []
+    const events = this.resources ? await this.resources.events() : []
     for (const item of billing.sources) {
       if (item.enabled && item.health?.reasons?.length) {
         const id = `billing:${item.id}:health:${item.health.fingerprint}`

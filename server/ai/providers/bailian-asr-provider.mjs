@@ -1,6 +1,7 @@
 import {linkedAISignal,traceMetadata} from './telemetry.mjs'
 import { bailianConfiguration, boundedSetting, configurationError } from './provider-config.mjs'
 import { controlledCall } from './call-control.mjs'
+import { meteredFetch } from '../../usage/ai-meter.mjs'
 import { readOpenAIErrorDetails, safeOpenAIErrorDetails, safeOpenAIFailureCodes } from './openai-error.mjs'
 import {createBailianTransport,transportTimings} from './bailian-transport.mjs'
 import {safeNetworkCause} from './network-diagnostic.mjs'
@@ -26,7 +27,7 @@ export class BailianASRProvider {
     this.model = this.env.BAILIAN_ASR_MODEL ?? 'qwen3-asr-flash'
     if (!/^qwen3-asr-flash(?:-2025-09-08|-2026-02-10)?$/.test(this.model)) throw configurationError('BAILIAN_ASR_MODEL 必须是北京同步 Qwen3-ASR-Flash 模型，不可使用文字或异步模型', 'ASR_CONFIGURATION_INVALID')
     this.apiKey = this.config.apiKey
-    this.transport = options.fetchImpl ?? createBailianTransport(this.config.baseUrl)
+    this.transport = meteredFetch(options.fetchImpl ?? createBailianTransport(this.config.baseUrl), 'bailian-asr', this.model)
     this.timeoutMs = boundedSetting(this.env, 'BAILIAN_ASR_TIMEOUT_MS', 60000, 1000, 120000)
     this.logger = options.logger ?? console
   }

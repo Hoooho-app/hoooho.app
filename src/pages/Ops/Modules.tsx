@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { opsApiRequest } from '../../services/opsAuth'
 import { useAppStore } from '../../store/useAppStore'
 import { HohoButton } from '../../components/design-system/HohoButton'
@@ -11,14 +11,15 @@ interface Versions { current: Release; releases: Release[]; native: { label: str
 interface Reminders { noticeDays: number; warningDays: number; criticalDays: number; quotaWarningPercent: number; quotaCriticalPercent: number }
 interface Settings { reminders: Reminders; schedule: { time: string; timeZone: string; catchUpOnRestart: boolean }; notification: string; capture: { connected: boolean; profilesConfigured: boolean; detail: string } }
 const time = (value?: string | null) => value ? new Date(value).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }) : '尚未检查'
-function useResource<T>(path: string) {
+export function useResource<T>(path: string) {
   const token = useAppStore(s => s.opsAuthToken)!
   const [data, setData] = useState<T | null>(null), [error, setError] = useState(''), [loading, setLoading] = useState(true), [iteration, setIteration] = useState(0)
   useEffect(() => { const controller = new AbortController(); setLoading(true); setError('')
     opsApiRequest<T>(path, { token, signal: controller.signal }).then(value => { if (!controller.signal.aborted) setData(value) }).catch(e => { if (!controller.signal.aborted) setError(e.message) }).finally(() => { if (!controller.signal.aborted) setLoading(false) })
     return () => controller.abort()
   }, [path, token, iteration])
-  return { data, setData, error, loading, reload: () => setIteration(v => v + 1), token }
+  const reload = useCallback(() => setIteration(v => v + 1), [])
+  return { data, setData, error, loading, reload, token }
 }
 function Status({ state, children }: { state: string; children: React.ReactNode }) { return <span className="ops-module-status" data-state={state}>{children}</span> }
 function PageHeader({ title, detail, reload, loading, project = true }: { title: string; detail: string; reload: () => void; loading: boolean; project?: boolean }) { return <><header className="ops-overview-heading"><div><h1>{title}</h1><p>{detail}</p></div><HohoButton variant="secondary" loading={loading} onClick={reload}>重新检查</HohoButton></header>{project && <div className="ops-module-projects"><OpsProjectPicker /></div>}</> }

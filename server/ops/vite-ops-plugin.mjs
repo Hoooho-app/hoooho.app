@@ -10,6 +10,7 @@ import { TokenService } from '../auth/token-service.mjs'
 import { authConfig } from '../auth/config.mjs'
 import { FeedbackService } from '../help/feedback-service.mjs'
 import { OpsOverviewService } from './overview-service.mjs'
+import { usageService } from '../usage/service.mjs'
 import { CapabilityService } from '../capabilities/service.mjs'
 import { publicCapabilityProfile, readCapabilitySource } from '../capabilities/library.mjs'
 
@@ -36,7 +37,8 @@ export function opsApiPlugin(options = {}) {
   const workspace = options.workspace ?? new OpsWorkspaceService({ dataDirectory: options.dataDirectory ?? authConfig.dataDirectory, captureWorker })
   const capture = createBillingCollectors({ worker: captureWorker })
   const service = options.service ?? new OpsService({ dataDirectory: options.dataDirectory ?? authConfig.dataDirectory, collectors: options.collectors ?? capture.collectors, collectorStatus: capture.status, beforeCollection: () => captureWorker.refreshMetadata(), getConnectedFields: item => Object.keys(captureWorker.profile(item.id)?.fields || {}), getReminderRules: async () => (await workspace.settings()).reminders })
-  const overview = new OpsOverviewService({ billing: service, feedback: options.feedback ?? new FeedbackService({ dataDirectory: options.dataDirectory ?? authConfig.dataDirectory }), dataDirectory: options.dataDirectory ?? authConfig.dataDirectory })
+  const resources = usageService({ ...authConfig, ...options })
+  const overview = new OpsOverviewService({ billing: service, feedback: options.feedback ?? new FeedbackService({ dataDirectory: options.dataDirectory ?? authConfig.dataDirectory }), resources, dataDirectory: options.dataDirectory ?? authConfig.dataDirectory })
   const tokens = options.tokens ?? new TokenService(options.tokenSecret ?? authConfig.tokenSecret, options.tokenTtlMs ?? authConfig.tokenTtlMs)
   const ownerEmail = options.opsOwnerEmail ?? authConfig.opsOwnerEmail
   return { name: 'hoooho-local-ops-api', configureServer(server) { server.middlewares.use(async (request, response, next) => {
@@ -56,6 +58,7 @@ export function opsApiPlugin(options = {}) {
       if (capabilitySource && request.method === 'GET') return send(response, 200, readCapabilitySource(capabilitySource[1]))
       if (await handleCaptureApi({ request, response, pathname, readJson, send, vault: captureWorker, ops: service, actorId: payload.sub })) return
       if (pathname === '/api/ops/services' && request.method === 'GET') return send(response, 200, await workspace.services())
+      if (pathname === '/api/ops/resources' && request.method === 'GET') return send(response, 200, await resources.overview())
       if (pathname === '/api/ops/versions' && request.method === 'GET') return send(response, 200, await workspace.versions())
       if (pathname === '/api/ops/settings' && request.method === 'GET') return send(response, 200, await workspace.settings())
       if (pathname === '/api/ops/settings' && request.method === 'PATCH') return send(response, 200, await workspace.saveSettings(await readJson(request)))

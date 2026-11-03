@@ -15,6 +15,7 @@ import { accountService } from '../../services/account'
 import { useDrawerHistory } from './useDrawerHistory'
 import { compactIdentityAge, maskIdentityName, recordSubjectRelationship } from '../../utils/privateIdentity'
 import './side-drawer-layout.css'
+import { DrawerUsage } from './DrawerUsage'
 
 interface SideDrawerProps {
   open: boolean
@@ -93,6 +94,20 @@ export function SideDrawer({ onClose, onOpenChildSheet, open, cleanChrome = true
     <div className="hoho-drawer-layer" role="dialog" aria-modal="true" aria-label="侧边栏菜单">
       <button className="absolute inset-0 bg-text-primary/55" type="button" aria-label="关闭侧边栏" onClick={onClose} />
       <aside className={'hoho-drawer hoho-drawer--history' + (cleanChrome ? ' hoho-drawer--clean' : '')} ref={drawerRef} tabIndex={-1}>
+        <nav className="drawer-utilities" aria-label="帮助、反馈与关于">{utilityLinks.map(({ label, icon: Icon, to }) => <button data-ha-destination={to} key={to} type="button" onClick={() => openUtility(to)}><Icon size={22} strokeWidth={1.7} aria-hidden="true" /><span>{label}</span></button>)}</nav>
+        <nav ref={historyScrollRef} className="drawer-conversations" aria-label="对话记录" onScroll={event => { const node = event.currentTarget; if (node.scrollHeight - node.scrollTop - node.clientHeight < 160 && !ownHistory.moreError) void ownHistory.loadMore() }}>
+          <div className="drawer-conversations__heading"><h2>对话记录</h2><button type="button" disabled={conversationDisabled} onClick={startConversation} aria-label="新建对话"><ConversationBubblePlus size={20} aria-hidden="true" /><span>新建对话</span></button></div>
+          {ownHistory.loading && <p role="status" className="drawer-history-notice">正在读取对话…</p>}
+          {(ownHistory.error || ownHistory.localError) && <div className="drawer-history-notice" role="status"><span>部分对话暂未加载。</span><button type="button" onClick={ownHistory.retry}>重试</button></div>}
+          {!ownHistory.loading && !ownHistory.error && !ownHistory.localError && !ownHistory.rows.length && <p className="drawer-history-notice">还没有对话记录</p>}
+          {(['今天', '昨天', '更早'] as const).map(group => {
+            const rows = ownHistory.rows.filter(row => historyGroup(row.updatedAt) === group)
+            return rows.length ? <section className="drawer-history-group" key={group} aria-label={group}><h3>{group}</h3>{rows.map(row => <div className="drawer-history-row" key={row.id}><button className="drawer-history-open" type="button" onClick={() => openHistory(row.destination)} aria-label={row.title+(row.recorded?'，已记录'+(/待确认/u.test(row.title)?'，有待确认':''):'，待确认')}><ConversationBubble size={18} aria-hidden="true" /><span className="drawer-history-title">{drawerConversationLabel(row.title)}</span>{row.recorded&&<span className="drawer-history-recorded">已记录</span>}{(!row.recorded||/待确认/u.test(row.title))&&<span className="drawer-history-pending">{row.recorded?'有待确认':'待确认'}</span>}</button><button className="drawer-history-delete" type="button" disabled={conversationDisabled||deleteBusy} aria-label={'删除对话：'+row.title} onClick={()=>{setDeleteError('');setDeleting(row)}}><Trash2 size={18} aria-hidden="true" /></button></div>)}</section> : null
+          })}
+          {ownHistory.loadingMore && <p className="drawer-history-notice" role="status">正在读取更多对话…</p>}
+          {ownHistory.moreError && <div className="drawer-history-notice" role="status"><span>更早对话暂未加载，已显示的对话仍保留。</span><button type="button" onClick={() => void ownHistory.loadMore()}>重试</button></div>}
+          {ownHistory.hasMore && <div ref={historyEndRef} aria-hidden="true" className="drawer-history-end" />}
+        </nav>
         <section className="drawer-identities" aria-label="账户与记录对象">
           <div className="drawer-embrace">
           <button type="button" className="drawer-identity-row drawer-account" aria-label="我的账户" onClick={() => { onClose(); navigate('/account', { state: { accountFrom: accountOrigin } }) }}>
@@ -111,20 +126,7 @@ export function SideDrawer({ onClose, onOpenChildSheet, open, cleanChrome = true
           </svg>
           </div>
         </section>
-        <nav ref={historyScrollRef} className="drawer-conversations" aria-label="对话记录" onScroll={event => { const node = event.currentTarget; if (node.scrollHeight - node.scrollTop - node.clientHeight < 160 && !ownHistory.moreError) void ownHistory.loadMore() }}>
-          <div className="drawer-conversations__heading"><h2>对话记录</h2><button type="button" disabled={conversationDisabled} onClick={startConversation} aria-label="新建对话"><ConversationBubblePlus size={20} aria-hidden="true" /><span>新建对话</span></button></div>
-          {ownHistory.loading && <p role="status" className="drawer-history-notice">正在读取对话…</p>}
-          {(ownHistory.error || ownHistory.localError) && <div className="drawer-history-notice" role="status"><span>部分对话暂未加载。</span><button type="button" onClick={ownHistory.retry}>重试</button></div>}
-          {!ownHistory.loading && !ownHistory.error && !ownHistory.localError && !ownHistory.rows.length && <p className="drawer-history-notice">还没有对话记录</p>}
-          {(['今天', '昨天', '更早'] as const).map(group => {
-            const rows = ownHistory.rows.filter(row => historyGroup(row.updatedAt) === group)
-            return rows.length ? <section className="drawer-history-group" key={group} aria-label={group}><h3>{group}</h3>{rows.map(row => <div className="drawer-history-row" key={row.id}><button className="drawer-history-open" type="button" onClick={() => openHistory(row.destination)} aria-label={row.title+(row.recorded?'，已记录'+(/待确认/u.test(row.title)?'，有待确认':''):'，待确认')}><ConversationBubble size={18} aria-hidden="true" /><span className="drawer-history-title">{drawerConversationLabel(row.title)}</span>{row.recorded&&<span className="drawer-history-recorded">已记录</span>}{(!row.recorded||/待确认/u.test(row.title))&&<span className="drawer-history-pending">{row.recorded?'有待确认':'待确认'}</span>}</button><button className="drawer-history-delete" type="button" disabled={conversationDisabled||deleteBusy} aria-label={'删除对话：'+row.title} onClick={()=>{setDeleteError('');setDeleting(row)}}><Trash2 size={18} aria-hidden="true" /></button></div>)}</section> : null
-          })}
-          {ownHistory.loadingMore && <p className="drawer-history-notice" role="status">正在读取更多对话…</p>}
-          {ownHistory.moreError && <div className="drawer-history-notice" role="status"><span>更早对话暂未加载，已显示的对话仍保留。</span><button type="button" onClick={() => void ownHistory.loadMore()}>重试</button></div>}
-          {ownHistory.hasMore && <div ref={historyEndRef} aria-hidden="true" className="drawer-history-end" />}
-        </nav>
-        <footer className="drawer-utilities" aria-label="帮助、反馈与关于">{utilityLinks.map(({ label, icon: Icon, to }) => <button data-ha-destination={to} key={to} type="button" onClick={() => openUtility(to)}><Icon size={22} strokeWidth={1.7} aria-hidden="true" /><span>{label}</span></button>)}</footer>
+        <DrawerUsage />
       </aside>
     </div>
     <BottomSheetSurface open={Boolean(deleting)} title="删除这次对话？" label="删除对话" onClose={()=>{if(!deleteBusy)setDeleting(null)}} footer={<div className="drawer-delete-actions"><HohoButton variant="secondary" disabled={deleteBusy} onClick={()=>setDeleting(null)}>取消</HohoButton><HohoButton variant="danger" loading={deleteBusy} onClick={()=>void confirmDelete()}>确认删除</HohoButton></div>}><p>删除对话不会影响已保存的记录。</p>{deleteError&&<p role="alert" className="drawer-delete-error">{deleteError}</p>}</BottomSheetSurface>

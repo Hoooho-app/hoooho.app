@@ -2,6 +2,7 @@ import { AsyncLocalStorage } from 'node:async_hooks'
 import { boundedSetting, configurationError } from './provider-config.mjs'
 
 const context = new AsyncLocalStorage()
+export const currentAIAccount = () => context.getStore() ?? null
 const slotContext = new AsyncLocalStorage()
 const slotWaiters = new Set()
 const calls = new Map()

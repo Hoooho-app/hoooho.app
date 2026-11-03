@@ -4,6 +4,7 @@ import { readOpenAIErrorDetails, safeOpenAIErrorDetails } from './openai-error.m
 import { readablePreview, quarantinePreview } from './readable-preview.mjs'
 import { currentSituationResponseSchema, currentSituationInstructions, normalizeCurrentSituationResponse } from '../../visit-sheets/current-situation-output.mjs'
 import { outputFailure } from './output-diagnostics.mjs'
+import { meteredFetch } from '../../usage/ai-meter.mjs'
 
 function readOutputText(response) {
   for (const output of response?.output ?? []) {
@@ -129,7 +130,7 @@ export class OpenAIProvider {
     this.apiKey = options.apiKey ?? process.env.OPENAI_API_KEY
     this.model = options.model ?? process.env.AI_MODEL ?? 'gpt-5-mini'
     this.baseUrl = (options.baseUrl ?? process.env.OPENAI_BASE_URL ?? 'https://api.openai.com/v1').replace(/\/$/, '')
-    this.fetch = options.fetchImpl ?? fetch
+    this.fetch = meteredFetch(options.fetchImpl ?? fetch, 'openai', this.model)
   }
 
   async organize(rawInput) {
