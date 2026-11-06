@@ -45,3 +45,29 @@
 - 只在杭州回环监听上用现有 Let's Encrypt 证书演练 Nginx，证书验证成功；`/api/health`、`/nurse-station`、`/ops` 各 HTTP 200，`www` 308 至主域。演练使用已验证的合成环境，未更改正式 Nginx 配置或公开路由；公网根域仍没有 A/AAAA 记录。Railway 公网健康接口仍 HTTP 200，正式应用和采集服务继续保留。
 - 正式切换仍有两个入口依赖：Cloudflare 管理页需要账号登录；账单采集依赖的 `OPS_CAPTURE_WORKER_URL` 是 Railway 私网，在杭州解析不到，不公开采集服务来解决。Railway 现有 Edge Rules 管理器可用且为空，旧版 TestFlight 的入口可以规划以临时跳转接到主域；还需真实客户端验证并处理原域会话、缓存和未完成请求。未保存任何边缘规则，原有已暂存的 Railway 配置也未提交。
 - 切换门槛：先验证私有采集连接、其他项目入口以及主域 HTTPS 访问，再让旧入口停止接受新的写入，排空执行中的保存和识别任务，验证末次快照后由杭州单独接管。确认旧版 TestFlight 能到达同一个写入端，并实测登录、转写、保存及回读。正式切流前本次快照只支持人工恢复至 06:34:51；该时刻之后的写入仍在 Railway，未开启自动故障切换。
+
+
+## 2026-11-07 正式切换收据
+
+- 已通过登录后的 Cloudflare 控制台核对原有记录、保留验证和邮件记录，新增代理 A（`hoooho.com` → 杭州 ECS）和代理 CNAME（`www` → 主域）。原 SSL 模式保持 Full (strict)。先用不读写用户数据的源站健康页验通公网，再切换应用。
+- 用原有受信 SSH 通道把杭州回环端口 `19082` 连至 Railway 账单采集私网；`hoooho-private-billing-link.service` 持久启动及重连，采集服务无公网入口。实测匿名请求 401、带原有服务授权读取元数据 200。家庭及情感记愁诗的路由也与旧入口返回一致；其独立服务、账号及数据未迁。
+- 07:05:59 确认旧 Railway 公网入口写入隔离。07:06:21 取得排空后的最后快照；验证 198 个文件、4 个 SQLite 数据库、35 个附件对象，识别队列及发布 outbox 均为 0。保留独立封存副本，运行目录为 `/opt/hoooho/migration-20261106/cutover-20261107/final/runtime-data`。07:06:32 将 Nginx 指向 `hoooho-health-hangzhou-production-20261107`（回环端口 13005），已通过公网健康、首页、登录状态接口和总控台的 HTTP 检查。首页 HTML 含备案号和工信部链接。
+- Railway 项目、运行容器和卷均保留，未应用原先暂存的其他配置。Railway 边缘只允许旧域上的 `/sw.js`；原域 API 返回 409，其余导航暂时 302 至主域。已实测旧地址跳转、www 跳转与主域 TLS。2026-11-07 07:12:26（北京时间）主域健康 200、旧域启动脚本 200、旧 API 409、账单私网正常。
+- 对曾缓存旧前端的浏览器，替换旧 Railway 容器中唯一的 `/app/dist/sw.js` 为导航兼容脚本，不清理浏览器存储。原脚本在同一 Railway 实例的 `/tmp/hoooho-original-sw-20261107.js`，同版 ECS 目录也有原构建副本。已从出现旧离线页的浏览器点击重新连接，实际跳到主域并显示新页面。已安装 TestFlight 使用同一旧入口，手机真机仍待确认；不同域的登录会话可能需要重新登录。旧 Railway 若重新部署，需回读 `/sw.js` 的迁移标记并恢复脚本，避免旧缓存兼容回退。
+- 杭州是唯一正式用户写入端。旧 Railway 保留切换时的数据，不是实时副本。若切回，先挡住杭州写入并核对切换后的增量及附件，验证反向恢复；然后恢复旧启动脚本和 Railway 路由。不可单独改 DNS 或解开旧入口写入。
+
+旧入口导航兼容脚本：
+
+```js
+/* HOOOHO_ORIGIN_MOVE_20261107 */
+self.addEventListener('install', event => event.waitUntil(self.skipWaiting()));
+self.addEventListener('activate', event => event.waitUntil(self.clients.claim()));
+self.addEventListener('fetch', event => {
+  if (event.request.mode !== 'navigate') return;
+  const destination = new URL(event.request.url);
+  if (destination.origin !== self.location.origin) return;
+  destination.protocol = 'https:';
+  destination.host = 'hoooho.com';
+  event.respondWith(Promise.resolve(Response.redirect(destination.href, 302)));
+});
+```
