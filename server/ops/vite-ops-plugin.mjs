@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { CaptureWorkerClient, handleCaptureApi } from './capture-worker-client.mjs'
 import { OpsWorkspaceService } from './workspace-service.mjs'
+import { readProductionWorkflow } from './production-workflow.mjs'
 import { createBillingCollectors } from './capture-collectors.mjs'
 import { parseJsonObject } from '../json-input.mjs'
 import { OPS_SNAPSHOT_REQUEST_MAX_LENGTH, OpsService, assertOpsAccess } from './ops-service.mjs'
@@ -59,6 +60,7 @@ export function opsApiPlugin(options = {}) {
       if (await handleCaptureApi({ request, response, pathname, readJson, send, vault: captureWorker, ops: service, actorId: payload.sub })) return
       if (pathname === '/api/ops/services' && request.method === 'GET') return send(response, 200, await workspace.services())
       if (pathname === '/api/ops/resources' && request.method === 'GET') return send(response, 200, await resources.overview())
+      if (pathname === '/api/ops/workflow' && request.method === 'GET') return send(response, 200, readProductionWorkflow({ captureWorker }))
       if (pathname === '/api/ops/versions' && request.method === 'GET') return send(response, 200, await workspace.versions())
       if (pathname === '/api/ops/settings' && request.method === 'GET') return send(response, 200, await workspace.settings())
       if (pathname === '/api/ops/settings' && request.method === 'PATCH') return send(response, 200, await workspace.saveSettings(await readJson(request)))

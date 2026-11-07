@@ -45,6 +45,7 @@ import { MedicalSummaryError } from './ai/medical-summary-service.mjs'
 import { SafeAIProviderError } from './ai/providers/provider-config.mjs'
 import { CaptureWorkerClient, handleCaptureApi } from './ops/capture-worker-client.mjs'
 import { OpsWorkspaceService } from './ops/workspace-service.mjs'
+import { readProductionWorkflow } from './ops/production-workflow.mjs'
 import { createBillingCollectors } from './ops/capture-collectors.mjs'
 import { OPS_SNAPSHOT_REQUEST_MAX_LENGTH, OpsService, assertOpsAccess, startOpsScheduler } from './ops/ops-service.mjs'
 import { FeedbackService } from './help/feedback-service.mjs'
@@ -279,6 +280,7 @@ async function handleOps(request, response, pathname) {
   else if (pathname === '/api/ops/analytics' && request.method === 'GET') sendJson(response, 200, productAnalytics.report(new URL(request.url, 'http://localhost').searchParams))
   else if (pathname === '/api/ops/services' && request.method === 'GET') sendJson(response, 200, await opsWorkspace.services())
   else if (pathname === '/api/ops/resources' && request.method === 'GET') sendJson(response, 200, await resources.overview())
+  else if (pathname === '/api/ops/workflow' && request.method === 'GET') sendJson(response, 200, readProductionWorkflow({ audioTranscription, liveAudioPreview, captureWorker }))
   else if (pathname === '/api/ops/versions' && request.method === 'GET') sendJson(response, 200, await opsWorkspace.versions())
   else if (pathname === '/api/ops/settings' && request.method === 'GET') sendJson(response, 200, await opsWorkspace.settings())
   else if (pathname === '/api/ops/settings' && request.method === 'PATCH') sendJson(response, 200, await opsWorkspace.saveSettings(await readJson(request)))
