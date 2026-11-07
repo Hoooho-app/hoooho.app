@@ -1,6 +1,11 @@
 name: Upload iOS to TestFlight
 on:
   workflow_dispatch:
+    inputs:
+      seed_testflight:
+        description: "Build the owner-only Hangzhou Seed TestFlight"
+        type: boolean
+        default: false
 permissions:
   contents: read
   actions: read
@@ -16,6 +21,7 @@ jobs:
       IOS_BUNDLE_ID: ${{ vars.IOS_BUNDLE_ID }}
       IOS_TEAM_ID: ${{ vars.IOS_TEAM_ID }}
       ASC_APP_ID: ${{ vars.ASC_APP_ID }}
+      HOOOHO_SEED_TESTFLIGHT_BUILD: ${{ inputs.seed_testflight && '1' || '0' }}
       ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
       ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
       ASC_API_KEY_P8: ${{ secrets.ASC_API_KEY_P8 }}
