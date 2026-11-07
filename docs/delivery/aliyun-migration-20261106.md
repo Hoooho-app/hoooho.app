@@ -71,3 +71,9 @@ self.addEventListener('fetch', event => {
   event.respondWith(Promise.resolve(Response.redirect(destination.href, 302)));
 });
 ```
+
+
+## 2026-11-07 11:30 后：TestFlight 文字回复排查
+
+- 生产仍是百炼 `qwen3.7-plus-2026-05-26`，未切换模型。早上杭州主机全局 OOM 杀掉生产 Node，容器重启 6 次（最新 08:29），发现一条处理暂停、保留原输入的前台任务。核验只读，不改该任务。已有 2 GiB 交换空间在事故时全部空闲，运行时 `vm.swappiness` 从 0 临时调到 15，可用 `sysctl -w vm.swappiness=0` 回退；未重启，未写永久系统配置。这只是降低内存压力的缓解，尚无相同负载下不再中断的验证。
+- 同发布、同千问配置、隔离临时数据的真实请求：普通能力问题和单独症状陈述各返回一条完整回复；一条混合症状和追问的请求由千问成功返回，但业务来源校验拒绝（`FRONT_RECORD_REPLY_INVALID`）。未放宽校验，未对真实账号写入，生产健康检查 200。真机测试提示：新开对话输入短问题，原暂停任务可点继续处理。
