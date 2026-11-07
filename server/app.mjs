@@ -71,6 +71,7 @@ import { NurseService, nurseApiResult } from './ai/nurse-service.mjs'
 import {RecognitionJobs,recognitionRoute,recognitionApi,recognitionDiagnostics} from './ai/recognition-jobs.mjs'
 import { LiveAudioPreviewService,liveAudioPreviewApiResult } from './ai/live-audio-preview.mjs'
 import { FrontDeskRecord } from './ai/front-desk-record.mjs'
+import { createSeedTestflightTrial, seedTrialPath } from './ai/seed-testflight-trial.mjs'
 import { caseApiResult } from './events/case-api.mjs'
 import { createFoodLabelService, foodLabelApi } from './food-label/api.mjs'
 import {ChildProfileListService} from './health-profile/child-profile-list-service.mjs'
@@ -166,6 +167,7 @@ const familySharing = new FamilySharingService({ ...sharedOptions, attachmentRea
 const caseContinuity = new CaseContinuityService({ ...sharedOptions, business: aiBusiness })
 const nurse = new NurseService({ ...sharedOptions, events })
 const frontDeskRecord = new FrontDeskRecord({ ...sharedOptions, events, business: aiBusiness })
+const seedTestflightTrial = createSeedTestflightTrial()
 const recognitionJobs=new RecognitionJobs({...sharedOptions,events,business:aiBusiness,frontDesk:frontDeskRecord,audio:audioTranscription})
 aiBusiness.assertRecognitionCurrent=draft=>recognitionJobs.assertCurrent(draft)
 const aiDraftCleanup=setInterval(()=>{void aiBusiness.prune().catch(()=>console.warn('[Hoooho AI] temporary draft cleanup unavailable'))},15*60_000)
@@ -953,6 +955,17 @@ async function handleApi(request, response, pathname, searchParams) {
     return true
   }
   if (await handleAuth(request, response, pathname)) return true
+  if (pathname===seedTrialPath) {
+    if (!['GET','POST'].includes(request.method)) {
+      sendJson(response,405,{error:{code:'METHOD_NOT_ALLOWED',message:'仅支持 GET / POST'}});return true
+    }
+    const user=await auth.users.findById(await readAccountId(request)), status=seedTestflightTrial.status(user)
+    if(request.method==='GET'){sendJson(response,200,status);return true}
+    browserSessions.assertSameOrigin(request)
+    if(!status.available){sendJson(response,404,{error:{code:'SEED_TRIAL_NOT_FOUND',message:'内测入口未开放'}});return true}
+    const result=await seedTestflightTrial.run(user,await readJson(request,64),requestSignal(request,response))
+    sendJson(response,200,result);return true
+  }
   if (await handleOpsFeedback(request, response, pathname, searchParams)) return true
   if (await handleOps(request, response, pathname)) return true
   if (await handleFeedback(request, response, pathname, searchParams)) return true

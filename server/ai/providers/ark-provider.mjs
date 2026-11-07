@@ -8,6 +8,10 @@ import { readOpenAIErrorDetails } from './openai-error.mjs'
 
 const baseUrl = 'https://ark.cn-beijing.volces.com/api/v3'
 const model = 'doubao-seed-2-1-pro-260915'
+export const seedCorrectionCase = Object.freeze([
+  '孩子昨晚八点咳嗽三次，没有发烧。',
+  '发生时间改为前天晚上八点。咳嗽三次、没有发烧不变。先不补充了。'
+])
 const fail = (code,message) => configurationError(message,code)
 const invalid = () => fail('AI_INPUT_INVALID','方舟请求格式无效，原内容保留')
 const ajv = new Ajv({strict:false,allowUnionTypes:true})
@@ -26,17 +30,15 @@ function validate(schema,value) {
 
 // Existing consumers use Responses-shaped requests. This adapter only sends
 // to Ark's pinned chat-completions endpoint; it never uses OpenAI credentials.
-export class ArkProvider extends OpenAIProvider {
+class ArkChatTransport extends OpenAIProvider {
   name = 'ark'
-  constructor(options = {}) {
+  constructor(options, apiKey, fixture = false) {
     const env = options.env ?? process.env
-    requireDomesticTrial(env)
-    const apiKey = env.ARK_API_KEY
     if (typeof apiKey !== 'string' || !apiKey.trim()) throw fail('AI_NOT_CONFIGURED','未配置火山方舟 ARK_API_KEY')
     super({...options,apiKey,model,baseUrl})
     this.visionModel = model
     this.requestTimeoutMs = 60000
-    const fetchImpl = meteredFetch(options.fetchImpl ?? fetch,'ark',model)
+    const fetchImpl = fixture ? options.fetchImpl ?? fetch : meteredFetch(options.fetchImpl ?? fetch,'ark',model)
     this.fetch = async (url,init={}) => {
       if (url !== `${baseUrl}/responses` || ['document-page','front-desk-visual-source'].includes(init.task)) throw fail('AI_MODALITY_NOT_CONFIGURED','检查单需经私有 OCR，录音需经独立 ASR')
       let body
@@ -45,6 +47,12 @@ export class ArkProvider extends OpenAIProvider {
       if (format?.type !== 'json_schema' || !format.schema || typeof format.name !== 'string' || body.model && body.model !== model) throw invalid()
       const input = typeof body.input === 'string' ? [{role:'user',content:[{type:'input_text',text:body.input}]}] : body.input
       if (!Array.isArray(input) || !input.length || (body.instructions != null && typeof body.instructions !== 'string')) throw invalid()
+      if(fixture){
+        const [entry]=input, part=entry?.content?.[0]
+        let fixtureInput
+        try { fixtureInput=JSON.parse(part?.text) } catch { throw invalid() }
+        if(init.task!=='front-desk-dialogue'||input.length!==1||entry?.role!=='user'||entry.content?.length!==1||part?.type!=='input_text'||!seedCorrectionCase.includes(fixtureInput?.latest?.text))throw invalid()
+      }
       let images=0, characters=body.instructions?.length??0
       const messages=input.map(item=>{
         if(item?.role!=='user'||!Array.isArray(item.content))throw invalid()
@@ -56,7 +64,7 @@ export class ArkProvider extends OpenAIProvider {
       })
       if(images>1||characters>65000)throw fail('AI_INPUT_LIMIT','资料超过本次模型输入限制，未截断原内容')
       const deadline=AbortSignal.timeout(60000), parent=linkedAISignal(init.signal), signal=parent?AbortSignal.any([parent,deadline]):deadline
-      return controlledCall(async()=>{
+      const request=async()=>{
         signal.throwIfAborted()
         const response=await fetchImpl(`${baseUrl}/chat/completions`,{
           method:'POST',redirect:'error',signal,
@@ -73,7 +81,28 @@ export class ArkProvider extends OpenAIProvider {
         const content=choice.message.content
         try { if(content.length>100000||!validate(format.schema,JSON.parse(content)))throw new Error() } catch { throw fail('AI_OUTPUT_INVALID','方舟输出未通过结构核验，原内容保留') }
         return Response.json({output:[{content:[{type:'output_text',text:content}]}],usage:{input_tokens:payload.usage?.prompt_tokens,output_tokens:payload.usage?.completion_tokens}})
-      },env)
+      }
+      // Fixture runs have their own strict budget, and must not occupy a
+      // production dialogue slot or write to production account usage.
+      return fixture ? request() : controlledCall(request,env)
     }
   }
+}
+
+export class ArkProvider extends ArkChatTransport {
+  constructor(options = {}) {
+    const env = options.env ?? process.env
+    requireDomesticTrial(env)
+    super(options,env.ARK_API_KEY)
+  }
+}
+
+// Used only by the fixed-case runner with an empty, disposable data directory.
+// No other task, free text, attachment, or model version is accepted here.
+export function createSeedCorrectionTrialProvider(apiKey, fetchImpl) {
+  let requests=0
+  return new ArkChatTransport({fetchImpl:async (...args)=>{
+    if(++requests>seedCorrectionCase.length)throw fail('AI_TRIAL_LIMIT','本次内测调用次数已达上限')
+    return (fetchImpl??fetch)(...args)
+  }},apiKey,true)
 }
