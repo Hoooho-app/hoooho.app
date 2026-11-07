@@ -3,9 +3,12 @@ import Foundation
 enum NavigationDestination: Equatable { case app, download, external, blocked }
 
 enum NavigationPolicy {
-    // Use the same Production service while the canonical domain is offline for ICP filing.
-    static let home = URL(string: "https://hooohoapp-production.up.railway.app/nurse-station")!
+    static let home = URL(string: "https://hoooho.com/nurse-station")!
+    #if HOOOHO_SEED_TESTFLIGHT
+    private static let trustedHosts: Set<String> = ["hoooho.com"]
+    #else
     private static let trustedHosts: Set<String> = ["hoooho.com", "hooohoapp-production.up.railway.app"]
+    #endif
     static func bridgeTrusted(scheme: String, host: String, port: Int, pageURL: URL?) -> Bool {
         scheme == "https" && trustedHosts.contains(host) && (port == 0 || port == 443) &&
             trusted(pageURL) && pageURL?.host?.lowercased() == host

@@ -9,7 +9,7 @@ final class LaunchTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["暂时无法打开护护"].waitForExistence(timeout: 20))
         let diagnostic = app.staticTexts["hoooho.startupDiagnostic"]
         XCTAssertTrue(diagnostic.label.contains("NSURLErrorDomain · -1009"))
-        XCTAssertTrue(diagnostic.label.contains("hooohoapp-production.up.railway.app"))
+        XCTAssertTrue(diagnostic.label.contains("hoooho.com"))
         XCTAssertTrue(app.buttons["打开App系统设置"].exists)
         XCTAssertTrue(app.buttons["用Safari检查启动地址"].exists)
         XCTAssertTrue(app.buttons["复制诊断信息"].exists)
