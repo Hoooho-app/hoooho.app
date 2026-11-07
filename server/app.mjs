@@ -12,7 +12,7 @@ import { familySharingRoute, familySharingResult, FAMILY_SHARING_BODY_LIMIT } fr
 import { CareToolsService } from './care-tools/service.mjs'
 import { careToolsRoute, careToolsResult, CARE_TOOLS_BODY_LIMIT } from './care-tools/api.mjs'
 import {withAITrace,safeTraceId,aiRequestOperation,bypassAccountRequestLock,safeClientTiming} from './ai/providers/telemetry.mjs'
-import { createSeedHomeScope, isSeedHomeBuild, seedHomeRequest, seedHomeStatus, seedHomeStatusPath, seedHomeRoute } from './ai/providers/seed-home-scope.mjs'
+import { createSeedHomeScope, currentSeedHome, isSeedHomeBuild, seedHomeRequest, seedHomeStatus, seedHomeStatusPath, seedHomeRoute } from './ai/providers/seed-home-scope.mjs'
 import { createSeedHomeDialogueProvider } from './ai/providers/ark-provider.mjs'
 import { SeedASRProvider, seedASRConfiguration, seedASRModel } from './ai/providers/seed-asr-provider.mjs'
 import { resolveBusinessAssetInput } from './ai/business/asset-input.mjs'
@@ -73,7 +73,8 @@ import { AIBusinessService } from './ai/business/service.mjs'
 import { CaseContinuityService } from './events/case-continuity-service.mjs'
 import { NurseService, nurseApiResult } from './ai/nurse-service.mjs'
 import {RecognitionJobs,recognitionRoute,recognitionApi,recognitionDiagnostics} from './ai/recognition-jobs.mjs'
-import { LiveAudioPreviewService,liveAudioPreviewApiResult } from './ai/live-audio-preview.mjs'
+import { liveAudioPreviewApiResult } from './ai/live-audio-preview.mjs'
+import { createLiveAudioPreviewService, SeedLiveAudioPreviewService } from './ai/seed-live-audio-preview.mjs'
 import { FrontDeskRecord } from './ai/front-desk-record.mjs'
 import { createSeedTestflightTrial, seedTrialPath } from './ai/seed-testflight-trial.mjs'
 import { caseApiResult } from './events/case-api.mjs'
@@ -123,7 +124,9 @@ const account = new AccountService({ ...sharedOptions, auth, users: auth.users, 
 const members = new FamilyMemberService(sharedOptions)
 const organizations = new HealthRecordOrganizationService(sharedOptions)
 const audioTranscription = new AudioTranscriptionService(sharedOptions)
-const liveAudioPreview=new LiveAudioPreviewService({assertMember:(accountId,memberId)=>members.get(accountId,memberId)})
+const livePreviewOptions = { assertMember: (accountId,memberId) => members.get(accountId,memberId) }
+const liveAudioPreview = createLiveAudioPreviewService(livePreviewOptions)
+const seedLiveAudioPreview = new SeedLiveAudioPreviewService(livePreviewOptions)
 const events = new HealthEventService({ ...sharedOptions, summaryRefresher: organizations })
 const records = new HealthEventRecordService({ ...sharedOptions, organizations })
 const attachments = new EventAttachmentService(sharedOptions)
@@ -810,7 +813,8 @@ async function handleHealthProfileFacts(request, response, pathname, searchParam
 
 async function handleAudioTranscription(request, response, pathname) {
   if(/^\/api\/ai\/audio\/live(?:\/|$)/.test(pathname)){
-    const result=await liveAudioPreviewApiResult(liveAudioPreview,await readAccountId(request),request.method,pathname,limit=>readJson(request,limit),requestSignal(request,response))
+    const preview = currentSeedHome() ? seedLiveAudioPreview : liveAudioPreview
+    const result=await liveAudioPreviewApiResult(preview,await readAccountId(request),request.method,pathname,limit=>readJson(request,limit),requestSignal(request,response))
     if(result)sendJson(response,result.status,result.data);else sendJson(response,404,{error:{code:'ASR_LIVE_NOT_FOUND',message:'实时文字已结束'}})
     return true
   }
@@ -1284,6 +1288,7 @@ function shutdown(signal) {
   shuttingDown = true
   console.info(`[Hoooho] received ${signal}, shutting down`)
   liveAudioPreview.destroy()
+  seedLiveAudioPreview.destroy()
   void recognitionJobs.close()
   stopOpsScheduler()
   stopResourceMonitor()

@@ -5,7 +5,7 @@ import { gzipSync, gunzipSync } from 'node:zlib'
 import { createAIProvider,createAudioProvider } from './provider-factory.mjs'
 import { createDialogueProvider } from './dialogue-provider.mjs'
 import { recognizePage } from '../business/documents.mjs'
-import { LiveAudioPreviewService } from '../live-audio-preview.mjs'
+import { SeedLiveAudioPreviewService } from '../seed-live-audio-preview.mjs'
 import { BusinessModel } from '../business/model.mjs'
 import { AIBusinessService } from '../business/service.mjs'
 import { FamilyMemberRepository } from '../../members/repositories/family-member-repository.mjs'
@@ -129,7 +129,7 @@ test('final Seed audio waits for the last frame; no member details or filename i
 })
 
 test('live Seed previews are replaceable and closed on cancellation, not final evidence',async t=>{
-  const socket=new Socket(),service=new LiveAudioPreviewService({env,assertMember:async()=>{},socketFactory:(url,init)=>{
+  const socket=new Socket(),service=new SeedLiveAudioPreviewService({env,assertMember:async()=>{},socketFactory:(url,init)=>{
     assert.match(url,/bigmodel_async$/);assert.equal(init.followRedirects,false)
     setImmediate(()=>socket.emit('open'));return socket
   }})

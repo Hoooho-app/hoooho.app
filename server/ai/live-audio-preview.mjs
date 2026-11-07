@@ -1,8 +1,6 @@
 import { Agent } from 'node:https'
 import { randomUUID } from 'node:crypto'
 import { bailianConfiguration } from './providers/provider-config.mjs'
-import { seedASRConfiguration, seedASRModel, seedLiveSocket } from './providers/seed-asr-provider.mjs'
-import { currentSeedHome } from './providers/seed-home-scope.mjs'
 
 const failure = (message, status = 503, code = 'ASR_LIVE_UNAVAILABLE') => Object.assign(new Error(message), { status, code })
 const unavailable = () => failure('实时文字暂不可用，录音仍在继续，松开后会完整整理')
@@ -27,20 +25,17 @@ export class LiveAudioPreviewService {
     this.calls = new Map()
   }
   configuration() {
-    const seed = currentSeedHome()
-    if (seed) return {...seed.models.liveAudio(),model:seedASRModel}
-    if(this.env.ASR_PROVIDER==='seed')return {...seedASRConfiguration(this.env),model:seedASRModel}
     if ((this.env.ASR_PROVIDER ?? this.env.AI_PROVIDER) !== 'bailian') throw unavailable()
     const config = bailianConfiguration({ env: this.env })
     const url = new URL(config.baseUrl)
     url.protocol = 'wss:'
     url.pathname = '/api-ws/v1/realtime'
     url.searchParams.set('model', MODEL)
-    return { url: url.href, apiKey: config.apiKey, model:MODEL }
+    return { url: url.href, apiKey: config.apiKey }
   }
   capabilities() {
-    try { return { configured: true, model: this.configuration().model } }
-    catch { return { configured: false, model: currentSeedHome()||this.env.ASR_PROVIDER==='seed'?seedASRModel:MODEL } }
+    try { this.configuration(); return { configured: true, model: MODEL } }
+    catch { return { configured: false, model: MODEL } }
   }
   snapshot(session) {
     const text = [...session.final.values(), ...session.partial.values()].join('').slice(0, 15000)
@@ -79,7 +74,7 @@ export class LiveAudioPreviewService {
         factory = (url, options) => new WebSocket(url, options)
       }
       signal?.throwIfAborted()
-      const socket = config.model===seedASRModel?seedLiveSocket(factory,config,this.agent):factory(config.url, { headers: { Authorization: `Bearer ${config.apiKey}` }, agent:this.agent, handshakeTimeout: this.connectTimeoutMs, maxPayload: 65536, followRedirects: false })
+      const socket = factory(config.url, { headers: { Authorization: `Bearer ${config.apiKey}` }, agent:this.agent, handshakeTimeout: this.connectTimeoutMs, maxPayload: 65536, followRedirects: false })
       session = { id: randomUUID(), accountId, memberId, socket, started: this.now(), final: new Map(), partial: new Map(), state: 'connecting', revision: 0, sequence: -1, bytes: 0, closed: false }
       this.sessions.set(session.id, session)
       session.timer = setTimeout(() => this.remove(session), this.sessionTtlMs)

@@ -3,7 +3,7 @@ import { test } from 'node:test'
 import { EventEmitter } from 'node:events'
 import { createSeedHomeScope, currentSeedHome, seedHomeRequest, seedHomeStatus, withSeedHome } from './seed-home-scope.mjs'
 import { SeedASRProvider, seedASRConfiguration } from './seed-asr-provider.mjs'
-import { LiveAudioPreviewService } from '../live-audio-preview.mjs'
+import { SeedLiveAudioPreviewService } from '../seed-live-audio-preview.mjs'
 
 const env = {
   NODE_ENV: 'production',
@@ -94,7 +94,7 @@ test('the live and final speech paths call the two pinned Seed ASR endpoints', a
     setImmediate(() => socket.emit('open'))
     return socket
   }
-  const preview = new LiveAudioPreviewService({ env, socketFactory, assertMember: async () => {} })
+  const preview = new SeedLiveAudioPreviewService({ env, socketFactory, assertMember: async () => {} })
   t.after(() => preview.destroy())
   const final = new SeedASRProvider({ env, seedHome: true, seedSocketFactory: socketFactory, prepareSeedAudio: async () => Buffer.alloc(6400) })
   const run = createSeedHomeScope({
