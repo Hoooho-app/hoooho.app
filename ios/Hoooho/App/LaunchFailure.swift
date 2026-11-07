@@ -28,6 +28,9 @@ struct LaunchFailure {
     static func contentProcessEnded(bundle: Bundle = .main) -> LaunchFailure {
         LaunchFailure(message: "页面运行已中断，请重新连接。已保存的数据和本机存储会保留。", diagnostic: diagnostic(bundle: bundle, code: "WebKit · 内容进程结束"))
     }
+    static func seedTestFlightUnavailable(bundle: Bundle = .main) -> LaunchFailure {
+        LaunchFailure(message: "杭州的 Seed 内测服务尚未就绪，请稍后重新连接。", diagnostic: diagnostic(bundle: bundle, code: "Seed TestFlight · 服务待就绪"))
+    }
     private static func diagnostic(bundle: Bundle, code: String) -> String {
         let version = bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "未知"
         let build = bundle.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "未知"

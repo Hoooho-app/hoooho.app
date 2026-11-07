@@ -3,8 +3,8 @@ import XCTest
 
 final class NavigationPolicyTests: XCTestCase {
     private let productionHosts = ["hoooho.com", "hooohoapp-production.up.railway.app"]
-    func testStartupUsesTheAvailableRailwayProductionEntry() {
-        XCTAssertEqual(NavigationPolicy.home.absoluteString, "https://hooohoapp-production.up.railway.app/nurse-station")
+    func testStartupUsesTheCanonicalProductionEntry() {
+        XCTAssertEqual(NavigationPolicy.home.absoluteString, "https://hoooho.com/nurse-station")
         XCTAssertEqual(NavigationPolicy.destination(NavigationPolicy.home), .app)
     }
     func testCaptureCannotBeGrantedToAnUntrustedOriginOrFrame() {

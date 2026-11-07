@@ -4,6 +4,9 @@ import SafariServices
 
 final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler, WKDownloadDelegate {
     private var webView: WKWebView!
+    #if HOOOHO_SEED_TESTFLIGHT
+    private var seedStartup: Task<Void, Never>?
+    #endif
     private let progress = UIActivityIndicatorView(style: .medium)
     private let retryButton = UIButton(type: .system)
     private let failureScroll = UIScrollView()
@@ -27,6 +30,9 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
         super.viewDidLoad()
         view.backgroundColor = AppAppearance.paperBackground
         let config = WKWebViewConfiguration()
+        #if HOOOHO_SEED_TESTFLIGHT
+        config.applicationNameForUserAgent = "HooohoSeedTestFlight/1"
+        #endif
         config.websiteDataStore = .default()
         config.allowsInlineMediaPlayback = true
         config.mediaTypesRequiringUserActionForPlayback = []
@@ -77,8 +83,41 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
             return
         }
         #endif
-        webView.load(LaunchFailure.startupRequest)
+        openPage()
     }
+
+    private func openPage(reload: Bool = false) {
+        #if HOOOHO_SEED_TESTFLIGHT
+        seedStartup?.cancel()
+        seedStartup = Task { [weak self] in
+            guard let self else { return }
+            let url = URL(string: "https://hoooho.com/api/seed-testflight-home/status")!
+            let request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 12)
+            do {
+                let (data, response) = try await URLSession.shared.data(for: request)
+                guard !Task.isCancelled else { return }
+                let status = try JSONDecoder().decode(SeedHomeStatus.self, from: data)
+                guard let http = response as? HTTPURLResponse, http.statusCode == 200,
+                      http.url == url, status.route == "seed-testflight-home-v1", status.ready else {
+                    self.showLaunchFailure(.seedTestFlightUnavailable())
+                    return
+                }
+                if reload { self.webView.reload() } else { self.webView.load(LaunchFailure.startupRequest) }
+            } catch {
+                if !Task.isCancelled { self.showLaunchFailure(.seedTestFlightUnavailable()) }
+            }
+        }
+        #else
+        if reload { webView.reload() } else { webView.load(LaunchFailure.startupRequest) }
+        #endif
+    }
+
+    #if HOOOHO_SEED_TESTFLIGHT
+    private struct SeedHomeStatus: Decodable {
+        let route: String
+        let ready: Bool
+    }
+    #endif
 
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
@@ -153,7 +192,7 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
             return
         }
         #endif
-        if hasLoadedPage { webView.reload() } else { webView.load(LaunchFailure.startupRequest) }
+        openPage(reload: hasLoadedPage)
     }
     @objc private func openAppSettings() {
         guard let url = URL(string: UIApplication.openSettingsURLString) else { return }

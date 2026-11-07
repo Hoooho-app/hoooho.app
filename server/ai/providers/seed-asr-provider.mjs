@@ -5,17 +5,20 @@ import { gzipSync, gunzipSync } from 'node:zlib'
 import { configurationError, requireDomesticTrial } from './provider-config.mjs'
 import { controlledCall } from './call-control.mjs'
 import { linkedAISignal } from './telemetry.mjs'
+import { assertSeedHomeEnabled } from './seed-home-scope.mjs'
 
 const unavailable = () => configurationError('豆包语音暂不可用，请重试或继续文字记录','ASR_SEED_UNAVAILABLE')
 const maxPcm = 91*32000
 export const seedASRModel = 'seed-asr-2.0'
 const endpoint = 'wss://openspeech.bytedance.com/api/v3/sauc/'
-const rawHeaders = (apiKey,id) => ({'X-Api-Key':apiKey,'X-Api-Resource-Id':'volc.seedasr.sauc.duration','X-Api-Connect-Id':id})
+const rawHeaders = (apiKey,id) => ({'X-Api-Key':apiKey,'X-Api-Resource-Id':'volc.seedasr.sauc.duration','X-Api-Request-Id':id,'X-Api-Connect-Id':id})
 
-export function seedASRConfiguration(env=process.env) {
-  requireDomesticTrial(env)
-  if(typeof env.DOUBAO_ASR_API_KEY!=='string'||!env.DOUBAO_ASR_API_KEY.trim())throw configurationError('未配置豆包语音 DOUBAO_ASR_API_KEY','ASR_NOT_CONFIGURED')
-  return {apiKey:env.DOUBAO_ASR_API_KEY}
+export function seedASRConfiguration(env=process.env, seedHome=false) {
+  if (seedHome) assertSeedHomeEnabled(env)
+  else requireDomesticTrial(env)
+  const apiKey = env.DOUBAO_ASR_API_KEY?.trim()
+  if(!apiKey)throw configurationError('Seed TestFlight 尚未配置豆包语音转写','ASR_NOT_CONFIGURED')
+  return {apiKey}
 }
 
 function frame(type,flags,json,bytes) {
@@ -94,7 +97,7 @@ export class SeedASRProvider {
   name='seed-asr'
   model=seedASRModel
   constructor(options={}) {
-    this.env=options.env??process.env;this.config=seedASRConfiguration(this.env)
+    this.env=options.env??process.env;this.config=seedASRConfiguration(this.env, options.seedHome === true)
     this.socketFactory=options.seedSocketFactory??defaultSocket
     this.prepareAudio=options.prepareSeedAudio??decodePcm
   }

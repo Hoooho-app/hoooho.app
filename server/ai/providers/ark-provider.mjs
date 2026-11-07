@@ -5,6 +5,7 @@ import { controlledCall } from './call-control.mjs'
 import { linkedAISignal } from './telemetry.mjs'
 import { meteredFetch } from '../../usage/ai-meter.mjs'
 import { readOpenAIErrorDetails } from './openai-error.mjs'
+import { assertSeedHomeEnabled } from './seed-home-scope.mjs'
 
 const baseUrl = 'https://ark.cn-beijing.volces.com/api/v3'
 const model = 'doubao-seed-2-1-pro-260915'
@@ -95,6 +96,12 @@ export class ArkProvider extends ArkChatTransport {
     requireDomesticTrial(env)
     super(options,env.ARK_API_KEY)
   }
+}
+
+export function createSeedHomeDialogueProvider(options = {}) {
+  const env = options.env ?? process.env
+  assertSeedHomeEnabled(env)
+  return new ArkChatTransport(options, env.HOOOHO_SEED_TRIAL_API_KEY?.trim())
 }
 
 // Used only by the fixed-case runner with an empty, disposable data directory.

@@ -2,6 +2,7 @@ import { Agent } from 'node:https'
 import { randomUUID } from 'node:crypto'
 import { bailianConfiguration } from './providers/provider-config.mjs'
 import { seedASRConfiguration, seedASRModel, seedLiveSocket } from './providers/seed-asr-provider.mjs'
+import { currentSeedHome } from './providers/seed-home-scope.mjs'
 
 const failure = (message, status = 503, code = 'ASR_LIVE_UNAVAILABLE') => Object.assign(new Error(message), { status, code })
 const unavailable = () => failure('实时文字暂不可用，录音仍在继续，松开后会完整整理')
@@ -26,6 +27,8 @@ export class LiveAudioPreviewService {
     this.calls = new Map()
   }
   configuration() {
+    const seed = currentSeedHome()
+    if (seed) return {...seed.models.liveAudio(),model:seedASRModel}
     if(this.env.ASR_PROVIDER==='seed')return {...seedASRConfiguration(this.env),model:seedASRModel}
     if ((this.env.ASR_PROVIDER ?? this.env.AI_PROVIDER) !== 'bailian') throw unavailable()
     const config = bailianConfiguration({ env: this.env })
@@ -37,7 +40,7 @@ export class LiveAudioPreviewService {
   }
   capabilities() {
     try { return { configured: true, model: this.configuration().model } }
-    catch { return { configured: false, model: this.env.ASR_PROVIDER==='seed'?seedASRModel:MODEL } }
+    catch { return { configured: false, model: currentSeedHome()||this.env.ASR_PROVIDER==='seed'?seedASRModel:MODEL } }
   }
   snapshot(session) {
     const text = [...session.final.values(), ...session.partial.values()].join('').slice(0, 15000)
