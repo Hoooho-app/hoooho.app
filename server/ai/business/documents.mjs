@@ -3,11 +3,14 @@ import { PDFDocument } from 'pdf-lib'
 import sharp from 'sharp'
 import { fingerprint, fail } from './contract.mjs'
 import { pdfPageImage } from './pdf-page-image.mjs'
+import { paddleModel, privateOCRSelected, readPrivateDocumentPage } from '../providers/paddleocr-provider.mjs'
 
 export const ocrSchema={type:'object',additionalProperties:false,required:['text','status'],properties:{text:{type:'string'},status:{type:'string',enum:['readable','uncertain','blank']}}}
 // Configuration belongs to the cache identity; successful blank/uncertain pages
 // are checkpoints too. Increment contract versions when render/prompt changes.
-export const recognitionKey=(page,model)=>fingerprint([page.hash,'page-render-v1',model.frontDeskVisual?'source-aware-visual-v2':'verbatim-ocr-v2',model.frontDeskVisual?visualSchema:ocrSchema,model.provider?.name??'custom',model.provider?.baseUrl??null,model.provider?.name==='openai'?(process.env.AI_VISION_MODEL||model.provider?.model||null):(model.provider?.visionModel??model.provider?.model??null)])
+export const recognitionKey=(page,model)=>privateOCRSelected(model.env)
+  ?fingerprint([page.hash,'private-paddle-page-v1',paddleModel,(model.env??process.env).PADDLE_OCR_URL??null])
+  :fingerprint([page.hash,'page-render-v1',model.frontDeskVisual?'source-aware-visual-v2':'verbatim-ocr-v2',model.frontDeskVisual?visualSchema:ocrSchema,model.provider?.name??'custom',model.provider?.baseUrl??null,model.provider?.name==='openai'?(process.env.AI_VISION_MODEL||model.provider?.model||null):(model.provider?.visionModel??model.provider?.model??null)])
 // Printed pagination is evidence, not an inferred page count. Documents without
 // readable pagination remain explicitly unverified rather than 'complete'.
 export function documentPageWarnings(sources){
@@ -55,6 +58,10 @@ export async function prepareDocuments(files=[], { originalsOnly = false } = {})
 }
 
 export async function recognizePage(page,model,signal,syntheticOptions={}){
+  if(privateOCRSelected(model.env)){
+    const result=await readPrivateDocumentPage(page,{env:model.env,fetchImpl:model.ocrFetch,signal})
+    return {id:page.id,page:page.page,name:page.name,hash:page.hash,recognitionKey:recognitionKey(page,model),sourceKind:'document_text',...result}
+  }
   if(model.frontDeskVisual)return recognizeVisualPage(page,model,signal,syntheticOptions)
   const image=page.mimeType==='application/pdf'&&['bailian','openrouter'].includes(model.provider?.name)?await pdfPageImage(page.dataUrl,signal):null
   const content=page.mimeType==='application/pdf'&&!image?{type:'input_file',filename:`page-${page.page}.pdf`,file_data:page.dataUrl}:{type:'input_image',image_url:image??page.dataUrl,detail:'high'}

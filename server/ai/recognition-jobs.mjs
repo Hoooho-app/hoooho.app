@@ -3,6 +3,7 @@ import {factMessages} from './business/front-desk-semantics.mjs'
 import {QuickRecordPhotoService} from '../events/quick-record-photo-service.mjs'
 import {reuseRecognitionPhoto} from './recognition-asset-reuse.mjs'
 import {withAITrace,traceMetadata,linkedAISignal} from './providers/telemetry.mjs'
+import { currentSeedHome, withSeedHome } from './providers/seed-home-scope.mjs'
 import path from 'node:path'
 import { mkdirSync } from 'node:fs'
 import { open, readFile, rename, unlink } from 'node:fs/promises'
@@ -28,9 +29,10 @@ const mediaTypes=/^(?:application\/pdf|image\/(?:jpeg|png|webp|heic|heif)|audio\
 // metadata/checkpoints; originals are private, immutable binary files. No
 // supplier call is held in a SQLite/JSON transaction.
 export class RecognitionJobs {
-  constructor({dataDirectory,events,business,frontDesk,audio,photos,now=()=>Date.now(),logger=console,autoStart=true}) {
+  constructor({dataDirectory,events,business,frontDesk,audio,photos,runSeedHome,now=()=>Date.now(),logger=console,autoStart=true}) {
     this.photos=photos??new QuickRecordPhotoService({dataDirectory})
     this.events=events;this.business=business;this.front=frontDesk;this.audio=audio;this.now=now;this.logger=logger
+    this.runSeedHome = runSeedHome
     this.directory=path.join(dataDirectory,'recognition-originals');mkdirSync(this.directory,{recursive:true,mode:0o700})
     this.db=new DatabaseSync(path.join(dataDirectory,'recognition-jobs.sqlite'))
     this.db.exec(`PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; PRAGMA busy_timeout=5000;
@@ -121,6 +123,7 @@ export class RecognitionJobs {
   async materialize(j,ids=[]){return Promise.all(ids.map(async id=>{const a=this.asset(j.accountId,j.memberId,id),buffer=await readFile(path.join(this.directory,a.id));if(createHash('sha256').update(buffer).digest('hex')!==a.hash)throw fail('原件校验失败，请重新上传',503,'RECOGNITION_ASSET_CORRUPT');return {...this.assetPublic(a),dataUrl:`data:${a.mimeType};base64,${buffer.toString('base64')}`}}))}
   async submit(accountId,memberId,input){
     await this.scope(accountId,memberId)
+    const seedHome = currentSeedHome()?.accountId === accountId
     if(!validId(input.id)||!validId(input.input?.id)||!['front','record','structured','transcription'].includes(input.mode)||!['text','voice','image'].includes(input.input.kind)||typeof input.input.text!=='string'||input.input.text.length>15000)throw fail('识别任务内容无效',422,'RECOGNITION_INVALID')
     const item={id:input.input.id,kind:input.input.kind,text:input.input.text,inputAt:Number.isFinite(input.input.inputAt)?Math.min(input.input.inputAt,this.now()):this.now(),assetIds:input.input.assetIds??[],asrAssetId:input.input.asrAssetId??null}
     if(input.input.presentedDraft!==undefined){const draft=input.input.presentedDraft;if(!draft||!validId(draft.id)||!Number.isSafeInteger(draft.version)||draft.version<1)throw fail('已展示草稿标识无效',422);item.presentedDraft={id:draft.id,version:draft.version}}
@@ -144,11 +147,13 @@ export class RecognitionJobs {
       if(job&&(job.accountId!==accountId||job.memberId!==memberId))throw fail('未找到这次识别任务',404,'RECOGNITION_NOT_FOUND')
       if(job?.state==='discarded')throw fail('这次任务已取消，请开始新的记录',409,'RECOGNITION_DISCARDED')
       if(job&&(job.mode!==input.mode||job.scopeKey!==(input.scopeKey??input.mode)))throw fail('任务范围已变化',409,'RECOGNITION_SCOPE_CONFLICT')
+      if(job && Boolean(job.seedHome) !== seedHome) throw fail('模型内测范围已变化，请在当前版本开始新的识别任务',409,'RECOGNITION_SCOPE_CONFLICT')
       const previous=job?.inputs.find(i=>i.id===item.id)
       if(previous){if(fingerprint({...previous,...(input.mode==='front'?{protocolVersion:previous.protocolVersion??1}:{}),inputAt:0})!==fingerprint({...item,inputAt:0}))throw fail('消息标识已使用，请重试原消息',409,'RECOGNITION_INPUT_CONFLICT');return job}
       if(job?.inputs.length>=60)throw fail('本次对话较长，请先保存后开始新记录',413)
       const at=new Date(this.now()).toISOString()
       job??={id:input.id,accountId,memberId,mode:input.mode,scopeKey:input.scopeKey??input.mode,state:'queued',stage:'queued',seq:0,inputRevision:0,resultRevision:0,cursor:0,inputs:[],transcripts:{},baseText:options.initialText??'',options,createdAt:at,cancelEpoch:0,commandIds:[],activeMs:0}
+      if (seedHome) job.seedHome = true
       const ids=new Set([...job.inputs.flatMap(i=>i.assetIds),...item.assetIds]);if(ids.size>12||[...ids].reduce((n,id)=>n+this.asset(accountId,memberId,id).bytes,0)>15*1024*1024)throw fail('本次原件最多12份，总大小15 MB',413)
       job.inputs.push(item);job.organizationRetries=0;job.inputRevision++;job.processingStartedAt=at;job.options=options;job.error=null;job.review=null;job.activeMs=0
       if(job.state==='publishing'){this.db.prepare('DELETE FROM outbox WHERE job_id=?').run(job.id);job.state='queued';job.stage='queued'}
@@ -159,12 +164,14 @@ export class RecognitionJobs {
     this.kick();return publicJob(j)
   }
   async organizeContext(accountId,memberId,contextId,version,generationRequested=false){
+    const seedHome = currentSeedHome()?.accountId === accountId
+    const jobId = `${seedHome ? 'seed-' : ''}${generationRequested ? 'generate' : 'organize'}:${contextId}:${version}`
     const job=await withStorageLock(async()=>{
       await this.scope(accountId,memberId)
       const context=await this.front.snapshot(accountId,memberId,contextId)
       if(!context?.continuousRecord||context.closedAt||context.version!==version)throw fail('记录单已有更新',409,'FRONT_CONTEXT_CHANGED')
       if(generationRequested){
-        const existing=this.raw(`generate:${contextId}:${version}`)
+        const existing=this.raw(jobId)
         if(existing)return this.owned(accountId,memberId,existing.id)
         const ownedJobs=this.all().filter(job=>job.accountId===accountId&&job.memberId===memberId)
         const deferred=ownedJobs.some(job=>job.organizationDeferred?.contextId===contextId&&job.organizationDeferred.version===version&&job.organizationDeferred.revision===job.inputRevision&&job.state==='ready'&&job.contextId===contextId&&job.frontDesk?.context?.version===version)
@@ -176,13 +183,13 @@ export class RecognitionJobs {
       const source=generationRequested?[...context.messages].reverse().find(message=>message.kind!=='assistant'&&message.status==='completed'&&!message.retracted):context.messages.find(message=>message.id===context.cardEdit?.messageId&&message.manualCardEdit)
       if(!source)throw fail('未找到修改来源',409,'FRONT_CONTEXT_CHANGED')
       return this.transaction(()=>{
-        const id=`${generationRequested?'generate':'organize'}:${contextId}:${version}`,existing=this.raw(id)
+        const id=jobId,existing=this.raw(id)
         if(existing)return this.owned(accountId,memberId,id)
         for(const old of this.all().filter(j=>j.accountId===accountId&&j.memberId===memberId&&j.scopeKey==='front'&&waiting(j))){this.put({...old,state:'paused',stage:'paused',cancelEpoch:old.cancelEpoch+1,owner:null,leaseUntil:0});this.db.prepare('DELETE FROM outbox WHERE job_id=?').run(old.id)}
         const at=new Date(this.now()).toISOString()
         // The edit's source is already accepted. Skip dialogue and ASR, then
         // reuse the existing version-fenced organization/publishing worker.
-        return this.put({id,accountId,memberId,mode:'front',scopeKey:'front',state:'queued',stage:'queued',seq:0,inputRevision:1,resultRevision:0,cursor:1,inputs:[{id:source.id,kind:'text',text:source.text,inputAt:source.inputAt,assetIds:[],contextId}],contextId,frontDesk:{messageId:source.id,replyId:generationRequested?`${source.id}:reply`:`${source.id}:feedback`,context:{...context,messages:context.messages.map(publicFrontMessage)}},transcripts:{},options:{continuousRecord:true,generationRequested,semanticVersion:3,followUp:false},createdAt:at,processingStartedAt:at,cancelEpoch:0,commandIds:[],activeMs:0})
+        return this.put({id,accountId,memberId,mode:'front',scopeKey:'front',...(seedHome?{seedHome:true}:{}),state:'queued',stage:'queued',seq:0,inputRevision:1,resultRevision:0,cursor:1,inputs:[{id:source.id,kind:'text',text:source.text,inputAt:source.inputAt,assetIds:[],contextId}],contextId,frontDesk:{messageId:source.id,replyId:generationRequested?`${source.id}:reply`:`${source.id}:feedback`,context:{...context,messages:context.messages.map(publicFrontMessage)}},transcripts:{},options:{continuousRecord:true,generationRequested,semanticVersion:3,followUp:false},createdAt:at,processingStartedAt:at,cancelEpoch:0,commandIds:[],activeMs:0})
       })
     })
     if(!job)return null
@@ -197,6 +204,9 @@ export class RecognitionJobs {
     const result=await withStorageLock(async()=>{await this.scope(accountId,memberId);return this.transaction(()=>{
       let j=this.raw(id);if(!j&&input.type==='discard'){j={id,accountId,memberId,mode:'front',scopeKey:'front',state:'discarded',stage:'discarded',inputRevision:0,resultRevision:0,cancelEpoch:1,inputs:[],commandIds:[input.id],createdAt:new Date(this.now()).toISOString()};return this.put(j)}j=this.owned(accountId,memberId,id);if(j.commandIds.includes(input.id))return j
       if(j.state==='discarded')return j
+      if (['resume','retry'].includes(input.type) && Boolean(j.seedHome) !== (currentSeedHome()?.accountId === accountId)) {
+        throw fail('请回到发起这条记录的版本重试，原件已保留',409,'RECOGNITION_SCOPE_CONFLICT')
+      }
       if(expired&&['ready','needs_review','failed'].includes(j.state)&&j.draftId===before.draftId){j.state='failed';j.draftId=null;j.draftVersion=null;j.options={...j.options,id:undefined,version:undefined};this.db.prepare('DELETE FROM outbox WHERE job_id=?').run(id)}
       if(input.type==='use_text'){if(j.state!=='needs_review'||!j.review)throw fail('请先完成可用文字的整理',409);j.excludedInputs=[...new Set([...(j.excludedInputs??[]),...unresolved(j)])];j.state='ready';j.stage='ready'}
       else if(input.type==='pause'||input.type==='discard'){j.state=input.type==='pause'?'paused':'discarded';j.stage=j.state;j.cancelEpoch++;j.leaseUntil=0;j.owner=null}
@@ -246,110 +256,116 @@ export class RecognitionJobs {
     const heartbeat=setInterval(()=>{const current=this.raw(id);if(current?.owner===this.owner&&current.cancelEpoch===epoch&&['running','publishing'].includes(current.state)){current.leaseUntil=this.now()+15000;this.put(current,false)}},5000);heartbeat.unref()
     const phase=async patch=>{active.stage=patch.stage;const current=await this.updateActive(id,epoch,signal,{stage:patch.stage,progress:patch.total===undefined?null:{completed:patch.completed,total:patch.total,reused:!!patch.reused}});return current}
     try{
-      await this.scope(j.accountId,j.memberId)
-      // Conversation selection is ordered. Only its final current context is
-      // extracted after all already-accepted messages have been answered.
-      while((j=this.guard(id,epoch,signal)).cursor<j.inputRevision){
-        const item=j.inputs[j.cursor],media=await this.materialize(j,item.assetIds),files=media.filter(a=>!a.mimeType.startsWith('audio/')),voiceFiles=media.filter(a=>a.mimeType.startsWith('audio/'))
-        let text=item.text
-        if(item.kind==='voice'&&!text){
-          if(j.transcripts[item.id])text=j.transcripts[item.id]
-          else {
-            await phase({stage:'transcribing'})
-            const attempt=randomUUID()
-            this.db.prepare('INSERT INTO attempts VALUES(?,?,?)').run(attempt,id,JSON.stringify({stage:'transcribing',revision:j.cursor+1,state:'calling',startedAt:new Date(this.now()).toISOString()}))
-            let result,problem
-            try{
-              if(!item.asrAssetId)throw fail('录音原件已保留，请重新转码后重试',422,'RECOGNITION_AUDIO_REQUIRED')
-              const [wav]=await this.materialize(j,[item.asrAssetId]);result=await this.audio.transcribe(wav,j.accountId,signal)
-              this.guard(id,epoch,signal)
-              if(!hasConversationInput({text:result.transcript}))problem={code:'ASR_EMPTY_TRANSCRIPT',message:'这段录音没有可确认的文字，原音仍保留'}
-            }catch(error){this.guard(id,epoch,signal);problem={code:error.code??'ASR_UNAVAILABLE',message:'这段录音尚未转写，原音仍保留'}}
-            if(problem){
-              this.db.prepare('UPDATE attempts SET document=? WHERE id=?').run(JSON.stringify({stage:'transcribing',revision:j.cursor+1,state:'failed',code:problem.code}),attempt)
-              await this.updateActive(id,epoch,signal,{inputErrors:{...this.raw(id).inputErrors,[item.id]:problem},...(!files.length?{cursor:j.cursor+1}:{})})
-              if(!files.length){
-                if(j.mode==='front'&&item.protocolVersion!==2)await this.front.submit(j.accountId,j.memberId,{id:item.id,protocolVersion:item.protocolVersion??1,kind:item.kind,text:'',inputAt:item.inputAt,files:[],voiceFiles,...(item.contextId?{contextId:item.contextId}:{}),...(item.answerTo?{answerTo:item.answerTo}:{}),...(item.presentedDraft?{presentedDraft:item.presentedDraft}:{}),...(item.expectedContextVersion?{expectedContextVersion:item.expectedContextVersion}:{})},signal,{continuousRecord:j.options.continuousRecord===true,inputProblem:problem})
-                continue
+      const process = async () => {
+        await this.scope(j.accountId,j.memberId)
+        // Conversation selection is ordered. Only its final current context is
+        // extracted after all already-accepted messages have been answered.
+        while((j=this.guard(id,epoch,signal)).cursor<j.inputRevision){
+          const item=j.inputs[j.cursor],media=await this.materialize(j,item.assetIds),files=media.filter(a=>!a.mimeType.startsWith('audio/')),voiceFiles=media.filter(a=>a.mimeType.startsWith('audio/'))
+          let text=item.text
+          if(item.kind==='voice'&&!text){
+            if(j.transcripts[item.id])text=j.transcripts[item.id]
+            else {
+              await phase({stage:'transcribing'})
+              const attempt=randomUUID()
+              this.db.prepare('INSERT INTO attempts VALUES(?,?,?)').run(attempt,id,JSON.stringify({stage:'transcribing',revision:j.cursor+1,state:'calling',startedAt:new Date(this.now()).toISOString()}))
+              let result,problem
+              try{
+                if(!item.asrAssetId)throw fail('录音原件已保留，请重新转码后重试',422,'RECOGNITION_AUDIO_REQUIRED')
+                const [wav]=await this.materialize(j,[item.asrAssetId]);result=await this.audio.transcribe(wav,j.accountId,signal)
+                this.guard(id,epoch,signal)
+                if(!hasConversationInput({text:result.transcript}))problem={code:'ASR_EMPTY_TRANSCRIPT',message:'这段录音没有可确认的文字，原音仍保留'}
+              }catch(error){this.guard(id,epoch,signal);problem={code:error.code??'ASR_UNAVAILABLE',message:'这段录音尚未转写，原音仍保留'}}
+              if(problem){
+                this.db.prepare('UPDATE attempts SET document=? WHERE id=?').run(JSON.stringify({stage:'transcribing',revision:j.cursor+1,state:'failed',code:problem.code}),attempt)
+                await this.updateActive(id,epoch,signal,{inputErrors:{...this.raw(id).inputErrors,[item.id]:problem},...(!files.length?{cursor:j.cursor+1}:{})})
+                if(!files.length){
+                  if(j.mode==='front'&&item.protocolVersion!==2)await this.front.submit(j.accountId,j.memberId,{id:item.id,protocolVersion:item.protocolVersion??1,kind:item.kind,text:'',inputAt:item.inputAt,files:[],voiceFiles,...(item.contextId?{contextId:item.contextId}:{}),...(item.answerTo?{answerTo:item.answerTo}:{}),...(item.presentedDraft?{presentedDraft:item.presentedDraft}:{}),...(item.expectedContextVersion?{expectedContextVersion:item.expectedContextVersion}:{})},signal,{continuousRecord:j.options.continuousRecord===true,inputProblem:problem})
+                  continue
+                }
+                text=''
+              }else{
+                text=result.transcript
+                await this.updateActive(id,epoch,signal,{transcripts:{...this.raw(id).transcripts,[item.id]:text},transcript:{inputId:item.id,text}})
+                this.db.prepare('UPDATE attempts SET document=? WHERE id=?').run(JSON.stringify({stage:'transcribing',revision:j.cursor+1,state:'completed',requestId:result.requestId??null}),attempt)
               }
-              text=''
-            }else{
-              text=result.transcript
-              await this.updateActive(id,epoch,signal,{transcripts:{...this.raw(id).transcripts,[item.id]:text},transcript:{inputId:item.id,text}})
-              this.db.prepare('UPDATE attempts SET document=? WHERE id=?').run(JSON.stringify({stage:'transcribing',revision:j.cursor+1,state:'completed',requestId:result.requestId??null}),attempt)
             }
           }
+          if(j.mode==='front'){
+            await phase({stage:'responding'})
+            const result=await this.front.submit(j.accountId,j.memberId,{id:item.id,protocolVersion:item.protocolVersion??1,kind:item.kind,text,inputAt:item.inputAt,files,voiceFiles,...(j.retryInputIds?.includes(item.id)?{retryMedia:true}:{}),...(item.contextId?{contextId:item.contextId}:{}),...(item.answerTo?{answerTo:item.answerTo}:{}),...(item.presentedDraft?{presentedDraft:item.presentedDraft}:{}),...(item.expectedContextVersion?{expectedContextVersion:item.expectedContextVersion}:{})},signal,{continuousRecord:j.options.continuousRecord===true,onAccepted:async result=>{await this.updateActive(id,epoch,signal,{frontDesk:{...result,context:{...result.context,review:undefined,messages:result.context.messages.map(publicFrontMessage)}},contextId:result.context.id})},deferCandidateFeedback:true,transcriptionVerified:item.kind==='voice'&&Boolean(this.raw(id).transcripts[item.id]),retryTranscription:item.kind==='voice'&&j.retryInputIds?.includes(item.id)&&hasConversationInput({text})})
+            await this.updateActive(id,epoch,signal,{frontDesk:{...result,context:{...result.context,review:undefined,messages:result.context.messages.map(publicFrontMessage)}},contextId:result.context.id,...(result.context.mediaProblems?.length?{inputErrors:{...this.raw(id).inputErrors,[item.id]:{code:'FRONT_MEDIA_PARTIAL',message:result.context.mediaProblems.map(problem=>problem.name+'：'+problem.message).join('；')}}}:{})})
+          }
+          await this.updateActive(id,epoch,signal,{cursor:j.cursor+1})
         }
+        j=this.guard(id,epoch,signal);const revision=j.inputRevision
+        if(j.mode==='transcription'){if(unresolved(j).length)throw fail('录音尚未转写，原件保留，请重试',422,'RECOGNITION_INPUT_PENDING');await this.updateActive(id,epoch,signal,{state:'ready',stage:'ready',resultKind:'transcription',resultRevision:revision,owner:null,leaseUntil:0});return}
+        if(j.mode==='front'&&!j.contextId)throw fail('这段录音尚未转写，原件仍保留，可以重试或继续文字输入',422,'RECOGNITION_INPUT_PENDING')
+        let input
         if(j.mode==='front'){
-          await phase({stage:'responding'})
-          const result=await this.front.submit(j.accountId,j.memberId,{id:item.id,protocolVersion:item.protocolVersion??1,kind:item.kind,text,inputAt:item.inputAt,files,voiceFiles,...(j.retryInputIds?.includes(item.id)?{retryMedia:true}:{}),...(item.contextId?{contextId:item.contextId}:{}),...(item.answerTo?{answerTo:item.answerTo}:{}),...(item.presentedDraft?{presentedDraft:item.presentedDraft}:{}),...(item.expectedContextVersion?{expectedContextVersion:item.expectedContextVersion}:{})},signal,{continuousRecord:j.options.continuousRecord===true,onAccepted:async result=>{await this.updateActive(id,epoch,signal,{frontDesk:{...result,context:{...result.context,review:undefined,messages:result.context.messages.map(publicFrontMessage)}},contextId:result.context.id})},deferCandidateFeedback:true,transcriptionVerified:item.kind==='voice'&&Boolean(this.raw(id).transcripts[item.id]),retryTranscription:item.kind==='voice'&&j.retryInputIds?.includes(item.id)&&hasConversationInput({text})})
-          await this.updateActive(id,epoch,signal,{frontDesk:{...result,context:{...result.context,review:undefined,messages:result.context.messages.map(publicFrontMessage)}},contextId:result.context.id,...(result.context.mediaProblems?.length?{inputErrors:{...this.raw(id).inputErrors,[item.id]:{code:'FRONT_MEDIA_PARTIAL',message:result.context.mediaProblems.map(problem=>problem.name+'：'+problem.message).join('；')}}}:{})})
-        }
-        await this.updateActive(id,epoch,signal,{cursor:j.cursor+1})
-      }
-      j=this.guard(id,epoch,signal);const revision=j.inputRevision
-      if(j.mode==='transcription'){if(unresolved(j).length)throw fail('录音尚未转写，原件保留，请重试',422,'RECOGNITION_INPUT_PENDING');await this.updateActive(id,epoch,signal,{state:'ready',stage:'ready',resultKind:'transcription',resultRevision:revision,owner:null,leaseUntil:0});return}
-      if(j.mode==='front'&&!j.contextId)throw fail('这段录音尚未转写，原件仍保留，可以重试或继续文字输入',422,'RECOGNITION_INPUT_PENDING')
-      let input
-      if(j.mode==='front'){
-        const context=(await this.front.snapshot(j.accountId,j.memberId,j.contextId));this.guard(id,epoch,signal)
-        const uploadReading=j.inputs.at(-1)?.protocolVersion===3&&j.inputs.at(-1)?.kind==='image'&&j.inputs.at(-1)?.assetIds?.length
-        if(context.continuousRecord&&(context.interview?.status==='asking'||uploadReading)&&!context.understanding?.recordChangesPending&&!j.options.generationRequested&&!context.cardEdit&&context.actionPlan?.type==='none'){
-          // A follow-up answer needs one dialogue call, not full extraction and
-          // professional-summary generation on every turn. Explicit generation
-          // queues that existing pipeline separately, with the same version fence.
-          await this.updateActive(id,epoch,signal,{state:unresolved(j).length?'needs_review':'ready',stage:'ready',resultKind:context.resultKind,resultRevision:revision,review:null,draftId:null,organizationDeferred:{contextId:context.id,version:context.version,revision},frontDesk:{...j.frontDesk,context},owner:null,leaseUntil:0});return
-        }
-        if(['save','save_original','readback','cancel','stop','query','export','delete','update'].includes(context.actionPlan?.type)){
-          await this.executeFrontAction(j,context,epoch,signal,revision);return
-        }
-        if(context.saved||['conversation','no_change'].includes(context.resultKind)){
-          const review=context.saved?null:context.review??null
-          if(review?.state==='ready')await this.business.bindRecognition(j.accountId,j.memberId,review.id,{jobId:id,revision},signal)
-          await this.updateActive(id,epoch,signal,{state:unresolved(j).length?'needs_review':'ready',stage:'ready',resultKind:context.saved?'saved':context.resultKind,resultRevision:revision,review,draftId:review?.id??null,frontDesk:{...j.frontDesk,context},owner:null,leaseUntil:0})
-          return
-        }
-        if(context.decision?.organize===false){
-          // A courtesy/explanation adds no facts. Keep only the server snapshot's
-          // exact same ready review and rebind its save guard to this revision.
-          const retained=context.decision.intent==='interaction'&&context.interview?.status==='ready'&&context.review?.state==='ready'?context.review:null
-          await withStorageLock(async()=>{
-            const current=this.guard(id,epoch,signal)
-            if(current.inputRevision!==revision){this.put({...current,state:'queued',stage:'queued',owner:null,leaseUntil:0});return}
-            if(retained)await this.business.bindRecognition(j.accountId,j.memberId,retained.id,{jobId:id,revision},signal)
+          const context=(await this.front.snapshot(j.accountId,j.memberId,j.contextId));this.guard(id,epoch,signal)
+          const uploadReading=j.inputs.at(-1)?.protocolVersion===3&&j.inputs.at(-1)?.kind==='image'&&j.inputs.at(-1)?.assetIds?.length
+          if(context.continuousRecord&&(context.interview?.status==='asking'||uploadReading)&&!context.understanding?.recordChangesPending&&!j.options.generationRequested&&!context.cardEdit&&context.actionPlan?.type==='none'){
+            // A follow-up answer needs one dialogue call, not full extraction and
+            // professional-summary generation on every turn. Explicit generation
+            // queues that existing pipeline separately, with the same version fence.
+            await this.updateActive(id,epoch,signal,{state:unresolved(j).length?'needs_review':'ready',stage:'ready',resultKind:context.resultKind,resultRevision:revision,review:null,draftId:null,organizationDeferred:{contextId:context.id,version:context.version,revision},frontDesk:{...j.frontDesk,context},owner:null,leaseUntil:0});return
+          }
+          if(['save','save_original','readback','cancel','stop','query','export','delete','update'].includes(context.actionPlan?.type)){
+            await this.executeFrontAction(j,context,epoch,signal,revision);return
+          }
+          if(context.saved||['conversation','no_change'].includes(context.resultKind)){
+            const review=context.saved?null:context.review??null
+            if(review?.state==='ready')await this.business.bindRecognition(j.accountId,j.memberId,review.id,{jobId:id,revision},signal)
+            await this.updateActive(id,epoch,signal,{state:unresolved(j).length?'needs_review':'ready',stage:'ready',resultKind:context.saved?'saved':context.resultKind,resultRevision:revision,review,draftId:review?.id??null,frontDesk:{...j.frontDesk,context},owner:null,leaseUntil:0})
+            return
+          }
+          if(context.decision?.organize===false){
+            // A courtesy/explanation adds no facts. Keep only the server snapshot's
+            // exact same ready review and rebind its save guard to this revision.
+            const retained=context.decision.intent==='interaction'&&context.interview?.status==='ready'&&context.review?.state==='ready'?context.review:null
+            await withStorageLock(async()=>{
+              const current=this.guard(id,epoch,signal)
+              if(current.inputRevision!==revision){this.put({...current,state:'queued',stage:'queued',owner:null,leaseUntil:0});return}
+              if(retained)await this.business.bindRecognition(j.accountId,j.memberId,retained.id,{jobId:id,revision},signal)
+              this.guard(id,epoch,signal)
+              this.put({...current,state:'ready',stage:'ready',review:retained,draftId:retained?.id??null,draftVersion:retained?.version??null,resultRevision:revision,owner:null,leaseUntil:0})
+            });return
+          }
+          let previousReview=context.review
+          if(!previousReview&&context.draftId){
+            try{const draft=await this.business.get(j.accountId,j.memberId,context.draftId);if(draft.frontContextId===context.id&&draft.state!=='saved')previousReview={id:draft.id,version:draft.version}}catch(error){if(error.code!=='AI_DRAFT_NOT_FOUND')throw error}
             this.guard(id,epoch,signal)
-            this.put({...current,state:'ready',stage:'ready',review:retained,draftId:retained?.id??null,draftVersion:retained?.version??null,resultRevision:revision,owner:null,leaseUntil:0})
-          });return
+          }
+          const ledger=Boolean(context.understanding&&!context.understanding.recordChangesPending)
+          const turns=ledger?context.messages.filter(message=>message.kind!=='assistant'&&message.status==='completed'):factMessages(context.messages)
+          const allowedSources=ledger?new Set([...(context.facts??[]).filter(fact=>fact.status==='active').flatMap(fact=>fact.sources.map(ref=>ref.messageId)),...buildFrontDeskFactSources({facts:context.facts,messages:turns}).flatMap(source=>(source.originalReferences??[]).map(ref=>ref.messageId))]):null
+          const originals=allowedSources?turns.filter(turn=>allowedSources.has(turn.id)):turns
+          input={...j.options,text:turns.map(message=>message.text).filter(Boolean).join('\n'),files:originals.flatMap(message=>message.files??[]),voiceFiles:originals.flatMap(message=>message.voices??[]),id:previousReview?.id,version:previousReview?.version,smartRecord:true,frontDeskRecord:true,semanticVersion:ledger?(this.business.model?.sourceReferences===true?2:1):context.semanticVersion??1,frontContextId:context.id,continuousRecord:context.continuousRecord===true,selectedOccurredAt:context.firstDescribedAt??j.options.selectedOccurredAt}
+        }else{
+          // Structured submissions are full snapshots; previous revisions remain
+          // immutable inputs and are never concatenated into new health facts.
+          const latest=j.inputs.at(-1),media=await this.materialize(j,j.mode==='record'?[...new Set(j.inputs.flatMap(i=>i.assetIds))]:latest.assetIds)
+          input={...j.options,text:j.mode==='record'?[j.baseText,...j.inputs.map(i=>i.text||j.transcripts[i.id]||'')].filter(Boolean).join('\n'):latest.text||j.transcripts[latest.id]||'',files:media.filter(a=>!a.mimeType.startsWith('audio/')),voiceFiles:media.filter(a=>a.mimeType.startsWith('audio/')),id:j.draftId??j.options.id,version:j.draftVersion??j.options.version}
+          if(j.mode==='structured'&&!latest.assetIds.length&&input.id){delete input.files;delete input.voiceFiles}
+          if(input.id){const previous=await this.business.get(j.accountId,j.memberId,input.id);input.version=previous.version}
         }
-        let previousReview=context.review
-        if(!previousReview&&context.draftId){
-          try{const draft=await this.business.get(j.accountId,j.memberId,context.draftId);if(draft.frontContextId===context.id&&draft.state!=='saved')previousReview={id:draft.id,version:draft.version}}catch(error){if(error.code!=='AI_DRAFT_NOT_FOUND')throw error}
-          this.guard(id,epoch,signal)
-        }
-        const ledger=Boolean(context.understanding&&!context.understanding.recordChangesPending)
-        const turns=ledger?context.messages.filter(message=>message.kind!=='assistant'&&message.status==='completed'):factMessages(context.messages)
-        const allowedSources=ledger?new Set([...(context.facts??[]).filter(fact=>fact.status==='active').flatMap(fact=>fact.sources.map(ref=>ref.messageId)),...buildFrontDeskFactSources({facts:context.facts,messages:turns}).flatMap(source=>(source.originalReferences??[]).map(ref=>ref.messageId))]):null
-        const originals=allowedSources?turns.filter(turn=>allowedSources.has(turn.id)):turns
-        input={...j.options,text:turns.map(message=>message.text).filter(Boolean).join('\n'),files:originals.flatMap(message=>message.files??[]),voiceFiles:originals.flatMap(message=>message.voices??[]),id:previousReview?.id,version:previousReview?.version,smartRecord:true,frontDeskRecord:true,semanticVersion:ledger?(this.business.model?.sourceReferences===true?2:1):context.semanticVersion??1,frontContextId:context.id,continuousRecord:context.continuousRecord===true,selectedOccurredAt:context.firstDescribedAt??j.options.selectedOccurredAt}
-      }else{
-        // Structured submissions are full snapshots; previous revisions remain
-        // immutable inputs and are never concatenated into new health facts.
-        const latest=j.inputs.at(-1),media=await this.materialize(j,j.mode==='record'?[...new Set(j.inputs.flatMap(i=>i.assetIds))]:latest.assetIds)
-        input={...j.options,text:j.mode==='record'?[j.baseText,...j.inputs.map(i=>i.text||j.transcripts[i.id]||'')].filter(Boolean).join('\n'):latest.text||j.transcripts[latest.id]||'',files:media.filter(a=>!a.mimeType.startsWith('audio/')),voiceFiles:media.filter(a=>a.mimeType.startsWith('audio/')),id:j.draftId??j.options.id,version:j.draftVersion??j.options.version}
-        if(j.mode==='structured'&&!latest.assetIds.length&&input.id){delete input.files;delete input.voiceFiles}
-        if(input.id){const previous=await this.business.get(j.accountId,j.memberId,input.id);input.version=previous.version}
+        await phase({stage:input.files?.length?'preparing':'organizing'})
+        let review=await this.business.prepare(j.accountId,j.memberId,{...input,deferRecognition:true},signal)
+        await this.updateActive(id,epoch,signal,{draftId:review.id,draftVersion:review.version})
+        await this.business.bindRecognition(j.accountId,j.memberId,review.id,{jobId:id,revision},signal)
+        const {files:inputFiles,voiceFiles:inputVoices,...generation}=input
+        review=await this.business.prepare(j.accountId,j.memberId,{...generation,id:review.id,version:review.version,deferRecognition:false},signal,phase)
+        this.guard(id,epoch,signal)
+        if(this.raw(id).inputRevision!==revision)throw new DOMException('New input','AbortError')
+        const outbox={revision,review,draftId:review.id,contextId:j.contextId??null,resultKey:`${id}:${revision}:${review.id}:${review.version}`}
+        await withStorageLock(()=>this.transaction(()=>{const current=this.guard(id,epoch,signal);this.db.prepare('INSERT OR REPLACE INTO outbox VALUES(?,?)').run(id,JSON.stringify(outbox));this.put({...current,state:'publishing',stage:'publishing',resultKey:outbox.resultKey})}))
+        await this.publish(id)
       }
-      await phase({stage:input.files?.length?'preparing':'organizing'})
-      let review=await this.business.prepare(j.accountId,j.memberId,{...input,deferRecognition:true},signal)
-      await this.updateActive(id,epoch,signal,{draftId:review.id,draftVersion:review.version})
-      await this.business.bindRecognition(j.accountId,j.memberId,review.id,{jobId:id,revision},signal)
-      const {files:inputFiles,voiceFiles:inputVoices,...generation}=input
-      review=await this.business.prepare(j.accountId,j.memberId,{...generation,id:review.id,version:review.version,deferRecognition:false},signal,phase)
-      this.guard(id,epoch,signal)
-      if(this.raw(id).inputRevision!==revision)throw new DOMException('New input','AbortError')
-      const outbox={revision,review,draftId:review.id,contextId:j.contextId??null,resultKey:`${id}:${revision}:${review.id}:${review.version}`}
-      await withStorageLock(()=>this.transaction(()=>{const current=this.guard(id,epoch,signal);this.db.prepare('INSERT OR REPLACE INTO outbox VALUES(?,?)').run(id,JSON.stringify(outbox));this.put({...current,state:'publishing',stage:'publishing',resultKey:outbox.resultKey})}))
-      await this.publish(id)
+      if (j.seedHome) {
+        if (!this.runSeedHome) throw fail('Seed 内测服务尚未启用，原件已保留',503,'AI_SEED_HOME_UNAVAILABLE')
+        await this.runSeedHome(j.accountId, process)
+      } else await withSeedHome(undefined, process)
     }catch(error){
       await withStorageLock(async()=>{let current=this.raw(id);if(!current||current.cancelEpoch!==epoch||current.owner!==this.owner||current.state==='discarded')return
         const input=current.inputs[current.cursor]??current.inputs.at(-1)
@@ -359,7 +375,8 @@ export class RecognitionJobs {
         current=this.raw(id);if(!current||current.cancelEpoch!==epoch||current.owner!==this.owner||current.state==='discarded')return
         if(current.inputRevision>j.inputRevision||active.controller.signal.aborted&&current.state==='running'){current.state='queued';current.stage='queued';current.error=null}
         else {if(staleContinuous&&input)current.inputErrors={...current.inputErrors,[input.id]:{code:error.code,message:'这段旧回应未覆盖刚才的修改'}};current.state='failed';current.stage='failed';current.error={code:error.code??(signal.aborted?'RECOGNITION_TIMEOUT':'RECOGNITION_FAILED'),message:error.status&&error.status<500?error.message:signal.aborted?'处理时间较长，原件和已完成步骤保留，可以重试':'这一步未完成，原件和已完成步骤保留，可以重试'}
-          if(current.options.continuousRecord&&current.cursor>=current.inputs.length&&(current.organizationRetries??0)<2&&(!error.status||error.status>=500)&&!['FRONT_CONTEXT_CHANGED','FRONT_RECORD_CHANGED','AI_DRAFT_VERSION_CONFLICT'].includes(error.code)){current.organizationRetries=(current.organizationRetries??0)+1;current.state='queued';current.stage='queued';current.error=null}
+          const seedConfigurationError=current.seedHome&&['AI_SEED_HOME_UNAVAILABLE','AI_SEED_HOME_ACCOUNT_REQUIRED','AI_NOT_CONFIGURED','AI_MODALITY_NOT_CONFIGURED'].includes(error.code)
+          if(current.options.continuousRecord&&current.cursor>=current.inputs.length&&(current.organizationRetries??0)<2&&(!error.status||error.status>=500)&&!seedConfigurationError&&!['FRONT_CONTEXT_CHANGED','FRONT_RECORD_CHANGED','AI_DRAFT_VERSION_CONFLICT'].includes(error.code)){current.organizationRetries=(current.organizationRetries??0)+1;current.state='queued';current.stage='queued';current.error=null}
           if(accepted){current.contextId=accepted.id;current.frontDesk={messageId:input.id,replyId:`${input.id}:reply`,context:{...accepted,messages:accepted.messages.map(publicFrontMessage)}}}
         }
         current.owner=null;current.leaseUntil=0;this.put(current)

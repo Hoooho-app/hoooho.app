@@ -239,6 +239,7 @@ export class NurseService {
   async sdp(accountId, memberId, id, input) {
     const draft = await this.owned(accountId, memberId, id)
     if (draft.saved || draft.discarded) throw fail('草稿已结束')
+    if (this.env.AI_PROVIDER==='ark'||this.env.ASR_PROVIDER==='seed')throw configurationError('旧版实时语音通话不参与新模型试验，请使用录音转写或文字记录','NURSE_RTC_NOT_CONFIGURED')
     const config = bailianConfiguration({ env: this.env })
     const host = new URL(config.baseUrl).host
     if (!/^[a-z0-9-]+\.cn-beijing\.maas\.aliyuncs\.com$/.test(host)) throw configurationError('当前百炼配置缺少已核实的业务空间域名，仍可文字记录', 'NURSE_RTC_NOT_CONFIGURED')

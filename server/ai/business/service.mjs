@@ -35,6 +35,7 @@ import {syntheticEvidenceProof} from './synthetic-evidence-proof.mjs'
 import { readablePreview, quarantinePreview } from '../providers/readable-preview.mjs'
 import { withAIAccount, withQueuedAIAccount } from '../providers/call-control.mjs'
 import { documentPageWarnings, prepareDocuments, prepareVoiceOriginals, recognizePage, recognitionKey } from './documents.mjs'
+import { privateOCRSelected } from '../providers/paddleocr-provider.mjs'
 import { archiveItem } from './archive.mjs'
 import { matchProfileRecord, supplementJournal, uncertainVaccineAssociation, mergeProfileItems } from './profile-batch-match.mjs'
 import { memberInsights } from './insights.mjs'
@@ -194,7 +195,7 @@ export class AIBusinessService {
     const semanticVersion=answers.semanticVersion??previous?.semanticVersion??1
     if(input.semanticVersion===2&&!frontContextId)throw fail('新前台整理需要所属对话',422,'FRONT_CONTEXT_REQUIRED')
     if(semanticVersion===2&&JSON.stringify([...new Set([...prepared.documents,...voices].map(f=>f.contentHash))].sort())!==JSON.stringify(answers.mediaHashes??[]))throw fail('原件不属于当前对话版本',409,'FRONT_RECORD_MEDIA_CHANGED')
-    const pageModel=frontDeskRecord&&semanticVersion===2?{provider:this.model.provider,frontDeskVisual:true,structured:args=>this.model.structured(args)}:this.model
+    const pageModel=frontDeskRecord&&semanticVersion===2?{provider:this.model.provider,env:this.model.env,ocrFetch:this.model.ocrFetch,frontDeskVisual:true,structured:args=>this.model.structured(args)}:this.model
     const confirmOccurrenceTime = smartRecord && (input.confirmOccurrenceTime ?? previous?.confirmOccurrenceTime ?? false) === true
     const followUp = smartRecord ? input.followUp ?? previous?.followUp ?? (frontDeskRecord?false:true) : true
     const selectedOccurredAt = smartRecord ? input.selectedOccurredAt ?? previous?.selectedOccurredAt ?? this.now().toISOString() : null
@@ -296,6 +297,7 @@ export class AIBusinessService {
       await Promise.all(Array.from({length:Math.min(this.pageConcurrency,draft.pages.length)},worker))
       if(firstPageError)throw firstPageError
       mark('recognitionMs')
+      if(draft.pages.length&&privateOCRSelected(pageModel.env))throw fail('检查单原件和已识别文字留在护护，请对照原件核对后手动记录；未发送给云模型',422,'AI_DOCUMENT_REVIEW_LOCAL')
       if(draft.sources.reduce((n,s)=>n+s.text.length,0)>60000)throw fail('资料内容过长，请分批整理；本次未截断或保存资料')
       if(!draft.sources.some(s=>s.text.trim()))throw fail('没有可整理的文字，请换一份资料或手动输入')
       if(draft.callCount>=this.maxDraftCalls)throw fail('请求上限已到，请核对现有草稿，未截断资料',429,'AI_DRAFT_CALL_LIMIT')

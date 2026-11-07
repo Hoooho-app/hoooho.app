@@ -4,6 +4,8 @@ import { normalizeMp4Audio, validateWavAudio } from './compressed-audio.mjs'
 import { createAudioProvider } from './providers/provider-factory.mjs'
 import { MedicalSummaryError } from './medical-summary-service.mjs'
 import { withAIAccount } from './providers/call-control.mjs'
+import { currentSeedHome } from './providers/seed-home-scope.mjs'
+import { traceMetadata } from './providers/telemetry.mjs'
 import { randomUUID } from 'node:crypto'
 
 const allowedAudio = new Set(['audio/wav', 'audio/x-wav', 'audio/webm', 'audio/mp4', 'audio/mpeg'])
@@ -64,16 +66,21 @@ export class AudioTranscriptionService {
   }
 
   capabilities() {
-    return {asr:{configured:!!this.provider?.transcribeAudio&&!this.provider.configurationError,provider:this.provider?.name??'none',model:this.provider?.model??null},tts:{configured:!!this.ttsProvider?.apiKey&&!this.ttsProvider.configurationError},runtime:this.runtime}
+    const seed = currentSeedHome()
+    const provider = seed ? seed.models.audio() : this.provider
+    return {asr:{configured:!!provider?.transcribeAudio&&!provider.configurationError,provider:provider?.name??'none',model:provider?.model??null},tts:{configured:!seed&&!!this.ttsProvider?.apiKey&&!this.ttsProvider.configurationError},runtime:this.runtime}
   }
 
   async transcribe(input,accountId=null,signal) {
     const requestId=randomUUID(),started=Date.now();let stage='audio_validation',audio,providerInvoked=false
-    const diagnostic=(success,extra={})=>({route:'/api/ai/audio/transcriptions',requestId,...this.runtime,provider:this.provider?.name??'none',model:this.provider?.model??null,mimeType:audio?.mimeType??null,bytes:audio?.buffer.length??null,stage,elapsedMs:Date.now()-started,providerInvoked,success,...extra})
+    const seed = currentSeedHome()
+    const provider = seed ? seed.models.audio() : this.provider
+    const diagnostic=(success,extra={})=>({route:'/api/ai/audio/transcriptions',requestId,...this.runtime,...(seed?traceMetadata():{}),provider:provider?.name??'none',model:provider?.model??null,mimeType:audio?.mimeType??null,bytes:audio?.buffer.length??null,stage,elapsedMs:Date.now()-started,providerInvoked,success,...extra})
     try {
       audio=validateAudio(input);stage='configuration'
-      if (!this.provider?.transcribeAudio) throw new AudioTranscriptionError('语音转写服务尚未配置，请改用文字记录', 503, 'ASR_NOT_CONFIGURED')
-      if(this.provider.configurationError)throw new AudioTranscriptionError('语音服务配置异常，请继续文字记录',503,'ASR_CONFIGURATION_INVALID')
+      if (seed && (seed.accountId!==accountId || provider?.configurationError)) throw new AudioTranscriptionError('Seed 语音转写尚未就绪，原件仍保留，可继续用文字',503,'ASR_SEED_UNAVAILABLE')
+      if (!provider?.transcribeAudio) throw new AudioTranscriptionError('语音转写服务尚未配置，请改用文字记录', 503, 'ASR_NOT_CONFIGURED')
+      if(provider.configurationError)throw new AudioTranscriptionError('语音服务配置异常，请继续文字记录',503,'ASR_CONFIGURATION_INVALID')
       stage='audio_validation'
       audio=await validateWavAudio(audio,signal)
       stage='call_limit'
@@ -85,12 +92,12 @@ export class AudioTranscriptionService {
       const preparationMs=Date.now()-preparationStarted
       if(signal?.aborted)throw new AudioTranscriptionError('已取消转写',499,'ASR_CANCELLED')
       stage='provider';providerInvoked=true
-      const result = await withAIAccount(accountId,()=>this.provider.transcribeAudio(audio,signal))
+      const result = await withAIAccount(accountId,()=>provider.transcribeAudio(audio,signal))
       stage='transcript_validation'
       const transcript = typeof result?.transcript === 'string' ? result.transcript.trim() : ''
       if (!transcript) throw new AudioTranscriptionError('未识别到可用语音，请重试或改用文字', 422, 'ASR_NO_SPEECH')
       stage='complete';this.logger.info('[Hoooho AI] audio request',JSON.stringify(diagnostic(true,{sourceMimeType,sourceBytes,preparationMs,supplierRequestAttempted:result.diagnostics?.supplierRequestAttempted??null,supplierResponseReceived:result.diagnostics?.supplierResponseReceived??null,supplierRequestId:result.diagnostics?.requestId??null,httpStatus:200})))
-      return { transcript, provider: this.provider.name, model: result.model ?? null,requestId,runtime:this.runtime,...(result.diagnostics?{diagnostics:result.diagnostics}:{}) }
+      return { transcript, provider: provider.name, model: result.model ?? null,requestId,runtime:this.runtime,...(result.diagnostics?{diagnostics:result.diagnostics}:{}) }
     } catch (error) {
       const failure=error instanceof AudioTranscriptionError?error:new MedicalSummaryError('语音转写暂时不可用，录音未保存，请稍后重试或改用文字',typeof error?.code==='string'&&error.code.startsWith('ASR_')?error.code:'ASR_UPSTREAM_UNAVAILABLE',error)
       if(['ASR_BUSY','ASR_CALL_LIMIT','ASR_BAILIAN_RATE_LIMIT'].includes(failure.code))failure.status=429
