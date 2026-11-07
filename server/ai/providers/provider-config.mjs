@@ -13,8 +13,14 @@ export function boundedSetting(env, name, fallback, min, max) {
 
 export function selectedProvider(env = process.env) {
   const value = env.AI_PROVIDER ?? (env.OPENAI_API_KEY ? 'openai' : 'local')
-  if (!['openai', 'bailian', 'openrouter', 'local'].includes(value)) throw configurationError('AI_PROVIDER 只支持 openai、bailian、openrouter、local')
+  if (!['openai', 'bailian', 'openrouter', 'ark', 'local'].includes(value)) throw configurationError('AI_PROVIDER 只支持 openai、bailian、openrouter、ark、local')
   return value
+}
+
+export function requireDomesticTrial(env = process.env) {
+  if (env.HOOOHO_DOMESTIC_AI_TRIAL !== 'synthetic-only' || env.NODE_ENV === 'production' || env.RAILWAY_ENVIRONMENT_ID || env.RAILWAY_SERVICE_ID) {
+    throw configurationError('新模型仅允许在隔离的虚构资料测试中使用', 'AI_DOMESTIC_TRIAL_ONLY')
+  }
 }
 
 export function openRouterConfiguration(options = {}) {

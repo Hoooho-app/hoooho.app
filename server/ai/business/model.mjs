@@ -5,13 +5,13 @@ import { fail } from './contract.mjs'
 
 export class BusinessModel {
   sourceReferences = true
-  constructor(options = {}) { this.provider = options.provider ?? createAIProvider(options); this.audioProvider = options.audioProvider ?? (!['bailian','openrouter'].includes(options.provider?.name) && options.provider ? options.provider : createAudioProvider('TTS', options)); this.logger=options.logger??console;const limit=Number(options.maxTokens??process.env.AI_BUSINESS_MAX_OUTPUT_TOKENS??16000);this.maxTokens=Number.isInteger(limit)&&limit>=3000&&limit<=32000?limit:16000 }
+  constructor(options = {}) { this.provider = options.provider ?? createAIProvider(options); this.env=options.env??process.env;this.ocrFetch=options.ocrFetch;this.audioProvider = options.audioProvider ?? (!['bailian','openrouter','ark'].includes(options.provider?.name) && options.provider ? options.provider : createAudioProvider('TTS', options)); this.logger=options.logger??console;const limit=Number(options.maxTokens??process.env.AI_BUSINESS_MAX_OUTPUT_TOKENS??16000);this.maxTokens=Number.isInteger(limit)&&limit>=3000&&limit<=32000?limit:16000 }
   async structured({ task, schema, instructions, input, vision = false, signal, syntheticEvidence, onSyntheticOutput, onReadableOutput, samplingTemperature }) {
     const p=this.provider
     if(p?.configurationError) throw p.configurationError
     if(!p?.apiKey) throw fail('整理服务尚未配置，仍可手动记录',503,'AI_NOT_CONFIGURED')
     if(samplingTemperature!==undefined&&(!Number.isFinite(samplingTemperature)||samplingTemperature<0||samplingTemperature>=2))throw fail('模型采样参数无效',422,'AI_SAMPLING_INVALID')
-    const started=Date.now(), model=['bailian','openrouter'].includes(p.name)?(vision?p.visionModel:p.model):vision?(process.env.AI_VISION_MODEL||p.model):(process.env.AI_DRAFT_MODEL||p.model)
+    const started=Date.now(), model=['bailian','openrouter','ark'].includes(p.name)?(vision?p.visionModel:p.model):vision?(process.env.AI_VISION_MODEL||p.model):(process.env.AI_DRAFT_MODEL||p.model)
     try {
       const timeout=p.config?.timeoutMs??60000
       const response=await p.fetch(`${p.baseUrl}/responses`,{method:'POST',task,syntheticEvidence,onSyntheticOutput,onReadableOutput,headers:{Authorization:`Bearer ${p.apiKey}`,'Content-Type':'application/json'},signal:signal?AbortSignal.any([signal,AbortSignal.timeout(timeout)]):AbortSignal.timeout(timeout),body:JSON.stringify({model,instructions,input,store:false,...(['bailian','openrouter'].includes(p.name)&&samplingTemperature!==undefined?{temperature:samplingTemperature}:{}),max_output_tokens:Math.min(this.maxTokens,Math.max(3000,Math.ceil(JSON.stringify(input).length/2)+1000)),text:{format:{type:'json_schema',name:task==='front-desk-dialogue'?'hoooho_front_desk_reply':['professional-summary-generate','professional-summary-verify','front-desk-visual-source'].includes(task)?task.replaceAll('-','_'):'hoooho_business',strict:true,schema}}})})

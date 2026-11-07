@@ -351,6 +351,7 @@ export class FrontDeskRecord {
     try {
       if(execution.inputProblem)throw fail(execution.inputProblem.message,422,execution.inputProblem.code)
       const visionPages=retryMedia?prepared.pages.filter(page=>!knownPages.has(`${page.id}:${page.page}`)):prepared.pages
+      if(visionPages.length&&(this.options.env??process.env).AI_PROVIDER==='ark')throw fail('首页未分类的图片原件已保留，未发送给云模型；检查单请从回传就诊资料入口核对',422,'AI_ATTACHMENT_REVIEW_LOCAL')
       if(retryMedia&&!retryTranscription&&!visionPages.length){
         await this.store.update(d=>({ ...d,contexts:d.contexts.map(c=>c.id===provisionalId?{...c,mediaProblems:prepared.problems}:c),messages:d.messages.map(m=>m.id===message.id?{...m,status:'completed'}:m)}))
         return {context:await this.snapshot(accountId,memberId,provisionalId),messageId:message.id,replyId:`${message.id}:reply`}

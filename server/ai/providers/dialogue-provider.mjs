@@ -4,5 +4,5 @@ import { createAIProvider } from './provider-factory.mjs'
 // OpenRouter selection changes it; missing config never falls back to Qwen.
 export function createDialogueProvider(options = {}) {
   const env = options.env ?? process.env
-  return createAIProvider({ ...options, env: { ...env, AI_PROVIDER: env.AI_PROVIDER === 'openrouter' ? 'openrouter' : 'bailian' } })
+  return createAIProvider({ ...options, env: { ...env, AI_PROVIDER: ['openrouter','ark'].includes(env.AI_PROVIDER) ? env.AI_PROVIDER : 'bailian' } })
 }
