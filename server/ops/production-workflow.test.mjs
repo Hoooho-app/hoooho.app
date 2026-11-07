@@ -49,3 +49,26 @@ test('old cloud metadata copied between environments is not taken as a release o
   assert.deepEqual(readProductionWorkflow({ env }).runtime, { context: 'production', site: null, revision: null })
   assert.equal(indexAI(readProductionWorkflow({ env })).dialogue.state, 'off')
 })
+
+test('labelled lanes separate DNS traffic, historical registration, draft confirmation and read-only monitoring', () => {
+  const report = readProductionWorkflow({ env: {} })
+  const [domestic, overseas, release] = report.views
+  const ids = lane => lane.steps.map(step => step.node)
+  for (const view of report.views) {
+    const index = new Set(view.stages.flatMap(stage => stage.nodes))
+    for (const lane of view.lanes) {
+      assert.ok(lane.steps.length >= 2)
+      assert.ok(ids(lane).every(id => index.has(id)), lane.title)
+      assert.ok(lane.steps.slice(1).every(step => step.via?.trim()), lane.title)
+    }
+  }
+  assert.deepEqual(domestic.stages.map(stage => stage.title), ['产品端','域名','访问入口','生产环境','业务','处理','存储','结果','运营'])
+  assert.equal(report.nodes.godaddy.state, 'history')
+  assert.deepEqual(ids(domestic.lanes.find(lane => lane.tone === 'history')), ['godaddy','registrar','domain'])
+  assert.deepEqual(ids(domestic.lanes.find(lane => lane.tone === 'traffic')), ['web','domain','gateway','origin','api'])
+  assert.deepEqual(ids(domestic.lanes.find(lane => lane.title === 'AI 整理后保存')), ['api','agent','review','store','delivery'])
+  assert.deepEqual(ids(domestic.lanes.find(lane => lane.title === '录音中字幕')), ['api','agent','subtitle'])
+  assert.ok(domestic.lanes.filter(lane => lane.tone === 'observe').every(lane => ids(lane).at(-1) === 'monitor'))
+  assert.equal(overseas.lanes[0].tone, 'pending')
+  assert.ok(release.lanes.every(lane => ids(lane)[0] === 'code'))
+})
