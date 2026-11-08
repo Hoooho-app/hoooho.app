@@ -40,6 +40,7 @@
 .growth-data-tabs { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .growth-data-curve-tabs { display: grid; grid-column: span 2; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .growth-tabs.growth-data-tabs button { min-height: 44px; font-size: 14px; }
+.growth-data-tabs .growth-data-curve-tabs > button[aria-selected='true'] { background: rgb(var(--hoho-color-primary-active)); color: rgb(var(--hoho-color-action-text)); }
 .growth-data-curve { min-width: 0; min-height: 354px; overflow: hidden; border: 1px solid rgb(var(--hoho-color-primary-border) / .72); border-radius: var(--hoho-radius-card); background: rgb(var(--hoho-color-surface)); padding: 12px 10px 8px; }
 .growth-data-latest { display: grid; gap: 4px; padding: 0 4px; }
 .growth-data-latest > span { display: flex; min-width: 0; align-items: baseline; justify-content: space-between; gap: 8px; }
@@ -708,8 +709,6 @@
   .growth-step-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
   .growth-step-card { position: relative; display: grid; min-width: 0; min-height: 124px; align-content: start; gap: 7px; border: 1px solid rgb(var(--hoho-color-primary-border) / 0.72); border-radius: var(--hoho-radius-card); padding: 9px; background: rgb(var(--hoho-color-surface)); }
   .growth-step-card h2 { margin: 0; font-size: 15px; }
-  .growth-step-card__heading { display: flex; align-items: center; justify-content: space-between; gap: 4px; min-width: 0; }
-  .growth-step-card__heading time { flex: none; color: rgb(var(--hoho-color-text-secondary)); font-size: 11px; line-height: 16px; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .growth-step-card > div { display: grid; min-width: 0; grid-template-columns: 30px minmax(0, 1fr) 30px; align-items: center; gap: 2px; }
   .growth-step-card > div > button:not(.growth-step-value) { display: grid; width: 30px; height: 44px; place-items: center; border: 0; border-radius: var(--hoho-radius-pill); background: rgb(var(--hoho-color-primary-soft)); color: rgb(var(--hoho-color-link)); }
   .growth-step-card > div > button:disabled { color: rgb(var(--hoho-color-text-weak)); opacity: 0.5; }

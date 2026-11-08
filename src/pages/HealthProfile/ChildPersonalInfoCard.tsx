@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { Avatar } from '../../components/common'
 import { HealthCard, HohoButton } from '../../components/design-system'
 import { Pencil } from '../../components/icons'
-import { formatGrowthMeasurement, resolveCurrentGrowthSnapshot } from '../../features/health-profile/utils/resolveCurrentGrowthMeasurements'
+import { formatGrowthMeasurement, resolveCurrentGrowthMeasurements } from '../../features/health-profile/utils/resolveCurrentGrowthMeasurements'
 import { calculateBmi } from '../../features/health-profile/utils/healthProfileBasicInfo'
 import { familyMemberService } from '../../services/familyMembers'
 import { growthMeasurementService } from '../../services/growthMeasurements'
@@ -15,18 +15,16 @@ import { formatAgeFromBirthday } from '../../utils/formatAgeFromBirthday'
 interface GrowthMetricProps {
   measure: 'height' | 'weight'
   value: number | null
-  measuredAt: string | null
   empty: string
 }
 
-function GrowthMetric({ measure, value, measuredAt, empty }: GrowthMetricProps) {
+function GrowthMetric({ measure, value, empty }: GrowthMetricProps) {
   const label = measure === 'height' ? '身高' : '体重'
   return <Link className="child-personal-card__metric" to="/health-profile/basic" state={{ selectedMeasure: measure, returnTo: '/health-profile' }}>
     <span className="child-personal-card__label">{label}</span>
     <span className="child-personal-card__value">
       {value == null ? <span className="child-personal-card__empty">{empty}</span> : <>{formatGrowthMeasurement(value)}<span className="child-personal-card__unit">{measure === 'height' ? 'cm' : 'kg'}</span></>}
     </span>
-    {measuredAt && <small>{measuredAt}</small>}
     <span className="sr-only">查看{label}曲线</span>
   </Link>
 }
@@ -78,7 +76,7 @@ export function ChildPersonalInfoCard({ member }: { member: Member }) {
     }
   }
 
-  const growth = status === 'ready' ? resolveCurrentGrowthSnapshot(member, measurements, member.id) : null
+  const growth = status === 'ready' ? resolveCurrentGrowthMeasurements(member, measurements, member.id) : null
   const bmi = growth ? calculateBmi(growth.heightCm, growth.weightKg) : null
   const growthEmpty = status === 'loading' ? '读取中…' : status === 'error' ? '暂不可用' : '未填写'
   const savingBloodType = bloodSave !== null && !bloodSave.error
@@ -98,8 +96,8 @@ export function ChildPersonalInfoCard({ member }: { member: Member }) {
       </dl>}
     </div>
     <div className="child-personal-card__metrics" role="group" aria-label="身高、体重和血型">
-      <GrowthMetric measure="height" value={growth?.heightCm ?? null} measuredAt={growth?.heightMeasuredAt ?? null} empty={growthEmpty} />
-      <GrowthMetric measure="weight" value={growth?.weightKg ?? null} measuredAt={growth?.weightMeasuredAt ?? null} empty={growthEmpty} />
+      <GrowthMetric measure="height" value={growth?.heightCm ?? null} empty={growthEmpty} />
+      <GrowthMetric measure="weight" value={growth?.weightKg ?? null} empty={growthEmpty} />
       <label className="child-personal-card__metric">
         <span className="child-personal-card__label">血型</span>
         <span className="child-personal-card__value" aria-live="polite">
