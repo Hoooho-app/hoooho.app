@@ -251,6 +251,7 @@ export class LegacySemanticFrontDeskRecord {
       if(semanticMode){schema.required.push('decision');schema.properties.decision=semanticDecisionSchema;schema.properties.questionId={type:['string','null']}}
       let content = [{ type: 'input_text', text: JSON.stringify({ history, memberContext, existingContext:relatedContext.existingContext??[], nursingKnowledge, latest: { text: message.text, kind: message.kind,...(message.answerTo?{answerTo:message.answerTo,answerQuestion:message.answerQuestion}:{}),...(message.targetContextId?{contextId:message.targetContextId}:{}) } }) }]
       if (prepared.pages.length) {
+        if((this.options.env??process.env).AI_PROVIDER==='ark')throw fail('未分类的图片原件已保留，未发送给云模型；检查单请从回传就诊资料入口核对',422,'AI_ATTACHMENT_REVIEW_LOCAL')
         // A real contact sheet respects the configured one-image request limit.
         const cells = await Promise.all(prepared.pages.map(async p => {
           const image = p.mimeType === 'application/pdf' ? await pdfPageImage(p.dataUrl, signal) : p.dataUrl

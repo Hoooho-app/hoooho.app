@@ -11,6 +11,7 @@ import {FamilyMemberService} from '../members/family-member-service.mjs'
 import {HealthEventService} from '../events/health-event-service.mjs'
 import {FrontDeskRecord} from './front-desk-record.mjs'
 import {AIBusinessService} from './business/service.mjs'
+import {currentSeedHome, withSeedHome} from './providers/seed-home-scope.mjs'
 const delay=ms=>new Promise(r=>setTimeout(r,ms))
 const deferred=()=>{let resolve;const promise=new Promise(r=>resolve=r);return {promise,resolve}}
 async function until(fn){for(let i=0;i<300;i++){const v=await fn();if(v)return v;await delay(10)}throw new Error('Timed out waiting for task')}
@@ -134,6 +135,37 @@ test('successful ASR is reused when organization alone fails',async t=>{
  failing=false;await f.jobs.command('synthetic',f.member.id,'task-1',{id:'retry-1',type:'retry'})
  await until(async()=>{const j=await f.snapshot();return j.state==='ready'});assert.equal(f.calls.filter(c=>c==='asr').length,1)
  assert.equal((await f.front.latest('synthetic',f.member.id)).messages.filter(m=>m.kind==='voice').length,1)
+})
+test('the home voice job retains its Seed scope through transcription, reply, and organization', async t => {
+ const f=await setup(t), accountId='synthetic', memberId=f.member.id
+ const scope={accountId,models:{}}
+ f.jobs.runSeedHome=(id,work)=>{
+  assert.equal(id,accountId)
+  return withSeedHome(scope,work)
+ }
+ const seedStages=[]
+ const observe=(stage,call)=>async (...args)=>{
+  assert.equal(currentSeedHome(),scope,stage)
+  seedStages.push(stage)
+  return call(...args)
+ }
+ f.audio.transcribe=observe('ASR',f.audio.transcribe)
+ f.frontModel.structured=observe('reply',f.frontModel.structured)
+ f.model.structured=observe('organization',f.model.structured)
+ const wave=Buffer.alloc(364);wave.write('RIFF');wave.write('WAVE',8)
+ const asset=await f.jobs.upload(accountId,memberId,{buffer:wave,mimeType:'audio/wav',name:'合成.wav'})
+ const input={id:'task-1',mode:'front',input:{id:'seed-voice',kind:'voice',text:'',assetIds:[asset.id],asrAssetId:asset.id},options:{smartRecord:true,selectedOccurredAt:new Date().toISOString()}}
+ const accepted=await withSeedHome(scope,()=>f.jobs.submit(accountId,memberId,input))
+ assert.equal(accepted.seedHome,true)
+ const ready=await until(async()=>{
+  const job=await f.snapshot()
+  if(job.state==='failed')assert.fail(JSON.stringify(job.error))
+  return job.state==='ready'&&job
+ })
+ assert.equal(ready.review.inputText,'脸颊发红')
+ assert.deepEqual(seedStages,['ASR','reply','organization'])
+ await assert.rejects(()=>f.jobs.command(accountId,memberId,'task-1',{id:'old-client-retry',type:'retry'}),{code:'RECOGNITION_SCOPE_CONFLICT'})
+ await assert.rejects(()=>f.submit('old-client-append','另一句'),{code:'RECOGNITION_SCOPE_CONFLICT'})
 })
 test('new input fences old extraction and publishes the newest revision',async t=>{
  const f=await setup(t),entered=deferred(),release=deferred(),original=f.model.structured;let once=true

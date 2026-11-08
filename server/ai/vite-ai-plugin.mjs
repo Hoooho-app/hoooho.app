@@ -3,7 +3,8 @@ import { authConfig } from '../auth/config.mjs'
 import { TokenService } from '../auth/token-service.mjs'
 import { HealthRecordOrganizationError, HealthRecordOrganizationService } from './health-record-organization-service.mjs'
 import { HealthEventService } from '../events/health-event-service.mjs'
-import { LiveAudioPreviewService,liveAudioPreviewApiResult } from './live-audio-preview.mjs'
+import { liveAudioPreviewApiResult } from './live-audio-preview.mjs'
+import { createLiveAudioPreviewService } from './seed-live-audio-preview.mjs'
 import { AudioTranscriptionService } from './audio-transcription-service.mjs'
 
 const readJson = (request, maxLength = 16_384) => new Promise((resolve, reject) => {
@@ -50,7 +51,7 @@ export function aiApiPlugin(options = {}) {
   const service = options.service ?? new HealthRecordOrganizationService({ dataDirectory: config.dataDirectory, structuredMode: 'enabled' })
   const tokens = options.tokens ?? new TokenService(config.tokenSecret, config.tokenTtlMs)
   const events=new HealthEventService({dataDirectory:config.dataDirectory})
-  const liveAudioPreview=new LiveAudioPreviewService({assertMember:(accountId,memberId)=>events.assertMemberOwnership(accountId,memberId)})
+  const liveAudioPreview=createLiveAudioPreviewService({assertMember:(accountId,memberId)=>events.assertMemberOwnership(accountId,memberId)})
   const audio = options.audio ?? new AudioTranscriptionService(options)
 
   return {

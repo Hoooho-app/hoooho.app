@@ -13,6 +13,7 @@ import { useAppStore } from '../../store/useAppStore'
 import type { AccountProfile, AccountProvider } from '../../types'
 import { AvatarPhotoError, createAvatarPhotoPreview, prepareAvatarPhoto } from '../../utils/prepareAvatarPhoto'
 import { restoreBrowserSession } from '../../components/auth/SessionBootstrap'
+import { SeedTestflightTrial } from './SeedTestflightTrial'
 
 function message(error: unknown) {
   return error instanceof ApiRequestError ? error.message : '操作失败，请稍后重试'
@@ -42,12 +43,14 @@ function Group({ title, children }: { title: string; children: ReactNode }) {
 export function AccountHomePage() {
   const location = useLocation()
   const guest = useAppStore(state => !state.authUser || Boolean(state.authUser.guest))
-  const { profile, loading, error } = useAccount()
+  const accountId = useAppStore(state => state.authUser?.id)
+  const { token, profile, loading, error } = useAccount()
   const from = typeof location.state?.accountFrom === 'string' && location.state.accountFrom.startsWith('/') && !location.state.accountFrom.startsWith('/account') && !location.state.accountFrom.startsWith('//') ? location.state.accountFrom : '/nurse-station'
   return <AccountLayout title="我的账户" fallback={from}>
     {!guest && loading && <StatusNotice title="正在加载账户资料" />}
     {!guest && error && <StatusNotice title={error} tone="error" action={<HohoButton variant="text" onClick={() => window.location.reload()}>重试</HohoButton>} />}
     {(guest || profile) && <AccountOverview />}
+    {!guest && accountId && token && <SeedTestflightTrial key={`${accountId}:${token}`} token={token} />}
   </AccountLayout>
 }
 

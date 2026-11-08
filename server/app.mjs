@@ -12,6 +12,9 @@ import { familySharingRoute, familySharingResult, FAMILY_SHARING_BODY_LIMIT } fr
 import { CareToolsService } from './care-tools/service.mjs'
 import { careToolsRoute, careToolsResult, CARE_TOOLS_BODY_LIMIT } from './care-tools/api.mjs'
 import {withAITrace,safeTraceId,aiRequestOperation,bypassAccountRequestLock,safeClientTiming} from './ai/providers/telemetry.mjs'
+import { createSeedHomeScope, currentSeedHome, isSeedHomeBuild, seedHomeRequest, seedHomeStatus, seedHomeStatusPath, seedHomeRoute } from './ai/providers/seed-home-scope.mjs'
+import { createSeedHomeDialogueProvider } from './ai/providers/ark-provider.mjs'
+import { SeedASRProvider, seedASRConfiguration, seedASRModel } from './ai/providers/seed-asr-provider.mjs'
 import { resolveBusinessAssetInput } from './ai/business/asset-input.mjs'
 import { parseJsonObject } from './json-input.mjs'
 import { JournalIndexService } from './events/journal-index-service.mjs'
@@ -45,6 +48,7 @@ import { MedicalSummaryError } from './ai/medical-summary-service.mjs'
 import { SafeAIProviderError } from './ai/providers/provider-config.mjs'
 import { CaptureWorkerClient, handleCaptureApi } from './ops/capture-worker-client.mjs'
 import { OpsWorkspaceService } from './ops/workspace-service.mjs'
+import { readProductionWorkflow } from './ops/production-workflow.mjs'
 import { createBillingCollectors } from './ops/capture-collectors.mjs'
 import { OPS_SNAPSHOT_REQUEST_MAX_LENGTH, OpsService, assertOpsAccess, startOpsScheduler } from './ops/ops-service.mjs'
 import { FeedbackService } from './help/feedback-service.mjs'
@@ -69,8 +73,10 @@ import { AIBusinessService } from './ai/business/service.mjs'
 import { CaseContinuityService } from './events/case-continuity-service.mjs'
 import { NurseService, nurseApiResult } from './ai/nurse-service.mjs'
 import {RecognitionJobs,recognitionRoute,recognitionApi,recognitionDiagnostics} from './ai/recognition-jobs.mjs'
-import { LiveAudioPreviewService,liveAudioPreviewApiResult } from './ai/live-audio-preview.mjs'
+import { liveAudioPreviewApiResult } from './ai/live-audio-preview.mjs'
+import { createLiveAudioPreviewService, SeedLiveAudioPreviewService } from './ai/seed-live-audio-preview.mjs'
 import { FrontDeskRecord } from './ai/front-desk-record.mjs'
+import { createSeedTestflightTrial, seedTrialPath } from './ai/seed-testflight-trial.mjs'
 import { caseApiResult } from './events/case-api.mjs'
 import { createFoodLabelService, foodLabelApi } from './food-label/api.mjs'
 import {ChildProfileListService} from './health-profile/child-profile-list-service.mjs'
@@ -97,6 +103,19 @@ const sharedOptions = {
 }
 
 const auth = new AuthService(sharedOptions)
+let seedDialogue, seedAudio
+const runSeedHome = createSeedHomeScope({
+  env: process.env,
+  findUser: id => auth.users.findById(id),
+  models: {
+    dialogue: () => seedDialogue ??= createSeedHomeDialogueProvider(),
+    audio: () => {
+      try { return seedAudio ??= new SeedASRProvider({ seedHome: true }) }
+      catch (configurationError) { return { name: 'seed-asr', model: seedASRModel, configurationError } }
+    },
+    liveAudio: () => seedASRConfiguration(process.env, true),
+  },
+})
 const familyMigration = createFamilyMigrationBridge({ ...sharedOptions, migrationToken: process.env.FAMILY_MIGRATION_TOKEN, upstreamActive: () => Boolean(process.env.FAMILY_UPSTREAM_URL) })
 const familyGateway = createFamilyGateway({ upstream: process.env.FAMILY_UPSTREAM_URL, token: process.env.FAMILY_GATEWAY_TOKEN })
 const qingganGateway = createQingganGateway({ upstream: process.env.QINGGAN_UPSTREAM_URL })
@@ -105,7 +124,9 @@ const account = new AccountService({ ...sharedOptions, auth, users: auth.users, 
 const members = new FamilyMemberService(sharedOptions)
 const organizations = new HealthRecordOrganizationService(sharedOptions)
 const audioTranscription = new AudioTranscriptionService(sharedOptions)
-const liveAudioPreview=new LiveAudioPreviewService({assertMember:(accountId,memberId)=>members.get(accountId,memberId)})
+const livePreviewOptions = { assertMember: (accountId,memberId) => members.get(accountId,memberId) }
+const liveAudioPreview = createLiveAudioPreviewService(livePreviewOptions)
+const seedLiveAudioPreview = new SeedLiveAudioPreviewService(livePreviewOptions)
 const events = new HealthEventService({ ...sharedOptions, summaryRefresher: organizations })
 const records = new HealthEventRecordService({ ...sharedOptions, organizations })
 const attachments = new EventAttachmentService(sharedOptions)
@@ -166,7 +187,8 @@ const familySharing = new FamilySharingService({ ...sharedOptions, attachmentRea
 const caseContinuity = new CaseContinuityService({ ...sharedOptions, business: aiBusiness })
 const nurse = new NurseService({ ...sharedOptions, events })
 const frontDeskRecord = new FrontDeskRecord({ ...sharedOptions, events, business: aiBusiness })
-const recognitionJobs=new RecognitionJobs({...sharedOptions,events,business:aiBusiness,frontDesk:frontDeskRecord,audio:audioTranscription})
+const seedTestflightTrial = createSeedTestflightTrial()
+const recognitionJobs=new RecognitionJobs({...sharedOptions,events,business:aiBusiness,frontDesk:frontDeskRecord,audio:audioTranscription,runSeedHome})
 aiBusiness.assertRecognitionCurrent=draft=>recognitionJobs.assertCurrent(draft)
 const aiDraftCleanup=setInterval(()=>{void aiBusiness.prune().catch(()=>console.warn('[Hoooho AI] temporary draft cleanup unavailable'))},15*60_000)
 aiDraftCleanup.unref()
@@ -279,6 +301,7 @@ async function handleOps(request, response, pathname) {
   else if (pathname === '/api/ops/analytics' && request.method === 'GET') sendJson(response, 200, productAnalytics.report(new URL(request.url, 'http://localhost').searchParams))
   else if (pathname === '/api/ops/services' && request.method === 'GET') sendJson(response, 200, await opsWorkspace.services())
   else if (pathname === '/api/ops/resources' && request.method === 'GET') sendJson(response, 200, await resources.overview())
+  else if (pathname === '/api/ops/workflow' && request.method === 'GET') sendJson(response, 200, readProductionWorkflow({ audioTranscription, liveAudioPreview, captureWorker }))
   else if (pathname === '/api/ops/versions' && request.method === 'GET') sendJson(response, 200, await opsWorkspace.versions())
   else if (pathname === '/api/ops/settings' && request.method === 'GET') sendJson(response, 200, await opsWorkspace.settings())
   else if (pathname === '/api/ops/settings' && request.method === 'PATCH') sendJson(response, 200, await opsWorkspace.saveSettings(await readJson(request)))
@@ -790,7 +813,8 @@ async function handleHealthProfileFacts(request, response, pathname, searchParam
 
 async function handleAudioTranscription(request, response, pathname) {
   if(/^\/api\/ai\/audio\/live(?:\/|$)/.test(pathname)){
-    const result=await liveAudioPreviewApiResult(liveAudioPreview,await readAccountId(request),request.method,pathname,limit=>readJson(request,limit),requestSignal(request,response))
+    const preview = currentSeedHome() ? seedLiveAudioPreview : liveAudioPreview
+    const result=await liveAudioPreviewApiResult(preview,await readAccountId(request),request.method,pathname,limit=>readJson(request,limit),requestSignal(request,response))
     if(result)sendJson(response,result.status,result.data);else sendJson(response,404,{error:{code:'ASR_LIVE_NOT_FOUND',message:'实时文字已结束'}})
     return true
   }
@@ -900,6 +924,12 @@ async function handleOnlineConsultations(request, response, pathname) {
 }
 
 async function handleApi(request, response, pathname, searchParams) {
+  if (pathname === seedHomeStatusPath && request.method === 'GET') {
+    const status = seedHomeStatus(process.env)
+    response.setHeader('Cache-Control', 'no-store')
+    sendJson(response, status.ready ? 200 : 503, status)
+    return true
+  }
   if (pathname === '/api/account/usage' && request.method === 'GET') {
     sendJson(response, 200, await resources.account(await readAccountId(request)))
     return
@@ -953,6 +983,17 @@ async function handleApi(request, response, pathname, searchParams) {
     return true
   }
   if (await handleAuth(request, response, pathname)) return true
+  if (pathname===seedTrialPath) {
+    if (!['GET','POST'].includes(request.method)) {
+      sendJson(response,405,{error:{code:'METHOD_NOT_ALLOWED',message:'仅支持 GET / POST'}});return true
+    }
+    const user=await auth.users.findById(await readAccountId(request)), status=seedTestflightTrial.status(user)
+    if(request.method==='GET'){sendJson(response,200,status);return true}
+    browserSessions.assertSameOrigin(request)
+    if(!status.available){sendJson(response,404,{error:{code:'SEED_TRIAL_NOT_FOUND',message:'内测入口未开放'}});return true}
+    const result=await seedTestflightTrial.run(user,await readJson(request,64),requestSignal(request,response))
+    sendJson(response,200,result);return true
+  }
   if (await handleOpsFeedback(request, response, pathname, searchParams)) return true
   if (await handleOps(request, response, pathname)) return true
   if (await handleFeedback(request, response, pathname, searchParams)) return true
@@ -1195,7 +1236,20 @@ async function handleRequest(request, response) {
     observeSessionRequest(request, response, pathname)
     const accessToken = /^Bearer\s+(.+)$/i.exec(request.headers.authorization ?? '')?.[1]
     const lockAccountId = accessToken ? tokens.verify(accessToken)?.sub : pathname.startsWith('/api/auth/') ? (await browserSessions.current(request))?.user.id : null
-    if (await withAccountLock(pathname === '/api/analytics/events' || bypassAccountRequestLock(request.method,pathname)?null:lockAccountId, () => handleApi(request, response, pathname, url.searchParams))) return
+    const dispatch = () => handleApi(request, response, pathname, url.searchParams)
+    const dispatchForClient = seedHomeRequest(request, pathname) ? async () => {
+      const accountId = await readAccountId(request)
+      return runSeedHome(accountId, () => {
+        response.setHeader('X-Hoooho-Model-Route', seedHomeRoute)
+        return dispatch()
+      })
+    } : dispatch
+    if (dispatchForClient === dispatch && request.method === 'POST' && aiRequestOperation(pathname) &&
+        pathname !== '/api/ai/telemetry' && !pathname.endsWith('/recognition-assets') && isSeedHomeBuild(request)) {
+      sendJson(response, 503, { error: { code: 'AI_SEED_HOME_UNSUPPORTED', message: '这项 AI 功能尚未接入 Seed 内测。可继续使用首页的 Seed 记录。' } })
+      return
+    }
+    if (await withAccountLock(pathname === '/api/analytics/events' || bypassAccountRequestLock(request.method,pathname)?null:lockAccountId, dispatchForClient)) return
     await handleStatic(request, response, pathname)
   } catch (error) {
     if(response.destroyed)return
@@ -1234,6 +1288,7 @@ function shutdown(signal) {
   shuttingDown = true
   console.info(`[Hoooho] received ${signal}, shutting down`)
   liveAudioPreview.destroy()
+  seedLiveAudioPreview.destroy()
   void recognitionJobs.close()
   stopOpsScheduler()
   stopResourceMonitor()
