@@ -1,5 +1,5 @@
 import { bodyLocationLabel } from '../../shared/body-location-label.mjs'
-import { sameReadingTopic } from './reading-context.mjs'
+import { sameReadingTopic, sourceChronology } from './reading-context.mjs'
 import { readingProjection } from './reading-projection.mjs'
 import { currentSituation } from './current-situation.mjs'
 import { situationSources, situationFingerprint, safeSituationEmphasis } from './current-situation-output.mjs'
@@ -7,6 +7,7 @@ import { createHash } from 'node:crypto'
 import { refineVisitSheet } from './v5-projection.mjs'
 import { refineV6 } from './v6-projection.mjs'
 import { profileSourceId } from './source-identity.mjs'
+import { clinicalVisit } from './clinical-visit.mjs'
 
 export const chapters = [
   ['overview', '病情数据'],
@@ -201,6 +202,7 @@ export function reportFingerprint(input, now = new Date()) {
           gender: member.gender,
           birthday: member.birthday,
           bloodType: member.bloodType, rhBloodType: member.rhBloodType, primaryRecorderRelationship: member.primaryRecorderRelationship,
+          growthBaseline: member.growthBaseline ?? { heightCm: member.heightCm, weightKg: member.weightKg },
         },
         events: events.map((e) => ({
           id: e.id,
@@ -209,7 +211,7 @@ export function reportFingerprint(input, now = new Date()) {
           status: e.status,
         })),
         ...rest,
-        projectionRevision: 'readable-summary-v4-current-situation',
+        projectionRevision: 'readable-summary-v5-clinical-visit',
         due: input.reminders.flatMap((r) =>
           r.occurrences
             .filter((o) => Date.parse(o.scheduledAt) <= now.getTime())
@@ -313,11 +315,12 @@ export function buildVisitSheet(input, preferences = {}, now = new Date()) {
   const symptoms = records.filter(
     (r) =>
       symptomRecord(r) &&
+      !r.deletedAt &&
       !r.journal?.medication &&
       !/^(嗯|哦|啊|好|好的|记录)?[。！!\s]*$/.test(
         text(r.journal?.symptom?.narrative) || text(r.content),
       ),
-  )
+  ).sort(sourceChronology)
   const candidates = symptoms.map((r) => ({
     sourceId: `record:${r.id}`,
     text: text(r.journal?.symptom?.narrative) || text(r.content),
@@ -812,6 +815,8 @@ export function buildVisitSheet(input, preferences = {}, now = new Date()) {
       name: input.member.name,
       gender: input.member.gender ?? null,
       birthday: input.member.birthday ?? null,
+      heightCm: selection?.includeBackground === false ? null : (input.member.growthBaseline ?? input.member).heightCm ?? null,
+      weightKg: selection?.includeBackground === false ? null : (input.member.growthBaseline ?? input.member).weightKg ?? null,
       avatar: input.member.avatar ?? input.member.avatarUrl ?? null,
       bloodType: input.member.bloodType ?? null, rhBloodType: input.member.rhBloodType ?? null,
       primaryRecorderRelationship: input.member.primaryRecorderRelationship ?? null,
@@ -859,6 +864,9 @@ export function buildVisitSheet(input, preferences = {}, now = new Date()) {
       ...Object.fromEntries(['symptoms','diet'].map(k=>[k,displayLines(Object.hasOwn(edits,k)||(k==='symptoms'&&edits.symptomRows)?report.currentSituation[k]:value[k])])),changes:displayLines(value.changes),treatment:displayLines(value.treatment),
     }
   }
+  report.clinicalEdits = preferences.clinicalEdits ?? {}
+  const clinicalAsOf = preferences.fingerprint === report.fingerprint && preferences.dataAsOf ? preferences.dataAsOf : report.dataAsOf
+  report.clinical = clinicalVisit({ ...report, dataAsOf: clinicalAsOf }, records.filter(record => !record.deletedAt), report.clinicalEdits)
   if (!preferences.questionEdited) {
     const recorded = (report.questionSourceIds?.length ? report.question.split('\n').filter(Boolean) : [])
     report.question = [...new Set([...recorded, ...report.reading.questionCandidates])].slice(0,4).join('\n')

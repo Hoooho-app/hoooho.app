@@ -4,8 +4,10 @@ import type {
   VisitFocus,
   VisitSheetState,
   VisitPhotoDetail,
+  VisitClinicalPatch,
 } from '../types/visitSheet'
 export interface VisitSheetUpdate {
+  clinical?: VisitClinicalPatch
   currentSituation?: {scopeKey:string;block:'description'|'symptoms'|'diet';text?:string;rows?:Array<{text:string;note:string}>}
   organizeCurrent?: {scopeKey:string}
   previewUpdate?: boolean

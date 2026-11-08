@@ -3,6 +3,7 @@ import { isChildProfileVitals } from '../../../shared/child-profile-policy.mjs'
 import { Avatar } from '../../components/common'
 import { HealthCard, HohoButton } from '../../components/design-system'
 import { formatGrowthMeasurement, resolveCurrentGrowthSnapshot } from '../../features/health-profile/utils/resolveCurrentGrowthMeasurements'
+import { calculateBmi } from '../../features/health-profile/utils/healthProfileBasicInfo'
 import { growthMeasurementService } from '../../services/growthMeasurements'
 import { subscribeProfileSectionInvalidation } from '../../services/profileSectionStorage'
 import { useAppStore } from '../../store/useAppStore'
@@ -51,6 +52,7 @@ export function ChildPersonalInfoCard({ member, onSelectChild }: { member: Membe
   }, [member.id, token, revision])
 
   const snapshot = resolveCurrentGrowthSnapshot(member, measurements, member.id)
+  const bmi = status === 'ready' ? calculateBmi(snapshot.heightCm, snapshot.weightKg) : null
   const growthEmpty = status === 'loading' ? '读取中…' : status === 'error' ? '暂不可用' : '未填写'
   const vitalRead = identity.records[0]?.vitals
   const vitals = identity.loaded && !identity.error && isChildProfileVitals(vitalRead) ? vitalRead : null
@@ -76,9 +78,10 @@ export function ChildPersonalInfoCard({ member, onSelectChild }: { member: Membe
       <ProfileMetric label="体重" value={status === 'ready' ? formatGrowthMeasurement(snapshot.weightKg) : null} unit="kg" note={status === 'ready' ? snapshot.weightMeasuredAt : null} empty={growthEmpty} />
       <ProfileMetric label="血型" value={member.bloodType ? `${member.bloodType}型` : null} note={member.rhBloodType ? `RhD ${member.rhBloodType === 'positive' ? '阳性' : '阴性'}` : null} />
     </dl>
-    <dl className="child-personal-card__metrics child-personal-card__metrics--vitals" aria-label="血压和脉搏">
+    <dl className="child-personal-card__metrics" aria-label="血压、脉搏和 BMI">
       <ProfileMetric label="血压" value={bloodPressure} unit="mmHg" empty={vitalsEmpty} />
       <ProfileMetric label="脉搏" value={vitals?.pulseBpm?.toString()} unit="次/分" empty={vitalsEmpty} />
+      <ProfileMetric label="BMI" value={bmi} empty={growthEmpty} />
     </dl>
     {status === 'error' && <p className="child-personal-card__error" role="alert">身高、体重读取失败<HohoButton variant="text" onClick={() => setRevision(value => value + 1)}>重试</HohoButton></p>}
     {identity.error && <p className="child-personal-card__error" role="alert">血压、脉搏读取失败<HohoButton variant="text" aria-label="重试读取血压和脉搏" onClick={identity.refresh}>重试</HohoButton></p>}

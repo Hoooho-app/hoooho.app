@@ -88,16 +88,17 @@ export function getInitialHealthProfileRecords(
     : []
 }
 
-function optionalNumber(value: string | boolean | undefined) {
+function optionalNumber(value: string | number | boolean | null | undefined) {
   const normalized = String(value ?? '').trim()
   return normalized ? Number(normalized) : null
 }
 
-export function calculateBmi(height: string | boolean | undefined, weight: string | boolean | undefined) {
+export function calculateBmi(height: string | number | boolean | null | undefined, weight: string | number | boolean | null | undefined) {
   const heightCm = optionalNumber(height)
   const weightKg = optionalNumber(weight)
-  if (!heightCm || !weightKg || heightCm <= 0 || weightKg <= 0) return ''
-  return (weightKg / ((heightCm / 100) ** 2)).toFixed(1)
+  if (!heightCm || !weightKg || !Number.isFinite(heightCm) || !Number.isFinite(weightKg) || heightCm <= 0 || weightKg <= 0) return ''
+  const bmi = weightKg / ((heightCm / 100) ** 2)
+  return Number.isFinite(bmi) ? bmi.toFixed(1) : ''
 }
 
 export function toFamilyMemberHealthUpdate(values: BasicHealthProfileValues) {

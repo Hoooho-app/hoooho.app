@@ -22,6 +22,7 @@ import { normalizeMedicalSummary } from '../ai/providers/openai-provider.mjs'
 import { visitAISources, visitAISummaryInput, visitAISummaryFingerprint } from './visit-ai-summary.mjs'
 import { situationSources, situationFingerprint } from './current-situation-output.mjs'
 import { questionCandidates } from './reading-context.mjs'
+import { applyClinicalEdit } from './clinical-visit.mjs'
 import {
   buildVisitSheet,
   chapters,
@@ -233,6 +234,17 @@ export class VisitSheetService {
     }
   }
   async save(accountId, memberId, request, now = new Date(), signal) {
+    if (request.clinical !== undefined) {
+      const patch = request.clinical
+      if (!patch || typeof patch.scopeKey !== 'string' || typeof patch.id !== 'string' ||
+          !['history', 'examination'].includes(patch.section) ||
+          (patch.value !== null && typeof patch.value !== 'boolean') ||
+          (patch.label !== undefined && typeof patch.label !== 'string') ||
+          Object.keys(patch).some(key => !['scopeKey', 'section', 'id', 'value', 'label'].includes(key)) ||
+          Object.keys(request).some(key => !['clinical', 'expectedVersion', 'requestId'].includes(key))) {
+        throw failure('体格或病史项目格式无效')
+      }
+    }
     if(request.organizeCurrent!==undefined&&(!request.organizeCurrent||typeof request.organizeCurrent.scopeKey!=='string'||Object.keys(request.organizeCurrent).some(k=>k!=='scopeKey')||Object.keys(request).some(k=>!['organizeCurrent','expectedVersion','requestId'].includes(k))))throw failure('目前情况整理设置无效')
     if(request.previewUpdate!==undefined&&typeof request.previewUpdate!=='boolean')throw failure('更新预览设置无效')
     if(request.confirmUpdate!==undefined&&(typeof request.confirmUpdate!=='string'||Object.keys(request).some(k=>!['confirmUpdate','expectedVersion','requestId'].includes(k))))throw failure('更新确认设置无效')
@@ -314,7 +326,15 @@ export class VisitSheetService {
       const notes = request.notes ?? previous?.notes ?? {}
       const caseDetails=request.caseDetails??previous?.caseDetails??{}
       const currentSituationEdits = structuredClone(previous?.currentSituationEdits ?? {})
-      const situationTarget=buildVisitSheet(input,{focus,selection},now)
+      let clinicalEdits = previous?.clinicalEdits
+      const situationTarget=buildVisitSheet(input,{focus,selection,clinicalEdits},now)
+      if (request.clinical) {
+        try {
+          clinicalEdits = applyClinicalEdit(previous, situationTarget.clinical, request.clinical)
+        } catch (error) {
+          throw failure(error.message, error.status)
+        }
+      }
       // Migrate existing manual copy to its original focus once, without moving it to another case.
       if(previous?.photoKey && previous.caseDetails?.description && !currentSituationEdits[previous.photoKey]) currentSituationEdits[previous.photoKey] = {description:previous.caseDetails.description}
       if(request.caseDetails && !Object.keys(request.caseDetails).length) delete currentSituationEdits[situationTarget.photoKey]
@@ -387,7 +407,7 @@ export class VisitSheetService {
       const details=photoDetails(previous?.photoDetails,request.photoDetails,aliases,now,input.timezone)
       const questionEdited = request.question !== undefined ? true : previous?.questionEdited ?? Boolean(previous?.question)
       let report = {
-        ...buildVisitSheet(input, { focus, notes, question, questionEdited, selection, photoSelections, photoDetails:details, caseDetails:situationTarget.photoKey !== previous?.photoKey && !request.caseDetails ? {} : caseDetails, currentSituationEdits, currentSituationResults:previous?.currentSituationResults }, now),
+        ...buildVisitSheet(input, { focus, notes, question, questionEdited, selection, photoSelections, photoDetails:details, caseDetails:situationTarget.photoKey !== previous?.photoKey && !request.caseDetails ? {} : caseDetails, currentSituationEdits, currentSituationResults:previous?.currentSituationResults, clinicalEdits, fingerprint:previous?.fingerprint, dataAsOf:previous?.dataAsOf }, now),
         id: previous?.id ?? randomUUID(),
         version: (previous?.version ?? 0) + 1,
       }

@@ -38,15 +38,14 @@ test('情况单直接展示资料，后台诊断不占位；编辑、刷新与�
     await route.fulfill({ response, json: body })
   })
   await page.goto('/visit-summary')
-  await expect(page.locator('.visit-reading .organize-member-identity')).toBeVisible()
+  await expect(page.locator('.visit-clinical-identity')).toBeVisible()
   for (const diagnostic of diagnostics) await expect(page.getByText(diagnostic, { exact: true })).toHaveCount(0)
   await expect(page.locator('.visit-report-scroll > :first-child')).toHaveClass('visit-reading')
-  await page.getByRole('button', { name: '目前情况', exact: true }).click()
   await page.getByRole('button', { name: '编辑情况描述', exact: true }).click()
   await expect(page.getByRole('dialog', { name: '编辑情况描述', exact: true })).toBeVisible()
   await page.getByRole('dialog', { name: '编辑情况描述', exact: true }).getByRole('button', { name: '关闭编辑情况描述', exact: true }).click()
   await page.reload()
-  await expect(page.locator('.visit-reading .organize-member-identity')).toBeVisible()
+  await expect(page.locator('.visit-clinical-identity')).toBeVisible()
   for (const diagnostic of diagnostics) await expect(page.getByText(diagnostic, { exact: true })).toHaveCount(0)
   await page.screenshot({ path: info.outputPath('visit-report-without-diagnostics.png') })
 
@@ -56,7 +55,7 @@ test('情况单直接展示资料，后台诊断不占位；编辑、刷新与�
   await expect(page.getByText('情况单暂时无法打开', { exact: true })).toBeVisible()
   await page.unroute('**/api/members/child-a/visit-sheet')
   await page.getByRole('button', { name: '重试', exact: true }).click()
-  await expect(page.locator('.visit-reading .organize-member-identity')).toBeVisible()
+  await expect(page.locator('.visit-clinical-identity')).toBeVisible()
 })
 
 test('各页上下边缘和底导贯穿纸张背景', async ({ page }, info) => {
@@ -65,7 +64,7 @@ test('各页上下边缘和底导贯穿纸张背景', async ({ page }, info) => 
     await expect(page.locator('main').first()).toBeVisible()
     await expect(page.locator('[data-session-recovery-screen]')).toHaveCount(0)
     if (route === '/nurse-station') await expect(page.locator('.smart-record-home .hoho-bottom-navigation')).toBeVisible()
-    if (route === '/visit-summary') await expect(page.locator('.visit-reading .organize-member-identity')).toBeVisible()
+    if (route === '/visit-summary') await expect(page.locator('.visit-clinical-identity')).toBeVisible()
     await page.evaluate(() => document.fonts.ready)
     for (const node of await page.locator('html, body, #root, .hoho-bottom-navigation, .visit-report').all()) {
       await expect(node).toHaveCSS('background-color', paper)

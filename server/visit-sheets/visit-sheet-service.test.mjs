@@ -522,3 +522,50 @@ test('事务外生成期间来源改变或调用取消都不写报告，重试�
  await assert.rejects(()=>svc.save(a,m,{requestId:'snapshot-aborted',expectedVersion:before.report.version,generateAI:true},new Date(),controller.signal),error=>error.name==='AbortError')
  assert.equal((await svc.get(a,m)).report.version,before.report.version)
 })
+
+test('门诊现病史和体格按主诉取证，直接点选留存且不串病程', async t => {
+  const { svc, f } = await setup(t)
+  const { accountId, id: memberId } = f.member
+  const now = new Date('2026-11-08T02:00:00Z')
+  f.reminders = []
+  f.events.push({ id: 'other-episode', memberId, title: '其他情况', startTime: '2026-11-04T00:00:00Z' })
+  f.records = [
+    { id: 'old', eventId: 'event-a', type: 'symptom', content: '有耳鸣', occurredAt: '2026-10-25T00:00:00Z' },
+    { id: 'other', eventId: 'other-episode', type: 'symptom', content: '打喷嚏，有恶心', occurredAt: '2026-11-06T01:00:00Z' },
+    { id: 'nose', eventId: 'event-a', type: 'symptom', content: '一周前开始打喷嚏流鼻涕，无咳嗽咳痰。会不会呕吐？', occurredAt: '2026-11-07T01:00:00Z' },
+    { id: 'future-maybe', eventId: 'event-a', type: 'note', content: '如果出现听力下降，请就医。', occurredAt: '2026-11-07T04:00:00Z' },
+    { id: 'exam', eventId: 'event-a', type: 'examination', sourceType: 'doctor_confirmation', content: '查体：神志清，双侧下鼻甲肿大，总鼻道清晰，未见清涕。', occurredAt: '2026-11-07T06:00:00Z' },
+    { id: 'unknown', eventId: 'other-episode', type: 'symptom', content: '时间未知的补录', createdAt: '2026-11-08T01:00:00Z' },
+  ].map(record => ({ ...record, accountId }))
+  const original = structuredClone(f.records)
+  const save = (expectedVersion, requestId, extra = {}) => svc.save(accountId, memberId, { expectedVersion, requestId, ...extra }, now)
+  const find = (report, section, id) => report.clinical[section].find(item => item.id === id)
+  const { report: first } = await save(0, 'clinical-first')
+  assert.equal(first.complaintSourceId, 'record:nose')
+  assert.deepEqual(first.clinical.timeline.map(entry => entry.sourceId), ['record:nose'])
+  assert.equal(find(first, 'history', 'sneeze').value, true)
+  assert.equal(find(first, 'history', 'runnyNose').value, true)
+  assert.equal(find(first, 'history', 'cough').value, false)
+  assert.equal(find(first, 'history', 'sputum').value, false)
+  for (const id of ['nausea', 'vomiting', 'tinnitus', 'hearing', 'fever'])
+    assert.equal(find(first, 'history', id).value, null)
+  assert.equal(find(first, 'examination', 'alert').value, true)
+  assert.equal(find(first, 'examination', 'stableVitals').value, null)
+  assert.equal(find(first, 'examination', 'clearDischarge').value, false)
+  assert.deepEqual(find(first, 'examination', 'turbinate').sourceIds, ['record:exam'])
+
+  const clinical = { scopeKey: first.clinical.scopeKey, section: 'history', id: 'nausea', value: false }
+  const { report: edited } = await save(first.version, 'clinical-nausea', { clinical })
+  const repeated = await save(first.version, 'clinical-nausea', { clinical })
+  assert.equal(repeated.report.version, edited.version)
+  assert.equal(find((await svc.get(accountId, memberId)).report, 'history', 'nausea').manual, true)
+
+  const { report: switched } = await save(edited.version, 'clinical-switch', { focus: { mode: 'source', sourceId: 'record:other' } })
+  assert.equal(find(switched, 'history', 'nausea').value, true)
+  await assert.rejects(() => save(switched.version, 'clinical-late', { clinical }), { status: 409 })
+  const { report: returned } = await save(switched.version, 'clinical-return', { focus: { mode: 'auto' } })
+  assert.equal(find(returned, 'history', 'nausea').value, false)
+  const { report: cleared } = await save(returned.version, 'clinical-clear', { clinical: { ...clinical, id: 'cough', value: null } })
+  assert.equal(find(cleared, 'history', 'cough').value, null)
+  assert.deepEqual(f.records, original)
+})

@@ -91,8 +91,6 @@ function VisitSheetReader({
   const [photoPicker,setPhotoPicker]=useState(false),[photoId,setPhotoId]=useState<string|null>(null)
   const [attachmentPicker,setAttachmentPicker]=useState(false)
   const [selectedSymptom,setSelectedSymptom]=useState(0)
-  const [organizationError,setOrganizationError]=useState(''),[organizing,setOrganizing]=useState(false)
-  const organizationAttempts=useRef(new Set<string>())
   const parentEvidence=useRef<string[]|null>(null)
   const [scopeOpen,setScopeOpen] = useState(false)
   const [scopeUndo,setScopeUndo] = useState<{selection:VisitSheetUpdate['selection']}|null>(null)
@@ -179,7 +177,6 @@ function VisitSheetReader({
     if (busy.current) return false
     busy.current = true
     setWorking(true)
-    if(changes.organizeCurrent){setOrganizing(true);setOrganizationError('')}
     setAIWorking(changes.generateAI === true)
     setAIFailed(false)
     setNotice('')
@@ -203,7 +200,7 @@ function VisitSheetReader({
       accept(result)
       if (changes.generateAI) {setAIFailed(false);setAIPreview(null);setPreviewText('')}
       pendingSave.current=null
-      if(!changes.organizeCurrent)setNotice(changes.generateAI ? 'AI 病情摘要已生成' : '情况单已更新')
+      setNotice(changes.generateAI ? 'AI 病情摘要已生成' : '情况单已更新')
       return true
     } catch (reason) {
       if (alive.current) {
@@ -221,8 +218,7 @@ function VisitSheetReader({
             /* Keep the current report and editor input. */
           }
         }
-        const showError=changes.organizeCurrent?setOrganizationError:setError
-        showError(
+        if (!changes.clinical) setError(
           `${reason instanceof Error&&!/abort|fetch|timeout|timed out/i.test(reason.message) ? reason.message : '保存结果暂未确认，请重试核验'}。原报告仍可阅读，填写内容保留。`,
         )
       }
@@ -231,17 +227,8 @@ function VisitSheetReader({
       busy.current = false
       if (alive.current) setWorking(false)
       if (alive.current) setAIWorking(false)
-      if (alive.current) setOrganizing(false)
     }
   }
-  const organizeCurrent=()=>{if(report?.currentSituation&&!busy.current)void update({organizeCurrent:{scopeKey:report.currentSituation.scopeKey}})}
-  useEffect(()=>setOrganizationError(''),[report?.currentSituation?.scopeKey])
-  useEffect(()=>{
-    if(!report?.currentSituation?.needsOrganization||loading||working||modalOpen||error)return
-    const key=`${report.currentSituation.scopeKey}:${report.currentSituation.sourceFingerprint}`
-    if(organizationAttempts.current.has(key))return
-    organizationAttempts.current.add(key);setOrganizationError('');organizeCurrent()
-  },[report?.currentSituation?.scopeKey,report?.currentSituation?.sourceFingerprint,report?.currentSituation?.needsOrganization,loading,working,modalOpen,error])
   const chooseChapter = (id: VisitChapterId) => {
     setActive(id)
     setMenu(false)
@@ -283,7 +270,7 @@ function VisitSheetReader({
         onScroll={(e) => {
           if (e.currentTarget.scrollLeft) e.currentTarget.scrollLeft = 0
           const top=e.currentTarget.getBoundingClientRect().top
-          const current=[...e.currentTarget.querySelectorAll<HTMLElement>('.visit-chapter')].reverse().find(el=>el.getBoundingClientRect().top<=top+100)
+          const current=[...e.currentTarget.querySelectorAll<HTMLElement>('[data-reading-card]')].reverse().find(el=>el.getBoundingClientRect().top<=top+100)
           if(current)setActive(current.id.replace('chapter-','') as VisitChapterId)
         }}
       >
@@ -302,7 +289,7 @@ function VisitSheetReader({
           </StatusNotice>
         )}
         {report && !loading && (
-            <VisitReading report={report} token={token} busy={loading||working} organizing={organizing} organizationError={organizationError} onOrganize={organizeCurrent} onEvidence={openEvidence} onEdit={(kind,line=0)=>{setSelectedSymptom(line);setEditorDirty(false);setEditing(kind)}} onMedia={setPhotoId} onChoose={()=>{setAttachmentPicker(true);setPhotoPicker(true)}} onMedications={()=>setMedicationOpen(true)} opened={opened}/>
+            <VisitReading report={report} token={token} busy={loading||working} onClinicalSave={clinical => update({ clinical })} onEvidence={openEvidence} onEdit={(kind,line=0)=>{setSelectedSymptom(line);setEditorDirty(false);setEditing(kind)}} onMedia={setPhotoId} onChoose={()=>{setAttachmentPicker(true);setPhotoPicker(true)}} onMedications={()=>setMedicationOpen(true)} opened={opened}/>
         )}
         {notice && (
           <p role="status" className="visit-muted">
@@ -512,8 +499,8 @@ function ReportEditor({
     <ReportEditorSurface
       local={localEditor}
       footer={localEditor?actions:null}
-      label={{association:'选择相关记录',focus:'更改主诉',question:'编辑本次想问',current:'编辑情况描述',symptoms:'编辑症状表现',diet:'编辑近期饮食',course:'编辑相关经过与处理',data:'编辑完整资料档案'}[kind]}
-      title={{association:'选择相关记录',focus:'更改主诉',question:'编辑本次想问',current:'编辑情况描述',symptoms:'编辑症状表现',diet:'编辑近期饮食',course:'编辑相关经过与处理',data:'编辑完整资料档案'}[kind]}
+      label={{association:'选择相关记录',focus:'更改主诉',question:'编辑本次想问',current:'编辑情况描述',symptoms:'编辑症状表现',diet:'编辑近期饮食',course:'编辑相关经过与处理',data:'资料范围与附件'}[kind]}
+      title={{association:'选择相关记录',focus:'更改主诉',question:'编辑本次想问',current:'编辑情况描述',symptoms:'编辑症状表现',diet:'编辑近期饮食',course:'编辑相关经过与处理',data:'资料范围与附件'}[kind]}
       onClose={close}
 
     >
