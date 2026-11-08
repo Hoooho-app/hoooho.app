@@ -11,7 +11,7 @@ const editor = readFileSync(new URL('./BasicHealthProfilePage.tsx', import.meta.
 const polish = readFileSync(new URL('../../styles/product-polish.css', import.meta.url), 'utf8')
 
 test('健康档案首屏显示当前孩子个人信息，正文保留分组手动档案入口', () => {
-  assert.match(home, /MainAppHeader title="健康档案" childSelectionRequest=/)
+  assert.match(home, /MainAppHeader title="健康档案" \/>/)
   assert.match(home, /<ChildPersonalInfoCard[\s\S]*aria-label="档案分类"/)
   assert.doesNotMatch(home, /HealthRecordSubjectHeader/)
   assert.doesNotMatch(healthEvents, /HealthRecordSubjectHeader/)

@@ -1,9 +1,17 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
 import { TokenService } from '../../server/auth/token-service.mjs'
 
 const token = new TokenService('visit-sheet-e2e-secret', 3600000).create({ id: 'visit-test' })
 const headers = { Authorization: `Bearer ${token}` }
 let memberId: string
+
+async function switchChild(page: Page, maskedName: string) {
+  await page.getByRole('button', { name: '打开菜单', exact: true }).click()
+  await page.getByRole('dialog', { name: '侧边栏菜单' }).getByRole('button', { name: '切换记录对象', exact: true }).click()
+  const sheet = page.getByRole('dialog', { name: '我的孩子', exact: true })
+  await sheet.getByRole('button', { name: `切换到${maskedName}`, exact: true }).click()
+  await expect(sheet).toBeHidden()
+}
 
 test.beforeEach(async ({ page, request }) => {
   const response = await request.post('/api/members', { headers, data: { name: '合成宝宝', relationship: 'child', birthday: '2024-10-01', gender: 'female' } })
@@ -19,11 +27,12 @@ test.beforeEach(async ({ page, request }) => {
 
 test('grouped archive has a leading child identity, no upload entry and unobscured rows at every supported width', async ({ page }, info) => {
   const header = page.locator('.hoho-main-header')
-  const card = page.getByRole('region', { name: '孩子的个人信息', exact: true })
+  const card = page.getByRole('region', { name: '合成宝宝', exact: true })
   await expect(card).toContainText('合成宝宝')
   await expect(card).toContainText(/女 · .*岁/)
   await expect(card.getByRole('img', { name: /合成宝宝的.*头像/ })).toBeVisible()
-  await expect(card.getByRole('button', { name: '切换记录对象' })).toBeVisible()
+  await expect(card.getByText(/孩子的个人信息|切换孩子|血压|脉搏/)).toHaveCount(0)
+  await expect(card.getByRole('button', { name: '切换记录对象' })).toHaveCount(0)
   await expect(page.getByRole('button', { name: '上传资料', exact: true })).toHaveCount(0)
   await expect(page.locator('input[type=file]')).toHaveCount(0)
   await expect(header.getByRole('button', { name: '打开菜单' })).toBeVisible()
@@ -38,15 +47,16 @@ test('grouped archive has a leading child identity, no upload entry and unobscur
   for (const width of [320, 375, 390, 430, 1280]) {
     await page.setViewportSize({ width, height: width === 1280 ? 900 : 844 })
     const layout = await card.evaluate(element => {
-      const heading = element.querySelector('h2')!.getBoundingClientRect()
-      const switchButton = element.querySelector('[aria-label="切换记录对象"]')!.getBoundingClientRect()
-      const metricRows = Array.from(element.querySelectorAll('dl'), row => Array.from(row.querySelectorAll('dt'), label => ({ text: label.textContent, top: label.getBoundingClientRect().top })))
-      return { fits: document.documentElement.scrollWidth <= innerWidth, headingRight: heading.right, switchLeft: switchButton.left, metricRows }
+      const metrics = Array.from(element.querySelectorAll('.child-personal-card__metric'), metric => {
+        const bounds = metric.getBoundingClientRect()
+        return { text: metric.querySelector('.child-personal-card__label')?.textContent, top: bounds.top, width: bounds.width, height: bounds.height }
+      })
+      return { fits: document.documentElement.scrollWidth <= innerWidth, metrics }
     })
     expect(layout.fits).toBe(true)
-    expect(layout.headingRight).toBeLessThanOrEqual(layout.switchLeft)
-    expect(layout.metricRows.map(row => row.map(label => label.text))).toEqual([['身高', '体重', '血型'], ['血压', '脉搏', 'BMI']])
-    for (const row of layout.metricRows) expect(new Set(row.map(label => label.top)).size).toBe(1)
+    expect(layout.metrics.map(metric => metric.text)).toEqual(['身高', '体重', '血型'])
+    expect(new Set(layout.metrics.map(metric => metric.top)).size).toBe(1)
+    expect(layout.metrics.every(metric => metric.width >= 44 && metric.height >= 44)).toBe(true)
     await page.getByRole('button', { name: /^疫苗接种记录/ }).evaluate(element => element.scrollIntoView({ block: 'center' }))
     const last = await page.getByRole('button', { name: /^疫苗接种记录/ }).boundingBox()
     const bottom = await page.getByRole('navigation', { name: '主要导航' }).boundingBox()
@@ -75,15 +85,14 @@ test('switching children updates the personal card and counts; installation UI i
   const added = await request.post('/api/members', { headers, data: { name: '小安', relationship: 'child', birthday: '2025-10-01', gender: 'male' } })
   expect(added.ok()).toBe(true)
   await page.reload()
-  await page.getByRole('button', { name: '切换记录对象', exact: true }).click()
-  const sheet = page.getByRole('dialog', { name: '我的孩子', exact: true })
-  await expect(sheet).toBeVisible()
-  await sheet.getByRole('button', { name: '切换到*安' }).click()
-  await expect(sheet).toBeHidden()
-  await expect(page.getByRole('region', { name: '孩子的个人信息', exact: true })).toContainText('小安')
+  await switchChild(page, '*安')
+  await expect(page.getByRole('region', { name: '小安', exact: true })).toBeVisible()
   await expect(page.getByRole('region', { name: '健康史', exact: true }).getByRole('button')).toHaveText(['过敏史未记录', '慢性病史未记录', '家族史未记录', '手术史未记录'])
-  for (const path of ['/health-profile', '/health-events', '/nurse-station']) {
-    await page.getByRole('navigation',{name:'主要导航'}).getByRole('button',{name:path==='/health-profile'?'档案':path==='/health-events'?'健康日历':'症状记录',exact:true}).click()
+  const bottom = page.getByRole('navigation', { name: '主要导航' })
+  const paths = ['/health-profile', '/health-events']
+  if (await bottom.locator('[data-ha-destination="/nurse-station"]').count()) paths.push('/nurse-station')
+  for (const path of paths) {
+    await bottom.locator(`[data-ha-destination="${path}"]`).click()
     await expect.poll(()=>new URL(page.url()).pathname).toBe(path)
     if(path==='/health-events')await expect(page.getByRole('heading',{name:'健康日历',exact:true})).toBeVisible()
     if(path==='/nurse-station'){
@@ -103,8 +112,8 @@ test('basic overview shows saved values and dates, clears on child switch and re
     expect((await request.post('/api/growth-measurements', { headers, data: { memberId, ...values, measurementType: 'height', dataStatus: 'confirmed', standardId: 'who-2006' } })).ok()).toBe(true)
   }
   await page.reload()
-  const summary = page.getByRole('region', { name: '孩子的个人信息', exact: true })
-  await expect(summary).toContainText('AB型')
+  const summary = page.getByRole('region', { name: '合成宝宝', exact: true })
+  await expect(summary.getByRole('combobox', { name: '血型', exact: true })).toHaveValue('AB')
   await expect(summary).toContainText('RhD 阴性')
   await expect(summary).toContainText('88.2cm')
   await expect(summary).toContainText('12.3kg')
@@ -112,7 +121,7 @@ test('basic overview shows saved values and dates, clears on child switch and re
   await expect(summary).toContainText('2026-09-10')
   await expect(summary).toContainText('2026-09-11')
   await expect(summary).toContainText('合成宝宝')
-  await expect(page.getByRole('navigation', { name: '主要导航' }).getByRole('button', { name: '档案', exact: true })).toHaveAttribute('aria-current', 'page')
+  await expect(page.getByRole('navigation', { name: '主要导航' }).locator('[data-ha-destination="/health-profile"]')).toHaveAttribute('aria-current', 'page')
   expect(await summary.evaluate(el => el.getBoundingClientRect().bottom)).toBeLessThanOrEqual((await page.getByRole('button', { name: '身份与出生背景', exact: true }).boundingBox())!.y)
 
   await page.route('**/api/growth-measurements?**', route => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: { message: '合成读取失败' } }) }))
@@ -124,47 +133,52 @@ test('basic overview shows saved values and dates, clears on child switch and re
   await page.getByRole('button', { name: '重试', exact: true }).click()
   await expect(summary).toContainText('88.2cm')
 
+  for (const measure of ['体重', '身高']) {
+    await summary.getByRole('link', { name: new RegExp(`查看${measure}曲线`) }).click()
+    await expect(page).toHaveURL(/\/health-profile\/basic$/)
+    await expect(page.getByRole('heading', { name: '成长数据', exact: true })).toBeVisible()
+    await expect(page.getByRole('tab', { name: `${measure}曲线`, exact: true })).toHaveAttribute('aria-selected', 'true')
+    await page.getByRole('button', { name: '返回', exact: true }).click()
+    await expect(summary).toContainText('88.2cm')
+  }
+
   expect((await request.post('/api/members', { headers, data: { name: '小宁', relationship: 'child', birthday: '2025-10-01', gender: 'male' } })).ok()).toBe(true)
   await page.reload()
-  await page.getByRole('button', { name: '切换记录对象', exact: true }).click()
-  await page.getByRole('dialog', { name: '我的孩子', exact: true }).getByRole('button', { name: '切换到*宁' }).click()
-  await expect(summary).toContainText('小宁')
-  await expect(summary).not.toContainText('88.2')
-  await expect(summary).not.toContainText('AB型')
-  await expect(summary.getByText('未填写', { exact: true })).toHaveCount(4)
+  await switchChild(page, '*宁')
+  const next = page.getByRole('region', { name: '小宁', exact: true })
+  await expect(next).not.toContainText('88.2')
+  await expect(next.getByRole('combobox', { name: '血型', exact: true })).toHaveValue('')
+  await expect(next.locator('.child-personal-card__empty')).toHaveText(['未填写', '未填写', '未填写'])
 })
 
-test('血压和脉搏保存后在个人信息卡回读，其他孩子仍显示未记录', async ({ page, request }) => {
-  const vitals = page.getByLabel('血压、脉搏和 BMI', { exact: true })
-  await expect(vitals.getByText('未记录', { exact: true })).toHaveCount(2)
-  await page.getByRole('button', { name: '身份与出生背景', exact: true }).click()
-  await page.getByRole('button', { name: '编辑血压与脉搏', exact: true }).click()
-  const editor = page.getByRole('dialog', { name: '编辑基本档案' })
-  await editor.getByLabel('收缩压（mmHg）').fill('98')
-  await editor.getByRole('button', { name: '保存', exact: true }).click()
-  await expect(editor.getByRole('alert')).toContainText('血压需同时填写')
-  await editor.getByLabel('舒张压（mmHg）').fill('61')
-  await editor.getByLabel('脉搏（次/分）').fill('92')
+test('血型直接下拉保存，失败保留原值并可重试', async ({ page, request }) => {
+  const memberUrl = `/api/members/${memberId}`
+  expect((await request.patch(memberUrl, { headers, data: { bloodType: 'A', rhBloodType: 'negative' } })).ok()).toBe(true)
+  await page.reload()
+  const card = page.getByRole('region', { name: '合成宝宝', exact: true })
+  const select = card.getByRole('combobox', { name: '血型', exact: true })
+  await expect(select).toHaveValue('A')
+  await expect(select.getByRole('option')).toHaveText(['未填写', 'A型', 'B型', 'O型', 'AB型'])
 
-  const endpoint = '**/api/auth/profile-sections'
-  await page.route(endpoint, route => route.request().method() === 'POST'
-    ? route.fulfill({ status: 503, json: { message: '合成保存失败' } })
+  const endpoint = `**${memberUrl}`
+  await page.route(endpoint, route => route.request().method() === 'PATCH'
+    ? route.fulfill({ status: 503, json: { error: { message: '合成保存失败' } } })
     : route.continue())
-  await editor.getByRole('button', { name: '保存', exact: true }).click()
-  await expect(editor.getByRole('alert')).toContainText('填写内容仍保留')
-  await expect(editor.getByLabel('脉搏（次/分）')).toHaveValue('92')
+  await select.selectOption('B')
+  await expect(card.getByRole('alert')).toContainText('血型未保存')
+  await expect(select).toHaveValue('A')
   await page.unroute(endpoint)
-  await editor.getByRole('button', { name: '保存', exact: true }).click()
-  await expect(editor).toBeHidden()
-  await expect(page.getByText('98/61 mmHg', { exact: true })).toBeVisible()
-  await page.getByRole('button', { name: '返回', exact: true }).click()
-  await expect(vitals).toContainText('98/61mmHg')
-  await page.reload()
-  await expect(vitals).toContainText('92次/分')
+  await card.getByRole('button', { name: '重试保存血型' }).click()
+  await expect(select).toHaveValue('B')
+  await expect(card).toContainText('RhD 阴性')
+  expect(await (await request.get(memberUrl, { headers })).json()).toMatchObject({ bloodType: 'B', rhBloodType: 'negative' })
 
-  expect((await request.post('/api/members', { headers, data: { name: '小佳', relationship: 'child', birthday: '2025-10-01', gender: 'male' } })).ok()).toBe(true)
   await page.reload()
-  await page.getByRole('button', { name: '切换记录对象', exact: true }).click()
-  await page.getByRole('dialog', { name: '我的孩子', exact: true }).getByRole('button', { name: '切换到*佳' }).click()
-  await expect(vitals.getByText('未记录', { exact: true })).toHaveCount(2)
+  await expect(select).toHaveValue('B')
+  await select.selectOption('O')
+  await expect(select).toHaveValue('O')
+  await page.getByRole('button', { name: '身份与出生背景', exact: true }).click()
+  await expect(page.getByRole('heading', { name: '基本资料与出生背景' })).toBeVisible()
+  await expect(page.getByText('O型', { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: '编辑血压与脉搏' })).toHaveCount(0)
 })

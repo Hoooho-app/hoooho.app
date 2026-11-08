@@ -32,7 +32,7 @@ test('门诊情况单从整理入口打开，点选后回读并按同一结构�
     localStorage.setItem('hoooho-app', JSON.stringify({ state: { authUser: { id: 'visit-test' }, currentMemberId: memberId, members: [], profile: null }, version: 5 }))
   }, { token, memberId })
   await page.goto('/health-profile')
-  await expect(page.getByRole('region', { name: '孩子的个人信息' }).getByText('BMI', { exact: true }).locator('..').locator('dd')).toHaveText('15.4')
+  await expect(page.getByRole('region', { name: '门诊合成宝宝', exact: true }).getByText('BMI', { exact: true }).locator('..').locator('dd')).toHaveText('15.4')
   await page.getByRole('button', { name: '一键整理', exact: true }).click()
   await page.getByRole('button', { name: /^就诊情况单/ }).click()
   const identity = page.getByLabel('孩子基本信息')

@@ -1,40 +1,46 @@
-import { useEffect, useState } from 'react'
-import { isChildProfileVitals } from '../../../shared/child-profile-policy.mjs'
+import { useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Avatar } from '../../components/common'
 import { HealthCard, HohoButton } from '../../components/design-system'
+import { Pencil } from '../../components/icons'
 import { formatGrowthMeasurement, resolveCurrentGrowthSnapshot } from '../../features/health-profile/utils/resolveCurrentGrowthMeasurements'
 import { calculateBmi } from '../../features/health-profile/utils/healthProfileBasicInfo'
+import { familyMemberService } from '../../services/familyMembers'
 import { growthMeasurementService } from '../../services/growthMeasurements'
 import { subscribeProfileSectionInvalidation } from '../../services/profileSectionStorage'
 import { useAppStore } from '../../store/useAppStore'
 import type { GrowthMeasurementApiDto, Member } from '../../types'
 import { formatAgeFromBirthday } from '../../utils/formatAgeFromBirthday'
-import { useProfileArchive } from './useProfileArchive'
 
-interface ProfileMetricProps {
-  label: string
-  value?: string | null
-  unit?: string
-  note?: string | null
-  empty?: string
+interface GrowthMetricProps {
+  measure: 'height' | 'weight'
+  value: number | null
+  measuredAt: string | null
+  empty: string
 }
 
-function ProfileMetric({ label, value, unit, note, empty = '未填写' }: ProfileMetricProps) {
-  return <div>
-    <dt>{label}</dt>
-    <dd>
-      {value ? <>{value}{unit && <span className="child-personal-card__unit">{unit}</span>}</> : <span className="child-personal-card__empty">{empty}</span>}
-      {note && <small>{note}</small>}
-    </dd>
-  </div>
+function GrowthMetric({ measure, value, measuredAt, empty }: GrowthMetricProps) {
+  const label = measure === 'height' ? '身高' : '体重'
+  return <Link className="child-personal-card__metric" to="/health-profile/basic" state={{ selectedMeasure: measure, returnTo: '/health-profile' }}>
+    <span className="child-personal-card__label">{label}</span>
+    <span className="child-personal-card__value">
+      {value == null ? <span className="child-personal-card__empty">{empty}</span> : <>{formatGrowthMeasurement(value)}<span className="child-personal-card__unit">{measure === 'height' ? 'cm' : 'kg'}</span></>}
+    </span>
+    {measuredAt && <small>{measuredAt}</small>}
+    <span className="sr-only">查看{label}曲线</span>
+  </Link>
 }
 
-export function ChildPersonalInfoCard({ member, onSelectChild }: { member: Member; onSelectChild: () => void }) {
+const bloodTypes = ['A', 'B', 'O', 'AB'] as const
+type BloodTypeChoice = NonNullable<Member['bloodType']> | ''
+
+export function ChildPersonalInfoCard({ member }: { member: Member }) {
   const token = useAppStore(state => state.authToken)
-  const identity = useProfileArchive(member.id, 'identity')
   const [measurements, setMeasurements] = useState<GrowthMeasurementApiDto[]>([])
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading')
   const [revision, setRevision] = useState(0)
+  const [bloodSave, setBloodSave] = useState<{ choice: BloodTypeChoice; error?: string } | null>(null)
+  const bloodSaveLocked = useRef(false)
   useEffect(() => {
     const refresh = () => setRevision(value => value + 1)
     const unsubscribe = subscribeProfileSectionInvalidation(refresh)
@@ -51,39 +57,63 @@ export function ChildPersonalInfoCard({ member, onSelectChild }: { member: Membe
     return () => controller.abort()
   }, [member.id, token, revision])
 
-  const snapshot = resolveCurrentGrowthSnapshot(member, measurements, member.id)
-  const bmi = status === 'ready' ? calculateBmi(snapshot.heightCm, snapshot.weightKg) : null
+  async function saveBloodType(choice: BloodTypeChoice) {
+    const { authToken, authUser, currentMemberId } = useAppStore.getState()
+    if (!authToken || !authUser || currentMemberId !== member.id || bloodSaveLocked.current) return
+    if (choice === (member.bloodType ?? '')) { setBloodSave(null); return }
+
+    bloodSaveLocked.current = true
+    setBloodSave({ choice })
+    try {
+      const saved = await familyMemberService.update(member.id, { bloodType: choice || null }, authToken)
+      const store = useAppStore.getState()
+      if (store.authUser?.id === authUser.id && saved.accountId === authUser.id) {
+        store.setMembers(store.members.map(item => item.id === member.id ? { ...item, bloodType: saved.bloodType ?? undefined } : item))
+      }
+      setBloodSave(null)
+    } catch (error) {
+      setBloodSave({ choice, error: error instanceof Error ? error.message : '请检查网络后重试' })
+    } finally {
+      bloodSaveLocked.current = false
+    }
+  }
+
+  const growth = status === 'ready' ? resolveCurrentGrowthSnapshot(member, measurements, member.id) : null
+  const bmi = growth ? calculateBmi(growth.heightCm, growth.weightKg) : null
   const growthEmpty = status === 'loading' ? '读取中…' : status === 'error' ? '暂不可用' : '未填写'
-  const vitalRead = identity.records[0]?.vitals
-  const vitals = identity.loaded && !identity.error && isChildProfileVitals(vitalRead) ? vitalRead : null
-  const vitalsEmpty = identity.error ? '暂不可用' : identity.loading ? '读取中…' : '未记录'
-  const bloodPressure = vitals?.systolicMmHg != null ? `${vitals.systolicMmHg}/${vitals.diastolicMmHg}` : null
+  const savingBloodType = bloodSave !== null && !bloodSave.error
   const gender = member.gender === 'female' ? '女' : member.gender === 'male' ? '男' : '性别未填写'
   const age = formatAgeFromBirthday(member.birthday ?? '')
 
-  return <HealthCard className="child-personal-card" data-hoho-surface="light" role="region" aria-labelledby="child-personal-info-title">
-    <div className="child-personal-card__heading">
-      <h2 id="child-personal-info-title" className="hoho-text-section-title">孩子的个人信息</h2>
-      <HohoButton variant="text" aria-label="切换记录对象" onClick={onSelectChild}>切换孩子</HohoButton>
-    </div>
+  return <HealthCard className="child-personal-card" data-hoho-surface="light" role="region" aria-labelledby="health-profile-subject-name">
     <div className="child-personal-card__identity">
       <Avatar name={member.name} src={member.avatar} size="md" />
       <div>
-        <p className="hoho-text-page-title">{member.name}</p>
+        <p id="health-profile-subject-name" className="hoho-text-page-title">{member.name}</p>
         <p className="hoho-text-caption">{gender} · {age}</p>
       </div>
+      {bmi && <dl className="child-personal-card__bmi">
+        <dt className="child-personal-card__label">BMI</dt>
+        <dd className="child-personal-card__value">{bmi}</dd>
+      </dl>}
     </div>
-    <dl className="child-personal-card__metrics" aria-label="身高、体重和血型">
-      <ProfileMetric label="身高" value={status === 'ready' ? formatGrowthMeasurement(snapshot.heightCm) : null} unit="cm" note={status === 'ready' ? snapshot.heightMeasuredAt : null} empty={growthEmpty} />
-      <ProfileMetric label="体重" value={status === 'ready' ? formatGrowthMeasurement(snapshot.weightKg) : null} unit="kg" note={status === 'ready' ? snapshot.weightMeasuredAt : null} empty={growthEmpty} />
-      <ProfileMetric label="血型" value={member.bloodType ? `${member.bloodType}型` : null} note={member.rhBloodType ? `RhD ${member.rhBloodType === 'positive' ? '阳性' : '阴性'}` : null} />
-    </dl>
-    <dl className="child-personal-card__metrics" aria-label="血压、脉搏和 BMI">
-      <ProfileMetric label="血压" value={bloodPressure} unit="mmHg" empty={vitalsEmpty} />
-      <ProfileMetric label="脉搏" value={vitals?.pulseBpm?.toString()} unit="次/分" empty={vitalsEmpty} />
-      <ProfileMetric label="BMI" value={bmi} empty={growthEmpty} />
-    </dl>
+    <div className="child-personal-card__metrics" role="group" aria-label="身高、体重和血型">
+      <GrowthMetric measure="height" value={growth?.heightCm ?? null} measuredAt={growth?.heightMeasuredAt ?? null} empty={growthEmpty} />
+      <GrowthMetric measure="weight" value={growth?.weightKg ?? null} measuredAt={growth?.weightMeasuredAt ?? null} empty={growthEmpty} />
+      <label className="child-personal-card__metric">
+        <span className="child-personal-card__label">血型</span>
+        <span className="child-personal-card__value" aria-live="polite">
+          {savingBloodType || !member.bloodType ? <span className="child-personal-card__empty">{savingBloodType ? '保存中…' : '未填写'}</span> : `${member.bloodType}型`}
+          <Pencil aria-hidden="true" size={14} />
+        </span>
+        {member.rhBloodType && <small>RhD {member.rhBloodType === 'positive' ? '阳性' : '阴性'}</small>}
+        <select className="child-personal-card__blood-select" aria-label="血型" disabled={savingBloodType || !token} value={member.bloodType ?? ''} onChange={event => void saveBloodType(event.currentTarget.value as BloodTypeChoice)}>
+          <option value="">未填写</option>
+          {bloodTypes.map(bloodType => <option key={bloodType} value={bloodType}>{bloodType}型</option>)}
+        </select>
+      </label>
+    </div>
     {status === 'error' && <p className="child-personal-card__error" role="alert">身高、体重读取失败<HohoButton variant="text" onClick={() => setRevision(value => value + 1)}>重试</HohoButton></p>}
-    {identity.error && <p className="child-personal-card__error" role="alert">血压、脉搏读取失败<HohoButton variant="text" aria-label="重试读取血压和脉搏" onClick={identity.refresh}>重试</HohoButton></p>}
+    {bloodSave?.error && <p className="child-personal-card__error" role="alert">血型未保存，{bloodSave.error}<HohoButton variant="text" aria-label="重试保存血型" onClick={() => void saveBloodType(bloodSave.choice)}>重试</HohoButton></p>}
   </HealthCard>
 }
