@@ -535,6 +535,10 @@ test('门诊现病史和体格按主诉取证，直接点选留存且不串病�
     { id: 'nose', eventId: 'event-a', type: 'symptom', content: '一周前开始打喷嚏流鼻涕，无咳嗽咳痰。会不会呕吐？', occurredAt: '2026-11-07T01:00:00Z' },
     { id: 'future-maybe', eventId: 'event-a', type: 'note', content: '如果出现听力下降，请就医。', occurredAt: '2026-11-07T04:00:00Z' },
     { id: 'exam', eventId: 'event-a', type: 'examination', sourceType: 'doctor_confirmation', content: '查体：神志清，双侧下鼻甲肿大，总鼻道清晰，未见清涕。', occurredAt: '2026-11-07T06:00:00Z' },
+    { id: 'judgment', eventId: 'event-a', type: 'visit', sourceType: 'doctor_confirmation', content: '初步诊断：合成医生意见，待复核。\n处理：合成处理说明。', occurredAt: '2026-11-07T07:00:00Z' },
+    { id: 'parent', eventId: 'event-a', type: 'note', content: '诊断：家长个人猜测', occurredAt: '2026-11-07T08:00:00Z' },
+    { id: 'unreviewed', eventId: 'event-a', type: 'note', caseContext: { identity: 'medical_consultation', confirmed: false }, content: '诊断：待审核的内容', occurredAt: '2026-11-07T09:00:00Z' },
+    { id: 'unrelated-judgment', eventId: 'other-episode', type: 'visit', sourceType: 'doctor_confirmation', content: '诊断：另一病程的记录', occurredAt: '2026-11-07T10:00:00Z' },
     { id: 'unknown', eventId: 'other-episode', type: 'symptom', content: '时间未知的补录', createdAt: '2026-11-08T01:00:00Z' },
   ].map(record => ({ ...record, accountId }))
   const original = structuredClone(f.records)
@@ -553,6 +557,7 @@ test('门诊现病史和体格按主诉取证，直接点选留存且不串病�
   assert.equal(find(first, 'examination', 'stableVitals').value, null)
   assert.equal(find(first, 'examination', 'clearDischarge').value, false)
   assert.deepEqual(find(first, 'examination', 'turbinate').sourceIds, ['record:exam'])
+  assert.deepEqual(first.clinical.assessment, [{ text: '合成医生意见，待复核', origin: '医生记录', sourceId: 'record:judgment' }])
 
   const clinical = { scopeKey: first.clinical.scopeKey, section: 'history', id: 'nausea', value: false }
   const { report: edited } = await save(first.version, 'clinical-nausea', { clinical })
@@ -562,6 +567,7 @@ test('门诊现病史和体格按主诉取证，直接点选留存且不串病�
 
   const { report: switched } = await save(edited.version, 'clinical-switch', { focus: { mode: 'source', sourceId: 'record:other' } })
   assert.equal(find(switched, 'history', 'nausea').value, true)
+  assert.deepEqual(switched.clinical.assessment.map(item => item.sourceId), ['record:unrelated-judgment'])
   await assert.rejects(() => save(switched.version, 'clinical-late', { clinical }), { status: 409 })
   const { report: returned } = await save(switched.version, 'clinical-return', { focus: { mode: 'auto' } })
   assert.equal(find(returned, 'history', 'nausea').value, false)

@@ -1,7 +1,7 @@
 import { currentSituationText } from './currentSituationCopy'
 import type { VisitSheet, VisitSource } from '../../types/visitSheet'
 import { calculateGrowthPosition } from '../../features/health-profile/utils/childGrowthReference'
-import { clinicalText, visitIdentity } from './clinicalPresentation'
+import { clinicalText, compactVisitComplaint, visitIdentity } from './clinicalPresentation'
 
 export function copyNurseConversation(source: VisitSource) {
   if (!source.nurseConversation?.length) return undefined
@@ -20,8 +20,9 @@ export function doctorBriefText(report:VisitSheet){
   const clinicalRefs = report.clinical ? [
     ...report.clinical.timeline.map(entry => entry.sourceId),
     ...[...report.clinical.history, ...report.clinical.examination].filter(item => item.value !== null).flatMap(item => item.sourceIds),
+    ...(report.clinical.assessment ?? []).map(item => item.sourceId),
   ] : []
-  const refs=new Set([...report.focusSourceIds,...(report.reading?.courseSourceIds??[]),...(report.questionSourceIds??[]),...clinicalRefs,report.complaintSourceId].filter(Boolean))
+  const refs=new Set([...report.focusSourceIds,...(report.reading?.courseSourceIds??[]),...clinicalRefs,report.complaintSourceId].filter(Boolean))
   const focused=report.sources.filter(s=>refs.has(s.id))
   const related=report.sources.filter(s=>refs.has(s.id)||s.relatedSourceIds?.some(id=>refs.has(id))||focused.some(f=>f.relatedSourceIds?.includes(s.id)))
   const ids=new Set(related.map(s=>s.id))
@@ -31,7 +32,7 @@ export function doctorBriefText(report:VisitSheet){
     visitIdentity(report).map(field => `${field.label}：${field.value || '未填写'}`).join('　'),
     `资料截至 ${report.dataAsOf}；时区 ${report.timezone}。本次范围：${report.scope}`,
     '文字摘要，不含照片字节、无关旧问题、旧版情况单或编辑日志；并非医护审核。',
-    `\n本次主诉：${report.complaint}`,
+    `\n本次主诉：${compactVisitComplaint(report.complaint)}`,
     ...(report.clinical ? clinicalText(report, sourceRefs) : report.currentSituation ? [currentSituationText(report)] : []),
     ...(report.aiSummary&&!report.aiSummaryStale?['\nAI 病情摘要（程序核对通过，仍需核对原文）：',report.aiSummary.overview,...report.aiSummary.keyPoints,...report.aiSummary.missingInformation.map(s=>`待核对：${s}`)]:[]),
     '\n本地事实整理：',
@@ -40,7 +41,6 @@ export function doctorBriefText(report:VisitSheet){
       return items.length?[`\n${c.title}`,...items.map(i=>`${i.title}；${i.detail} [${sourceRefs(i.sourceIds)}]`)]:[]
     })),
     ...report.chapters.filter(c=>c.id==='course').flatMap(c=>(c.blocks??[]).filter(b=>b.title==='家长关注与已做处理'&&b.sourceIds.some(id=>ids.has(id))).flatMap(b=>['\n家长关注与已做处理：',...b.lines.map(line=>`${line} [${sourceRefs(b.sourceIds)}]`)])),
-    `\n本次想问：\n${report.question||'尚未填写'}`,
     ...(report.notes?.course?[`家长经过与处理补充：${report.notes.course}`]:[]),
     ...(report.selectedPhotoIds?.length?[`影像索引：${report.photos?.filter(p=>report.selectedPhotoIds?.includes(p.sourceId)).map(p=>`${p.mimeType.startsWith('video/')?'视频':'照片'}：${p.title} [${sourceRefs([p.sourceId])}]`).join('；')}。文字不包含原件字节。`]:[]),
     `\n相关时间线与原始依据：${related.filter(s=>!['legacy','attachment'].includes(s.category)).map(s=>s.code).join('、')||'暂无明确关联来源'}。完整原文请在情况单按编号查看，或保存 HTML 情况单。`,

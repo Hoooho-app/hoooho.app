@@ -211,7 +211,7 @@ export function reportFingerprint(input, now = new Date()) {
           status: e.status,
         })),
         ...rest,
-        projectionRevision: 'readable-summary-v5-clinical-visit',
+        projectionRevision: 'readable-summary-v6-clinical-brief',
         due: input.reminders.flatMap((r) =>
           r.occurrences
             .filter((o) => Date.parse(o.scheduledAt) <= now.getTime())

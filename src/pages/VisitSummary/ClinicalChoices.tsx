@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { HohoButton } from '../../components/design-system'
+import { Plus } from '../../components/icons'
 import type { VisitClinicalItem, VisitClinicalPatch, VisitClinicalSection } from '../../types/visitSheet'
 import { clinicalAnswer } from './clinicalPresentation'
 import { reportTime } from './ReportChapter'
@@ -22,7 +23,6 @@ export function ClinicalChoices({ section, rows, scopeKey, busy, timezone, onSav
   const newLabel = label.trim()
   const duplicate = rows.some(row => row.label === newLabel)
   const disabled = !scopeKey || busy || saving || !!pending
-  const addLabel = section === 'history' ? '添加症状' : '添加体格项目'
   async function save(choice: PendingChoice) {
     setSaving(true)
     setPending(choice)
@@ -37,7 +37,6 @@ export function ClinicalChoices({ section, rows, scopeKey, busy, timezone, onSav
   }
 
   return <div className="visit-clinical-choices">
-    <p className="visit-clinical-hint">{scopeKey ? '点选后保存到本次情况单。未填写的项目留空。' : '选择主诉后可补充。'}</p>
     <ul className="visit-clinical-list">
       {rows.map(row => <li key={row.id}>
         <div>
@@ -71,6 +70,6 @@ export function ClinicalChoices({ section, rows, scopeKey, busy, timezone, onSav
         }}>{clinicalAnswer(section, value)}</button>)}
         <HohoButton size="small" variant="text" disabled={saving || !!pending} onClick={() => { setAdding(false); setLabel('') }}>取消</HohoButton>
       </div>
-    </div> : <HohoButton size="small" variant="text" disabled={disabled} onClick={() => setAdding(true)}>{addLabel}</HohoButton>}
+    </div> : <HohoButton className="visit-clinical-add-trigger" size="small" variant="text" disabled={disabled} onClick={() => setAdding(true)}><Plus size={16} aria-hidden="true" />添加</HohoButton>}
   </div>
 }

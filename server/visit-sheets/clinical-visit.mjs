@@ -40,7 +40,7 @@ const exam = {
 
 const nasalHistory = ['sneeze', 'runnyNose', 'congestion', 'cough', 'sputum', 'soreThroat', 'nausea', 'vomiting', 'tinnitus', 'earPain', 'hearing', 'dizziness', 'warmHead', 'fever']
 const groups = [
-  { match: /喷嚏|流[清鼻]*涕|鼻塞|鼻痒|耳鸣|耳痛|听力/, category: 'ent', symptoms: nasalHistory, findings: ['turbinate', 'nasalPassage', 'clearDischarge'] },
+  { match: /喷嚏|流[清鼻]*涕|鼻塞|鼻痒|鼻(?:子)?(?:反复)?出血|鼻血|耳鸣|耳痛|听力/, category: 'ent', symptoms: nasalHistory, findings: ['turbinate', 'nasalPassage', 'clearDischarge'] },
   { match: /咳|咽|喉|喘|呼吸/, category: 'respiratory', symptoms: ['cough', 'sputum', 'soreThroat', 'breathing', 'fever', 'nausea', 'vomiting', 'headache', 'dizziness'], findings: ['breathingStable'] },
   { match: /恶心|呕吐|吐奶|腹痛|肚子|腹泻|便秘|排便/, category: 'gastrointestinal', symptoms: ['nausea', 'vomiting', 'abdominalPain', 'diarrhea', 'constipation', 'fever'], findings: ['abdomenSoft', 'abdominalTenderness'] },
   { match: /皮疹|红疹|红点|皮肤|湿疹|痒/, category: 'skin', symptoms: ['rash', 'itching', 'fever'], findings: ['visibleRash'] },
@@ -96,16 +96,35 @@ function historyStatements(value) {
   })
 }
 
+const assessmentLabel = '(?:(?:初步|临床|医生|西医|中医|入院|出院)?诊断|(?:基本|初步|医生)判断)'
+const assessmentHeading = new RegExp(`^${assessmentLabel}[：:]?$`)
+const labeledAssessment = new RegExp(`^${assessmentLabel}\\s*[：:]\\s*(.+)$`)
+
+function statedAssessments(value) {
+  return clean(value).split(/[。；;\n]+/).flatMap(line => {
+    const match = labeledAssessment.exec(line.trim())
+    return match ? [match[1].trim()] : []
+  })
+}
+
 function recordClinicalText(record) {
   const visit = record.journal?.visit
   const materials = visit?.materials
   const blocks = materials?.status === 'reviewed' && materials.source !== 'external_ai' ? materials.blocks ?? [] : []
   const doctor = record.sourceType === 'doctor_confirmation' || record.caseContext?.identity === 'medical_consultation'
+  const confirmedDoctor = record.caseContext
+    ? record.caseContext.identity === 'medical_consultation' && record.caseContext.confirmed === true
+    : record.sourceType === 'doctor_confirmation'
   const primary = clean(record.journal?.symptom?.narrative) || clean(record.content)
   return {
     history: [primary, ...(record.journal?.symptom?.associatedSymptoms ?? []), visit?.doctorStatement,
       ...blocks.filter(block => /主诉|现病史|病程|病情/.test(block.title)).map(block => block.text)],
     examination: [doctor ? primary : '', visit?.doctorStatement, ...blocks.filter(block => /查体|体格|体征/.test(block.title)).map(block => block.text)],
+    assessment: [
+      ...blocks.filter(block => assessmentHeading.test(clean(block.title))).map(block => ({ text: clean(block.text), origin: '病历记录' })),
+      ...(confirmedDoctor ? statedAssessments(primary).map(text => ({ text, origin: '医生记录' })) : []),
+      ...statedAssessments(visit?.doctorStatement).map(text => ({ text, origin: '医生意见（家长转述）' })),
+    ],
   }
 }
 
@@ -148,8 +167,12 @@ export function clinicalVisit(report, records, edits = {}) {
     examination: ['alert', 'energy', 'stableVitals', ...candidates.flatMap(group => group.findings ?? [])],
   }
   const recent = { history: new Map(), examination: new Map() }
+  const assessment = new Map()
   for (const record of context) {
-    const { history: historyText, examination: examText } = recordClinicalText(record)
+    const { history: historyText, examination: examText, assessment: judgments } = recordClinicalText(record)
+    for (const item of judgments) {
+      if (item.text && !assessment.has(item.text)) assessment.set(item.text, { ...item, sourceId: `record:${record.id}` })
+    }
     const findings = {
       history: historyText.flatMap(historyStatements),
       examination: examText.flatMap(value => clauses(value).flat().flatMap(clause => {
@@ -195,7 +218,7 @@ export function clinicalVisit(report, records, edits = {}) {
   const timeline = [...symptoms].reverse().map(record => ({
     text: clean(record.journal?.symptom?.narrative) || clean(record.content),
     at: record.occurredAt ?? null, sourceId: `record:${record.id}`,
-  })).filter(entry => entry.text && (entry.at || entry.text !== report.complaint))
+  })).filter(entry => entry.text)
   const manualHistory = report.currentSituationEdits?.[report.photoKey]?.description
   return {
     scopeKey,
@@ -205,6 +228,7 @@ export function clinicalVisit(report, records, edits = {}) {
     timeline,
     history: rows('history', history),
     examination: rows('examination', exam),
+    assessment: [...assessment.values()],
   }
 }
 

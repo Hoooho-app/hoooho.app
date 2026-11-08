@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Plus } from '../../components/icons'
-import { BottomSheetSurface, HohoButton } from '../../components/design-system'
+import { Paperclip } from '../../components/icons'
+import { BottomSheetSurface } from '../../components/design-system'
 import { FactLineChart } from '../../components/design-system/FactCharts'
 import type { VisitPoint, VisitSheet } from '../../types/visitSheet'
 import { visitSheetService } from '../../services/visitSheets'
 import { ReportPhotos } from './ReportPhotos'
+import { compactVisitComplaint } from './clinicalPresentation'
 
 export function VisitComplaint({ report, token, busy, onChange, onChoose, onMedia }: {
   report: VisitSheet
@@ -15,16 +16,18 @@ export function VisitComplaint({ report, token, busy, onChange, onChoose, onMedi
   onChoose: () => void
   onMedia: (id: string) => void
 }) {
+  const photoCount = report.selectedPhotoIds?.length ?? 0
   return <div className="visit-current-situation">
-    <p className="visit-chief-text">{report.complaint}</p>
-    <HohoButton variant="text" disabled={busy} onClick={onChange}>
-      {report.clinical?.scopeKey || report.focusSourceIds.length || report.focus.mode === 'custom' ? '更改主诉' : '选择主诉'}
-    </HohoButton>
-    <section className="visit-chief-attachments" aria-label="主诉附件">
-      <h3>主诉附件</h3>
-      <ReportPhotos report={report} token={token} onChoose={onChoose} onOpen={onMedia} compact />
-      <button type="button" className="visit-situation-add" disabled={busy} onClick={onChoose}><Plus size={16}/>添加 / 管理附件</button>
-    </section>
+    <p className="visit-chief-text">{compactVisitComplaint(report.complaint)}</p>
+    <div className="visit-chief-actions">
+      <button type="button" className="visit-text-action" disabled={busy} onClick={onChange}>
+        {report.clinical?.scopeKey || report.focusSourceIds.length || report.focus.mode === 'custom' ? '更改主诉' : '选择主诉'}
+      </button>
+      <button type="button" className="visit-text-action" disabled={busy} onClick={onChoose}>
+        <Paperclip size={15} aria-hidden="true" />主诉附件{photoCount > 0 && ` ${photoCount}`}
+      </button>
+    </div>
+    {photoCount > 0 && <ReportPhotos report={report} token={token} onChoose={onChoose} onOpen={onMedia} compact />}
   </div>
 }
 

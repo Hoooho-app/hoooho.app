@@ -1,15 +1,17 @@
 import {startNamedAnalyticsOperation,finishAnalyticsOperation} from '../../services/productAnalytics'
-import { readingCourseGroups, questionText, questionOrdinal } from './readingPresentation'
+import { readingCourseGroups } from './readingPresentation'
 import { currentSituationText } from './currentSituationCopy'
-import { clinicalAnswer, clinicalText, visitIdentity } from './clinicalPresentation'
+import { clinicalAnswer, clinicalText, compactVisitComplaint, customComplaintDetails } from './clinicalPresentation'
 import { renderToStaticMarkup } from 'react-dom/server'
 import type { VisitSheet } from '../../types/visitSheet'
 import { ReportChapter, reportTime, SourceText } from './ReportChapter'
 import { PhotoCaption } from './ReportPhotos'
+import { VisitIdentityCard } from './VisitIdentityCard'
 import { offlineRuntime } from './offlineRuntime'
 import { MedicalAISummary } from './MedicalAISummary'
 import { copyNurseConversation, growthReading, visitSignature } from './reportCopy'
 import css from './report.css?inline'
+import identityCss from './visitIdentity.css?inline'
 import chartCss from '../../components/design-system/FactCharts.css?inline'
 import tokens from '../../styles/tokens.css?inline'
 import medicationCss from '../NurseStation/medicationReadOnly.css?inline'
@@ -29,7 +31,7 @@ export function summaryText(report:VisitSheet) {
       ...(report.aiSummaryStale ? ['资料已变化，此 AI 摘要尚未重新生成。'] : [])
     ] : []),
     '\n本地事实整理：',
-    `本次主诉：${report.complaint} [${refs(report,report.complaintSourceId?[report.complaintSourceId]:[])}]`,
+    `本次主诉：${compactVisitComplaint(report.complaint)} [${refs(report,report.complaintSourceId?[report.complaintSourceId]:[])}]`,
     ...clinicalText(report, ids => refs(report, ids)),
     ...report.chapters.filter(c=>c.id!=='sources').flatMap(c=>[
       `\n${c.title}`,...(c.overview?.lines??[]),
@@ -39,8 +41,6 @@ export function summaryText(report:VisitSheet) {
     ]),
     ...(report.notes.sources?[`附件与完整依据 · 家长补充（不改变原记录）：${report.notes.sources}`]:[]),
     ...(report.currentSituation?[currentSituationText(report)]:report.reading?[`当前情况：${report.reading.description}`,`开始时间：${report.reading.onset}`,`最近变化：${report.reading.change}`,`其他表现：${report.reading.other}`]:[]),
-    `\n本次想问（家长确认）：${report.question||'未填写'}`,
-    ...(report.questionSourceIds?.length?[`问题来源 ${refs(report,report.questionSourceIds)}`]:[]),
     '\n待核对：',...(report.gaps??[]),...report.warnings,
     '缺失不等于没有；时间先后不是因果；资料整理不代替诊断。',
   ].filter(Boolean).join('\n')
@@ -65,11 +65,12 @@ function copyReport(report:VisitSheet,resources:ExportResources):VisitSheet {
     aiSummary:report.aiSummary&&['openai','bailian','openrouter'].includes(report.aiSummary.provider)?{...report.aiSummary,keyPointEvidence:report.aiSummary.keyPointEvidence?.map(e=>({...e,sourceId:e.sourceId?id(e.sourceId):null}))}:undefined,aiSummaryStale:report.aiSummaryStale,
     timezone:report.timezone,dataAsOf:report.dataAsOf,generatedAt:report.generatedAt,editedAt:report.editedAt,fingerprint:'',scope:report.scope,
     focus:{mode:report.focus.mode,...(report.focus.text?{text:report.focus.text}:{}),...(report.focus.sourceId?{sourceId:id(report.focus.sourceId)}:{})},complaint:report.complaint,complaintSourceId:report.complaintSourceId?id(report.complaintSourceId):null,
-    focusSourceIds:report.focusSourceIds.map(id),range:report.range,question:report.question,questionEdited:report.questionEdited,questionOrigin:report.questionOrigin,questionSourceIds:report.questionSourceIds?.map(id),notes:report.notes,
+    focusSourceIds:report.focusSourceIds.map(id),range:report.range,question:'',notes:report.notes,
     caseDetails:report.caseDetails,
     clinical: report.clinical ? {
       ...report.clinical, scopeKey: null,
       timeline: report.clinical.timeline.map(entry => ({ ...entry, sourceId: id(entry.sourceId) })),
+      assessment: report.clinical.assessment?.map(item => ({ ...item, sourceId: id(item.sourceId) })),
       history: report.clinical.history.filter(item => item.value !== null).map((item, index) => ({ ...item, id: `history-${index}`, sourceIds: item.sourceIds.map(id) })),
       examination: report.clinical.examination.filter(item => item.value !== null).map((item, index) => ({ ...item, id: `examination-${index}`, sourceIds: item.sourceIds.map(id) })),
     } : undefined,
@@ -87,7 +88,7 @@ export function reportHtml(report:VisitSheet,resources:ExportResources=emptyReso
   const copy=copyReport(report,resources)
   const photoElements=copy.photos?.map(p=><figure key={p.sourceId} data-copy-photo={p.sourceId} hidden={!copy.selectedPhotoIds?.includes(p.sourceId)}><a href={resources.images[report.sources.find(s=>s.code===p.sourceId)!.id]}><img src={resources.images[report.sources.find(s=>s.code===p.sourceId)!.id]} alt={p.title}/></a><PhotoCaption photo={p}/><p>{p.sourceId}</p></figure>)
   const body=renderToStaticMarkup(<main className="visit-report visit-offline">
-    <header><strong>Hoooho · 就诊情况单</strong><h1>{report.member.name}</h1><p id="copy-revision">原快照 v{report.version} · {editable?'可编辑本地副本，不回写在线档案':'打印快照'}</p><p>资料截至 {reportTime(report.dataAsOf)} · 生成 {reportTime(report.generatedAt)} · 编辑 {reportTime(report.editedAt??report.generatedAt)}</p></header>
+    <header><strong>Hoooho · 就诊情况单</strong><VisitIdentityCard report={copy}/><p id="copy-revision">原快照 v{report.version} · {editable?'可编辑本地副本，不回写在线档案':'打印快照'}</p><p>资料截至 {reportTime(report.dataAsOf)} · 生成 {reportTime(report.generatedAt)} · 编辑 {reportTime(report.editedAt??report.generatedAt)}</p></header>
     <p>{report.scope}</p><p>包含 {Object.keys(resources.images).length} 张影像原件；其他附件仅为索引，原图未附。文字范围与照片范围分别核对。</p>
     {resources.omitted.length>0&&<p>未附原件：{resources.omitted.join('；')}</p>}
     <MedicalAISummary report={copy} snapshot/>
@@ -96,7 +97,7 @@ export function reportHtml(report:VisitSheet,resources:ExportResources=emptyReso
     <details className="visit-offline-nav"><summary>章节目录</summary><nav>{copy.chapters.map(c=><a key={c.id} href={`#chapter-${c.id}`}>{c.title}</a>)}</nav></details>
     {editable&&<div className="visit-copy-controls"><button id="copy-download">下载更新副本</button><p id="copy-status" role="status"/></div>}
     {copy.chapters.map(c=><section id={`chapter-${c.id}`} key={c.id} className="visit-chapter"><h2>{c.title}</h2>
-      {c.id==='overview'&&<><div className="visit-report-focus"><h1 id="copy-complaint">{copy.complaint}</h1>{editable&&<button id="copy-edit-focus" className="visit-copy-controls">更改主诉</button>}</div><h3>近期相关照片</h3><div className="visit-photo-grid">{photoElements}</div>{!copy.photos?.length&&<p>本文件未附关联照片原图。</p>}{editable&&<button id="copy-edit-photos" className="visit-copy-controls">调整副本展示照片</button>}<section className="visit-question"><h3>本次想问</h3><p id="copy-question">{copy.question||'尚未填写'}</p><p id="copy-question-origin">{copy.questionOrigin}</p><span id="copy-question-sources">{copy.questionSourceIds?.map(id=><a key={id} href={`#${id}`}>{id} 问题原话 </a>)}</span>{editable&&<button id="copy-edit-question" className="visit-copy-controls">编辑本次想问</button>}</section><div hidden id="copy-gaps">{copy.gaps?.map(g=><p key={g}>{g}</p>)}</div></>}
+      {c.id==='overview'&&<><div className="visit-report-focus"><h1 id="copy-complaint">{compactVisitComplaint(copy.complaint)}</h1>{editable&&<button id="copy-edit-focus" className="visit-copy-controls">更改主诉</button>}</div><h3>近期相关照片</h3><div className="visit-photo-grid">{photoElements}</div>{!copy.photos?.length&&<p>本文件未附关联照片原图。</p>}{editable&&<button id="copy-edit-photos" className="visit-copy-controls">调整副本展示照片</button>}<div hidden id="copy-gaps">{copy.gaps?.map(g=><p key={g}>{g}</p>)}</div></>}
       <div id={c.id==='overview'?'copy-focus-facts':c.id==='course'?'copy-course':undefined}><ReportChapter chapter={{...c,title:''}} report={{...copy,notes:{}}} readOnly/></div>
       {['medication','allergy','history'].includes(c.id)&&<p data-copy-relation/>}
       {c.id==='sources'&&Object.values(copy.notes).some(Boolean)&&<details open={!editable}><summary>历史家长补充 · 报告说明</summary>{Object.entries(copy.notes).filter(([,note])=>note).map(([id,note])=><section key={id}><h3>{copy.chapters.find(c=>c.id===id)?.title}</h3><p data-copy-note={id}>{note}</p></section>)}</details>}
@@ -106,7 +107,7 @@ export function reportHtml(report:VisitSheet,resources:ExportResources=emptyReso
   </main>)
   const data={copyId:crypto.randomUUID(),originalVersion:report.version,localRevision:0,report:copy}
   const json=JSON.stringify(data).replace(/</g,'\\u003c').replace(/\u2028/g,'\\u2028').replace(/\u2029/g,'\\u2029')
-  return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'none'; form-action 'none'; base-uri 'none'"><title>Hoooho 就诊情况单</title><style>${tokens}:root{--hoho-color-page-background:252 251 247;--hoho-color-background:242 241 234;--hoho-color-action:72 98 83;--hoho-color-action-hover:57 80 66;--hoho-color-action-active:44 64 52;--hoho-color-action-text:255 255 255}body{margin:0;background:white}*{box-sizing:border-box}${css}${chartCss}${medicationCss}</style></head><body>${body}${editable?`<script id="visit-copy-data" type="application/json">${json}</script><script>(${offlineRuntime.toString()})();</script>`:''}</body></html>`
+  return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'none'; form-action 'none'; base-uri 'none'"><title>Hoooho 就诊情况单</title><style>${tokens}:root{--hoho-color-page-background:252 251 247;--hoho-color-background:242 241 234;--hoho-color-action:72 98 83;--hoho-color-action-hover:57 80 66;--hoho-color-action-active:44 64 52;--hoho-color-action-text:255 255 255}body{margin:0;background:white}*{box-sizing:border-box}${css}${chartCss}${identityCss}${medicationCss}</style></head><body>${body}${editable?`<script id="visit-copy-data" type="application/json">${json}</script><script>(${offlineRuntime.toString()})(${compactVisitComplaint.toString()});</script>`:''}</body></html>`
 }
 export function downloadContent(content:string,filename:string,type:string) {
   const attempt=startNamedAnalyticsOperation('download_requested')
@@ -120,11 +121,13 @@ export function consultationHtml(report:VisitSheet,resources:ExportResources=emp
   const printCopyCss='@media print{.visit-consultation-copy .visit-copy-media img{max-height:220px;object-fit:contain}.visit-consultation-copy .visit-copy-media figure{break-inside:avoid}.visit-consultation-copy .visit-fact-block:has(.visit-observation-entry){break-inside:auto}.visit-consultation-copy a{color:rgb(var(--hoho-color-primary))}}'
   const courseIds=new Set(copy.reading?.courseSourceIds??copy.chapters.find(c=>c.id==='course')?.blocks.filter(b=>!b.secondary).flatMap(b=>b.sourceIds).filter(id=>{const source=copy.sources.find(s=>s.id===id);return source&&source.category!=='attachment'&&!source.category.endsWith('-plan')})??[])
   const clinical = copy.clinical
+  const customDetails = customComplaintDetails(copy)
   const clinicalSourceIds = clinical ? [
     ...clinical.timeline.map(entry => entry.sourceId),
+    ...(clinical.assessment ?? []).map(item => item.sourceId),
     ...[...clinical.history, ...clinical.examination].flatMap(item => item.sourceIds),
   ] : []
-  const referenced=new Set([...copy.focusSourceIds,...clinicalSourceIds,...courseIds,...(copy.questionSourceIds??[]),...(!copy.aiSummaryStale?report.aiSourceIds?.map(id=>report.sources.find(s=>s.id===id)?.code)??[]:[]),...(!copy.aiSummaryStale?copy.aiSummary?.keyPointEvidence?.map(e=>e.sourceId)??[]:[]),...Object.keys(resources.images).map(id=>report.sources.find(s=>s.id===id)?.code),...(report.selectedPhotoIds??[]).map(id=>report.sources.find(s=>s.id===id)?.code),copy.reading?.height?.sourceId,copy.reading?.weight?.sourceId].filter(Boolean))
+  const referenced=new Set([...copy.focusSourceIds,...clinicalSourceIds,...courseIds,...(!copy.aiSummaryStale?report.aiSourceIds?.map(id=>report.sources.find(s=>s.id===id)?.code)??[]:[]),...(!copy.aiSummaryStale?copy.aiSummary?.keyPointEvidence?.map(e=>e.sourceId)??[]:[]),...Object.keys(resources.images).map(id=>report.sources.find(s=>s.id===id)?.code),...(report.selectedPhotoIds??[]).map(id=>report.sources.find(s=>s.id===id)?.code),copy.reading?.height?.sourceId,copy.reading?.weight?.sourceId].filter(Boolean))
   const includedSources=copy.sources.filter(source=>full||referenced.has(source.id))
   const link=(ids:string[])=>ids.map(id=><a key={id} href={`#${id}`}>{id} 查看依据 </a>)
   const reading=copy.reading
@@ -134,24 +137,27 @@ export function consultationHtml(report:VisitSheet,resources:ExportResources=emp
     <style>{printCopyCss}</style>
     <header>
       <h1>就诊情况单</h1>
-      <p>{visitIdentity(copy).map(field => `${field.label} ${field.value || '—'}`).join('　')}</p>
+      <VisitIdentityCard report={copy}/>
       <p>资料截至 {reportTime(copy.dataAsOf,copy.timezone)} · 整理 {reportTime(copy.editedAt??copy.generatedAt,copy.timezone)}</p>
       <p>固定确认快照 · {full?'情况单与完整资料':'本次就诊重点'} · {copy.scope}</p>
     </header>
-    <section><h2>主诉</h2><p>{copy.complaint}</p>
+    <section><h2>主诉</h2><p>{compactVisitComplaint(copy.complaint)}</p>
       {!!focusedMedia.length&&<><h3>主诉附件</h3><div className="visit-copy-media">{focusedMedia.map(mediaFigure)}</div></>}
-      <p>已内嵌 {Object.keys(resources.images).length} 份影像原件。未嵌入的附件仅为索引，不可离线查看。</p>{resources.omitted.map((message,i)=><p key={i}>原件未附：{message}</p>)}
+      {!!(media.length || resources.omitted.length) && <p>已内嵌 {media.length} 份影像原件。未嵌入的附件仅为索引，不可离线查看。</p>}{resources.omitted.map((message,i)=><p key={i}>原件未附：{message}</p>)}
     </section>
     <section><h2>现病史</h2>
       {clinical?.onset && <p>{clinical.onset}</p>}
       {clinical?.timeline.map(entry => <p key={entry.sourceId}>{entry.at ? reportTime(entry.at, copy.timezone) : '时间未填写'}　{entry.text} {link([entry.sourceId])}</p>)}
+      {customDetails && <p>家长自填　{customDetails}</p>}
       {clinical?.historyNote && <p>家长补充　{clinical.historyNote}</p>}
       {clinical?.history.map(item => item.value !== null && <p key={item.id}>{item.label}：{clinicalAnswer('history', item.value)} {item.manual ? '（家长补充）' : link(item.sourceIds)}</p>)}
     </section>
     <section><h2>体格情况</h2>
       {clinical?.examination.map(item => item.value !== null && <p key={item.id}>{item.label}：{clinicalAnswer('examination', item.value)} {item.manual ? '（家长补充）' : link(item.sourceIds)}</p>)}
     </section>
-    <section><h2>本次想问</h2><ol style={{listStyle:"none",padding:0}}>{copy.question.split("\n").filter(q=>q.trim()).map((q,i)=><li key={i}><strong>{questionOrdinal(i)}</strong> · {questionText(q)}</li>)}</ol>{!copy.question&&<p>尚未填写</p>}{link(copy.questionSourceIds??[])}</section>
+    {!!clinical?.assessment?.length && <section><h2>基本判断</h2>
+      {clinical.assessment.map(item => <p key={item.text}>{item.text} <small>{item.origin}</small> {link([item.sourceId])}</p>)}
+    </section>}
     {!!otherMedia.length&&<section><h2>另选影像原件</h2><p>这些原件由导出时另选；不代表与本次主诉有关。</p><div className="visit-copy-media">{otherMedia.map(mediaFigure)}</div></section>}
     {(readingCourseGroups(copy).length||copy.notes.course)&&<section><h2>相关经过与处理</h2>{readingCourseGroups(copy).map(group=><article key={group.id}><h3>{group.title}</h3>{group.lines.map((line,i)=><p key={i}>{line}</p>)}{group.blocks?.map((block,i)=><ReportChapter key={i} chapter={{id:'temperature',title:'',summary:'',blocks:[block]}} report={copy} readOnly/>)}{link(group.sourceIds)}</article>)}{copy.notes.course&&<p>{copy.notes.course}</p>}</section>}
     {copy.aiSummary&&!copy.aiSummaryStale&&<section><h2>病情摘要（仍需核对）</h2><MedicalAISummary report={copy} snapshot/></section>}
@@ -159,7 +165,7 @@ export function consultationHtml(report:VisitSheet,resources:ExportResources=emp
     <section><h2>{full?'完整原始依据':'本次相关依据'}</h2>{includedSources.map(source=><details open id={source.id} key={source.id}><summary>{source.code} · {source.title}</summary><SourceText source={source}/></details>)}</section>
     <footer>{visitSignature(copy)} · 家长记录与未知信息保留，不代替医生诊断。本文件不回写在线档案。</footer>
   </main>)
-  return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; media-src data:; style-src 'unsafe-inline'; connect-src 'none'; form-action 'none'; base-uri 'none'"><title>Hoooho 就诊情况单</title><style>${tokens}:root{--hoho-color-page-background:252 251 247;--hoho-color-background:242 241 234;--hoho-color-action:72 98 83;--hoho-color-action-hover:57 80 66;--hoho-color-action-active:44 64 52;--hoho-color-action-text:255 255 255}${css}${chartCss}body{margin:0;background:white}.visit-consultation-copy{max-width:680px;margin:auto;padding:24px;font:15px/1.7 var(--hoho-font-family);color:rgb(var(--hoho-color-text-primary));overflow-wrap:anywhere}.visit-consultation-copy p{white-space:pre-wrap}.visit-consultation-copy section{padding:16px 0;border-top:1px solid rgb(var(--hoho-color-border))}.visit-consultation-copy .visit-copy-media{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.visit-consultation-copy figure{margin:0}.visit-consultation-copy img,.visit-consultation-copy video{max-width:100%;width:100%}.visit-consultation-copy dd{margin:0}.visit-consultation-copy details>summary{padding:12px 0}.visit-consultation-copy button{display:none}@media print{details>*,details:not([open])>*{display:block!important}video{min-height:60px}.visit-consultation-copy{max-width:none;padding:0}}</style></head><body>${body}</body></html>`
+  return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; media-src data:; style-src 'unsafe-inline'; connect-src 'none'; form-action 'none'; base-uri 'none'"><title>Hoooho 就诊情况单</title><style>${tokens}:root{--hoho-color-page-background:252 251 247;--hoho-color-background:242 241 234;--hoho-color-action:72 98 83;--hoho-color-action-hover:57 80 66;--hoho-color-action-active:44 64 52;--hoho-color-action-text:255 255 255}${css}${chartCss}${identityCss}body{margin:0;background:white}.visit-consultation-copy{max-width:680px;margin:auto;padding:24px;font:15px/1.7 var(--hoho-font-family);color:rgb(var(--hoho-color-text-primary));overflow-wrap:anywhere}.visit-consultation-copy p{white-space:pre-wrap}.visit-consultation-copy section{padding:16px 0;border-top:1px solid rgb(var(--hoho-color-border))}.visit-consultation-copy .visit-copy-media{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.visit-consultation-copy figure{margin:0}.visit-consultation-copy img,.visit-consultation-copy video{max-width:100%;width:100%}.visit-consultation-copy dd{margin:0}.visit-consultation-copy details>summary{padding:12px 0}.visit-consultation-copy button{display:none}@media print{details>*,details:not([open])>*{display:block!important}video{min-height:60px}.visit-consultation-copy{max-width:none;padding:0}}</style></head><body>${body}</body></html>`
 }
 export function downloadReport(report:VisitSheet,resources:ExportResources=emptyResources()) {downloadContent(reportHtml(report,resources),`Hoooho-就诊情况单-v${report.version}.html`,'text/html;charset=utf-8')}
 export function printReport(report:VisitSheet,resources:ExportResources=emptyResources()) {

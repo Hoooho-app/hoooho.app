@@ -1,5 +1,5 @@
 // Runs only inside a user-requested, self-contained local copy. No network APIs.
-export function offlineRuntime() {
+export function offlineRuntime(compactComplaint: (text: string) => string) {
   const dataNode=document.getElementById('visit-copy-data')!
   const initial=JSON.parse(dataNode.textContent!)
   const key=`hoooho-visit-copy:${initial.copyId}`
@@ -13,13 +13,7 @@ export function offlineRuntime() {
   const render=()=>{
     const report=data.report
     document.getElementById('copy-revision')!.textContent=`原快照 v${initial.originalVersion} · 本地修订 ${data.localRevision||0} · 不回写在线档案`
-    document.getElementById('copy-complaint')!.textContent=report.complaint
-    const question=document.getElementById('copy-question')!
-    question.textContent=report.question||'尚未填写'
-    document.getElementById('copy-question-origin')!.textContent=report.questionOrigin||'尚未填写'
-    const questionRefs=document.getElementById('copy-question-sources')!
-    questionRefs.replaceChildren()
-    for(const id of report.questionSourceIds??[]){if(!sources().some((s:any)=>s.id===id))continue;const link=el('a',`${id} 问题原话 `) as HTMLAnchorElement;link.href=`#${id}`;questionRefs.append(link)}
+    document.getElementById('copy-complaint')!.textContent=compactComplaint(report.complaint)
     for(const c of report.chapters){const note=document.querySelector(`[data-copy-note="${c.id}"]`);if(note)note.textContent=report.notes[c.id]||''}
     document.querySelectorAll<HTMLElement>('[data-copy-photo]').forEach(node=>{node.hidden=!(report.selectedPhotoIds||[]).includes(node.dataset.copyPhoto)})
     if(data.focusChanged){
@@ -44,7 +38,7 @@ export function offlineRuntime() {
       document.querySelectorAll('[data-copy-relation]').forEach(node=>node.textContent='本地已更改主诉；明确关联内容已在本次经过中列出，本章其余资料保留，不据时间先后推断因果。')
       const oldHistory=document.querySelector('[data-chapter-overview="history"]');if(oldHistory){oldHistory.replaceChildren();paragraph(oldHistory,history.length?'与本次明确关联的背景已在上方经过列出。':'尚未建立与本次明确关联的背景。')}
       document.querySelectorAll<HTMLElement>('[data-report-source-ids]').forEach(node=>{const refs=JSON.parse(node.dataset.reportSourceIds!);const label=node.querySelector('[data-copy-related]');if(label)label.textContent=refs.some((id:string)=>ids.has(id)||explicit.some((s:any)=>s.id===id))?'与本次有明确记录关联':'与本次关系尚未建立，保留供核对'})
-      report.gaps=['最早记录不等于起病时间；家长问题与补充仍保留，请核对是否适用于当前主诉。',...(!treatments.length?['尚未建立此主诉与处理 / 就诊资料的明确关联。']:[]),...(!history.length?['尚未建立此主诉与既往资料的明确关联。']:[])]
+      report.gaps=['最早记录不等于起病时间；家长补充仍保留，请核对是否适用于当前主诉。',...(!treatments.length?['尚未建立此主诉与处理 / 就诊资料的明确关联。']:[]),...(!history.length?['尚未建立此主诉与既往资料的明确关联。']:[])]
       const gaps=document.getElementById('copy-gaps')!;gaps.replaceChildren();report.gaps.forEach((text:string)=>paragraph(gaps,text))
     }
   }
@@ -53,11 +47,10 @@ export function offlineRuntime() {
   const open=(title:string)=>{returnFocus=document.activeElement as HTMLElement;panel.replaceChildren(el('h2',title));panel.showModal()}
   const close=()=>{panel.close();returnFocus?.focus({preventScroll:true})}
   const actions=(save:()=>void|boolean)=>{const submit=el('button','保存本地修改');submit.onclick=()=>{if(save()===false)return;persist();close()};const cancel=el('button','取消');cancel.onclick=close;panel.append(submit,cancel)}
-  document.getElementById('copy-edit-question')!.onclick=()=>{open('本次想问 · 本地副本');const field=el('textarea') as HTMLTextAreaElement;field.value=data.report.question;field.setAttribute('aria-label','本次想问');panel.append(field);actions(()=>{data.report.question=field.value;data.report.questionEdited=true;data.report.questionOrigin='家长填写（本地副本）';data.report.questionSourceIds=[];document.getElementById('copy-question-sources')?.replaceChildren()});field.focus()}
   document.querySelectorAll<HTMLElement>('[data-edit-note]').forEach(button=>button.onclick=()=>{const id=button.dataset.editNote!;open('章节补充 · 本地副本');const field=el('textarea') as HTMLTextAreaElement;field.value=data.report.notes[id]||'';field.setAttribute('aria-label','章节补充');panel.append(field);actions(()=>{data.report.notes[id]=field.value});field.focus()})
   document.getElementById('copy-edit-focus')!.onclick=()=>{
     open('更改主诉 · 仅使用副本内已有资料')
-    const select=el('select') as HTMLSelectElement;select.setAttribute('aria-label','主诉来源');select.append(new Option('其他问题（自填）','custom'))
+    const select=el('select') as HTMLSelectElement;select.setAttribute('aria-label','主诉来源');select.append(new Option('自填主诉','custom'))
     for(const c of data.report.candidates)select.append(new Option(c.text,c.sourceId))
     select.value=data.report.complaintSourceId||'custom'
     const custom=el('textarea') as HTMLTextAreaElement;custom.setAttribute('aria-label','自填主诉');custom.value=data.report.complaint;custom.hidden=select.value!=='custom';select.onchange=()=>{custom.hidden=select.value!=='custom';if(!custom.hidden)custom.focus()}
@@ -75,14 +68,6 @@ export function offlineRuntime() {
       const theme=selected?.id||`custom:${text}`;data.report.photoKey=theme
       const eligible=data.report.photos.filter((p:any)=>p.relatedSourceIds.some((id:string)=>data.report.focusSourceIds.includes(id))).map((p:any)=>p.sourceId)
       data.report.selectedPhotoIds=(data.report.photoSelections[theme]??(selected?eligible.slice(0,3):[])).filter((id:string)=>data.report.photos.some((p:any)=>p.sourceId===id))
-      if(!data.report.questionEdited){
-        const refs=new Set(data.report.focusSourceIds),linked=sources().filter((s:any)=>refs.has(s.id)||s.relatedSourceIds?.some((id:string)=>refs.has(id))||related.some((f:any)=>f.relatedSourceIds?.includes(s.id)))
-        const questionSources=linked.filter((s:any)=>s.category!=='attachment'&&/(?:想问|希望了解|想了解|请问|是否.*[？?])/.test(s.text))
-        data.report.questionSourceIds=questionSources.map((s:any)=>s.id)
-        data.report.question=questionSources.flatMap((s:any)=>s.text.split(/\n/).filter((t:string)=>/(?:想问|希望了解|想了解|请问|是否.*[？?])/.test(t))).slice(0,3).join('\n')
-        data.report.questionOrigin=data.report.question?'据家长记录整理':'可参考的问题'
-        if(!data.report.question)data.report.question=data.report.reading.questionCandidates.slice(0,4).join('\n')
-      }
       data.focusChanged=true
     })
   }
