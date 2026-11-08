@@ -1,4 +1,4 @@
-name: One-shot iOS internal beta signing
+name: One-shot iOS internal beta signing (profile retry)
 on:
   push:
     branches: ['codex/ios-sign-once-567f3938d3']
