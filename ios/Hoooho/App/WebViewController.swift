@@ -21,6 +21,9 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
     private var shareRetry: DispatchWorkItem?
     private var printJob: ReportPrintJob?
     private var hasLoadedPage = false
+    private var recoverContentWhenActive = false
+    private var lastAutomaticContentRecovery: TimeInterval?
+    private var automaticRecoveryNavigation: WKNavigation?
     private let capturePermissions = CapturePermissions.system()
     private var attachmentPicker: NativeAttachments?
     private var pageStatusBarStyle: UIStatusBarStyle = .darkContent
@@ -47,6 +50,8 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
         webView = WKWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = self
         webView.uiDelegate = self
+        NotificationCenter.default.addObserver(self, selector: #selector(appDidBecomeActive(_:)),
+            name: UIApplication.didBecomeActiveNotification, object: nil)
         webView.allowsBackForwardNavigationGestures = true
         webView.isOpaque = false
         webView.backgroundColor = view.backgroundColor
@@ -77,11 +82,7 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
             loadFailed(NSError(domain: NSURLErrorDomain, code: URLError.notConnectedToInternet.rawValue))
             return
         }
-        if ProcessInfo.processInfo.arguments.contains("--native-fixture"),
-           let fixture = Bundle.main.url(forResource: "NativeFixture", withExtension: "html") {
-            webView.loadFileURL(fixture, allowingReadAccessTo: fixture.deletingLastPathComponent())
-            return
-        }
+        if loadNativeFixture() != nil { return }
         #endif
         openPage()
     }
@@ -186,14 +187,17 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
         failureScroll.isHidden = true
         progress.startAnimating()
         #if DEBUG
-        if ProcessInfo.processInfo.arguments.contains("--startup-error-fixture"),
-           let fixture = Bundle.main.url(forResource: "NativeFixture", withExtension: "html") {
-            webView.loadFileURL(fixture, allowingReadAccessTo: fixture.deletingLastPathComponent())
-            return
-        }
+        if loadNativeFixture() != nil { return }
         #endif
         openPage(reload: hasLoadedPage)
     }
+    #if DEBUG
+    private func loadNativeFixture() -> WKNavigation? {
+        guard ProcessInfo.processInfo.arguments.contains("--native-fixture"),
+              let fixture = Bundle.main.url(forResource: "NativeFixture", withExtension: "html") else { return nil }
+        return webView.loadFileURL(fixture, allowingReadAccessTo: fixture.deletingLastPathComponent())
+    }
+    #endif
     @objc private func openAppSettings() {
         guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
         UIApplication.shared.open(url)
@@ -205,6 +209,8 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
         copyDiagnosticButton.setTitle("诊断信息已复制", for: .normal)
     }
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        guard acceptsNavigationResult(navigation) else { return }
+        automaticRecoveryNavigation = nil
         hasLoadedPage = true
         currentLaunchFailure = nil
         progress.stopAnimating()
@@ -225,9 +231,58 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
         showLaunchFailure(LaunchFailure.from(failure))
         // Never clear cookies, IndexedDB or the current web page on failure.
     }
-    func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) { loadFailed(error) }
-    func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) { loadFailed(error) }
-    func webViewWebContentProcessDidTerminate(_ webView: WKWebView) { showLaunchFailure(.contentProcessEnded()) }
+    private func acceptsNavigationResult(_ navigation: WKNavigation?) -> Bool {
+        !recoverContentWhenActive && (automaticRecoveryNavigation == nil || navigation === automaticRecoveryNavigation)
+    }
+
+    func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        guard acceptsNavigationResult(navigation) else { return }
+        automaticRecoveryNavigation = nil
+        loadFailed(error)
+    }
+
+    func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        self.webView(webView, didFail: navigation, withError: error)
+    }
+
+    func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
+        automaticRecoveryNavigation = nil
+        recoverContentWhenActive = true
+        recoverContentIfActive()
+    }
+
+    @objc private func appDidBecomeActive(_ notification: Notification) { recoverContentIfActive() }
+
+    private func recoverContentIfActive() {
+        guard recoverContentWhenActive, UIApplication.shared.applicationState == .active else { return }
+        recoverContentWhenActive = false
+
+        // A page can finish loading before it crashes again. Keep the retry limit
+        // across successful loads so a crash loop leaves the manual recovery screen.
+        let now = ProcessInfo.processInfo.systemUptime
+        if let lastAutomaticContentRecovery, now - lastAutomaticContentRecovery < 60 {
+            showLaunchFailure(.contentProcessEnded())
+            return
+        }
+        lastAutomaticContentRecovery = now
+        failureScroll.isHidden = true
+        progress.startAnimating()
+
+        #if DEBUG
+        if let fixtureNavigation = loadNativeFixture() {
+            automaticRecoveryNavigation = fixtureNavigation
+            return
+        }
+        #endif
+        let currentURL = webView.url ?? webView.backForwardList.currentItem?.url
+        var request = LaunchFailure.startupRequest
+        if NavigationPolicy.destination(currentURL) == .app, let currentURL {
+            request.url = currentURL
+        }
+        // Use a fresh GET in the existing view and website data store.
+        automaticRecoveryNavigation = webView.load(request)
+        if automaticRecoveryNavigation == nil { showLaunchFailure(.contentProcessEnded()) }
+    }
 
     func webView(_ webView: WKWebView, decidePolicyFor action: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
         #if DEBUG
@@ -303,6 +358,11 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
         let origin = message.frameInfo.securityOrigin
         #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("--content-process-fixture"), webView.url?.isFileURL == true,
+           message.frameInfo.isMainFrame, message.body as? String == "terminate-content-process-fixture" {
+            webViewWebContentProcessDidTerminate(webView)
+            return
+        }
         if ProcessInfo.processInfo.arguments.contains("--native-fixture"), webView.url?.isFileURL == true,
            message.frameInfo.isMainFrame, let body = message.body as? [String: Any], body["type"] as? String == "attachments",
            let id = body["id"] as? String, id == "native-attachment-fixture" {
