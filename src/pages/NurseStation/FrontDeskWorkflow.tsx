@@ -156,7 +156,7 @@ export function FrontDeskWorkflow() {
           <div className="front-desk-workflow__summary-title"><FileText size={15} aria-hidden="true"/><strong>就诊情况单</strong></div>
           <div className="front-desk-workflow__identity"><span>孩子信息</span><strong>女儿 · 2岁</strong></div>
           <ol className="front-desk-workflow__outline" aria-label="情况单栏目">
-            {['目前情况', '相关经过与处理', '完整资料档案', '本次想问'].map((title, index) => <li key={title} style={{ '--row-delay': `${900 + index * 450}ms` } as CSSProperties}><span>{index === 1 ? <>相关经过<wbr/>与处理</> : title}</span></li>)}
+            {['主诉', '现病史', '体格情况', '本次想问'].map((title, index) => <li key={title} style={{ '--row-delay': `${900 + index * 450}ms` } as CSSProperties}><span>{title}</span></li>)}
           </ol>
         </div>
         <div className="front-desk-workflow__connector" aria-hidden="true"><ArrowDown size={14}/></div>

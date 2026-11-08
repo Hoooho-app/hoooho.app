@@ -101,7 +101,33 @@ export interface VisitReadingGroup {
   events?: Array<{title:string;at:string|null;sourceIds:string[]}>
 }
 export interface VisitArchiveGroup { id:string;title:string;items:Array<{title:string;detail:string;sourceIds:string[]}> }
+export type VisitClinicalSection = 'history' | 'examination'
+export interface VisitClinicalItem {
+  id: string
+  label: string
+  value: boolean | null
+  sourceIds: string[]
+  at?: string
+  manual?: boolean
+}
+export interface VisitClinical {
+  scopeKey: string | null
+  range: { from: string; to: string } | null
+  onset: string
+  historyNote: string
+  timeline: Array<{ text: string; at: string | null; sourceId: string }>
+  history: VisitClinicalItem[]
+  examination: VisitClinicalItem[]
+}
+export interface VisitClinicalPatch {
+  scopeKey: string
+  section: VisitClinicalSection
+  id: string
+  value: boolean | null
+  label?: string
+}
 export interface VisitSheet {
+  clinical?: VisitClinical
   currentSituation?: {scopeKey:string;description:string;descriptionEmphasis?:string[];keywords?:string[];sourceFingerprint?:string;needsOrganization?:boolean;symptoms:CurrentSituationLine[];diet:CurrentSituationLine[];changes:CurrentSituationLine[];treatment:CurrentSituationLine[];raw:Array<{text:string;sourceId:string}>}
   currentSituationEdits?: Record<string,Partial<Record<'description'|'symptoms'|'diet',string>>&{symptomRows?:CurrentSituationLine[]}>
   reading?: {description:string;onset:string;change:string;other:string;sourceIds:string[];courseSourceIds:string[];height:VisitPoint|null;weight:VisitPoint|null;keywords?:string[];courseGroups?:VisitReadingGroup[];archive?:VisitArchiveGroup[];questionCandidates?:string[];contextRange?:{from:string|null;to:string|null}}
@@ -133,7 +159,7 @@ export interface VisitSheet {
   dataAsOf: string
   timezone: string
   fingerprint: string
-  member: { name: string; gender: string | null; birthday: string | null; avatar?:string|null;bloodType?:string|null;rhBloodType?:string|null;primaryRecorderRelationship?:string|null }
+  member: { name: string; gender: string | null; birthday: string | null; heightCm?: number | null; weightKg?: number | null; avatar?:string|null;bloodType?:string|null;rhBloodType?:string|null;primaryRecorderRelationship?:string|null }
   focus: VisitFocus
   complaint: string
   complaintSourceId: string | null

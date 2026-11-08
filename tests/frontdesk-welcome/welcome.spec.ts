@@ -223,7 +223,7 @@ test('six-scene workflow maps the case page, shows export handoffs and loops wit
   await nextScene('4')
   await expect(flow.getByLabel('情况单页面结构')).toBeVisible()
   await expect(flow.getByText('孩子信息', { exact: true })).toBeVisible()
-  await expect(flow.getByRole('list', { name: '情况单栏目' }).getByRole('listitem')).toHaveText(['目前情况', '相关经过与处理', '完整资料档案', '本次想问'])
+  await expect(flow.getByRole('list', { name: '情况单栏目' }).getByRole('listitem')).toHaveText(['主诉', '现病史', '体格情况', '本次想问'])
   await page.clock.runFor(3000)
   await flow.screenshot({ animations: 'disabled', path: info.outputPath('workflow-summary.png') })
   await nextScene('5')

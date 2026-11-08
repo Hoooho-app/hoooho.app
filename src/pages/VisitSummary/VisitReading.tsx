@@ -2,24 +2,26 @@ import {
   ChevronDown,
   CircleHelp,
   SymptomIcon,
-  Folder,
+  FileText,
+  Stethoscope,
   History,
   Pencil,
 } from '../../components/icons';
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import { MemberIdentity } from "../../features/organize/MemberIdentity";
+import { useState, type ReactNode } from "react";
 import { readingCourseGroups, questionText, questionOrdinal } from "./readingPresentation";
-import { useAppStore } from "../../store/useAppStore";
-import type { VisitChapterId, VisitSheet } from "../../types/visitSheet";
+import type { VisitChapterId, VisitClinicalPatch, VisitSheet } from "../../types/visitSheet";
 import { FactLineChart } from "../../components/design-system/FactCharts";
 import { reportTime } from "./ReportChapter";
-import { CurrentSituation } from "./CurrentSituation";
-import { growthReading, visitSignature } from "./reportCopy";
+import { VisitComplaint, VisitTemperature } from "./CurrentSituation";
+import { ClinicalChoices } from "./ClinicalChoices";
+import { visitIdentity } from "./clinicalPresentation";
+import { visitSignature } from "./reportCopy";
 export const readingCards = [
-  { id: "overview", title: "目前情况" },
-  { id: "course", title: "相关经过与处理" },
-  { id: "sources", title: "完整资料档案" },
+  { id: "overview", title: "主诉" },
+  { id: "sources", title: "现病史" },
+  { id: "visits", title: "体格情况" },
   { id: "medication", title: "本次想问" },
+  { id: "course", title: "相关经过与处理" },
 ] as const;
 export type ReadingEditor =
   | "focus"
@@ -48,7 +50,7 @@ export function VisitReading({
   onMedications,
   opened,
   busy = false,
-  organizing = false, organizationError = '', onOrganize,
+  onClinicalSave,
 }: {
   report: VisitSheet;
   token: string;
@@ -59,37 +61,22 @@ export function VisitReading({
   onMedications: () => void;
   opened: { id: VisitChapterId; serial: number };
   busy?: boolean;
-  organizing?:boolean;organizationError?:string;onOrganize?:()=>void;
+  onClinicalSave: (patch: VisitClinicalPatch) => Promise<boolean>;
 }) {
-  const wasOrganizing = useRef(organizing)
-  const [paperUpdated, setPaperUpdated] = useState(false)
-  useEffect(() => {
-    if (wasOrganizing.current && !organizing && !organizationError) setPaperUpdated(true)
-    wasOrganizing.current = organizing
-  }, [organizing, organizationError])
-  useEffect(() => {
-    if (!paperUpdated) return
-    const timer = setTimeout(() => setPaperUpdated(false), 450)
-    return () => clearTimeout(timer)
-  }, [paperUpdated])
-  const [folds, setFolds] = useState<Record<string, boolean>>({});
+  const [folds, setFolds] = useState<Record<string, boolean>>({ overview: true, sources: true, visits: true });
   const [lastOpened, setLastOpened] = useState(opened.serial);
   if (lastOpened !== opened.serial) {
     setLastOpened(opened.serial);
     setFolds((previous) => ({ ...previous, [opened.id]: true }));
   }
-  const currentMember = useAppStore((s) =>
-    s.members.find((m) => m.id === report.memberId),
-  );
-  const reading = report.reading,
-    questions = report.question.split("\n").filter((line) => line.trim()),
-    groups = readingCourseGroups(report),
-    growth = growthReading(report);
+  const { clinical } = report;
+  const questions = report.question.split("\n").filter((line) => line.trim());
+  const groups = readingCourseGroups(report);
   function card(
     id: VisitChapterId,
     title: string,
     icon: ReactNode,
-    kind: ReadingEditor,
+    kind: ReadingEditor | null,
     summary: string,
     body: ReactNode,
   ) {
@@ -120,7 +107,7 @@ export function VisitReading({
         </div>
         <div id={`reading-${id}`} hidden={!folds[id]}>
           {body}
-          {id !== "overview" && <div className="visit-reading-actions">
+          {kind && <div className="visit-reading-actions">
             <button
               className="visit-reading-edit"
               disabled={busy}
@@ -136,18 +123,47 @@ export function VisitReading({
     );
   }
   return (
-    <div className="visit-reading" data-paper-updated={paperUpdated || undefined}>
-      <MemberIdentity member={report.member} avatar={currentMember?.avatar ?? report.member.avatar} asOf={report.dataAsOf} height={reading?.height?.value} weight={reading?.weight?.value} onHeight={reading?.height ? () => onEvidence([reading.height!.sourceId]) : undefined} onWeight={reading?.weight ? () => onEvidence([reading.weight!.sourceId]) : undefined} />
-      {card(
-        "overview",
-        "目前情况",
-        <SymptomIcon size={19} />,
-        "current",
-        "",
-        <CurrentSituation key={`${report.memberId}:${report.currentSituation?.scopeKey ?? report.photoKey}`} report={report} token={token} busy={busy} onEdit={onEdit} onChoose={onChoose} onMedia={onMedia} organizing={organizing} organizationError={organizationError} onOrganize={onOrganize}/>,
-
+    <div className="visit-reading">
+      <dl className="visit-clinical-identity" aria-label="孩子基本信息">
+        {visitIdentity(report).map(field => <div key={field.label}><dt>{field.label}</dt><dd>{field.value || '—'}</dd></div>)}
+      </dl>
+      {card("overview", "主诉", <SymptomIcon size={19} />, null, "",
+        <VisitComplaint report={report} token={token} busy={busy} onChange={() => onEdit("focus")} onChoose={onChoose} onMedia={onMedia} />
       )}
-
+      {card("sources", "现病史", <FileText size={19} />, null, "",
+        <>
+          {clinical?.range && <p className="visit-clinical-hint">本次整理范围 {clinical.range.from} 至 {clinical.range.to}</p>}
+          {clinical?.onset && <p className="visit-clinical-note">{clinical.onset}</p>}
+          {!!clinical?.timeline.length && <ol className="visit-clinical-timeline">
+            {clinical.timeline.map(entry => <li key={entry.sourceId}>
+              <button className="visit-clinical-source" onClick={() => onEvidence([entry.sourceId])}>{entry.at ? reportTime(entry.at, report.timezone) : '时间未填写'}</button>
+              <p>{entry.text}</p>
+            </li>)}
+          </ol>}
+          {clinical?.historyNote && <p className="visit-clinical-note">家长补充　{clinical.historyNote}</p>}
+          {clinical && <ClinicalChoices key={`history:${clinical.scopeKey}`} section="history" rows={clinical.history} scopeKey={clinical.scopeKey} timezone={report.timezone} busy={busy} onSave={onClinicalSave} onEvidence={onEvidence} />}
+          <VisitTemperature memberId={report.memberId} token={token} />
+          <div className="visit-clinical-links">
+            {clinical?.scopeKey && <button className="visit-text-action" disabled={busy} onClick={() => onEdit("current")}>编辑情况描述</button>}
+            <button className="visit-text-action" disabled={busy} onClick={() => onEdit("data")}>资料范围与附件</button>
+          </div>
+        </>
+      )}
+      {card("visits", "体格情况", <Stethoscope size={19} />, null, "",
+        clinical && <ClinicalChoices key={`exam:${clinical.scopeKey}`} section="examination" rows={clinical.examination} scopeKey={clinical.scopeKey} timezone={report.timezone} busy={busy} onSave={onClinicalSave} onEvidence={onEvidence} />
+      )}
+      {card(
+        "medication",
+        "本次想问",
+        <CircleHelp size={19} />,
+        "question",
+        `${questions.length} 个问题`,
+        <ol className="visit-reading-questions">
+          {questions.map((question, i) => (
+            <li key={i}><span className="visit-question-number">{questionOrdinal(i)}</span><p>{questionText(question)}</p></li>
+          ))}
+        </ol>,
+      )}
       {groups.length || report.notes.course
         ? card(
             "course",
@@ -191,7 +207,7 @@ export function VisitReading({
                               className="visit-text-action"
                               onClick={() => onEvidence(event.sourceIds)}
                             >
-                              查看原话
+                              查看来源
                             </button>
                           </li>
                         ))}
@@ -218,70 +234,6 @@ export function VisitReading({
             </>,
           )
         : null}
-      {card(
-        "sources",
-        "完整资料档案",
-        <Folder size={19} />,
-        "data",
-        "",
-        <>
-          {(reading?.archive ?? []).map((group) => (
-            <section className="visit-reading-data-group" key={group.id}>
-              <h3>{group.title}</h3>
-              {group.id === "allergy" ? (
-                <div className="visit-reading-keywords">
-                  {group.items.map((item, i) => (
-                    <span key={i}>
-                      {item.title} · {item.detail}
-                    </span>
-                  ))}
-                </div>
-              ) : (
-                group.items.map((item, i) => (
-                  <p key={i}>
-                    {item.title}
-                    {item.detail && ` · ${item.detail}`}
-                  </p>
-                ))
-              )}
-            </section>
-          ))}
-          {!!growth.length && (
-            <section className="visit-reading-data-group">
-              <h3>成长概况</h3>
-              {growth.map((item) => (
-                <article key={item.title}>
-                  <h4>{item.title}</h4>
-                  {item.lines.map((line, i) => (
-                    <p key={i}>{line}</p>
-                  ))}
-                  <button
-                    className="visit-text-action"
-                    onClick={() => onEvidence(item.sourceIds)}
-                  >
-                    查看测量来源
-                  </button>
-                </article>
-              ))}
-            </section>
-          )}
-          {report.notes.history && <p>{report.notes.history}</p>}
-          {report.notes.allergy && <p>{report.notes.allergy}</p>}
-          {report.notes.sources && <p>{report.notes.sources}</p>}
-        </>,
-      )}
-      {card(
-        "medication",
-        "本次想问",
-        <CircleHelp size={19} />,
-        "question",
-        `${questions.length} 个问题`,
-        <ol className="visit-reading-questions">
-          {questions.map((question, i) => (
-            <li key={i}><span className="visit-question-number">{questionOrdinal(i)}</span><p>{questionText(question)}</p></li>
-          ))}
-        </ol>,
-      )}
       <footer className="visit-reading-footer">
         {visitSignature(report)} ·{" "}
         {reportTime(report.editedAt || report.generatedAt, report.timezone)}

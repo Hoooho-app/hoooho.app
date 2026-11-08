@@ -67,8 +67,8 @@ const tutorials = [
   ], { module: 'family', category: '健康档案', keywords: ['过敏', '来源', '反应', '过敏史'], actions: [action('打开过敏史', '/health-profile/allergy')], relatedArticleIds: ['profile'] }),
   article('summary', '整理一份就诊情况单', '把已记录的情况和档案整理在一起，让阅读的人先看重点，需要时再展开细节。', [
     '确认当前孩子，点底部“一键整理”，选择“就诊情况单”。',
-    '查看“目前情况”中的情况描述与关键词，核对本次关注的情况。',
-    '按需展开“相关经过与处理”“完整资料档案”等内容，或用“目录”定位章节。',
+    '先核对主诉。默认使用最近一次有效症状记录，也可以点“更改主诉”。',
+    '在“现病史”和“体格情况”中核对近期记录，点选补充已知项目，或用“目录”定位章节。',
     '核对资料范围和截至时间，需要时修改内容，再选择导出或复制。',
   ], { module: 'visit', category: '就医准备', keywords: ['情况单', '整理', '概述', '关键词', '医生', '就诊'], actions: visitActions, relatedArticleIds: ['html', 'prompt', 'export-data'] }),
   article('prompt', '复制文字给其他 AI', '复制整理后的文字重点，到你使用的 AI 中自行粘贴，减少重复输入。', [
