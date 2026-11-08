@@ -31,8 +31,9 @@ platform :ios do
     import_certificate(certificate_path: File.join(signing, "distribution.p12"),
       certificate_password: ENV.fetch("CARDS_IOS_DISTRIBUTION_P12_PASSWORD"),
       keychain_name: "hoooho-cards-ci", keychain_password: password)
-    keychain_path = Actions.lane_context[SharedValues::KEYCHAIN_PATH]
-    installed_identities = sh("security", "find-identity", "-v", "-p", "codesigning", keychain_path, log: false)
+    # Search the active keychain list. Fastlane reports a logical keychain path
+    # without the platform-specific -db suffix, which can hide a valid identity.
+    installed_identities = sh("security", "find-identity", "-v", "-p", "codesigning", log: false)
     installed_fingerprints = installed_identities.scan(/\b[0-9A-F]{40}\b/)
     if (installed_fingerprints & profile.fetch("certificate_fingerprints")).empty?
       UI.user_error!("The installed distribution identity is not included in the Cards provisioning profile.")
