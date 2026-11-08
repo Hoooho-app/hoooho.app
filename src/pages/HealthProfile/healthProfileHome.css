@@ -4,41 +4,59 @@ body:has(.health-profile-overview),body:has(.health-profile-materials){min-width
 .health-profile-directory{display:grid;gap:var(--hoho-space-6)}
 .health-profile-group .hoho-section__header{margin-bottom:var(--hoho-space-2)}
 
-.child-personal-card__heading,
 .child-personal-card__identity {
   display: flex;
   align-items: center;
   gap: var(--hoho-space-3);
-}
-.child-personal-card__heading { justify-content: space-between; }
-.child-personal-card__heading button { flex-shrink: 0; }
-.child-personal-card__identity {
   padding-block: var(--hoho-space-1) var(--hoho-space-4);
   overflow-wrap: anywhere;
 }
 .child-personal-card__identity > :first-child { flex-shrink: 0; }
 .child-personal-card__identity .hoho-text-caption { margin-top: var(--hoho-space-1); }
+.child-personal-card__bmi { flex: none; margin-inline-start: auto; text-align: center; }
 .child-personal-card__metrics {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   border-top: 1px solid rgb(var(--hoho-color-border));
   text-align: center;
 }
-.child-personal-card__metrics > div { padding: var(--hoho-space-2) var(--hoho-space-1); }
-.child-personal-card__metrics > div + div { border-inline-start: 1px solid rgb(var(--hoho-color-border)); }
-.child-personal-card__metrics dt,
+.child-personal-card__metric {
+  position: relative;
+  display: block;
+  min-width: 0;
+  min-height: var(--hoho-touch-target);
+  padding: var(--hoho-space-2) var(--hoho-space-1);
+  color: inherit;
+  cursor: pointer;
+}
+.child-personal-card__metric + .child-personal-card__metric { border-inline-start: 1px solid rgb(var(--hoho-color-border)); }
+.child-personal-card__metric:focus-visible,
+.child-personal-card__metric:has(select:focus-visible) {
+  outline: 2px solid rgb(var(--hoho-color-primary));
+  outline-offset: -2px;
+}
+.child-personal-card__blood-select { position: absolute; inset: 0; width: 100%; opacity: 0; cursor: inherit; }
+.child-personal-card__label,
 .child-personal-card__metrics small {
+  display: block;
   font-size: var(--hoho-font-size-caption);
   line-height: var(--hoho-line-height-caption);
   color: rgb(var(--hoho-color-text-secondary));
 }
-.child-personal-card__metrics dd {
+.child-personal-card__value {
+  display: block;
   margin: var(--hoho-space-1) 0 0;
   font-size: var(--hoho-font-size-card-title);
   line-height: var(--hoho-line-height-card-title);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
+}
+.child-personal-card__value svg {
+  display: inline-block;
+  margin-inline-start: var(--hoho-space-1);
+  vertical-align: baseline;
+  color: rgb(var(--hoho-color-text-secondary));
 }
 .child-personal-card__unit {
   margin-inline-start: var(--hoho-space-1);
@@ -51,7 +69,6 @@ body:has(.health-profile-overview),body:has(.health-profile-materials){min-width
   color: rgb(var(--hoho-color-text-secondary));
 }
 .child-personal-card__metrics small {
-  display: block;
   margin-top: var(--hoho-space-1);
   font-weight: 400;
 }

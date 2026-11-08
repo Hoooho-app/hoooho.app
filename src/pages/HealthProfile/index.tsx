@@ -33,7 +33,6 @@ export function HealthProfilePage() {
   const member = members.find(item => item.id === currentMemberId) ?? null
   const [counts, setCounts] = useState<{memberId:string; values:Record<string,number>}>({memberId:'',values:{}})
   const [retry, setRetry] = useState(0)
-  const [childSelectionRequest, setChildSelectionRequest] = useState(0)
   useEffect(() => {
     const refresh=()=>setRetry(value=>value+1)
     const unsubscribe=subscribeProfileSectionInvalidation(refresh)
@@ -53,9 +52,9 @@ export function HealthProfilePage() {
   }, [token, currentMemberId, member?.id, authUser?.id, retry])
 
   return <main className="app-shell health-profile-overview">
-    <MainAppHeader title="健康档案" childSelectionRequest={childSelectionRequest} />
+    <MainAppHeader title="健康档案" />
     <div className="page-content health-profile-home">
-      {member && <ChildPersonalInfoCard key={`${authUser?.id}:${member.id}`} member={member} onSelectChild={() => setChildSelectionRequest(value => value + 1)} />}
+      {member && <ChildPersonalInfoCard key={`${authUser?.id}:${member.id}`} member={member} />}
       <nav className="health-profile-directory" aria-label="档案分类">{sections.map(section => <HohoSection className="health-profile-group" title={section.title} aria-label={section.title} key={section.id}>
         <div className="health-profile-entries" data-hoho-surface="light">{section.entries.map(({ id, title, icon: Icon, path }) => <button className="health-profile-entry" disabled={!member} key={id} onClick={() => navigate(path)} type="button">
           <span className="health-profile-entry__icon"><Icon aria-hidden="true" size={22} strokeWidth={1.7} /></span>
