@@ -21,3 +21,12 @@ export function isChildProfileMember(
   todayKey: string
 ): boolean
 export function normalizeChildCaregivers(value: unknown): ChildCaregiver[] | null
+
+export interface ChildProfileVitals {
+  systolicMmHg: number | null
+  diastolicMmHg: number | null
+  pulseBpm: number | null
+}
+
+export const MAX_CHILD_PROFILE_VITAL_READING: number
+export function isChildProfileVitals(value: unknown): value is ChildProfileVitals

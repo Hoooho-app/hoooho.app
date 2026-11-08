@@ -1,5 +1,6 @@
 import path from 'node:path'
 import { randomUUID } from 'node:crypto'
+import { isChildProfileVitals } from '../../shared/child-profile-policy.mjs'
 import { JsonStore } from '../auth/storage/json-store.mjs'
 
 const nameOf = value => String(value ?? '').normalize('NFKC').trim().replace(/\s+/g, ' ')
@@ -60,6 +61,7 @@ export function validateProfileSectionRecords(sectionId, records) {
   const objectRows = value => Array.isArray(value) && value.every(recordObject)
   if (!objectRows(records) || records.length > 500) invalid()
   for (const record of records) {
+    if (sectionId === 'identity' && record.vitals !== undefined && !isChildProfileVitals(record.vitals)) invalid()
     if (sectionId === 'checkups' || sectionId === 'vaccination-plans') {
       const day = sectionId === 'checkups' ? record.date : record.plannedOn
       const parsed = typeof day === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(day) ? new Date(`${day}T00:00:00Z`) : null
