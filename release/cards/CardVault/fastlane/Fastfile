@@ -12,6 +12,10 @@ platform :ios do
     app_id = ENV.fetch("CARDS_ASC_APP_ID")
     signing = File.join(ENV.fetch("RUNNER_TEMP"), "hoooho-cards-signing")
     profile = JSON.parse(File.read(File.join(signing, "profile.json")))
+    profile_uuid = profile.fetch("uuid")
+    profile_name = profile.fetch("name")
+    installed_profile = install_provisioning_profile(path: File.join(signing, "cards.mobileprovision"))
+    UI.user_error!("Cards provisioning profile was not installed.") unless File.exist?(installed_profile)
 
     api_key = app_store_connect_api_key(
       key_id: ENV.fetch("CARDS_ASC_KEY_ID"),
@@ -49,7 +53,7 @@ platform :ios do
       archive_path: File.join(signing, "CardVault.xcarchive"),
       derived_data_path: File.join(signing, "DerivedData"),
       buildlog_path: File.join(signing, "logs"), export_method: "app-store",
-      xcargs: "DEVELOPMENT_TEAM=#{team_id} CURRENT_PROJECT_VERSION=#{build_number} CODE_SIGN_STYLE=Manual PROVISIONING_PROFILE_SPECIFIER=#{profile.fetch('uuid')} CODE_SIGN_IDENTITY='Apple Distribution'",
+      xcargs: "DEVELOPMENT_TEAM=#{team_id} CURRENT_PROJECT_VERSION=#{build_number} CODE_SIGN_STYLE=Manual PROVISIONING_PROFILE_SPECIFIER='#{profile_name}' CODE_SIGN_IDENTITY='Apple Distribution'",
       export_options: {signingStyle: "manual", teamID: team_id, provisioningProfiles: {bundle_id => profile.fetch("name")}})
     upload_to_testflight(api_key: api_key, app_identifier: bundle_id, apple_id: app_id, ipa: ipa,
       distribute_external: false, skip_waiting_for_build_processing: false, skip_submission: true, submit_beta_review: false)
