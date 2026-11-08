@@ -106,7 +106,7 @@ test('switching children updates the personal card and counts; installation UI i
   }
 })
 
-test('basic overview shows saved values and dates, clears on child switch and recovers failed growth reads', async ({ page, request }) => {
+test('basic overview shows saved values without dates, clears on child switch and recovers failed growth reads', async ({ page, request }) => {
   expect((await request.patch(`/api/members/${memberId}`, { headers, data: { bloodType: 'AB', rhBloodType: 'negative' } })).ok()).toBe(true)
   for (const values of [{ measuredAt: '2026-09-10', heightCm: 88.2, weightKg: null }, { measuredAt: '2026-09-11', heightCm: null, weightKg: 12.3 }]) {
     expect((await request.post('/api/growth-measurements', { headers, data: { memberId, ...values, measurementType: 'height', dataStatus: 'confirmed', standardId: 'who-2006' } })).ok()).toBe(true)
@@ -118,8 +118,7 @@ test('basic overview shows saved values and dates, clears on child switch and re
   await expect(summary).toContainText('88.2cm')
   await expect(summary).toContainText('12.3kg')
   await expect(summary.getByText('BMI', { exact: true }).locator('..').locator('dd')).toHaveText('15.8')
-  await expect(summary).toContainText('2026-09-10')
-  await expect(summary).toContainText('2026-09-11')
+  await expect(summary).not.toContainText(/2026-09-1[01]/)
   await expect(summary).toContainText('合成宝宝')
   await expect(page.getByRole('navigation', { name: '主要导航' }).locator('[data-ha-destination="/health-profile"]')).toHaveAttribute('aria-current', 'page')
   expect(await summary.evaluate(el => el.getBoundingClientRect().bottom)).toBeLessThanOrEqual((await page.getByRole('button', { name: '身份与出生背景', exact: true }).boundingBox())!.y)
@@ -137,16 +136,34 @@ test('basic overview shows saved values and dates, clears on child switch and re
     await summary.getByRole('link', { name: new RegExp(`查看${measure}曲线`) }).click()
     await expect(page).toHaveURL(/\/health-profile\/basic$/)
     await expect(page.getByRole('heading', { name: '成长数据', exact: true })).toBeVisible()
-    await expect(page.getByRole('tab', { name: `${measure}曲线`, exact: true })).toHaveAttribute('aria-selected', 'true')
+    const tab = page.getByRole('tab', { name: `${measure}曲线`, exact: true })
+    await expect(tab).toHaveAttribute('aria-selected', 'true')
+    await expect(tab).toHaveCSS('background-color', 'rgb(44, 64, 52)')
+    const measurement = page.locator('.growth-data-measurement')
+    await expect(measurement).toBeVisible()
+    await expect(measurement.locator('time, input[type="date"]')).toHaveCount(0)
     await page.getByRole('button', { name: '返回', exact: true }).click()
     await expect(summary).toContainText('88.2cm')
   }
+
+  await summary.getByRole('link', { name: /查看身高曲线/ }).click()
+  await page.getByRole('button', { name: '身高增加0.1厘米', exact: true }).click()
+  await page.getByRole('button', { name: '保存本次更新', exact: true }).click()
+  await expect(page.getByText('已保存，并加入成长记录', { exact: true })).toBeVisible()
+  const today = await page.evaluate(() => new Date().toLocaleDateString('sv-SE'))
+  await expect(page.locator('.growth-data-latest')).toContainText(today)
+  await expect(page.locator('.growth-data-measurement')).not.toContainText(today)
+  await page.getByRole('tab', { name: '体重曲线', exact: true }).click()
+  await expect(page.getByRole('tab', { name: '体重曲线', exact: true })).toHaveCSS('background-color', 'rgb(44, 64, 52)')
+  await page.getByRole('button', { name: '返回', exact: true }).click()
+  await expect(summary).toContainText('88.3cm')
+  await expect(summary).not.toContainText(today)
 
   expect((await request.post('/api/members', { headers, data: { name: '小宁', relationship: 'child', birthday: '2025-10-01', gender: 'male' } })).ok()).toBe(true)
   await page.reload()
   await switchChild(page, '*宁')
   const next = page.getByRole('region', { name: '小宁', exact: true })
-  await expect(next).not.toContainText('88.2')
+  await expect(next).not.toContainText('88.3')
   await expect(next.getByRole('combobox', { name: '血型', exact: true })).toHaveValue('')
   await expect(next.locator('.child-personal-card__empty')).toHaveText(['未填写', '未填写', '未填写'])
 })

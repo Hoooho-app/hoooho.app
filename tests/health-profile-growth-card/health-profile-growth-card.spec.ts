@@ -17,10 +17,12 @@ test('growth data hub saves, explains, preserves drafts and manages history', as
   await page.goto('/health-profile/basic')
   await expect(page.getByRole('heading', { name: '成长数据' })).toBeVisible()
   await expect(page.getByRole('tab', { name: '身高曲线' })).toHaveAttribute('aria-selected', 'true')
+  await expect(page.getByRole('tab', { name: '身高曲线' })).toHaveCSS('background-color', 'rgb(44, 64, 52)')
   await expect(page.getByText(/保存第一次身长或身高测量/)).toBeVisible()
   await expect(page.getByText('成长解读')).toBeVisible()
   await expect(page.getByText(/当前没有数据，不能判断位置或趋势/)).toBeVisible()
-  await expect(page.locator('.growth-step-card__heading time')).toHaveCount(0)
+  const measurement = page.locator('.growth-data-measurement')
+  await expect(measurement.locator('time, input[type="date"]')).toHaveCount(0)
   await expect(page.locator('.growth-data-reference')).toHaveText('标准参考值：暂不可用')
   await expect(page.locator('.growth-record-list-entry')).toHaveCount(0)
   const recordsEntry = page.getByRole('button', { name: '记录列表', exact: true })
@@ -36,6 +38,7 @@ test('growth data hub saves, explains, preserves drafts and manages history', as
   const historyLength = await page.evaluate(() => history.length)
   await page.getByRole('tab', { name: '体重曲线' }).click()
   await expect(page.getByRole('tab', { name: '体重曲线' })).toHaveAttribute('aria-selected', 'true')
+  await expect(page.getByRole('tab', { name: '体重曲线' })).toHaveCSS('background-color', 'rgb(44, 64, 52)')
   expect(await page.evaluate(() => history.length)).toBe(historyLength)
   await page.getByRole('tab', { name: '身高曲线' }).click()
 
@@ -48,17 +51,14 @@ test('growth data hub saves, explains, preserves drafts and manages history', as
   await page.getByRole('button', { name: '保存本次更新' }).click()
   await expect(page.getByText('已保存，并加入成长记录')).toBeVisible()
   await expect(page.locator('.growth-data-latest')).toContainText('82.0 cm')
+  await expect(page.locator('.growth-data-latest')).toContainText(today())
   const ageInMonths = exactAgeInMonths('2024-01-15', today())!
   const heightReference = growthValueAtZScore({ ageInMonths, gender: 'female', measure: 'height', zScore: 0 })!.toFixed(1)
   const weightReference = growthValueAtZScore({ ageInMonths, gender: 'female', measure: 'weight', zScore: 0 })!.toFixed(1)
   await expect(page.locator('.growth-data-reference')).toHaveText(`标准参考值：${heightReference}cm`)
   expect(await page.locator('.growth-data-reference').evaluate(element => getComputedStyle(element).textAlign)).toBe('right')
   await expect(page.locator('.growth-chart-record')).toHaveCount(1)
-  for (const card of await page.locator('.growth-step-card').all()) {
-    await expect(card.locator('time')).toHaveAttribute('datetime', today())
-    await expect(card.locator('time')).toHaveText(today().slice(5).replace('-', '/'))
-    expect(await card.evaluate(el => { const box=el.getBoundingClientRect(),date=el.querySelector('time')!.getBoundingClientRect(),label=el.querySelector('h2')!.getBoundingClientRect();return date.left>=label.right && date.right<=box.right })).toBe(true)
-  }
+  await expect(measurement.locator('time, input[type="date"]')).toHaveCount(0)
 
   await page.getByRole('button', { name: '身高增加0.1厘米' }).click()
   await page.route('**/api/growth-measurements', async (route) => route.request().method() === 'POST' ? route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ message: '测试保存失败' }) }) : route.continue())
@@ -81,7 +81,8 @@ test('growth data hub saves, explains, preserves drafts and manages history', as
   await expect(page.locator('.growth-record-row')).toHaveCount(2)
   await page.getByRole('button', { name: '返回', exact: true }).click()
   // Historical additions must not relabel the latest saved measurement.
-  for (const date of await page.locator('.growth-step-card__heading time').all()) await expect(date).toHaveAttribute('datetime', today())
+  await expect(page.locator('.growth-data-latest')).toContainText(today())
+  await expect(measurement.locator('time, input[type="date"]')).toHaveCount(0)
   await page.getByRole('tab', { name: '体重曲线' }).click()
   await expect(page.getByRole('button', { name: '11.0 kg', exact: true })).toBeVisible()
   await expect(page.locator('.growth-data-latest')).toContainText('11.0 kg')
