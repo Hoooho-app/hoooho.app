@@ -48,7 +48,7 @@ platform :ios do
       output_directory: File.join(signing, "output"), output_name: "CardVault.ipa",
       archive_path: File.join(signing, "CardVault.xcarchive"),
       derived_data_path: File.join(signing, "DerivedData"),
-      buildlog_path: File.join(signing, "logs"), export_method: "app-store-connect",
+      buildlog_path: File.join(signing, "logs"), export_method: "app-store",
       xcargs: "DEVELOPMENT_TEAM=#{team_id} CURRENT_PROJECT_VERSION=#{build_number} CODE_SIGN_STYLE=Manual PROVISIONING_PROFILE_SPECIFIER=#{profile.fetch('uuid')} CODE_SIGN_IDENTITY='Apple Distribution'",
       export_options: {signingStyle: "manual", teamID: team_id, provisioningProfiles: {bundle_id => profile.fetch("name")}})
     upload_to_testflight(api_key: api_key, app_identifier: bundle_id, apple_id: app_id, ipa: ipa,
