@@ -118,6 +118,7 @@ export interface VisitClinical {
   timeline: Array<{ text: string; at: string | null; sourceId: string }>
   history: VisitClinicalItem[]
   examination: VisitClinicalItem[]
+  assessment?: Array<{ text: string; origin: '医生记录' | '病历记录' | '医生意见（家长转述）'; sourceId: string }>
 }
 export interface VisitClinicalPatch {
   scopeKey: string

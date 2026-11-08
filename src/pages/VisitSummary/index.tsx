@@ -37,6 +37,7 @@ import { ReportDirectory } from './ReportDirectory'
 import { AIResultPreview, type AIUnverifiedPreview } from '../../features/ai-business/AIResultPreview'
 import { preliminarySummaryExport } from './preliminarySummaryExport'
 import { consultationPrompt } from '../../features/ai-business/consultationPrompt'
+import { compactVisitComplaint } from './clinicalPresentation'
 import { ReportScopeSheet } from '../../features/case-continuity/ReportScopeSheet'
 export { VisitSummaryContent, formatVisitTime } from './LegacyVisitSummary'
 
@@ -321,7 +322,7 @@ function VisitSheetReader({
               if (changes.focus) {
                 chooseChapter('overview')
               }
-              else if(!['current','symptoms','diet'].includes(editing))chooseChapter(editing==='question'?'medication':editing==='course'?'course':editing==='data'?'sources':'overview')
+              else if(!['current','symptoms','diet'].includes(editing))chooseChapter(editing==='course'?'course':editing==='data'?'sources':'overview')
             }
             return success
           }}
@@ -332,7 +333,7 @@ function VisitSheetReader({
         {!updateDraft&&<><p>先核对主诉、资料范围和待补充信息；整理结果确认后才替换当前情况单。</p>
         <h3>本次主诉</h3><p>{report.complaint}</p><h3>资料范围</h3><p>{report.scope}</p><h3>仍待补充</h3>{(report.gaps??[]).map(gap=><p key={gap}>{gap}</p>)}</>}
         {!updateDraft&&<label className="visit-focus-option"><input type="checkbox" checked={useAI} disabled={working} onChange={e=>setUseAI(e.target.checked)}/>使用现有 AI 摘要能力进一步整理（将调用当前模型）</label>}
-        {!updateDraft?<HohoButton loading={working} onClick={()=>void update({previewUpdate:true,...(useAI?{generateAI:true}:{})})}>{aiWorking?'正在整理草稿':'整理并查看草稿'}</HohoButton>:<section aria-label="更新草稿"><VisitUpdatePreview current={report} candidate={updateDraft.report}/><p>手动补充、已确认问题和影像选择保留。原情况单尚未改变。</p><HohoButton loading={working} onClick={()=>void update({confirmUpdate:updateDraft.id}).then(ok=>{if(ok){setUpdateDraft(undefined);setUpdateOpen(false)}})}>确认替换情况单</HohoButton><HohoButton variant="text" disabled={working} onClick={()=>setUpdateDraft(undefined)}>不采用，重新整理</HohoButton></section>}
+        {!updateDraft?<HohoButton loading={working} onClick={()=>void update({previewUpdate:true,...(useAI?{generateAI:true}:{})})}>{aiWorking?'正在整理草稿':'整理并查看草稿'}</HohoButton>:<section aria-label="更新草稿"><VisitUpdatePreview current={report} candidate={updateDraft.report}/><p>手动补充和影像选择保留。原情况单尚未改变。</p><HohoButton loading={working} onClick={()=>void update({confirmUpdate:updateDraft.id}).then(ok=>{if(ok){setUpdateDraft(undefined);setUpdateOpen(false)}})}>确认替换情况单</HohoButton><HohoButton variant="text" disabled={working} onClick={()=>setUpdateDraft(undefined)}>不采用，重新整理</HohoButton></section>}
         {error&&<p role="alert">{error}</p>}
         {aiPreview&&<AIResultPreview preview={aiPreview} value={previewText} onChange={setPreviewText} compactDiagnostics><p>这份内容未通过事实核对，不会写入正式情况单。以下仅导出带有“非已确认报告”标识的核对材料，不是当前情况单。</p><HohoButton variant="secondary" onClick={()=>downloadContent(preliminarySummaryExport(previewText,aiPreview,'text'),'Hoooho-待核对摘要.txt','text/plain;charset=utf-8')}>导出待核对摘要（文本）</HohoButton><HohoButton variant="secondary" onClick={()=>downloadContent(preliminarySummaryExport(previewText,aiPreview,'html'),'Hoooho-待核对摘要.html','text/html;charset=utf-8')}>导出待核对摘要（离线HTML）</HohoButton></AIResultPreview>}
       </VisitSubpage>}
@@ -451,7 +452,6 @@ function ReportEditor({
 }) {
   const [focus, setFocus] = useState<VisitFocus>(report.focus),
     [custom, setCustom] = useState(report.focus.text ?? ''),
-    [question, setQuestion] = useState(report.question),
     [query, setQuery] = useState(''),
     [confirmExit, setConfirmExit] = useState(false)
   const [notes,setNotes]=useState(report.notes)
@@ -469,7 +469,7 @@ function ReportEditor({
   const dirty =
     JSON.stringify(focus) !== JSON.stringify(report.focus) ||
     custom !== (report.focus.text ?? '') ||
-    question !== report.question || blockText!==originalBlock || JSON.stringify(symptomRows)!==JSON.stringify(originalRows) || JSON.stringify(notes)!==JSON.stringify(report.notes)
+    blockText!==originalBlock || JSON.stringify(symptomRows)!==JSON.stringify(originalRows) || JSON.stringify(notes)!==JSON.stringify(report.notes)
   useLayoutEffect(()=>onDirty(dirty),[dirty,onDirty])
   useEffect(()=>{
     const guard=(event:BeforeUnloadEvent)=>{if(dirty||working){event.preventDefault();event.returnValue=''}}
@@ -489,7 +489,7 @@ function ReportEditor({
               ? { ...focus, mode: 'custom' as const, text: custom.trim() }
               : focus,
         }
-      : kind==='question'?{ question }:block?{currentSituation:{scopeKey:situation.scopeKey,block,...(rowEditing?{rows:symptomRows}:{text:blockText})}}:{notes}
+      : block?{currentSituation:{scopeKey:situation.scopeKey,block,...(rowEditing?{rows:symptomRows}:{text:blockText})}}:{notes}
   const valid = (kind !== 'focus'&&kind!=='association') || focus.mode !== 'custom' || !!custom.trim()
   // Group exact equivalent labels only; never merge different symptoms by guesswork.
   const groups=[...new Set(report.candidates.map(c=>c.text.trim()))].map(text=>report.candidates.filter(c=>c.text.trim()===text))
@@ -499,8 +499,8 @@ function ReportEditor({
     <ReportEditorSurface
       local={localEditor}
       footer={localEditor?actions:null}
-      label={{association:'选择相关记录',focus:'更改主诉',question:'编辑本次想问',current:'编辑情况描述',symptoms:'编辑症状表现',diet:'编辑近期饮食',course:'编辑相关经过与处理',data:'资料范围与附件'}[kind]}
-      title={{association:'选择相关记录',focus:'更改主诉',question:'编辑本次想问',current:'编辑情况描述',symptoms:'编辑症状表现',diet:'编辑近期饮食',course:'编辑相关经过与处理',data:'资料范围与附件'}[kind]}
+      label={{association:'选择相关记录',focus:'更改主诉',current:'编辑情况描述',symptoms:'编辑症状表现',diet:'编辑近期饮食',course:'编辑相关经过与处理',data:'资料范围与附件'}[kind]}
+      title={{association:'选择相关记录',focus:'更改主诉',current:'编辑情况描述',symptoms:'编辑症状表现',diet:'编辑近期饮食',course:'编辑相关经过与处理',data:'资料范围与附件'}[kind]}
       onClose={close}
 
     >
@@ -526,7 +526,7 @@ function ReportEditor({
                   }
                 />
                 <span>
-                  <strong>{c.text}</strong>
+                  <strong>{compactVisitComplaint(c.text)}</strong>
                   <small>
                     {group.length} 条同文记录 · 最近 {c.timeKind} · {reportTime(c.at, report.timezone)}
                   </small>
@@ -534,22 +534,8 @@ function ReportEditor({
               </label>
             )})}
             <details open={focus.mode!=='source'} className="visit-focus-more"><summary>其他选择</summary><label className="visit-focus-option"><input type="radio" name="focus" checked={focus.mode==='custom'} onChange={()=>setFocus(previous=>({...previous,mode:'custom',text:custom}))}/><strong>自己描述</strong></label>
-            {focus.mode==='custom'&&<label>本次主诉<textarea value={custom} maxLength={1000} placeholder="用自己的话描述这次想了解的问题" onChange={e=>{setCustom(e.target.value);setFocus(previous=>({...previous,mode:'custom',text:e.target.value}))}}/></label>}
+            {focus.mode==='custom'&&<label>本次主诉<textarea value={custom} maxLength={1000} rows={2} placeholder="例如，反复鼻塞流涕一周" onChange={e=>{setCustom(e.target.value);setFocus(previous=>({...previous,mode:'custom',text:e.target.value}))}}/></label>}
             <label className="visit-focus-option"><input type="radio" name="focus" checked={focus.mode==='auto'} onChange={()=>setFocus({mode:'auto'})}/><span><strong>自动按最新症状整理</strong><small>后续更新随最近有效症状调整</small></span></label></details></>}
-          </>
-        ) : kind==='question' ? (
-          <>
-              <label>
-                本次想问
-                <textarea
-                  aria-label="本次想问"
-                  rows={7}
-                  value={question}
-                  maxLength={5000}
-                  onChange={(e) => setQuestion(e.target.value)}
-                />
-              </label>
-              <div className="visit-question-suggestions" aria-label="可选问题">{(report.reading?.questionCandidates??[]).slice(4,10).map(template=><button type="button" aria-label={`添加问题：${template}`} key={template} disabled={question.split('\n').some(line=>line.trim()===template)} onClick={()=>setQuestion(previous=>previous.trim()?`${previous.trimEnd()}\n${template}`:template)}>{template}</button>)}</div>
           </>
         ) : rowEditing?<>{symptomRows.map((row,i)=><div key={i}><label>症状表现：{situation.symptoms[i].label}<textarea ref={i===selectedLine?blockInput:undefined} aria-label={`症状表现：${situation.symptoms[i].label}`} rows={3} maxLength={5000} value={row.text} onChange={e=>setSymptomRows(rows=>rows.map((r,j)=>j===i?{...r,text:e.target.value}:r))}/></label>{!!originalRows[i].note&&<label>相关家属描述<textarea aria-label={`相关家属描述：${situation.symptoms[i].label}`} rows={2} maxLength={1000} value={row.note} onChange={e=>setSymptomRows(rows=>rows.map((r,j)=>j===i?{...r,note:e.target.value}:r))}/></label>}</div>)}</>:block?<label>{{description:'情况描述',symptoms:'症状表现',diet:'近期饮食'}[block]}<textarea ref={blockInput} autoFocus aria-label={{description:'情况描述',symptoms:'症状表现',diet:'近期饮食'}[block]} rows={4} maxLength={5000} value={blockText} onChange={e=>setBlockText(e.target.value)}/></label>:kind==='course'?<label>相关经过与处理补充（已发生的情况）<textarea aria-label="相关经过与处理补充（已发生的情况）" maxLength={5000} value={notes.course??''} onChange={e=>setNotes(previous=>({...previous,course:e.target.value}))}/><small>原始经过保持来源可追溯；此处仅保存家长补充，不改写原记录。</small></label>:<>{(['history','allergy','sources'] as const).map(key=><label key={key}>{{history:'既往背景补充',allergy:'过敏资料补充（不是确诊）',sources:'资料说明'}[key]}<textarea maxLength={5000} value={notes[key]??''} onChange={e=>setNotes(previous=>({...previous,[key]:e.target.value}))}/></label>)}<HohoButton variant="secondary" disabled={dirty||working} onClick={onScope}>调整 / 恢复资料范围</HohoButton><HohoButton variant="secondary" disabled={dirty||working} onClick={onPhotos}>添加 / 调整影像</HohoButton><p>原始记录与全局健康档案不在这里覆盖。</p></>}
         </fieldset>
@@ -725,7 +711,7 @@ function ExportSheet({ report, onClose, token, memberId, onRefresh }: {
     }
   }
   const plainText = doctorBriefText(report)
-  const promptText = `${consultationPrompt(report,{includeSources:false})}\n\n以下是已保存资料的整理内容，尚需核对，家长补充不是医疗结论：\n${plainText}`
+  const promptText = `${consultationPrompt({...report,complaint:compactVisitComplaint(report.complaint)},{includeSources:false})}\n\n以下是已保存资料的整理内容，尚需核对，家长补充不是医疗结论：\n${plainText}`
   return (
     <BottomSheetSurface open label="导出情况单" title="导出情况单" onClose={() => {controller.current.abort();onClose()}}>
       <div className="visit-export-options">

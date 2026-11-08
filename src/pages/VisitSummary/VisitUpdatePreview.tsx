@@ -1,6 +1,7 @@
 import type { VisitSheet } from '../../types/visitSheet'
 import { reportTime, SourceText } from './ReportChapter'
 import { sourceChanges } from './updatePreview'
+import { compactVisitComplaint } from './clinicalPresentation'
 
 export function VisitUpdatePreview({ current, candidate }: { current: VisitSheet; candidate: VisitSheet }) {
   const changes = sourceChanges(current, candidate)
@@ -25,12 +26,11 @@ export function VisitUpdatePreview({ current, candidate }: { current: VisitSheet
         <details className="visit-update-evidence"><summary>{kind === 'removed' ? '核对原情况单中的原文' : '核对原文'}</summary><SourceText source={source}/>{kind === 'changed' && <><h4>更新前</h4><p className="visit-original">{current.sources.find(previous => previous.id === source.id)?.text}</p></>}</details>
       </article>))}
     </section>
-    <section className="visit-update-card"><h4>本次情况 {mark(candidate.complaint,current.complaint)}</h4><p>{candidate.complaint}</p>
+    <section className="visit-update-card"><h4>主诉 {mark(candidate.complaint,current.complaint)}</h4><p>{compactVisitComplaint(candidate.complaint)}</p>
       {(['description','onset','change','other'] as const).map(key => text(candidate,key) ? <div key={key}><h5>{{description:'当前情况',onset:'开始时间',change:'最近变化',other:'其他表现'}[key]} {mark(text(candidate,key),text(current,key))}</h5><p>{text(candidate,key)}</p></div> : null)}
       {!candidate.focusSourceIds.length && <p>尚未关联记录</p>}
       {sourceDetails(candidate.focusSourceIds)}
     </section>
-    <section className="visit-update-card"><h4>本次想问 {mark(candidate.question,current.question)}</h4><p>{candidate.questionEdited ? candidate.question || '尚未填写' : '尚未确认问题'}</p>{sourceDetails(candidate.questionSourceIds ?? [])}</section>
     <section className="visit-update-card"><h4>经过与处理</h4>{!course.length && <p>尚无明确关联经过</p>}{course.map(source => <article key={source.id}><small>{reportTime(source.occurredAt,candidate.timezone)} {changes.added.some(item => item.id === source.id) ? <span className="visit-update-mark">新增</span> : changes.changed.some(item => item.id === source.id) ? <span className="visit-update-mark">有变化</span> : null}</small><p>{source.narrative || source.title}</p>{sourceDetails([source.id])}</article>)}{candidate.notes.course && <><h5>家长补充</h5><p>{candidate.notes.course}</p></>}</section>
     <section className="visit-update-card"><h4>完整资料</h4><p>{candidate.scope}</p><p>纳入 {candidate.sources.length} 项来源 · 选择 {(candidate.selectedPhotoIds ?? []).length} 项影像</p>
       {candidate.gaps?.length ? <><h5>仍待补充</h5><ul>{candidate.gaps.map(gap => <li key={gap}>{gap}</li>)}</ul></> : null}

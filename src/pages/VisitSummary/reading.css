@@ -37,11 +37,6 @@
 .visit-reading-facts dt { color:rgb(var(--hoho-color-text-secondary)); }
 .visit-reading-facts dd { margin:0;white-space:pre-wrap;overflow-wrap:anywhere; }
 .visit-reading-footer { padding:5px 4px 2px;font-size:11px;color:rgb(var(--hoho-color-text-secondary)); }
-.visit-reading-questions { list-style:none;padding:0;margin:var(--hoho-space-2) 0;line-height:var(--hoho-line-height-body); }
-.visit-reading-questions li { display:grid;grid-template-columns:52px minmax(0,1fr);gap:var(--hoho-space-2);padding:var(--hoho-space-3) 0;border-bottom:1px solid var(--visit-neutral-border);white-space:pre-wrap; }
-.visit-reading-questions li:last-child { border-bottom:0; }
-.visit-question-number { color:rgb(var(--hoho-color-link));font-size:var(--hoho-font-size-caption);line-height:24px; }
-.visit-reading-questions li p { margin:0;font-size:var(--hoho-font-size-body);line-height:24px; }
 .visit-reading-course-row { padding:10px 0;border-bottom:1px solid var(--visit-neutral-border); }
 .visit-reading-course-row p { white-space:pre-wrap; }
 .visit-reading-card details>summary { min-height:44px;padding:10px 0;cursor:pointer;color:rgb(var(--hoho-color-text-primary)); }
@@ -133,7 +128,7 @@
 #chapter-overview .visit-reading-toggle>span { align-items:center; }
 #chapter-overview .visit-reading-toggle>span>svg { width:20px;height:20px;margin:0; }
 #chapter-overview .visit-reading-toggle>span>span { font-size:16px;line-height:24px;font-weight:500; }
-.visit-current-situation { padding:0 20px 20px;overflow-wrap:anywhere; }
+.visit-current-situation { padding:0 20px var(--hoho-space-2);overflow-wrap:anywhere; }
 .visit-current-situation>.visit-situation-primary.hoho-button { height:40px;min-height:40px;margin:16px 0 20px;padding:0 16px;border-radius:12px;box-shadow:none;font-size:15px;font-weight:500;line-height:22px; }
 .visit-current-situation .visit-situation-block { margin:0;padding:0; }
 .visit-current-situation .visit-situation-block+.visit-situation-block { margin-top:20px;padding-top:18px;border-top:1px solid var(--visit-neutral-border); }
@@ -221,22 +216,20 @@
 @media(prefers-reduced-motion:reduce){.visit-situation-layer .hoho-bottom-sheet,.visit-situation-layer .hoho-bottom-sheet-backdrop{animation:none;}}
 @media print { .visit-situation-primary,.visit-situation-edit,.visit-temperature-action,.visit-situation-add,.visit-situation-status {display:none;} }
 
-.visit-clinical-identity {
+.visit-chief-text { color: rgb(var(--hoho-color-text-primary)); font-weight: 600; overflow-wrap: anywhere; }
+.visit-chief-actions { display: flex; flex-wrap: wrap; gap: var(--hoho-space-3); }
+.visit-chief-actions > button { display: inline-flex; align-items: center; gap: var(--hoho-space-1); padding-inline: 0; }
+.visit-reading-optional { color: rgb(var(--hoho-color-text-secondary)); font-size: var(--hoho-font-size-caption); font-weight: 400; }
+.visit-clinical-assessment { margin: 0; }
+.visit-clinical-assessment > div {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 138px), 1fr));
-  gap: var(--hoho-space-2) var(--hoho-space-4);
-  margin: 0;
-  padding: var(--hoho-space-3) var(--hoho-space-1);
-  border-block: 1px solid var(--visit-neutral-border);
-  font-size: var(--hoho-font-size-body-small);
-  font-variant-numeric: tabular-nums;
+  grid-template-columns: minmax(5em, 28%) minmax(0, 1fr);
+  align-items: baseline;
+  column-gap: var(--hoho-space-3);
+  border-top: 1px solid var(--visit-neutral-border);
 }
-.visit-clinical-identity > div { display: flex; gap: var(--hoho-space-2); min-width: 0; }
-.visit-clinical-identity dt { flex: none; color: rgb(var(--hoho-color-text-secondary)); }
-.visit-clinical-identity dd { margin: 0; overflow-wrap: anywhere; }
-.visit-chief-text { overflow-wrap: anywhere; }
-.visit-chief-attachments { border-top: 1px solid var(--visit-neutral-border); padding-top: var(--hoho-space-3); }
-.visit-chief-attachments h3 { font-size: var(--hoho-font-size-body-small); margin: 0 0 var(--hoho-space-2); }
+.visit-clinical-assessment dd { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.visit-clinical-add-trigger.hoho-button { min-height: var(--hoho-touch-target); }
 .visit-clinical-hint { color: rgb(var(--hoho-color-info)); font-size: var(--hoho-font-size-caption); margin: var(--hoho-space-2) 0; }
 .visit-clinical-note, .visit-clinical-timeline p { white-space: pre-wrap; overflow-wrap: anywhere; }
 .visit-clinical-timeline, .visit-clinical-list { list-style: none; padding: 0; margin: var(--hoho-space-2) 0; }
