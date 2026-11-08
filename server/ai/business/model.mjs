@@ -2,16 +2,22 @@ import { createAIProvider, createAudioProvider } from '../providers/provider-fac
 import { readOpenAIErrorDetails } from '../providers/openai-error.mjs'
 import { MedicalSummaryError } from '../medical-summary-service.mjs'
 import { fail } from './contract.mjs'
+import { currentSeedHome } from '../providers/seed-home-scope.mjs'
+import { traceMetadata } from '../providers/telemetry.mjs'
 
 export class BusinessModel {
   sourceReferences = true
-  constructor(options = {}) { this.provider = options.provider ?? createAIProvider(options); this.audioProvider = options.audioProvider ?? (!['bailian','openrouter'].includes(options.provider?.name) && options.provider ? options.provider : createAudioProvider('TTS', options)); this.logger=options.logger??console;const limit=Number(options.maxTokens??process.env.AI_BUSINESS_MAX_OUTPUT_TOKENS??16000);this.maxTokens=Number.isInteger(limit)&&limit>=3000&&limit<=32000?limit:16000 }
+  constructor(options = {}) { this.defaultProvider = options.provider ?? createAIProvider(options); this.env=options.env??process.env;this.ocrFetch=options.ocrFetch;this.audioProvider = options.audioProvider ?? (!['bailian','openrouter','ark'].includes(options.provider?.name) && options.provider ? options.provider : createAudioProvider('TTS', options)); this.logger=options.logger??console;const limit=Number(options.maxTokens??process.env.AI_BUSINESS_MAX_OUTPUT_TOKENS??16000);this.maxTokens=Number.isInteger(limit)&&limit>=3000&&limit<=32000?limit:16000 }
+  get provider() {
+    const route = currentSeedHome()
+    return route ? route.models.dialogue() : this.defaultProvider
+  }
   async structured({ task, schema, instructions, input, vision = false, signal, syntheticEvidence, onSyntheticOutput, onReadableOutput, samplingTemperature }) {
     const p=this.provider
     if(p?.configurationError) throw p.configurationError
     if(!p?.apiKey) throw fail('整理服务尚未配置，仍可手动记录',503,'AI_NOT_CONFIGURED')
     if(samplingTemperature!==undefined&&(!Number.isFinite(samplingTemperature)||samplingTemperature<0||samplingTemperature>=2))throw fail('模型采样参数无效',422,'AI_SAMPLING_INVALID')
-    const started=Date.now(), model=['bailian','openrouter'].includes(p.name)?(vision?p.visionModel:p.model):vision?(process.env.AI_VISION_MODEL||p.model):(process.env.AI_DRAFT_MODEL||p.model)
+    const started=Date.now(), model=['bailian','openrouter','ark'].includes(p.name)?(vision?p.visionModel:p.model):vision?(process.env.AI_VISION_MODEL||p.model):(process.env.AI_DRAFT_MODEL||p.model)
     try {
       const timeout=p.config?.timeoutMs??60000
       const response=await p.fetch(`${p.baseUrl}/responses`,{method:'POST',task,syntheticEvidence,onSyntheticOutput,onReadableOutput,headers:{Authorization:`Bearer ${p.apiKey}`,'Content-Type':'application/json'},signal:signal?AbortSignal.any([signal,AbortSignal.timeout(timeout)]):AbortSignal.timeout(timeout),body:JSON.stringify({model,instructions,input,store:false,...(['bailian','openrouter'].includes(p.name)&&samplingTemperature!==undefined?{temperature:samplingTemperature}:{}),max_output_tokens:Math.min(this.maxTokens,Math.max(3000,Math.ceil(JSON.stringify(input).length/2)+1000)),text:{format:{type:'json_schema',name:task==='front-desk-dialogue'?'hoooho_front_desk_reply':['professional-summary-generate','professional-summary-verify','front-desk-visual-source'].includes(task)?task.replaceAll('-','_'):'hoooho_business',strict:true,schema}}})})
@@ -24,7 +30,7 @@ export class BusinessModel {
       if(!text)throw fail('没有获得可用的整理结果',503,'AI_OUTPUT_EMPTY')
       let value;try{value=JSON.parse(text)}catch{throw fail('整理结果格式无效，草稿未更新',503,'AI_OUTPUT_INVALID')}
       const diagnostics={...result.diagnostics,provider:p.name??'openai',model,task,elapsedMs:Date.now()-started,inputTokens:Number.isInteger(result.usage?.input_tokens)?result.usage.input_tokens:null,outputTokens:Number.isInteger(result.usage?.output_tokens)?result.usage.output_tokens:null,success:true}
-      this.logger.info('[Hoooho AI] business usage',JSON.stringify(diagnostics))
+      this.logger.info('[Hoooho AI] business usage',JSON.stringify(currentSeedHome()?{...diagnostics,...traceMetadata()}:diagnostics))
       return {value,diagnostics}
     }catch(error){
       if(typeof error?.code==='string'&&error.code.startsWith('AI_'))throw error
@@ -34,6 +40,7 @@ export class BusinessModel {
     }
   }
   async speak(text,signal) {
+    if (currentSeedHome()) throw fail('Seed 内测暂不提供语音播报，可继续查看文字',503,'TTS_NOT_CONFIGURED')
     const p=this.audioProvider
     if(!p?.apiKey)throw fail('语音反馈尚未配置独立 TTS，可继续文字记录',503,'TTS_NOT_CONFIGURED')
     if(typeof text!=='string'||!text.trim()||text.length>600)throw fail('朗读内容无效')
