@@ -117,3 +117,14 @@ export function normalizeChildRecorderRelationship(value) {
   if (value === undefined || value === null || value === '') return null
   return CHILD_RECORDER_RELATIONSHIP_SET.has(value) ? value : undefined
 }
+
+export const MAX_CHILD_PROFILE_VITAL_READING = 999
+
+export function isChildProfileVitals(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false
+  const { systolicMmHg, diastolicMmHg, pulseBpm } = value
+  const isReading = reading => Number.isInteger(reading) && reading > 0 && reading <= MAX_CHILD_PROFILE_VITAL_READING
+  const pressureMissing = systolicMmHg === null && diastolicMmHg === null
+  const pressureRecorded = isReading(systolicMmHg) && isReading(diastolicMmHg)
+  return (pressureMissing || pressureRecorded) && (pulseBpm === null || isReading(pulseBpm))
+}

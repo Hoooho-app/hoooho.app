@@ -10,8 +10,9 @@ const bloodTypeEditor = readFileSync(new URL('../NurseStation/BloodTypeEditorShe
 const editor = readFileSync(new URL('./BasicHealthProfilePage.tsx', import.meta.url), 'utf8')
 const polish = readFileSync(new URL('../../styles/product-polish.css', import.meta.url), 'utf8')
 
-test('孩子档案复用首页对象顶栏，正文保留分组手动档案入口', () => {
-  assert.match(home, /MainAppHeader childIdentity title="档案"/)
+test('健康档案首屏显示当前孩子个人信息，正文保留分组手动档案入口', () => {
+  assert.match(home, /MainAppHeader title="健康档案" childSelectionRequest=/)
+  assert.match(home, /<ChildPersonalInfoCard[\s\S]*aria-label="档案分类"/)
   assert.doesNotMatch(home, /HealthRecordSubjectHeader/)
   assert.doesNotMatch(healthEvents, /HealthRecordSubjectHeader/)
   assert.match(healthEvents, /<MainAppHeader title="健康日历"/)
