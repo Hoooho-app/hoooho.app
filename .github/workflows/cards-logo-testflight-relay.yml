@@ -1,0 +1,80 @@
+name: Relay approved Cards icon to TestFlight
+
+on:
+  push:
+    branches:
+      - codex/cards-testflight-relay-20261108
+    paths:
+      - 'release/cards/**'
+      - '.github/workflows/cards-logo-testflight-relay.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cards-testflight-relay-20261108
+  cancel-in-progress: false
+
+jobs:
+  upload:
+    name: Build, sign and upload Cards
+    if: github.ref == 'refs/heads/codex/cards-testflight-relay-20261108'
+    runs-on: macos-15
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: release/cards/CardVault
+    env:
+      CARDS_IOS_TEAM_ID: WB72CRW8JD
+      CARDS_ASC_APP_ID: '6832227842'
+      CARDS_ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      CARDS_ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      CARDS_ASC_API_KEY_P8: ${{ secrets.ASC_API_KEY_P8 }}
+      CARDS_IOS_DISTRIBUTION_P12_BASE64: ${{ secrets.IOS_DISTRIBUTION_P12_BASE64 }}
+      CARDS_IOS_DISTRIBUTION_P12_PASSWORD: ${{ secrets.IOS_DISTRIBUTION_P12_PASSWORD }}
+      FASTLANE_SKIP_UPDATE_CHECK: '1'
+      FASTLANE_HIDE_CHANGELOG: '1'
+      FASTLANE_SKIP_DOCS: '1'
+      FASTLANE_OPT_OUT_USAGE: '1'
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Verify the copied Cards source builds without signing
+        run: bash scripts/build.sh simulator
+
+      - name: Generate the release Xcode project
+        run: bash scripts/build.sh project
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+
+      - name: Install pinned signing and upload tooling
+        run: gem install fastlane --version 2.231.0 --no-document
+
+      - name: Fetch the exact existing Cards profile and validate all signing material
+        run: |
+          set -euo pipefail
+          for name in CARDS_IOS_TEAM_ID CARDS_ASC_APP_ID CARDS_ASC_KEY_ID CARDS_ASC_ISSUER_ID CARDS_ASC_API_KEY_P8 CARDS_IOS_DISTRIBUTION_P12_BASE64 CARDS_IOS_DISTRIBUTION_P12_PASSWORD; do
+            test -n "${!name}" || { echo "::error::Missing $name in the existing Records release repository."; exit 1; }
+          done
+          signing="$RUNNER_TEMP/hoooho-cards-signing"
+          mkdir -p "$signing"
+          chmod 700 "$signing"
+          printf '%s\n' "$CARDS_ASC_API_KEY_P8" > "$signing/AuthKey.p8"
+          chmod 600 "$signing/AuthKey.p8"
+          ruby ../fetch_profile.rb "$signing/AuthKey.p8" "$signing/cards.mobileprovision"
+          export CARDS_IOS_PROVISION_PROFILE_BASE64="$(base64 < "$signing/cards.mobileprovision" | tr -d '\n')"
+          python3 scripts/verify_signing.py
+          GITHUB_RUN_NUMBER=202511 fastlane ios cards_beta
+
+      - name: Remove ephemeral signing material
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/hoooho-cards-signing/profile.json" ]; then
+            uuid="$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["uuid"])' "$RUNNER_TEMP/hoooho-cards-signing/profile.json")"
+            rm -f "$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles/$uuid.mobileprovision"
+            rm -f "$HOME/Library/MobileDevice/Provisioning Profiles/$uuid.mobileprovision"
+          fi
+          security delete-keychain hoooho-cards-ci.keychain-db 2>/dev/null || true
+          rm -rf "$RUNNER_TEMP/hoooho-cards-signing"

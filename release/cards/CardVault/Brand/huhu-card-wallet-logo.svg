@@ -1,0 +1,106 @@
+<svg class="app-logo" viewBox="0 0 1024 1024" role="img" aria-labelledby="logo-title logo-description" xmlns="http://www.w3.org/2000/svg">
+<title id="logo-title">护护证件卡包 Logo</title>
+<desc id="logo-description">深色渐变圆角图标，两张银灰色卡片错落斜插于石墨色卡包中，右侧嵌有小巧端正的冰蓝色锁。</desc>
+<defs>
+<linearGradient id="tile" x1="144" y1="80" x2="864" y2="960" gradientUnits="userSpaceOnUse">
+<stop stop-color="#181E30">
+</stop>
+<stop offset="0.54" stop-color="#0C101D">
+</stop>
+<stop offset="1" stop-color="#050710">
+</stop>
+</linearGradient>
+<radialGradient id="atmosphere" cx="0" cy="0" r="1" gradientTransform="translate(366 250) rotate(66) scale(752 640)" gradientUnits="userSpaceOnUse">
+<stop stop-color="#65779B" stop-opacity="0.14">
+</stop>
+<stop offset="1" stop-color="#65779B" stop-opacity="0">
+</stop>
+</radialGradient>
+<linearGradient id="tile-edge" x1="140" y1="88" x2="868" y2="938" gradientUnits="userSpaceOnUse">
+<stop stop-color="#B2C3E5" stop-opacity="0.12">
+</stop>
+<stop offset="0.5" stop-color="#7E8EAD" stop-opacity="0.025">
+</stop>
+<stop offset="1" stop-color="#7E8EAD" stop-opacity="0.06">
+</stop>
+</linearGradient>
+<linearGradient id="back-card" x1="304" y1="239" x2="720" y2="532" gradientUnits="userSpaceOnUse">
+<stop stop-color="#A8B0BF">
+</stop>
+<stop offset="1" stop-color="#606A7E">
+</stop>
+</linearGradient>
+<linearGradient id="front-card" x1="264" y1="310" x2="748" y2="580" gradientUnits="userSpaceOnUse">
+<stop stop-color="#E0E4EB">
+</stop>
+<stop offset="1" stop-color="#949EAF">
+</stop>
+</linearGradient>
+<linearGradient id="wallet" x1="238" y1="408" x2="760" y2="804" gradientUnits="userSpaceOnUse">
+<stop stop-color="#56627D">
+</stop>
+<stop offset="0.46" stop-color="#38445D">
+</stop>
+<stop offset="1" stop-color="#202A40">
+</stop>
+</linearGradient>
+<linearGradient id="wallet-edge" x1="238" y1="410" x2="758" y2="768" gradientUnits="userSpaceOnUse">
+<stop stop-color="#C5CFE3" stop-opacity="0.42">
+</stop>
+<stop offset="0.5" stop-color="#7B8CAC" stop-opacity="0.12">
+</stop>
+<stop offset="1" stop-color="#7B8CAC" stop-opacity="0.04">
+</stop>
+</linearGradient>
+<linearGradient id="lock" x1="638" y1="562" x2="748" y2="690" gradientUnits="userSpaceOnUse">
+<stop stop-color="#D3EFF7">
+</stop>
+<stop offset="0.48" stop-color="#A7D6E8">
+</stop>
+<stop offset="1" stop-color="#72A9C9">
+</stop>
+</linearGradient>
+<linearGradient id="shackle" x1="650" y1="492" x2="734" y2="568" gradientUnits="userSpaceOnUse">
+<stop stop-color="#E2F2F8">
+</stop>
+<stop offset="1" stop-color="#8FBCD3">
+</stop>
+</linearGradient>
+<filter id="object-shadow" x="112" y="164" width="800" height="704" filterUnits="userSpaceOnUse">
+<feDropShadow dx="0" dy="22" stdDeviation="24" flood-color="#000208" flood-opacity="0.42">
+</feDropShadow>
+</filter>
+</defs>
+<rect width="1024" height="1024" rx="236" fill="url(#tile)">
+</rect>
+<rect width="1024" height="1024" rx="236" fill="url(#atmosphere)">
+</rect>
+<rect x="12" y="12" width="1000" height="1000" rx="224" fill="none" stroke="url(#tile-edge)" stroke-width="2">
+</rect>
+<g id="card-holder" filter="url(#object-shadow)">
+<rect id="holder-interior" x="190" y="390" width="644" height="394" rx="84" fill="#192235">
+</rect>
+<g id="rear-card" transform="rotate(-7 512 391)">
+<rect x="286" y="240" width="452" height="306" rx="42" fill="url(#back-card)" stroke="#E1E7F2" stroke-opacity="0.2" stroke-width="2">
+</rect>
+</g>
+<g id="inserted-front-card" transform="rotate(4 512 467)">
+<rect x="246" y="306" width="532" height="322" rx="46" fill="url(#front-card)" stroke="#F7F9FD" stroke-opacity="0.28" stroke-width="2">
+</rect>
+</g>
+<path id="holder-front" d="M274 410C350 410 405 442 512 442C619 442 674 410 750 410C797 410 834 448 834 494V700C834 746 796 784 750 784H274C228 784 190 746 190 700V494C190 448 227 410 274 410Z" fill="url(#wallet)" stroke="url(#wallet-edge)" stroke-width="3">
+</path>
+<path id="holder-lip" d="M212 488C212 457 239 432 274 432C350 432 405 464 512 464C619 464 674 432 750 432C785 432 812 457 812 488" fill="none" stroke="#111B2E" stroke-opacity="0.26" stroke-width="6" stroke-linecap="round">
+</path>
+<g id="security-lock">
+<rect x="616" y="567" width="152" height="130" rx="35" fill="#0D1729" fill-opacity="0.22">
+</rect>
+<path d="M650 568V535C650 511 668 492 692 492C716 492 734 511 734 535V568" fill="none" stroke="url(#shackle)" stroke-width="22" stroke-linecap="round">
+</path>
+<rect x="620" y="562" width="144" height="126" rx="32" fill="url(#lock)" stroke="#E4F6FC" stroke-opacity="0.32" stroke-width="2">
+</rect>
+<path d="M705 607C705 600 699 594 692 594C685 594 679 600 679 607C679 612 682 617 686 619L682 644H702L698 619C702 617 705 612 705 607Z" fill="#233C53">
+</path>
+</g>
+</g>
+</svg>

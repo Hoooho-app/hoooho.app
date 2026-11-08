@@ -1,0 +1,57 @@
+require "fileutils"
+require "json"
+require "securerandom"
+
+default_platform(:ios)
+
+platform :ios do
+  desc "Validate the Cards App Store record, sign, upload and wait for processing"
+  lane :cards_beta do
+    bundle_id = "com.hoooho.cards"
+    team_id = ENV.fetch("CARDS_IOS_TEAM_ID")
+    app_id = ENV.fetch("CARDS_ASC_APP_ID")
+    signing = File.join(ENV.fetch("RUNNER_TEMP"), "hoooho-cards-signing")
+    profile = JSON.parse(File.read(File.join(signing, "profile.json")))
+
+    api_key = app_store_connect_api_key(
+      key_id: ENV.fetch("CARDS_ASC_KEY_ID"),
+      issuer_id: ENV.fetch("CARDS_ASC_ISSUER_ID"),
+      key_filepath: File.join(signing, "AuthKey.p8"),
+      in_house: false,
+      set_spaceship_token: true
+    )
+    app = Spaceship::ConnectAPI::App.find(bundle_id)
+    unless app && app.id.to_s == app_id
+      UI.user_error!("The supplied App Store Connect app ID does not match #{bundle_id}, or the API key cannot access Cards.")
+    end
+
+    password = SecureRandom.hex(32)
+    create_keychain(name: "hoooho-cards-ci", password: password, default_keychain: true,
+      unlock: true, timeout: 3600, lock_when_sleeps: true)
+    import_certificate(certificate_path: File.join(signing, "distribution.p12"),
+      certificate_password: ENV.fetch("CARDS_IOS_DISTRIBUTION_P12_PASSWORD"),
+      keychain_name: "hoooho-cards-ci", keychain_password: password)
+    keychain_path = Actions.lane_context[SharedValues::KEYCHAIN_PATH]
+    installed_identities = sh("security", "find-identity", "-v", "-p", "codesigning", keychain_path, log: false)
+    installed_fingerprints = installed_identities.scan(/\b[0-9A-F]{40}\b/)
+    if (installed_fingerprints & profile.fetch("certificate_fingerprints")).empty?
+      UI.user_error!("The installed distribution identity is not included in the Cards provisioning profile.")
+    end
+    # Each retry gets a distinct valid CFBundleVersion.
+    run_number = Integer(ENV.fetch("GITHUB_RUN_NUMBER"))
+    run_attempt = Integer(ENV.fetch("GITHUB_RUN_ATTEMPT"))
+    UI.user_error!("Cards build number range exhausted.") unless run_number.between?(1, 999_899) && run_attempt.between?(1, 99)
+    build_number = "#{run_number / 100 + 1}.#{run_number % 100}.#{run_attempt}"
+
+    ipa = build_app(project: "CardVault.xcodeproj", scheme: "CardVault", clean: true,
+      output_directory: File.join(signing, "output"), output_name: "CardVault.ipa",
+      archive_path: File.join(signing, "CardVault.xcarchive"),
+      derived_data_path: File.join(signing, "DerivedData"),
+      buildlog_path: File.join(signing, "logs"), export_method: "app-store-connect",
+      xcargs: "DEVELOPMENT_TEAM=#{team_id} CURRENT_PROJECT_VERSION=#{build_number} CODE_SIGN_STYLE=Manual PROVISIONING_PROFILE_SPECIFIER=#{profile.fetch('uuid')} CODE_SIGN_IDENTITY='Apple Distribution'",
+      export_options: {signingStyle: "manual", teamID: team_id, provisioningProfiles: {bundle_id => profile.fetch("name")}})
+    upload_to_testflight(api_key: api_key, app_identifier: bundle_id, apple_id: app_id, ipa: ipa,
+      distribute_external: false, skip_waiting_for_build_processing: false, skip_submission: true, submit_beta_review: false)
+    UI.success("Cards upload and Apple processing finished. Assign the build to the Cards internal group in App Store Connect before calling it installable.")
+  end
+end
