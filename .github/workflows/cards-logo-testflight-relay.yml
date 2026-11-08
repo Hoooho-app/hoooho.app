@@ -52,7 +52,7 @@ jobs:
       - name: Install pinned signing and upload tooling
         run: gem install fastlane --version 2.231.0 --no-document
 
-      - name: Fetch the exact existing Cards profile and validate all signing material
+      - name: Prepare a Cards profile for the existing certificate, validate, sign and upload
         run: |
           set -euo pipefail
           for name in CARDS_IOS_TEAM_ID CARDS_ASC_APP_ID CARDS_ASC_KEY_ID CARDS_ASC_ISSUER_ID CARDS_ASC_API_KEY_P8 CARDS_IOS_DISTRIBUTION_P12_BASE64 CARDS_IOS_DISTRIBUTION_P12_PASSWORD; do
@@ -63,7 +63,20 @@ jobs:
           chmod 700 "$signing"
           printf '%s\n' "$CARDS_ASC_API_KEY_P8" > "$signing/AuthKey.p8"
           chmod 600 "$signing/AuthKey.p8"
-          ruby ../fetch_profile.rb "$signing/AuthKey.p8" "$signing/cards.mobileprovision"
+          python3 - "$signing/distribution.p12" <<'PY'
+          import base64
+          import os
+          import sys
+          from pathlib import Path
+          raw = "".join(os.environ["CARDS_IOS_DISTRIBUTION_P12_BASE64"].split())
+          data = base64.b64decode(raw, validate=True)
+          if not data:
+              raise SystemExit("Existing distribution P12 is empty.")
+          path = Path(sys.argv[1])
+          path.write_bytes(data)
+          path.chmod(0o600)
+          PY
+          ruby ../fetch_profile.rb "$signing/AuthKey.p8" "$signing/distribution.p12" "$signing/cards.mobileprovision"
           export CARDS_IOS_PROVISION_PROFILE_BASE64="$(base64 < "$signing/cards.mobileprovision" | tr -d '\n')"
           python3 scripts/verify_signing.py
           GITHUB_RUN_NUMBER=202511 fastlane ios cards_beta
