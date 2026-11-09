@@ -15,3 +15,5 @@ builds.each do |row|
   next unless version.match?(/\A[0-9.]+\z/) && state.match?(/\A[A-Z_]+\z/)
   puts "CARDS_BUILD_STATUS #{version} #{state}"
 end
+
+# Recheck whether the retry reached the Apple build list.
