@@ -1,12 +1,12 @@
 name: Verify family management and ship Cards internal beta
 on:
   push:
-    branches: ['codex/ios-sign-once-family-15d45c03']
+    branches: ['codex/ios-sign-once-family-ef4e6585']
     paths: ['.github/workflows/ios-internal-sign-once.yml']
 permissions:
   contents: read
 concurrency:
-  group: ios-internal-sign-once
+  group: cards-family-internal-beta
   cancel-in-progress: false
 jobs:
   sign:
@@ -37,7 +37,7 @@ jobs:
           if-no-files-found: error
       - name: Fetch and validate the sealed release input
         env:
-          EXPECTED_ARCHIVE_SHA: '431edb917e9d0b17f3a6aea9cef2f732750a92161b7b8c0233da3a43c668cd00'
+          EXPECTED_ARCHIVE_SHA: 'dd0be01282784959c50b77fdbfc9148f2dd7910a4137ed63751a697b2717f945'
         run: |
           set -euo pipefail
           umask 077
