@@ -1,4 +1,4 @@
-name: Verify the pinned camera guidance on iPhone simulator
+name: Recheck the TestFlight camera flow on iPhone simulator
 on:
   push:
     branches: ['codex/ios-sign-once-camera-15d45c03']
@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   camera_qa:
-    runs-on: macos-15-intel
+    runs-on: macos-15
     timeout-minutes: 28
     defaults:
       run:
@@ -37,9 +37,9 @@ jobs:
           if-no-files-found: error
       - name: Fetch and validate the sealed release input
         env:
-          EXPECTED_ARCHIVE_SHA: '1888f4704ab65fb10cbf4031b33659135f1a1a46c297d608c16fd781297b01fd'
-          EXPECTED_SOURCE: '15d45c03651fd1c3ba6b3d13ae144639d50fd3fd'
-          SEALED_INPUT_BRANCH: 'codex/cards-camera-sealed-15d45c03'
+          EXPECTED_ARCHIVE_SHA: '4c087494f8683a21b0b019ade935f15dc0c01295a96f10e2395d3b9661090c75'
+          EXPECTED_SOURCE: 'ef4e658526b56ef77bab7ccc86bc192662c124dc'
+          SEALED_INPUT_BRANCH: 'codex/cards-camera-qa-input-ef4e6585'
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
@@ -74,7 +74,7 @@ jobs:
           echo "Release input matches the pinned digest."
       - name: Verify the pinned camera build in an iPhone simulator
         env:
-          EXPECTED_CARD_TREE: 'fe7666c2c98ead79278af2be6eeff5c6289ad4c6'
+          EXPECTED_CARD_TREE: 'e1e5f34bab956fc75a3ec37f2ee5df310ec8eb24'
         run: |
           set -euo pipefail
           umask 077
@@ -107,7 +107,7 @@ jobs:
             xcrun simctl boot "$device"
             xcrun simctl bootstatus "$device" -b
             xcrun simctl spawn "$device" defaults write com.apple.Accessibility ReduceMotionEnabled -bool true
-            xcodebuild -quiet -project "$qa/CardVault.xcodeproj" -scheme CardVault -configuration Debug \
+            xcodebuild -project "$qa/CardVault.xcodeproj" -scheme CardVault -configuration Debug \
               -destination "platform=iOS Simulator,id=$device" -parallel-testing-enabled NO \
               -resultBundlePath "$private_dir/camera-regression.xcresult" \
               CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO test
