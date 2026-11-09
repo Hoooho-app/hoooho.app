@@ -1,16 +1,16 @@
 name: Recheck the TestFlight camera flow on iPhone simulator
 on:
   push:
-    branches: ['codex/ios-sign-once-camera-15d45c03']
+    branches: ['codex/cards-camera-qa-intel-ef4e6585']
     paths: ['.github/workflows/ios-internal-sign-once.yml']
 permissions:
   contents: read
 concurrency:
-  group: cards-camera-qa-15d45c03
+  group: cards-camera-qa-intel-ef4e6585
   cancel-in-progress: true
 jobs:
   camera_qa:
-    runs-on: macos-15
+    runs-on: macos-15-intel
     timeout-minutes: 28
     defaults:
       run:
@@ -39,7 +39,7 @@ jobs:
         env:
           EXPECTED_ARCHIVE_SHA: '95b04659c10fd97bb57af182016e9d6ba345b02a454eed9ebe0f96c9d221e8ae'
           EXPECTED_SOURCE: 'ef4e658526b56ef77bab7ccc86bc192662c124dc'
-          SEALED_INPUT_BRANCH: 'codex/cards-camera-qa-input-ef4e6585'
+          SEALED_INPUT_BRANCH: 'codex/cards-camera-qa-intel-input-ef4e6585'
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
