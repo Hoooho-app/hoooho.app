@@ -1,0 +1,37 @@
+name: Digital Documents App Store Connect update
+on:
+  push:
+    branches: ['codex/cards-asc-rename-4061f434']
+    paths:
+      - '.github/cards-asc-rename/brand-ready'
+      - '.github/cards-asc-rename/release-ready'
+permissions:
+  contents: read
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+      - name: Install API token tooling
+        run: gem install jwt --version 2.10.2 --no-document
+      - name: Update the existing Apple app record or verify the exact internal build
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_API_KEY_P8: ${{ secrets.ASC_API_KEY_P8 }}
+        run: |
+          set -euo pipefail
+          root=.github/cards-asc-rename
+          ruby -c "$root/client.rb"
+          ruby -c "$root/rename.rb"
+          if [[ -f "$root/release-ready" ]]; then
+            ruby "$root/rename.rb" release
+          else
+            ruby "$root/rename.rb" brand
+          fi
