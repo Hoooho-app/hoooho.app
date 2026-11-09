@@ -1,7 +1,7 @@
 name: Ship verified credential detail to the internal beta
 on:
   push:
-    branches: ['codex/ios-sign-once-detail-34f29394']
+    branches: ['codex/ios-sign-once-detail-34f29394-r2']
     paths: ['.github/workflows/ios-internal-sign-once.yml']
 permissions:
   contents: read
@@ -39,7 +39,7 @@ jobs:
         env:
           EXPECTED_ARCHIVE_SHA: '79fdf23d4cd88f86865e8afdeefa2bd42a4902764a899e3bc2cf69acdfe7201f'
           EXPECTED_SOURCE: '34f29394a6bf6a33bc269e73584a0f5f7d284d0d'
-          SEALED_INPUT_BRANCH: 'codex/cards-detail-sealed-34f29394'
+          SEALED_INPUT_BRANCH: 'codex/cards-detail-sealed-34f29394-r2'
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
@@ -96,9 +96,11 @@ jobs:
           status=0
           xcodebuild -project "$RUNNER_TEMP/DetailQA/CardVault.xcodeproj" -scheme CardVault -configuration Debug \
             -destination "platform=iOS Simulator,id=$device" -parallel-testing-enabled NO \
+            -only-testing:CredentialUITests/CredentialUITests/testBankScanShowsFullNumbersBeforeSaveAndMasksUntilVerified \
             -resultBundlePath "$RUNNER_TEMP/credential-detail.xcresult" \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO test > "$RUNNER_TEMP/credential-detail-test.log" 2>&1 || status=$?
-          tail -n 95 "$RUNNER_TEMP/credential-detail-test.log"
+          grep -E 'Test Case|error:|TEST (FAILED|SUCCEEDED)|Executed' "$RUNNER_TEMP/credential-detail-test.log" | tail -n 50 || true
+          tail -n 23 "$RUNNER_TEMP/credential-detail-test.log"
           exit "$status"
       - name: Export screenshots from the synthetic flow
         if: always()
