@@ -1,13 +1,13 @@
 name: Verify credential icons and ship the internal beta
 on:
   push:
-    branches: ['codex/ios-sign-once-icons-60da9d21']
+    branches: ['codex/ios-sign-once-icons-60da9d21-bounded']
     paths: ['.github/workflows/ios-internal-sign-once.yml']
 permissions:
   contents: read
 concurrency:
   group: cards-icons-internal-beta
-  cancel-in-progress: false
+  cancel-in-progress: true
 jobs:
   sign:
     runs-on: macos-15
@@ -39,7 +39,7 @@ jobs:
         env:
           EXPECTED_ARCHIVE_SHA: '2c08715333725025f334b11545c86534613f17d7a3d398676290e799f8c02725'
           EXPECTED_SOURCE: '60da9d217a66c30cb1cfc59a29bfaae9ead1fe31'
-          SEALED_INPUT_BRANCH: 'codex/cards-icons-sealed-60da9d21'
+          SEALED_INPUT_BRANCH: 'codex/cards-icons-sealed-60da9d21-bounded'
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
@@ -82,16 +82,30 @@ jobs:
             exit 1
           fi
           echo "The pinned iOS application compiled."
-      - name: Run the existing iPhone simulator checks
+      - name: Run the original recognition regression assertions
+        timeout-minutes: 7
         run: |
           set -euo pipefail
           private_dir="$RUNNER_TEMP/ios-internal-sign"
           cd "$private_dir/source"
-          if ! bash CardVault/scripts/smoke.sh > "$private_dir/smoke.log" 2>&1; then
-            echo "::error::The pinned application failed the existing smoke checks."
+          python3 - "$private_dir/recognition-checks.sh" <<'PY'
+          import sys
+          from pathlib import Path
+          source = Path("CardVault/scripts/smoke.sh").read_text()
+          checks, marker, _ = source.partition("\ndevice=")
+          assert marker and '"$temp/cards-scan-checks"' in checks
+          Path(sys.argv[1]).write_text(checks + "\n")
+          PY
+          if ! bash "$private_dir/recognition-checks.sh" > "$private_dir/smoke.log" 2>&1; then
+            echo "::error::The existing recognition assertions failed."
             exit 1
           fi
-          echo "The existing iPhone simulator checks passed."
+          echo "The original recognition regression assertions passed."
+      - name: Launch the pinned app on a bounded iPhone simulator
+        timeout-minutes: 7
+        run: |
+          set -euo pipefail
+          python3 .github/ios-sign-once/bounded-simulator.py
       - name: Preserve encrypted simulator diagnostics on failure
         if: failure()
         run: |

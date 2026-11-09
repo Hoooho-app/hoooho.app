@@ -25,7 +25,7 @@ verified_app(client)
 group_id = internal_group(client).fetch("id")
 abort("Invalid group identifier.") unless group_id.match?(/\A[0-9a-f-]{36}\z/i)
 app_id = APP_ID
-version = "2026.11.14"
+version = "2026.11.15"
 marketing_version = "0.1.0"
 build_id = nil
 100.times do
