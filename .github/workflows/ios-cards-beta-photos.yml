@@ -1,0 +1,32 @@
+name: Verify credential photos in the internal beta
+on:
+  push:
+    branches: ['codex/cards-beta-photos-e5335290']
+    paths:
+      - '.github/cards-beta-photos/release-ready'
+permissions:
+  contents: read
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+      - name: Install API token tooling
+        run: gem install jwt --version 2.10.2 --no-document
+      - name: Assign and verify the pinned internal build
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_API_KEY_P8: ${{ secrets.ASC_API_KEY_P8 }}
+        run: |
+          set -euo pipefail
+          root=.github/cards-beta-photos
+          ruby -c "$root/client.rb"
+          ruby -c "$root/assign.rb"
+          ruby "$root/assign.rb"
