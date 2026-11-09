@@ -6,7 +6,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: ios-internal-sign-once
+  group: cards-camera-qa-15d45c03
   cancel-in-progress: false
 jobs:
   camera_qa:
