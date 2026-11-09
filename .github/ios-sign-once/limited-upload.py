@@ -9,7 +9,7 @@ import time
 from pathlib import Path
 
 log_path = Path(sys.argv[1])
-env = dict(os.environ, GITHUB_RUN_NUMBER="202511", GITHUB_RUN_ATTEMPT="15")
+env = dict(os.environ, GITHUB_RUN_NUMBER="202511", GITHUB_RUN_ATTEMPT="16")
 allowed = {
     "archive": "Archiving the verified app source.",
     "upload": "Submitting the signed build to Apple.",

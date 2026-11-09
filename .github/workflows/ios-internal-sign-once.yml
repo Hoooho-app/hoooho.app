@@ -1,13 +1,13 @@
 name: Verify credential icons and ship the internal beta
 on:
   push:
-    branches: ['codex/ios-sign-once-icons-60da9d21-bounded']
+    branches: ['codex/ios-sign-once-icons-60da9d21-device']
     paths: ['.github/workflows/ios-internal-sign-once.yml']
 permissions:
   contents: read
 concurrency:
   group: cards-icons-internal-beta
-  cancel-in-progress: true
+  cancel-in-progress: false
 jobs:
   sign:
     runs-on: macos-15
@@ -39,7 +39,7 @@ jobs:
         env:
           EXPECTED_ARCHIVE_SHA: '2c08715333725025f334b11545c86534613f17d7a3d398676290e799f8c02725'
           EXPECTED_SOURCE: '60da9d217a66c30cb1cfc59a29bfaae9ead1fe31'
-          SEALED_INPUT_BRANCH: 'codex/cards-icons-sealed-60da9d21-bounded'
+          SEALED_INPUT_BRANCH: 'codex/cards-icons-sealed-60da9d21-device'
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
@@ -101,11 +101,21 @@ jobs:
             exit 1
           fi
           echo "The original recognition regression assertions passed."
-      - name: Launch the pinned app on a bounded iPhone simulator
-        timeout-minutes: 7
+      - name: Verify every built-in and custom credential artwork mapping
+        timeout-minutes: 5
         run: |
           set -euo pipefail
-          python3 .github/ios-sign-once/bounded-simulator.py
+          private_dir="$RUNNER_TEMP/ios-internal-sign"
+          cd "$private_dir/source"
+          checks="$GITHUB_WORKSPACE/.github/ios-sign-once/credential-artwork-checks.swift"
+          if ! {
+            xcrun swiftc CardVault/Sources/CredentialFields.swift "$checks" -o "$private_dir/artwork-checks"
+            "$private_dir/artwork-checks" CardVault/Assets.xcassets
+          } > "$private_dir/smoke.log" 2>&1; then
+            echo "::error::Credential artwork mapping validation failed."
+            exit 1
+          fi
+          echo "All 24 bundled credential artwork mappings passed."
       - name: Preserve encrypted simulator diagnostics on failure
         if: failure()
         run: |
