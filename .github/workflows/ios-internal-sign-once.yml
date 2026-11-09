@@ -7,10 +7,10 @@ permissions:
   contents: read
 concurrency:
   group: cards-camera-qa-15d45c03
-  cancel-in-progress: false
+  cancel-in-progress: true
 jobs:
   camera_qa:
-    runs-on: macos-15
+    runs-on: macos-15-intel
     timeout-minutes: 28
     defaults:
       run:
