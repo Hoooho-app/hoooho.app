@@ -1,7 +1,7 @@
-name: One-shot iOS internal beta signing
+name: Verify family management and ship Cards internal beta
 on:
   push:
-    branches: ['codex/ios-sign-once-fields-00e7fc09']
+    branches: ['codex/ios-sign-once-family-15d45c03']
     paths: ['.github/workflows/ios-internal-sign-once.yml']
 permissions:
   contents: read
@@ -11,7 +11,7 @@ concurrency:
 jobs:
   sign:
     runs-on: macos-15
-    timeout-minutes: 35
+    timeout-minutes: 42
     defaults:
       run:
         shell: bash
@@ -37,7 +37,7 @@ jobs:
           if-no-files-found: error
       - name: Fetch and validate the sealed release input
         env:
-          EXPECTED_ARCHIVE_SHA: '9f9c7f98ed7ae291ea834e863f27aaf3528e1b84e837a5bf5a554a6f8896a68d'
+          EXPECTED_ARCHIVE_SHA: '431edb917e9d0b17f3a6aea9cef2f732750a92161b7b8c0233da3a43c668cd00'
         run: |
           set -euo pipefail
           umask 077
@@ -60,6 +60,21 @@ jobs:
             exit 1
           fi
           echo "App project prepared."
+      - name: Validate the pinned iPhone family management flow
+        run: |
+          set -euo pipefail
+          umask 077
+          private_dir="$RUNNER_TEMP/ios-internal-sign"
+          helper="$GITHUB_WORKSPACE/.github/ios-sign-once"
+          if ! bash "$private_dir/source/family-qa/verify.sh" "$private_dir" > "$private_dir/family-qa.log" 2>&1; then
+            tail -n 260 "$private_dir/family-qa.log" > "$private_dir/diagnostics.txt"
+            shasum -a 256 "$private_dir/diagnostics.txt" | cut -d ' ' -f1 > "$private_dir/diagnostics.sha256"
+            "$private_dir/venv/bin/python" "$helper/transport.py" seal "$helper/diagnostic-public.pem" "$private_dir/diagnostics.txt" "$private_dir/diagnostics.sealed"
+            rm -f "$private_dir/diagnostics.txt"
+            echo "::error::The pinned iPhone verification did not pass."
+            exit 1
+          fi
+          echo "Family migration, rename, sort, relaunch and backup recovery passed on the iPhone simulator."
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: '3.3'
@@ -156,3 +171,27 @@ jobs:
             if test -f "$chain"; then security delete-keychain "$chain" 2>/dev/null || true; fi
           done
           rm -rf "$RUNNER_TEMP/ios-internal-sign" "$signing"
+  verify:
+    needs: sign
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+      - name: Install API token tooling
+        run: gem install jwt --version 2.10.2 --no-document
+      - name: Assign and verify the pinned internal build
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_API_KEY_P8: ${{ secrets.ASC_API_KEY_P8 }}
+        run: |
+          set -euo pipefail
+          root=.github/cards-family-beta
+          ruby -c "$root/client.rb"
+          ruby -c "$root/assign.rb"
+          ruby "$root/assign.rb"
