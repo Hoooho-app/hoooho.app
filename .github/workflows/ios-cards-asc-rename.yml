@@ -1,10 +1,9 @@
-name: Digital Documents App Store Connect update
+name: Read current Cards beta processing status
 on:
   push:
-    branches: ['codex/cards-asc-rename-4061f434']
+    branches: ['codex/cards-status-bank-28004433']
     paths:
-      - '.github/cards-asc-rename/brand-ready'
-      - '.github/cards-asc-rename/release-ready'
+      - '.github/cards-asc-rename/status.rb'
 permissions:
   contents: read
 jobs:
@@ -20,7 +19,7 @@ jobs:
           ruby-version: '3.3'
       - name: Install API token tooling
         run: gem install jwt --version 2.10.2 --no-document
-      - name: Update the existing Apple app record or verify the exact internal build
+      - name: Read the pinned app build versions
         env:
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
@@ -29,9 +28,4 @@ jobs:
           set -euo pipefail
           root=.github/cards-asc-rename
           ruby -c "$root/client.rb"
-          ruby -c "$root/rename.rb"
-          if [[ -f "$root/release-ready" ]]; then
-            ruby "$root/rename.rb" release
-          else
-            ruby "$root/rename.rb" brand
-          fi
+          ruby "$root/status.rb"
