@@ -17,3 +17,6 @@ builds.each do |row|
 end
 
 # Recheck whether the retry reached the Apple build list.
+
+present = builds.any? { |row| row.fetch("attributes").fetch("version") == "2026.11.9" }
+File.open(ENV.fetch("GITHUB_OUTPUT"), "a") { |file| file.puts("retry_present=#{present}") }

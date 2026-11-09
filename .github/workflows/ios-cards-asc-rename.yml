@@ -6,6 +6,7 @@ on:
       - '.github/cards-asc-rename/status.rb'
 permissions:
   contents: read
+  actions: write
 jobs:
   apply:
     runs-on: ubuntu-latest
@@ -20,6 +21,7 @@ jobs:
       - name: Install API token tooling
         run: gem install jwt --version 2.10.2 --no-document
       - name: Read the pinned app build versions
+        id: apple
         env:
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
@@ -29,3 +31,39 @@ jobs:
           root=.github/cards-asc-rename
           ruby -c "$root/client.rb"
           ruby "$root/status.rb"
+      - name: Cancel the exact stalled retry only if Apple has no build
+        if: steps.apple.outputs.retry_present == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 - <<'PY'
+          import datetime, json, os, subprocess
+          repo = "Hoooho-app/hoooho.app"
+          route = f"repos/{repo}/actions/runs/42596835866"
+          assert os.environ.get("GITHUB_REPOSITORY", "").lower() == repo.lower()
+          def get(path):
+              return json.loads(subprocess.check_output(["gh", "api", path], text=True))
+          run = get(route)
+          assert run["head_sha"] == "03d3703f831d09d572065a664d54cc28687361a1" and run["head_branch"] == "codex/ios-sign-once-bank-28004433-retry"
+          if run["status"] == "completed":
+              print("PINNED_RETRY_ALREADY_COMPLETED")
+              raise SystemExit(0)
+          jobs = get(route + "/jobs")["jobs"]
+          step = next((step for job in jobs for step in job["steps"]
+                       if step["name"] == "Verify Apple app and sign and upload the internal beta"), None)
+          if not step or step["status"] != "in_progress" or not step["started_at"]:
+              print("PINNED_RETRY_LEFT_UPLOAD_STEP")
+              raise SystemExit(0)
+          start = datetime.datetime.fromisoformat(step["started_at"].replace("Z", "+00:00"))
+          if (datetime.datetime.now(datetime.timezone.utc) - start).total_seconds() < 900:
+              print("PINNED_RETRY_WITHIN_DEADLINE")
+              raise SystemExit(0)
+          completed = subprocess.run(["gh", "api", "--method", "POST", route + "/cancel"],
+                                     capture_output=True, text=True)
+          if completed.returncode == 0:
+              print("PINNED_STALLED_RETRY_CANCEL_REQUESTED")
+          elif get(route)["status"] == "completed":
+              print("PINNED_RETRY_ALREADY_COMPLETED")
+          else:
+              raise SystemExit("Cancellation request was rejected for the pinned run.")
+          PY
