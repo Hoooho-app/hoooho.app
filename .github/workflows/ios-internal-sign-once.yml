@@ -1,12 +1,12 @@
-name: Ship verified credential detail to the internal beta
+name: Ship verified camera guidance to the internal beta
 on:
   push:
-    branches: ['codex/ios-sign-once-detail-f9228745']
+    branches: ['codex/ios-sign-once-camera-15d45c03']
     paths: ['.github/workflows/ios-internal-sign-once.yml']
 permissions:
   contents: read
 concurrency:
-  group: cards-detail-internal-beta
+  group: ios-internal-sign-once
   cancel-in-progress: false
 jobs:
   sign:
@@ -37,9 +37,9 @@ jobs:
           if-no-files-found: error
       - name: Fetch and validate the sealed release input
         env:
-          EXPECTED_ARCHIVE_SHA: '850a94dd8b4755d400fbe1625c3f717323a8ea0387c58ecc5c0ac0651f125676'
-          EXPECTED_SOURCE: 'f9228745f6bea29ab03ab3db5feacf887911da0e'
-          SEALED_INPUT_BRANCH: 'codex/cards-detail-sealed-f9228745'
+          EXPECTED_ARCHIVE_SHA: '1888f4704ab65fb10cbf4031b33659135f1a1a46c297d608c16fd781297b01fd'
+          EXPECTED_SOURCE: '15d45c03651fd1c3ba6b3d13ae144639d50fd3fd'
+          SEALED_INPUT_BRANCH: 'codex/cards-camera-sealed-15d45c03'
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
@@ -57,7 +57,7 @@ jobs:
             echo 'The authorized sealed input did not arrive.'; exit 1
           fi
           gh api "repos/$GITHUB_REPOSITORY/git/trees/$input_commit?recursive=1" \
-            --jq '.tree[] | select(.type == "blob" and (.path | test("^\\.github/cards-detail-intake/part-[0-9]{3}$"))) | [.path, .sha] | @tsv' \
+            --jq '.tree[] | select(.type == "blob" and (.path | test("^\\.github/cards-camera-intake/part-[0-9]{3}$"))) | [.path, .sha] | @tsv' \
             | LC_ALL=C sort > "$private_dir/parts.tsv"
           test -s "$private_dir/parts.tsv"
           : > "$private_dir/Package.sealed"
@@ -72,15 +72,30 @@ jobs:
           python3 -c 'import json, sys; assert json.load(open(sys.argv[1]))["verified_source"] == sys.argv[2]' "$private_dir/source/release.json" "$EXPECTED_SOURCE"
           rm -f "$private_dir/source.tgz"
           echo "Release input matches the pinned digest."
-      - name: Prepare the synthetic device fixture
-        run: |
-          cp -R "$RUNNER_TEMP/ios-internal-sign/source/CardVault" "$RUNNER_TEMP/DetailQA"
-          python3 .github/cards-detail-qa/fixture.py "$RUNNER_TEMP/DetailQA" .github/cards-detail-qa/CredentialUITests.swift
-          bash "$RUNNER_TEMP/DetailQA/scripts/build.sh" project
-      - name: Exercise saved originals, verification and legacy records
+      - name: Verify the pinned camera build in an iPhone simulator
+        env:
+          EXPECTED_CARD_TREE: 'fe7666c2c98ead79278af2be6eeff5c6289ad4c6'
         run: |
           set -euo pipefail
-          device="$(xcrun simctl list devices available -j | python3 -c '
+          umask 077
+          private_dir="$RUNNER_TEMP/ios-internal-sign"
+          src="$private_dir/source"
+          qa="$private_dir/CameraQA"
+          {
+            mv "$src/CardVault/Tests/BetaQA" "$private_dir/qa-input"
+            git -C "$src" init -q
+            git -C "$src" add -f -- CardVault
+            test "$(git -C "$src" write-tree --prefix=CardVault/)" = "$EXPECTED_CARD_TREE"
+            cp -R "$src/CardVault" "$qa"
+            python3 "$private_dir/qa-input/fixture.py" "$qa" "$private_dir/qa-input/CredentialUITests.swift"
+            cd "$src"
+            xcrun swiftc CardVault/Sources/CardScanGuide.swift CardVault/Sources/CardTextRecognition.swift \
+              CardVault/Sources/CredentialFields.swift CardVault/Sources/BankCardRecognition.swift \
+              CardVault/Sources/CardImageCorrection.swift CardVault/Tests/ScanRecognitionChecks.swift \
+              -o "$private_dir/scan-checks"
+            "$private_dir/scan-checks"
+            bash "$qa/scripts/build.sh" project
+            device="$(xcrun simctl list devices available -j | python3 -c '
           import json,sys
           for runtime, devices in sorted(json.load(sys.stdin)["devices"].items(), reverse=True):
               for device in devices:
@@ -89,29 +104,16 @@ jobs:
                       sys.exit(0)
           sys.exit("No installed iPhone simulator")
           ')"
-          xcrun simctl boot "$device"
-          xcrun simctl bootstatus "$device" -b
-          xcrun simctl addmedia "$device" "$RUNNER_TEMP/DetailQA/Assets.xcassets/AppIcon.appiconset/AppIcon.png"
-          xcrun simctl status_bar "$device" override --time '9:41' --dataNetwork wifi --wifiMode active --wifiBars 4 --cellularMode active --cellularBars 4 --batteryState unplugged --batteryLevel 100
-          xcrun simctl spawn "$device" defaults write com.apple.Accessibility ReduceMotionEnabled -bool true
-          xcodebuild -project "$RUNNER_TEMP/DetailQA/CardVault.xcodeproj" -scheme CardVault -configuration Debug \
-            -destination "platform=iOS Simulator,id=$device" -parallel-testing-enabled NO \
-            -resultBundlePath "$RUNNER_TEMP/credential-detail.xcresult" \
-            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO test
-      - name: Export screenshots from the synthetic flow
-        if: always()
-        run: |
-          if test -d "$RUNNER_TEMP/credential-detail.xcresult"; then
-            xcrun xcresulttool export attachments --path "$RUNNER_TEMP/credential-detail.xcresult" \
-              --output-path "$RUNNER_TEMP/credential-detail-screenshots"
-          fi
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: credential-detail-screenshots
-          path: ${{ runner.temp }}/credential-detail-screenshots
-          retention-days: 7
-
+            xcrun simctl boot "$device"
+            xcrun simctl bootstatus "$device" -b
+            xcrun simctl spawn "$device" defaults write com.apple.Accessibility ReduceMotionEnabled -bool true
+            xcodebuild -quiet -project "$qa/CardVault.xcodeproj" -scheme CardVault -configuration Debug \
+              -destination "platform=iOS Simulator,id=$device" -parallel-testing-enabled NO \
+              -resultBundlePath "$private_dir/camera-regression.xcresult" \
+              CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO test
+            xcrun simctl shutdown "$device"
+          } > "$private_dir/qa.log" 2>&1
+          echo "CAMERA_GUIDE_REGRESSION_PASSED"
       - name: Prepare the validated app project
         run: |
           set -euo pipefail
@@ -190,6 +192,26 @@ jobs:
             exit 1
           fi
           echo "The pinned internal beta was uploaded to Apple."
+      - name: Preserve encrypted camera diagnostics on failure
+        if: failure()
+        run: |
+          set -euo pipefail
+          umask 077
+          d="$RUNNER_TEMP/ios-internal-sign"
+          if test -s "$d/qa.log" && test -x "$d/venv/bin/python"; then
+            "$d/venv/bin/python" .github/ios-sign-once/transport.py seal \
+              .github/ios-sign-once/diagnostic-public.pem "$d/qa.log" "$d/camera-diagnostics.sealed"
+            shasum -a 256 "$d/qa.log" | cut -d ' ' -f 1 > "$d/camera-diagnostics.sha256"
+          fi
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: camera-operator-diagnostics
+          path: |
+            ${{ runner.temp }}/ios-internal-sign/camera-diagnostics.sealed
+            ${{ runner.temp }}/ios-internal-sign/camera-diagnostics.sha256
+          if-no-files-found: ignore
+          retention-days: 1
       - name: Remove temporary signing data
         if: always()
         run: |
@@ -208,7 +230,7 @@ jobs:
   verify:
     needs: sign
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 16
     steps:
       - uses: actions/checkout@v5
         with:
@@ -225,7 +247,7 @@ jobs:
           ASC_API_KEY_P8: ${{ secrets.ASC_API_KEY_P8 }}
         run: |
           set -euo pipefail
-          root=.github/cards-detail-beta
+          root=.github/cards-camera-beta
           ruby -c "$root/client.rb"
           ruby -c "$root/assign.rb"
           ruby "$root/assign.rb"
