@@ -17,6 +17,7 @@ unlock = """        #if DEBUG && targetEnvironment(simulator)
                 session = opened.session ?? Session(keyID: UUID(), key: Self.credentialFixtureKey)
                 contents = opened.contents
                 isUnlocked = true
+                print("VISA QA fixture vault opened with \\(records.count) records")
                 if ProcessInfo.processInfo.arguments.contains("--seed-legacy-bank"),
                    !records.contains(where: { $0.title == "旧版银行卡样本" }) {
                     var legacy = CardRecord(title: "旧版银行卡样本", category: "银行卡", owner: "本人", number: "4242")
@@ -27,6 +28,7 @@ unlock = """        #if DEBUG && targetEnvironment(simulator)
                 return true
             } catch {
                 authenticationMessage = error.localizedDescription
+                print("VISA QA fixture vault open failed: \\(error.localizedDescription)")
                 return false
             }
         }
@@ -64,6 +66,7 @@ edit(vault, save_boundary, """        try persist(updated)
             precondition(bank.bankTail == record.bankTail && !bank.bankDetails.hasProtectedNumbers && bank.photoPages.isEmpty)
             let opened = try readArchive(using: LAContext())
             precondition(opened.contents.records.first(where: { $0.id == record.id })?.photoPages == record.photoPages)
+            print("VISA QA archive contains \\(record.photoPages.count) protected photo pages")
             let encrypted = try Data(contentsOf: archiveURL())
             if !record.bankDetails.cardNumber.isEmpty {
                 precondition(encrypted.range(of: Data(record.bankDetails.cardNumber.utf8)) == nil)
@@ -77,6 +80,14 @@ edit(vault, save_boundary, """        try persist(updated)
     func addFamilyMember""")
 
 detail = app / "Sources/CardVaultApp.swift"
+root_tint = "            .tint(Glass.ice)\n            .onOpenURL"
+edit(detail, root_tint, """            .tint(Glass.ice)
+            .task(id: scenePhase) {
+                guard scenePhase == .active, !vault.isUnlocked,
+                      ProcessInfo.processInfo.arguments.contains("--automatic-fixture-unlock") else { return }
+                _ = await vault.unlock()
+            }
+            .onOpenURL""")
 auth = "    private func authenticate(onVerified: @escaping () -> Void) {\n"
 edit(detail, auth, auth + """        #if DEBUG && targetEnvironment(simulator)
         if ProcessInfo.processInfo.arguments.contains("--credential-scan-fixture") {

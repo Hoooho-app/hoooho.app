@@ -1,7 +1,7 @@
 name: Verify Visa originals in the current Cards beta
 on:
   push:
-    branches: ['codex/cards-visa-originals-qa-ef4e6585']
+    branches: ['codex/cards-visa-originals-qa-ef4e6585-r2']
     paths: ['.github/workflows/ios-internal-sign-once.yml']
 permissions:
   contents: read
@@ -39,7 +39,7 @@ jobs:
         env:
           EXPECTED_ARCHIVE_SHA: '72d7f5cc868b1a6dfa03e3f1daad5b658848c7adbf94fb5346e46d8f5d0801e3'
           EXPECTED_SOURCE: 'ef4e658526b56ef77bab7ccc86bc192662c124dc'
-          SEALED_INPUT_BRANCH: 'codex/cards-visa-originals-qa-intake-ef4e6585'
+          SEALED_INPUT_BRANCH: 'codex/cards-visa-originals-qa-intake-ef4e6585-r2'
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
@@ -97,13 +97,14 @@ jobs:
             -resultBundlePath "$RUNNER_TEMP/credential-detail.xcresult" \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO test 2>&1 \
             | tee "$RUNNER_TEMP/credential-detail-test.log" \
-            | awk '/Test Case|Test Suite|error:|warning:|\*\* TEST|CoreSimulator|Execute|Testing started/ {print; fflush()}'
+            | awk '/VISA QA|Test Case|Test Suite|error:|warning:|\*\* TEST|CoreSimulator|Execute|Testing started/ {print; fflush()}'
       - name: Export screenshots from the synthetic flow
         if: always()
         run: |
           if test -d "$RUNNER_TEMP/credential-detail.xcresult"; then
             xcrun xcresulttool export attachments --path "$RUNNER_TEMP/credential-detail.xcresult" \
               --output-path "$RUNNER_TEMP/credential-detail-screenshots"
+            find "$RUNNER_TEMP/credential-detail-screenshots" -type f ! -name '*.png' -delete
           fi
       - uses: actions/upload-artifact@v4
         if: always()
