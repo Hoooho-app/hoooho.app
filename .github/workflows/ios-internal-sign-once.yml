@@ -1,7 +1,7 @@
 name: Ship verified credential detail to the internal beta
 on:
   push:
-    branches: ['codex/ios-sign-once-detail-34f29394-r3']
+    branches: ['codex/ios-sign-once-detail-ef4e6585-mac26']
     paths: ['.github/workflows/ios-internal-sign-once.yml']
 permissions:
   contents: read
@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   sign:
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 42
     defaults:
       run:
@@ -37,9 +37,9 @@ jobs:
           if-no-files-found: error
       - name: Fetch and validate the sealed release input
         env:
-          EXPECTED_ARCHIVE_SHA: '79fdf23d4cd88f86865e8afdeefa2bd42a4902764a899e3bc2cf69acdfe7201f'
-          EXPECTED_SOURCE: '34f29394a6bf6a33bc269e73584a0f5f7d284d0d'
-          SEALED_INPUT_BRANCH: 'codex/cards-detail-sealed-34f29394-r3'
+          EXPECTED_ARCHIVE_SHA: '72d7f5cc868b1a6dfa03e3f1daad5b658848c7adbf94fb5346e46d8f5d0801e3'
+          EXPECTED_SOURCE: 'ef4e658526b56ef77bab7ccc86bc192662c124dc'
+          SEALED_INPUT_BRANCH: 'codex/cards-detail-sealed-ef4e6585-mac26'
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
