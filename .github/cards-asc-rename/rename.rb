@@ -173,15 +173,33 @@ def linked?(client, group_id, build_id)
     .fetch("data").any? { |build| build["id"] == build_id }
 end
 
-client.add_build(group_id, build_id) unless linked?(client, group_id, build_id)
-10.times do
-  if linked?(client, group_id, build_id)
-    detail = client.get("/v1/builds/#{build_id}/buildBetaDetail").dig("data", "attributes", "internalBuildState")
-    if detail == "IN_BETA_TESTING"
+puts("PINNED_BUILD_VALID #{marketing_version} (#{version})")
+retryable = /HTTP (404|409|429|500|502|503|504)\b/
+last_state = nil
+18.times do
+  begin
+    linked = linked?(client, group_id, build_id)
+    state = client.get("/v1/builds/#{build_id}/buildBetaDetail").dig("data", "attributes", "internalBuildState")
+    if state != last_state && state.to_s.match?(/\A[A-Z_]+\z/)
+      puts("PINNED_INTERNAL_STATE #{state}")
+      last_state = state
+    end
+    if linked && state == "IN_BETA_TESTING"
       puts("INTERNAL_TESTFLIGHT_VERIFIED #{marketing_version} (#{version})")
       exit 0
     end
+    unless linked
+      begin
+        client.add_build(group_id, build_id)
+      rescue RuntimeError => error
+        raise unless error.message.include?("HTTP 404 ")
+        client.add_group(build_id, group_id)
+      end
+    end
+  rescue RuntimeError => error
+    raise unless error.message.match?(retryable)
+    puts("Waiting for the processed build and internal group relationship.")
   end
-  sleep 4
+  sleep 7
 end
-abort("Build assignment completed without confirmation of internal Testing status.")
+abort("The processed build could not be confirmed as available to the existing internal group.")

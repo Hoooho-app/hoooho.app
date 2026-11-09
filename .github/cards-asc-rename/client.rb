@@ -35,6 +35,11 @@ class AppStoreConnect
       body: { data: [{ type: "builds", id: build_id }] })
   end
 
+  def add_group(build_id, group_id)
+    request(Net::HTTP::Post, "/v1/builds/#{build_id}/relationships/betaGroups",
+      body: { data: [{ type: "betaGroups", id: group_id }] })
+  end
+
   private
 
   def token
