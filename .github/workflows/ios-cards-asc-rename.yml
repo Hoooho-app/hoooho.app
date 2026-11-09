@@ -1,7 +1,7 @@
-name: Verify the bounded bank beta upload
+name: Verify complete credential fields in the internal beta
 on:
   push:
-    branches: ['codex/cards-asc-bank-28004433-bounded']
+    branches: ['codex/cards-beta-fields-00e7fc09']
     paths:
       - '.github/cards-asc-rename/release-ready'
 permissions:
