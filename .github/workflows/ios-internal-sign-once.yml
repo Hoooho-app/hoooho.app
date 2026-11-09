@@ -1,17 +1,17 @@
-name: One-shot iOS internal beta signing
+name: Ship verified credential detail to the internal beta
 on:
   push:
-    branches: ['codex/ios-sign-once-photos-e5335290']
+    branches: ['codex/ios-sign-once-detail-f9228745']
     paths: ['.github/workflows/ios-internal-sign-once.yml']
 permissions:
   contents: read
 concurrency:
-  group: ios-internal-sign-once
+  group: cards-detail-internal-beta
   cancel-in-progress: false
 jobs:
   sign:
     runs-on: macos-15
-    timeout-minutes: 35
+    timeout-minutes: 42
     defaults:
       run:
         shell: bash
@@ -37,19 +37,81 @@ jobs:
           if-no-files-found: error
       - name: Fetch and validate the sealed release input
         env:
-          EXPECTED_ARCHIVE_SHA: '1a4b5012d554183c13f6294023a337f491e39104fe89980365707019421a83da'
+          EXPECTED_ARCHIVE_SHA: '850a94dd8b4755d400fbe1625c3f717323a8ea0387c58ecc5c0ac0651f125676'
+          EXPECTED_SOURCE: 'f9228745f6bea29ab03ab3db5feacf887911da0e'
+          SEALED_INPUT_BRANCH: 'codex/cards-detail-sealed-f9228745'
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           umask 077
           private_dir="$RUNNER_TEMP/ios-internal-sign"
           py="$private_dir/venv/bin/python"
-          "$py" .github/ios-sign-once/relay.py "$private_dir/private.pem" "$GITHUB_REPOSITORY" "$GITHUB_REF_NAME" "$private_dir/Package.sealed"
+          # Accept only the sealed source digest pinned to this validation and beta run.
+          ref="repos/$GITHUB_REPOSITORY/git/ref/heads/$SEALED_INPUT_BRANCH"
+          input_commit=""
+          for check in $(seq 1 120); do
+            if input_commit="$(gh api "$ref" --jq '.object.sha' 2>/dev/null)"; then break; fi
+            sleep 5
+          done
+          if ! [[ "$input_commit" =~ ^[0-9a-f]{40}$ ]]; then
+            echo 'The authorized sealed input did not arrive.'; exit 1
+          fi
+          gh api "repos/$GITHUB_REPOSITORY/git/trees/$input_commit?recursive=1" \
+            --jq '.tree[] | select(.type == "blob" and (.path | test("^\\.github/cards-detail-intake/part-[0-9]{3}$"))) | [.path, .sha] | @tsv' \
+            | LC_ALL=C sort > "$private_dir/parts.tsv"
+          test -s "$private_dir/parts.tsv"
+          : > "$private_dir/Package.sealed"
+          while IFS=$'\t' read -r path blob; do
+            gh api "repos/$GITHUB_REPOSITORY/git/blobs/$blob" --jq '.content' \
+              | python3 -c 'import base64, sys; sys.stdout.buffer.write(base64.b64decode(sys.stdin.buffer.read()))' >> "$private_dir/Package.sealed"
+          done < "$private_dir/parts.tsv"
           "$py" .github/ios-sign-once/transport.py open "$private_dir/private.pem" "$private_dir/Package.sealed" "$EXPECTED_ARCHIVE_SHA" "$private_dir/source.tgz"
           rm -f "$private_dir/private.pem" "$private_dir/Package.sealed"
           mkdir -m 700 "$private_dir/source"
           "$py" .github/ios-sign-once/transport.py extract "$private_dir/source.tgz" "$private_dir/source"
+          python3 -c 'import json, sys; assert json.load(open(sys.argv[1]))["verified_source"] == sys.argv[2]' "$private_dir/source/release.json" "$EXPECTED_SOURCE"
           rm -f "$private_dir/source.tgz"
           echo "Release input matches the pinned digest."
+      - name: Prepare the synthetic device fixture
+        run: |
+          cp -R "$RUNNER_TEMP/ios-internal-sign/source/CardVault" "$RUNNER_TEMP/DetailQA"
+          python3 .github/cards-detail-qa/fixture.py "$RUNNER_TEMP/DetailQA" .github/cards-detail-qa/CredentialUITests.swift
+          bash "$RUNNER_TEMP/DetailQA/scripts/build.sh" project
+      - name: Exercise saved originals, verification and legacy records
+        run: |
+          set -euo pipefail
+          device="$(xcrun simctl list devices available -j | python3 -c '
+          import json,sys
+          for runtime, devices in sorted(json.load(sys.stdin)["devices"].items(), reverse=True):
+              for device in devices:
+                  if device["isAvailable"] and device["name"].startswith("iPhone"):
+                      print(device["udid"])
+                      sys.exit(0)
+          sys.exit("No installed iPhone simulator")
+          ')"
+          xcrun simctl boot "$device"
+          xcrun simctl bootstatus "$device" -b
+          xcrun simctl addmedia "$device" "$RUNNER_TEMP/DetailQA/Assets.xcassets/AppIcon.appiconset/AppIcon.png"
+          xcrun simctl status_bar "$device" override --time '9:41' --dataNetwork wifi --wifiMode active --wifiBars 4 --cellularMode active --cellularBars 4 --batteryState unplugged --batteryLevel 100
+          xcrun simctl spawn "$device" defaults write com.apple.Accessibility ReduceMotionEnabled -bool true
+          xcodebuild -project "$RUNNER_TEMP/DetailQA/CardVault.xcodeproj" -scheme CardVault -configuration Debug \
+            -destination "platform=iOS Simulator,id=$device" -parallel-testing-enabled NO \
+            -resultBundlePath "$RUNNER_TEMP/credential-detail.xcresult" \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO test
+      - name: Export screenshots from the synthetic flow
+        if: always()
+        run: |
+          if test -d "$RUNNER_TEMP/credential-detail.xcresult"; then
+            xcrun xcresulttool export attachments --path "$RUNNER_TEMP/credential-detail.xcresult" \
+              --output-path "$RUNNER_TEMP/credential-detail-screenshots"
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: credential-detail-screenshots
+          path: ${{ runner.temp }}/credential-detail-screenshots
+          retention-days: 7
+
       - name: Prepare the validated app project
         run: |
           set -euo pipefail
@@ -103,11 +165,6 @@ jobs:
           python3 "$GITHUB_WORKSPACE/.github/ios-sign-once/configure-lane.py"
           cd CardVault
           if ! python3 "$GITHUB_WORKSPACE/.github/ios-sign-once/limited-upload.py" "$private_dir/upload.log"; then
-            release_helper="$GITHUB_WORKSPACE/.github/ios-sign-once"
-            python3 "$release_helper/diagnostics.py" "$private_dir/diagnostics.txt"
-            shasum -a 256 "$private_dir/diagnostics.txt" | cut -d ' ' -f1 > "$private_dir/diagnostics.sha256"
-            "$private_dir/venv/bin/python" "$release_helper/transport.py" seal "$release_helper/diagnostic-public.pem" "$private_dir/diagnostics.txt" "$private_dir/diagnostics.sealed"
-            rm -f "$private_dir/diagnostics.txt"
             python3 - "$private_dir/upload.log" <<'PY'
           import re, sys
           from pathlib import Path
@@ -133,15 +190,6 @@ jobs:
             exit 1
           fi
           echo "The pinned internal beta was uploaded to Apple."
-      - uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: ios-operator-diagnostics
-          path: |
-            ${{ runner.temp }}/ios-internal-sign/diagnostics.sealed
-            ${{ runner.temp }}/ios-internal-sign/diagnostics.sha256
-          if-no-files-found: ignore
-          retention-days: 1
       - name: Remove temporary signing data
         if: always()
         run: |
@@ -156,3 +204,28 @@ jobs:
             if test -f "$chain"; then security delete-keychain "$chain" 2>/dev/null || true; fi
           done
           rm -rf "$RUNNER_TEMP/ios-internal-sign" "$signing"
+
+  verify:
+    needs: sign
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+      - name: Install API token tooling
+        run: gem install jwt --version 2.10.2 --no-document
+      - name: Assign and verify the pinned internal build
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_API_KEY_P8: ${{ secrets.ASC_API_KEY_P8 }}
+        run: |
+          set -euo pipefail
+          root=.github/cards-detail-beta
+          ruby -c "$root/client.rb"
+          ruby -c "$root/assign.rb"
+          ruby "$root/assign.rb"
