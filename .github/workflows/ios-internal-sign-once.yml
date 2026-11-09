@@ -1,7 +1,7 @@
 name: One-shot iOS internal beta signing
 on:
   push:
-    branches: ['codex/ios-sign-once-bank-28004433-bounded']
+    branches: ['codex/ios-sign-once-fields-db31ec40']
     paths: ['.github/workflows/ios-internal-sign-once.yml']
 permissions:
   contents: read
@@ -37,7 +37,7 @@ jobs:
           if-no-files-found: error
       - name: Fetch and validate the sealed release input
         env:
-          EXPECTED_ARCHIVE_SHA: 'a3ba9d1f4db96013e9dc60bddfd79813748fa37ccac44809d2b13322610c1edd'
+          EXPECTED_ARCHIVE_SHA: 'aabe36c4a96ed7022a5b8a1582a0a75efd2b64edcc750b2190a44fde98d8b865'
         run: |
           set -euo pipefail
           umask 077
