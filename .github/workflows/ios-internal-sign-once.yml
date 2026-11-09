@@ -1,7 +1,7 @@
 name: One-shot iOS internal beta signing
 on:
   push:
-    branches: ['codex/ios-sign-once-bank-28004433-bounded']
+    branches: ['codex/ios-sign-once-rename-4061f434']
     paths: ['.github/workflows/ios-internal-sign-once.yml']
 permissions:
   contents: read
@@ -37,7 +37,7 @@ jobs:
           if-no-files-found: error
       - name: Fetch and validate the sealed release input
         env:
-          EXPECTED_ARCHIVE_SHA: 'a3ba9d1f4db96013e9dc60bddfd79813748fa37ccac44809d2b13322610c1edd'
+          EXPECTED_ARCHIVE_SHA: '698f8c6685a19eaf70bff0fcd067b61498ce0fbafd968728e9f4d3953b77c495'
         run: |
           set -euo pipefail
           umask 077
@@ -100,9 +100,8 @@ jobs:
           export CARDS_IOS_PROVISION_PROFILE_BASE64="$(base64 < "$private_dir/cards.mobileprovision" | tr -d '\n')"
           python3 CardVault/scripts/verify_signing.py
           echo "Exact Apple signing configuration verified."
-          python3 "$GITHUB_WORKSPACE/.github/ios-sign-once/configure-lane.py"
           cd CardVault
-          if ! python3 "$GITHUB_WORKSPACE/.github/ios-sign-once/limited-upload.py" "$private_dir/upload.log"; then
+          if ! GITHUB_RUN_NUMBER=202511 GITHUB_RUN_ATTEMPT=5 fastlane ios cards_beta > "$private_dir/upload.log" 2>&1; then
             release_helper="$GITHUB_WORKSPACE/.github/ios-sign-once"
             python3 "$release_helper/diagnostics.py" "$private_dir/diagnostics.txt"
             shasum -a 256 "$private_dir/diagnostics.txt" | cut -d ' ' -f1 > "$private_dir/diagnostics.sha256"
@@ -132,7 +131,7 @@ jobs:
             echo "::error::Signing, upload or Apple processing did not complete."
             exit 1
           fi
-          echo "The pinned internal beta was uploaded to Apple."
+          echo "Internal beta upload and Apple processing completed."
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
