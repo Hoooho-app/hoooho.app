@@ -1,1 +1,0 @@
-export const manualRecordField = category => ({symptom:'symptom',diet:'food',sleep:'quality',elimination:'bowelPain',medication:'medicationName',activity:'activity',vaccination:'vaccineName',visit:'chiefComplaint',examination:'conclusion'})[category] ?? 'conclusion'
