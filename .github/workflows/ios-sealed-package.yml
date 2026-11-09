@@ -1,0 +1,21 @@
+name: Cards encrypted beta input
+on:
+  push:
+    branches: ['codex/cards-sealed-fields-00e7fc09-relay']
+    paths: ['Package.sealed']
+permissions:
+  contents: read
+jobs:
+  relay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ios-sealed-package
+          path: Package.sealed
+          retention-days: 1
+          if-no-files-found: error
