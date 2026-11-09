@@ -1,7 +1,7 @@
 name: One-shot iOS internal beta signing
 on:
   push:
-    branches: ['codex/ios-sign-once-bank-69ecd848']
+    branches: ['codex/ios-sign-once-rename-4061f434']
     paths: ['.github/workflows/ios-internal-sign-once.yml']
 permissions:
   contents: read
@@ -37,7 +37,7 @@ jobs:
           if-no-files-found: error
       - name: Fetch and validate the sealed release input
         env:
-          EXPECTED_ARCHIVE_SHA: '273b308952dc34d78186319252b33381316746451f4593d1900995aa71c98f7f'
+          EXPECTED_ARCHIVE_SHA: '698f8c6685a19eaf70bff0fcd067b61498ce0fbafd968728e9f4d3953b77c495'
         run: |
           set -euo pipefail
           umask 077
@@ -101,7 +101,7 @@ jobs:
           python3 CardVault/scripts/verify_signing.py
           echo "Exact Apple signing configuration verified."
           cd CardVault
-          if ! GITHUB_RUN_NUMBER=202511 GITHUB_RUN_ATTEMPT=7 fastlane ios cards_beta > "$private_dir/upload.log" 2>&1; then
+          if ! GITHUB_RUN_NUMBER=202511 GITHUB_RUN_ATTEMPT=5 fastlane ios cards_beta > "$private_dir/upload.log" 2>&1; then
             release_helper="$GITHUB_WORKSPACE/.github/ios-sign-once"
             python3 "$release_helper/diagnostics.py" "$private_dir/diagnostics.txt"
             shasum -a 256 "$private_dir/diagnostics.txt" | cut -d ' ' -f1 > "$private_dir/diagnostics.sha256"
