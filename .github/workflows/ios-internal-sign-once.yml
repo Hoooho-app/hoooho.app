@@ -37,7 +37,7 @@ jobs:
           if-no-files-found: error
       - name: Fetch and validate the sealed release input
         env:
-          EXPECTED_ARCHIVE_SHA: '4c087494f8683a21b0b019ade935f15dc0c01295a96f10e2395d3b9661090c75'
+          EXPECTED_ARCHIVE_SHA: '95b04659c10fd97bb57af182016e9d6ba345b02a454eed9ebe0f96c9d221e8ae'
           EXPECTED_SOURCE: 'ef4e658526b56ef77bab7ccc86bc192662c124dc'
           SEALED_INPUT_BRANCH: 'codex/cards-camera-qa-input-ef4e6585'
           GH_TOKEN: ${{ github.token }}
@@ -109,6 +109,7 @@ jobs:
             xcrun simctl spawn "$device" defaults write com.apple.Accessibility ReduceMotionEnabled -bool true
             xcodebuild -project "$qa/CardVault.xcodeproj" -scheme CardVault -configuration Debug \
               -destination "platform=iOS Simulator,id=$device" -parallel-testing-enabled NO \
+              -test-timeouts-enabled YES -default-test-execution-time-allowance 180 \
               -resultBundlePath "$private_dir/camera-regression.xcresult" \
               CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO test
             xcrun simctl shutdown "$device"
