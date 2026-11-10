@@ -1,7 +1,7 @@
-name: Ship the verified Cards homepage to internal TestFlight
+name: Ship the new Cards credential form to internal TestFlight
 on:
   push:
-    branches: ['codex/ios-sign-once-home-sort-5dada1']
+    branches: ['codex/ios-sign-once-cards-add-4617db4']
     paths: ['.github/workflows/ios-internal-sign-once.yml']
 permissions:
   contents: read
@@ -37,13 +37,22 @@ jobs:
           if-no-files-found: error
       - name: Fetch and validate the sealed release input
         env:
-          EXPECTED_ARCHIVE_SHA: '9e7b8ae5180f301170a3a7b364d07d52ff88f397966437bf40f860d5807a2c84'
+          EXPECTED_ARCHIVE_SHA: '5003a1a8571c41ff6dd6bb66678f300378866fa1bb7f58f39e74d66aed6d87cb'
         run: |
           set -euo pipefail
           umask 077
           private_dir="$RUNNER_TEMP/ios-internal-sign"
           py="$private_dir/venv/bin/python"
-          "$py" .github/ios-sign-once/relay.py "$private_dir/private.pem" "$GITHUB_REPOSITORY" "$GITHUB_REF_NAME" "$private_dir/Package.sealed"
+          encrypted_source="https://raw.githubusercontent.com/$GITHUB_REPOSITORY/refs/heads/$GITHUB_REF_NAME/Package.sealed"
+          for attempt in $(seq 1 100); do
+            if curl --fail --silent --proto '=https' --max-time 12 --max-filesize 1000000 \
+              --output "$private_dir/Package.pending" "$encrypted_source?attempt=$attempt"; then
+              mv "$private_dir/Package.pending" "$private_dir/Package.sealed"
+              break
+            fi
+            sleep 4
+          done
+          test -s "$private_dir/Package.sealed"
           "$py" .github/ios-sign-once/transport.py open "$private_dir/private.pem" "$private_dir/Package.sealed" "$EXPECTED_ARCHIVE_SHA" "$private_dir/source.tgz"
           rm -f "$private_dir/private.pem" "$private_dir/Package.sealed"
           mkdir -m 700 "$private_dir/source"
