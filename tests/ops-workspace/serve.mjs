@@ -39,10 +39,14 @@ async function reset() {
 
   billingFacts = null
   await workspace.saveSettings({ reminders: DEFAULT_REMINDERS })
-  await new JsonStore(path.join(dataDirectory, 'users.json'), {}).update(() => ({ users: [{ id: 'synthetic-ops-admin', email: 'ops@example.test', createdAt: new Date().toISOString() }] }))
+  await new JsonStore(path.join(dataDirectory, 'users.json'), {}).update(() => ({ users: [
+    { id: 'synthetic-ops-admin', email: 'ops@example.test', createdAt: new Date().toISOString() },
+    { id: 'other', email: 'other@example.test', createdAt: new Date().toISOString() },
+  ] }))
   await new JsonStore(path.join(dataDirectory, 'ops/billing-sources.json'), {}).update(() => ({ sources: [], snapshots: [], inactiveSources: [] }))
   await new JsonStore(path.join(dataDirectory, 'feedback/records.json'), {}).update(() => ({ feedback: [], attachments: [], messages: [], statusHistory: [] }))
   await new JsonStore(path.join(dataDirectory, 'ops/overview-receipts.json'), {}).update(() => ({ receipts: [] }))
+  await new JsonStore(path.join(dataDirectory, 'ops/delivery-workflow-events.json'), {}).update(() => ({ events: [] }))
   const snapshot = { privacyConfirmed: true, name: 'synthetic.png', type: 'image/png', dataUrl: `data:image/png;base64,${png.toString('base64')}` }
   await billing.addManualSnapshot('railway', snapshot)
   const family = await billing.create({ name: '家庭费用（合成）', projectId: 'family', platformUrl: 'https://example.test/billing', method: 'manual-screenshot', frequency: 'manual' })

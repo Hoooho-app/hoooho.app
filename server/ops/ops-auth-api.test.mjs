@@ -64,10 +64,13 @@ test('all Operations APIs share the same owner-only authorization', async () => 
     assert.equal((await publicProfile.json()).metrics.books, 3)
     assert.equal((await json(`${base}/api/ops/capabilities`)).status, 401)
     assert.equal((await json(`${base}/api/ops/workflow`)).status, 401)
+    assert.equal((await json(`${base}/api/ops/workflow/delivery`)).status, 401)
     const protectedRequests = [
       ['/api/ops/capabilities', 'GET'], ['/api/ops/capabilities/search', 'POST', {query:'合成孩子没测体温'}], ['/api/ops/capabilities/evaluate', 'POST'], ['/api/ops/capabilities/sources/fund-patient', 'GET'],
       ['/api/ops/capture/runtime', 'GET'], ['/api/ops/services', 'GET'], ['/api/ops/workflow', 'GET'], ['/api/ops/settings', 'GET'], ['/api/ops/settings', 'PATCH', { reminders: { noticeDays: 30, warningDays: 7, criticalDays: 3, quotaWarningPercent: 20, quotaCriticalPercent: 5 } }], ['/api/ops/versions', 'GET'],
       ['/api/ops/overview', 'GET'], ['/api/ops/overview/viewed', 'POST', { id: `feedback:${createdFeedback.id}:0` }],
+      ['/api/ops/workflow/delivery', 'GET'],
+      ['/api/ops/workflow/delivery', 'POST', { action: 'start', project: 'hoooho', revision: 0, requestId: '12345678-1234-1234-1234-123456789abc', version: '1.2.3' }],
       ['/api/ops/session', 'GET'], ['/api/ops/sources', 'GET'], ['/api/ops/sources', 'POST', { name: 'Test', platformUrl: 'https://example.com/billing', method: 'manual-screenshot', frequency: 'manual' }],
       ['/api/ops/sources/railway', 'PATCH', { notes: 'test' }], ['/api/ops/refresh', 'POST'], ['/api/ops/feedback', 'GET'],
       [`/api/ops/feedback/${createdFeedback.id}`, 'GET'], [`/api/ops/feedback/${createdFeedback.id}`, 'PATCH', { status: 'reviewing' }],

@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { MaterialIcon } from '../../components/icons'
 import { HohoButton } from '../../components/design-system/HohoButton'
 import { useResource } from './Modules'
+import { OpsDeliveryWorkflow } from './DeliveryWorkflow'
 import './workflow.css'
 
 const labels = {
@@ -30,6 +31,7 @@ const contains = (view: View, node: string) => view.stages.some(stage => stage.n
 export function OpsWorkflowPage() {
   const { data, error, loading, reload } = useResource<Workflow>('/api/ops/workflow')
   const [params, setParams] = useSearchParams()
+  const delivery = params.get('view') === 'delivery'
   const view = data?.views.find(item => item.id === params.get('view')) ?? data?.views[0]
   const requested = params.get('node')
   const selected = view && requested && contains(view, requested) ? requested : null
@@ -59,9 +61,16 @@ export function OpsWorkflowPage() {
   }
   return <main className="ops-module-page ops-flow" aria-label="工作流">
     <header className="ops-overview-heading ops-flow-heading">
-      <div><p className="ops-flow-eyebrow">护护记录 · 生产架构</p><h1>工作流</h1><p>点节点看职责和配置；沿带说明的箭头追踪请求、数据或观测结果。</p></div>
-      <HohoButton variant="secondary" loading={loading} onClick={reload}>重新读取</HohoButton>
+      <div><p className="ops-flow-eyebrow">护护 · 总控制台</p><h1>工作流</h1><p>查看生产链路，或追踪各项目的开发与发布进度。</p></div>
+      {!delivery && <HohoButton variant="secondary" loading={loading} onClick={reload}>重新读取</HohoButton>}
     </header>
+    <nav className="ops-flow-views" aria-label="工作流视图">
+      {data?.views.map(item => <HohoButton key={item.id} variant={!delivery && view?.id === item.id ? 'primary' : 'secondary'} aria-pressed={!delivery && view?.id === item.id} onClick={() => choose(item)}>{item.title}</HohoButton>)}
+      <HohoButton variant={delivery ? 'primary' : 'secondary'} aria-pressed={delivery} onClick={() => setParams(previous => {
+        const updated = new URLSearchParams(previous); updated.set('view', 'delivery'); updated.delete('node'); return updated
+      }, { preventScrollReset: true })}>开发与交付</HohoButton>
+    </nav>
+    {delivery ? <OpsDeliveryWorkflow /> : <>
     {error && <div className="ops-error" role="alert">读取失败。{data ? '下方是上次成功读取的快照。' : '暂时无法显示生产配置。'}<button type="button" onClick={reload}>重试</button></div>}
     {!data && !error && <p role="status">正在读取当前工作流…</p>}
     {data && view && <>
@@ -71,9 +80,6 @@ export function OpsWorkflowPage() {
         <div><dt>部署版本</dt><dd>{data.runtime.revision ? <a href={`https://github.com/Hoooho-app/hoooho.app/commit/${data.runtime.revision}`} target="_blank" rel="noreferrer">{data.runtime.revision.slice(0, 9)}</a> : '无运行提交回执'}</dd></div>
         <div><dt>{error ? '上次成功读取' : '读取时间（北京）'}</dt><dd><time dateTime={data.checkedAt}>{stamp.format(new Date(data.checkedAt))}</time></dd></div>
       </dl>
-      <nav className="ops-flow-views" aria-label="查看生产链路">
-        {data.views.map(item => <HohoButton key={item.id} variant={view.id === item.id ? 'primary' : 'secondary'} aria-pressed={view.id === item.id} onClick={() => choose(item)}>{item.title}</HohoButton>)}
-      </nav>
       <p className="ops-flow-scope">{view.detail}</p>
       {!!view.lanes?.length && <section className="ops-flow-routes" aria-label={`${view.title}流程图`}>
         <header><h2>链路图</h2><p>虚线表示历史关系、待核验路径或只读观测；不会把它们当成正式请求。</p></header>
@@ -113,8 +119,10 @@ export function OpsWorkflowPage() {
             return next && <HohoButton key={id} variant="secondary" onClick={() => choose(next, id)}>{data.nodes[id].title} →</HohoButton>
           })}</nav>}
           {detail.link && (detail.link[1].startsWith('/') ? <Link to={detail.link[1]}>{detail.link[0]} ↗</Link> : <a href={detail.link[1]} target="_blank" rel="noreferrer">{detail.link[0]} ↗</a>)}
+          {selected === 'testflight' && <p><Link to="/ops/workflow?view=delivery&deliveryProject=hoooho&step=apple-api-key">查看 iOS 配置和交付节点 →</Link></p>}
         </> : <p className="ops-module-muted">选择上方任一节点，查看它的职责、状态依据和下一环。这里不改配置，也不发起发布或模型调用。</p>}
       </section>
+    </>}
     </>}
   </main>
 }
