@@ -25,8 +25,15 @@ verified_app(client)
 group_id = internal_group(client).fetch("id")
 abort("Invalid group identifier.") unless group_id.match?(/\A[0-9a-f-]{36}\z/i)
 app_id = APP_ID
-version = "2026.11.20"
+version = "2026.11.21"
 marketing_version = "0.1.0"
+if ARGV == ["preflight"]
+  existing = client.get("/v1/builds", { "filter[app]" => app_id, "filter[version]" => version }).fetch("data")
+  abort("The pinned build number is already in use.") unless existing.empty?
+  puts("Verified the app, the existing internal group, and the unused build number.")
+  exit 0
+end
+abort("Unexpected release arguments.") unless ARGV.empty?
 build_id = nil
 100.times do
   response = client.get("/v1/builds", {

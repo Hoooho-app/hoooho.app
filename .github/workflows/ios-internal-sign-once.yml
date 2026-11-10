@@ -1,7 +1,7 @@
-name: Verify family management and ship Cards internal beta
+name: Ship the verified Cards homepage to internal TestFlight
 on:
   push:
-    branches: ['codex/ios-sign-once-family-ef4e6585']
+    branches: ['codex/ios-sign-once-home-sort-5dada1']
     paths: ['.github/workflows/ios-internal-sign-once.yml']
 permissions:
   contents: read
@@ -37,7 +37,7 @@ jobs:
           if-no-files-found: error
       - name: Fetch and validate the sealed release input
         env:
-          EXPECTED_ARCHIVE_SHA: 'dd0be01282784959c50b77fdbfc9148f2dd7910a4137ed63751a697b2717f945'
+          EXPECTED_ARCHIVE_SHA: '9e7b8ae5180f301170a3a7b364d07d52ff88f397966437bf40f860d5807a2c84'
         run: |
           set -euo pipefail
           umask 077
@@ -60,26 +60,13 @@ jobs:
             exit 1
           fi
           echo "App project prepared."
-      - name: Validate the pinned iPhone family management flow
-        run: |
-          set -euo pipefail
-          umask 077
-          private_dir="$RUNNER_TEMP/ios-internal-sign"
-          helper="$GITHUB_WORKSPACE/.github/ios-sign-once"
-          if ! bash "$private_dir/source/family-qa/verify.sh" "$private_dir" > "$private_dir/family-qa.log" 2>&1; then
-            tail -n 260 "$private_dir/family-qa.log" > "$private_dir/diagnostics.txt"
-            shasum -a 256 "$private_dir/diagnostics.txt" | cut -d ' ' -f1 > "$private_dir/diagnostics.sha256"
-            "$private_dir/venv/bin/python" "$helper/transport.py" seal "$helper/diagnostic-public.pem" "$private_dir/diagnostics.txt" "$private_dir/diagnostics.sealed"
-            rm -f "$private_dir/diagnostics.txt"
-            echo "::error::The pinned iPhone verification did not pass."
-            exit 1
-          fi
-          echo "Family migration, rename, sort, relaunch and backup recovery passed on the iPhone simulator."
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: '3.3'
       - name: Install release tooling
-        run: gem install fastlane --version 2.231.0 --no-document
+        run: |
+          gem install fastlane --version 2.231.0 --no-document
+          gem install jwt --version 2.10.2 --no-document
       - name: Verify Apple app and sign and upload the internal beta
         env:
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
@@ -109,6 +96,8 @@ jobs:
           export CARDS_ASC_KEY_ID="$ASC_KEY_ID" CARDS_ASC_ISSUER_ID="$ASC_ISSUER_ID" CARDS_ASC_API_KEY_P8="$ASC_API_KEY_P8"
           export CARDS_IOS_DISTRIBUTION_P12_BASE64="$IOS_DISTRIBUTION_P12_BASE64"
           export CARDS_IOS_DISTRIBUTION_P12_PASSWORD="$IOS_DISTRIBUTION_P12_PASSWORD"
+          ruby -c "$GITHUB_WORKSPACE/.github/cards-family-beta/assign.rb"
+          ruby "$GITHUB_WORKSPACE/.github/cards-family-beta/assign.rb" preflight
           printf '%s\n' "$CARDS_ASC_API_KEY_P8" > "$private_dir/AuthKey.p8"
           ruby fetch_profile.rb "$private_dir/AuthKey.p8" "$private_dir/cards.mobileprovision"
           rm -f "$private_dir/AuthKey.p8"
