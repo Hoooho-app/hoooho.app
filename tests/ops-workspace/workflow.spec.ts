@@ -2,6 +2,36 @@ import { expect, test } from '@playwright/test'
 import { TokenService } from '../../server/auth/token-service.mjs'
 
 const token = new TokenService('ops-workspace-synthetic-secret', 3_600_000).create({ id: 'synthetic-ops-admin', email: 'ops@example.test' })
+
+test('dates stay in their workflow nodes and build identity; renewal persists and can be cleared', async ({ page, request }) => {
+  expect((await request.post('/__test/reset')).ok()).toBeTruthy()
+  const api = '/api/ops/workflow/expiry'
+  expect((await request.get(api)).status()).toBe(401)
+  await page.clock.setFixedTime(new Date('2030-04-01T16:00:00Z'))
+  await page.addInitScript(value => sessionStorage.setItem('hoooho-ops-auth-token', value), token)
+  await page.goto('/ops/workflow?view=delivery&deliveryProject=hoooho&step=distribution-certificate')
+  const dates = page.getByRole('region', { name: '到期与续订' })
+  await expect(dates).toContainText('还剩 29 天')
+  await dates.getByRole('button', { name: '更新日期' }).click()
+  await dates.getByLabel('Apple Distribution 证书到期日').fill('2030-06-01')
+  await dates.getByRole('button', { name: '保存日期' }).click()
+  await expect(dates.getByRole('status')).toContainText('日期已保存')
+  await page.reload()
+  await page.getByRole('button', { name: /^GitHub · 签名材料 Secrets/ }).click()
+  await expect(dates).toContainText('还剩 60 天')
+  await expect(dates.locator('.ops-expiry-row').filter({ hasText: 'App Store 分发描述文件到期日' }).getByLabel('日期未核实')).toBeVisible()
+  await dates.getByRole('button', { name: '更新日期' }).click()
+  await dates.getByLabel('Apple Distribution 证书到期日').fill('')
+  await dates.getByRole('button', { name: '保存日期' }).click()
+  await expect(dates).not.toContainText('2030-06-01')
+  await page.getByRole('button', { name: /^内测组与测试者/ }).click()
+  await expect(dates).toContainText('1.2.0 (18)')
+  await page.getByLabel('计划版本号').fill('1.2.0')
+  await page.getByRole('button', { name: '新建交付轮次' }).click()
+  await page.getByRole('button', { name: /^上传构建/ }).click()
+  await expect(dates).toContainText('确认上传回执并登记构建号后可填写')
+  await expect(dates).not.toContainText('2030-04-15')
+})
 test('workflow is navigable from the sidebar, keeps deep links, and distinguishes regional evidence', async ({ page, request }) => {
   expect((await request.post('/__test/reset')).ok()).toBeTruthy()
   await page.addInitScript(value => sessionStorage.setItem('hoooho-ops-auth-token', value), token)

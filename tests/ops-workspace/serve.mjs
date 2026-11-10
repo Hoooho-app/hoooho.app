@@ -47,6 +47,11 @@ async function reset() {
   await new JsonStore(path.join(dataDirectory, 'feedback/records.json'), {}).update(() => ({ feedback: [], attachments: [], messages: [], statusHistory: [] }))
   await new JsonStore(path.join(dataDirectory, 'ops/overview-receipts.json'), {}).update(() => ({ receipts: [] }))
   await new JsonStore(path.join(dataDirectory, 'ops/delivery-workflow-events.json'), {}).update(() => ({ events: [] }))
+  await new JsonStore(path.join(dataDirectory, 'ops/workflow-expiry-overrides.json'), {}).update(() => ({ rows: [] }))
+  await new JsonStore(path.join(dataDirectory, 'ops/workflow-expiry-sources.json'), []).update(() => [
+    { asset: 'distribution-certificate', project: 'hoooho', version: null, build: null, date: '2030-05-01', exactAt: null, checkedOn: '2030-04-01' },
+    { asset: 'testflight-build', project: 'hoooho', version: '1.2.0', build: '18', date: '2030-04-15', exactAt: null, checkedOn: '2030-04-01' },
+  ])
   const snapshot = { privacyConfirmed: true, name: 'synthetic.png', type: 'image/png', dataUrl: `data:image/png;base64,${png.toString('base64')}` }
   await billing.addManualSnapshot('railway', snapshot)
   const family = await billing.create({ name: '家庭费用（合成）', projectId: 'family', platformUrl: 'https://example.test/billing', method: 'manual-screenshot', frequency: 'manual' })

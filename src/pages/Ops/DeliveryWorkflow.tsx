@@ -4,6 +4,7 @@ import { HohoButton } from '../../components/design-system/HohoButton'
 import { opsApiRequest } from '../../services/opsAuth'
 import { ApiRequestError } from '../../services/apiClient'
 import { useResource } from './Modules'
+import { ExpiryBadges, ExpiryDetails, expiryRows, type WorkflowExpiryResource } from './WorkflowExpiry'
 import './delivery-workflow.css'
 
 const endpoint = '/api/ops/workflow/delivery'
@@ -66,7 +67,7 @@ function RecordForm({ step, scope, run, previous, observation, reasons, saving, 
   </form>
 }
 
-export function OpsDeliveryWorkflow() {
+export function OpsDeliveryWorkflow({ expiry }: { expiry: WorkflowExpiryResource }) {
   const { data, setData, error, loading, reload, token } = useResource<Delivery>(endpoint)
   const [params, setParams] = useSearchParams()
   const [saving, setSaving] = useState(false), [saveError, setSaveError] = useState(''), [saved, setSaved] = useState('')
@@ -95,6 +96,7 @@ export function OpsDeliveryWorkflow() {
   const missingPrior = selection && scope === 'release' && run && buildPrior[selection.id] && releaseState(buildPrior[selection.id]) !== 'confirmed'
   const track = scope === 'setup' ? setupSteps : releaseSteps
   const nextStep = selection ? track[track.indexOf(selection) + 1] : undefined
+  const datesFor = (step: string, section: Scope) => expiryRows(expiry.data, { step, project: project?.id, round: section === 'release' ? run ?? null : undefined })
   useEffect(() => {
     if (!follow.current || !selection) return
     follow.current = false
@@ -141,7 +143,7 @@ export function OpsDeliveryWorkflow() {
   }
 
   return <section className="ops-delivery" aria-label="开发与交付">
-    <header className="ops-delivery-intro"><div><h2>开发与交付</h2><p>从权限配置到安装验收。点开节点，查看入口、完成标准和卡住后的排查方法。</p></div><HohoButton variant="secondary" loading={loading} disabled={saving} onClick={reload}>刷新进度</HohoButton></header>
+    <header className="ops-delivery-intro"><div><h2>开发与交付</h2><p>从权限配置到安装验收。点开节点可查看操作入口、完成标准和到期日。</p></div><HohoButton variant="secondary" loading={loading || expiry.loading} disabled={saving || expiry.saving} onClick={() => { reload(); expiry.reload() }}>刷新进度</HohoButton></header>
     {error && <p role="alert" className="ops-error">进度读取失败。{data ? '下方是上次读到的记录；请刷新后再登记。' : '请重试。'}</p>}
     {!data && loading && <p role="status">正在读取项目工作流…</p>}
     {data && <>
@@ -175,7 +177,7 @@ export function OpsDeliveryWorkflow() {
               <h3>{section === 'setup' ? '长期配置' : '本轮交付'}</h3>
               {project[section].map(group => <div className="ops-delivery-group" key={group.title}><h4>{group.title}</h4><ol>
                 {group.steps.map(step => <li key={step.id}><button type="button" className="ops-delivery-step" aria-pressed={step.id === selection?.id} disabled={saving}
-                  onClick={() => navigate({ step: step.id }, true)}><span>{step.title}</span><Status state={section === 'setup' ? setupState(step.id) : releaseState(step.id)} /></button></li>)}
+                  onClick={() => navigate({ step: step.id }, true)}><span>{step.title}</span><Status state={section === 'setup' ? setupState(step.id) : releaseState(step.id)} /><ExpiryBadges rows={datesFor(step.id, section)} now={expiry.now} /></button></li>)}
               </ol></div>)}
             </section>)}
           </div>
@@ -189,6 +191,7 @@ export function OpsDeliveryWorkflow() {
               <div><dt>怎样才算完成</dt><dd>{selection.check}</dd></div>
               <div><dt>卡住先查什么</dt><dd>{selection.recovery}</dd></div>
             </dl>
+            <ExpiryDetails rows={datesFor(selection.id, scope)} resource={expiry} />
             {selection.fields && <ul className="ops-delivery-fields" aria-label="填写位置对照">{selection.fields.map(field => <li key={field.name}><code>{field.name}</code><span>{field.source} → {field.destination}</span></li>)}</ul>}
             {selection.links && <nav className="ops-delivery-links" aria-label="平台入口">{selection.links.map(item => <a key={item.label} href={item.href} target="_blank" rel="noreferrer">{item.label} ↗</a>)}</nav>}
             {selection.related && <nav className="ops-delivery-links" aria-label="关联配置节点">{selection.related.map(id => <button key={id} type="button" disabled={saving} onClick={() => navigate({ step: id }, true)}>{setupSteps.find(s => s.id === id)?.title} →</button>)}</nav>}

@@ -25,9 +25,9 @@
 .ops-delivery-group { margin-top: 7px; border-top: 1px solid rgb(var(--hoho-color-border)); }
 .ops-delivery-group h4 { margin: 8px 6px 3px; font-size: 12px; color: rgb(var(--hoho-color-text-secondary)); }
 .ops-delivery-group ol, .ops-delivery-fields { list-style: none; padding: 0; margin: 0; }
-.ops-delivery-step { display: flex; align-items: center; justify-content: space-between; gap: 5px; padding: 6px 8px; width: 100%; min-height: 38px; border-radius: var(--hoho-radius-control); text-align: left; font-size: 13px; }
+.ops-delivery-step { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 5px; padding: 6px 8px; width: 100%; min-height: 38px; border-radius: var(--hoho-radius-control); text-align: left; font-size: 13px; }
 .ops-delivery-step span:first-child { overflow-wrap: anywhere; }
-.ops-delivery-step .ops-module-status { flex-shrink: 0; }
+.ops-delivery-step .ops-module-status { justify-self: end; }
 .ops-delivery-step:hover, .ops-delivery-step[aria-pressed=true] { background: rgb(var(--hoho-color-primary-soft)); }
 .ops-delivery-detail { display: grid; gap: 12px; min-width: 0; }
 .ops-delivery-detail header h2 { margin-top: 3px; font-size: 18px; overflow-wrap: anywhere; }

@@ -4,6 +4,7 @@ import { MaterialIcon } from '../../components/icons'
 import { HohoButton } from '../../components/design-system/HohoButton'
 import { useResource } from './Modules'
 import { OpsDeliveryWorkflow } from './DeliveryWorkflow'
+import { ExpiryBadges, ExpiryDetails, expiryRows, useWorkflowExpiry } from './WorkflowExpiry'
 import './workflow.css'
 
 const labels = {
@@ -30,6 +31,7 @@ const contains = (view: View, node: string) => view.stages.some(stage => stage.n
 
 export function OpsWorkflowPage() {
   const { data, error, loading, reload } = useResource<Workflow>('/api/ops/workflow')
+  const expiry = useWorkflowExpiry()
   const [params, setParams] = useSearchParams()
   const delivery = params.get('view') === 'delivery'
   const view = data?.views.find(item => item.id === params.get('view')) ?? data?.views[0]
@@ -62,7 +64,7 @@ export function OpsWorkflowPage() {
   return <main className="ops-module-page ops-flow" aria-label="工作流">
     <header className="ops-overview-heading ops-flow-heading">
       <div><p className="ops-flow-eyebrow">护护 · 总控制台</p><h1>工作流</h1><p>查看生产链路，或追踪各项目的开发与发布进度。</p></div>
-      {!delivery && <HohoButton variant="secondary" loading={loading} onClick={reload}>重新读取</HohoButton>}
+      {!delivery && <HohoButton variant="secondary" loading={loading || expiry.loading} disabled={expiry.saving} onClick={() => { reload(); expiry.reload() }}>重新读取</HohoButton>}
     </header>
     <nav className="ops-flow-views" aria-label="工作流视图">
       {data?.views.map(item => <HohoButton key={item.id} variant={!delivery && view?.id === item.id ? 'primary' : 'secondary'} aria-pressed={!delivery && view?.id === item.id} onClick={() => choose(item)}>{item.title}</HohoButton>)}
@@ -70,7 +72,8 @@ export function OpsWorkflowPage() {
         const updated = new URLSearchParams(previous); updated.set('view', 'delivery'); updated.delete('node'); return updated
       }, { preventScrollReset: true })}>开发与交付</HohoButton>
     </nav>
-    {delivery ? <OpsDeliveryWorkflow /> : <>
+    {expiry.error && <div className="ops-error" role="alert">到期日读取失败。{expiry.data ? '下方保留上次读取的日期。' : '暂时无法显示日期。'}<button type="button" onClick={expiry.reload}>重试日期</button></div>}
+    {delivery ? <OpsDeliveryWorkflow expiry={expiry} /> : <>
     {error && <div className="ops-error" role="alert">读取失败。{data ? '下方是上次成功读取的快照。' : '暂时无法显示生产配置。'}<button type="button" onClick={reload}>重试</button></div>}
     {!data && !error && <p role="status">正在读取当前工作流…</p>}
     {data && view && <>
@@ -101,6 +104,7 @@ export function OpsWorkflowPage() {
             return <li key={id}><button type="button" className="ops-flow-node" aria-pressed={id === selected} onClick={() => choose(view, id)}>
               <strong>{node.title}<MaterialIcon name="chevron_right" aria-hidden="true" size={17} /></strong>
               <small>{node.term}</small><Status state={node.state} />
+              <ExpiryBadges rows={expiryRows(expiry.data, { node: id })} now={expiry.now} />
             </button></li>
           })}
         </ul></li>)}
@@ -109,6 +113,7 @@ export function OpsWorkflowPage() {
         {detail ? <>
           <header><div><small>节点详情 · {detail.term}</small><h2 tabIndex={-1} ref={heading}>{detail.title}</h2></div><Status state={detail.state} /></header>
           <p>{detail.detail}</p><p className="ops-flow-evidence">依据：{detail.evidence}</p>
+          {selected && <ExpiryDetails rows={expiryRows(expiry.data, { node: selected })} resource={expiry} />}
           {selected === 'agent' && <ul className="ops-flow-models" aria-label="Agent AI 所用能力">{data.ai.map(row => <li key={row.id}>
             <div><strong>{row.title}</strong><p>{row.usage}</p></div>
             <div><span>{row.provider ?? '—'}{row.models.length ? ` · ${row.models.join(' / ')}` : ''}</span><Status state={row.state} /></div>

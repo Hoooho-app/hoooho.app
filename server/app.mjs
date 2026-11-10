@@ -47,6 +47,7 @@ import { CaptureWorkerClient, handleCaptureApi } from './ops/capture-worker-clie
 import { OpsWorkspaceService } from './ops/workspace-service.mjs'
 import { readProductionWorkflow } from './ops/production-workflow.mjs'
 import { DELIVERY_PATH, DeliveryWorkflowService } from './ops/delivery-workflow.mjs'
+import { EXPIRY_PATH, WorkflowExpiryService } from './ops/workflow-expiry.mjs'
 import { createBillingCollectors } from './ops/capture-collectors.mjs'
 import { OPS_SNAPSHOT_REQUEST_MAX_LENGTH, OpsService, assertOpsAccess, startOpsScheduler } from './ops/ops-service.mjs'
 import { FeedbackService } from './help/feedback-service.mjs'
@@ -119,6 +120,7 @@ const captureWorker = new CaptureWorkerClient()
 await captureWorker.refreshMetadata()
 const opsWorkspace = new OpsWorkspaceService({ ...sharedOptions, captureWorker })
 const deliveryWorkflow = new DeliveryWorkflowService(sharedOptions)
+const workflowExpiry = new WorkflowExpiryService(sharedOptions)
 const resources = usageService(sharedOptions)
 const stopResourceMonitor = resources.start()
 const billingCollectors = createBillingCollectors({ worker: captureWorker })
@@ -287,6 +289,11 @@ async function handleOps(request, response, pathname) {
   else if (pathname === DELIVERY_PATH && request.method === 'POST') {
     browserSessions.assertSameOrigin(request)
     sendJson(response, 200, await deliveryWorkflow.record(await readJson(request, 2048)))
+  }
+  else if (pathname === EXPIRY_PATH && request.method === 'GET') sendJson(response, 200, await workflowExpiry.read())
+  else if (pathname === EXPIRY_PATH && request.method === 'POST') {
+    browserSessions.assertSameOrigin(request)
+    sendJson(response, 200, await workflowExpiry.record(await readJson(request, 1024)))
   }
   else if (pathname === '/api/ops/versions' && request.method === 'GET') sendJson(response, 200, await opsWorkspace.versions())
   else if (pathname === '/api/ops/settings' && request.method === 'GET') sendJson(response, 200, await opsWorkspace.settings())
