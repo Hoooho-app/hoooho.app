@@ -1,7 +1,7 @@
 name: Cards encrypted beta input
 on:
   push:
-    branches: ['codex/cards-sealed-family-ef4e6585-relay']
+    branches: ['codex/cards-sealed-banner-promo-240092a0-23']
     paths: ['Package.sealed']
 permissions:
   contents: read
