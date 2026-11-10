@@ -1,12 +1,12 @@
-name: Ship the verified Cards homepage to internal TestFlight
+name: Ship Cards homepage banners to internal TestFlight
 on:
   push:
-    branches: ['codex/ios-sign-once-home-sort-5dada1']
+    branches: ['codex/ios-sign-once-banner-promo-240092a0-23']
     paths: ['.github/workflows/ios-internal-sign-once.yml']
 permissions:
   contents: read
 concurrency:
-  group: cards-family-internal-beta
+  group: cards-banner-promo-240092a0-23
   cancel-in-progress: false
 jobs:
   sign:
@@ -37,7 +37,7 @@ jobs:
           if-no-files-found: error
       - name: Fetch and validate the sealed release input
         env:
-          EXPECTED_ARCHIVE_SHA: '9e7b8ae5180f301170a3a7b364d07d52ff88f397966437bf40f860d5807a2c84'
+          EXPECTED_ARCHIVE_SHA: 'a2466f6d67d3fde659ace7c2538c9e78a888eb0bb52233f07f387651bf108ffb'
         run: |
           set -euo pipefail
           umask 077
