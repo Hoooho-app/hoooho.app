@@ -1,0 +1,86 @@
+name: Unsigned iOS simulator check
+on:
+  push:
+    branches: [codex/cards-add-simulator-check-7143af5]
+    paths: [.github/workflows/cards-simulator-check.yml]
+permissions:
+  contents: read
+
+jobs:
+  preview:
+    name: Run unsigned simulator checks
+    runs-on: macos-15
+    timeout-minutes: 22
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Prepare a temporary encryption key
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          work="$RUNNER_TEMP/unsigned-simulator"
+          mkdir -p "$work"
+          python3 -m venv "$work/venv"
+          "$work/venv/bin/pip" install --quiet 'cryptography==50.0.0'
+          openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:3072 -out "$work/private.pem" 2>/dev/null
+          openssl pkey -in "$work/private.pem" -pubout -out "$work/Public.pem"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: simulator-input-key
+          path: ${{ runner.temp }}/unsigned-simulator/Public.pem
+          if-no-files-found: error
+          retention-days: 1
+      - name: Receive the encrypted source snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          work="$RUNNER_TEMP/unsigned-simulator"
+          url="https://raw.githubusercontent.com/$GITHUB_REPOSITORY/refs/heads/$GITHUB_REF_NAME/RunnerInput"
+          for attempt in {1..60}; do
+            if curl -fsS --proto '=https' --max-time 10 \
+              "$url/source.sha256?run=$GITHUB_RUN_ID&attempt=$attempt" -o "$work/source.sha256" 2>/dev/null; then
+              break
+            fi
+            sleep 6
+          done
+          digest="$(cat "$work/source.sha256")"
+          [[ "$digest" =~ ^[a-f0-9]{64}$ ]]
+          curl -fsS --proto '=https' --max-time 25 "$url/source.sealed?run=$GITHUB_RUN_ID" -o "$work/source.sealed"
+          "$work/venv/bin/python" Runner/transport.py open "$work/private.pem" "$work/source.sealed" "$digest" "$work/source.tgz"
+          mkdir "$work/input"
+          "$work/venv/bin/python" Runner/transport.py extract "$work/source.tgz" "$work/input"
+          rm -f "$work/private.pem" "$work/source.tgz"
+      - name: Compile and exercise the unsigned app
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          work="$RUNNER_TEMP/unsigned-simulator"
+          mkdir "$work/report"
+          bash "$work/input/CardVault/PreviewQA/run.sh" "$work" >"$work/report/verification.log" 2>&1
+      - name: Encrypt the simulator results
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          work="$RUNNER_TEMP/unsigned-simulator"
+          test -d "$work/report" || exit 0
+          tar -czf "$work/result.tgz" -C "$work/report" .
+          shasum -a 256 "$work/result.tgz" | awk '{print $1}' > "$work/result.sha256"
+          "$work/venv/bin/python" Runner/transport.py seal Runner/result-public.pem "$work/result.tgz" "$work/result.sealed"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: simulator-encrypted-result
+          path: |
+            ${{ runner.temp }}/unsigned-simulator/result.sealed
+            ${{ runner.temp }}/unsigned-simulator/result.sha256
+          if-no-files-found: error
+          retention-days: 1
+      - name: Remove temporary source and results
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/unsigned-simulator"
