@@ -6,10 +6,10 @@ export class EmailProviderError extends Error {
 }
 
 const cardsVerificationTitles = new Map([
-  ['login', '护卡包登录'],
-  ['bind', '护护账号绑定联系方式'],
-  ['verify-current', '护护账号核验原有联系方式'],
-  ['delete', '永久注销护护账号']
+  ['login', '电子证件登录'],
+  ['bind', '电子证件绑定联系方式'],
+  ['verify-current', '电子证件核验原有联系方式'],
+  ['delete', '注销电子证件账号']
 ])
 
 export class ResendEmailVerificationProvider {
@@ -19,6 +19,8 @@ export class ResendEmailVerificationProvider {
     this.fetch = options.fetch ?? globalThis.fetch
     this.timeoutMs = options.timeoutMs ?? 10_000
   }
+
+  get available() { return Boolean(this.apiKey && this.from) }
 
   async sendVerificationCode({ email, code, expiresIn, purpose }) {
     if (!this.apiKey || !this.from) {

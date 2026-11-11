@@ -7,6 +7,7 @@ import { VerificationCodeRepository } from '../auth/repositories/verification-co
 import { JsonStore } from '../auth/storage/json-store.mjs'
 import { accountTransaction } from '../auth/storage/transaction.mjs'
 import { TokenService } from '../auth/token-service.mjs'
+import { CardsAppleBindings } from './apple-sign-in.mjs'
 
 const dayMs = 24 * 60 * 60 * 1000
 const sessionTtlMs = 30 * dayMs
@@ -18,7 +19,7 @@ const hash = value => createHash('sha256').update(value).digest('hex')
 const unauthorized = () => new AuthError('登录已过期，请重新登录', 401, 'UNAUTHORIZED')
 
 export class CardsAccountService {
-  constructor({ auth, account, secret }) {
+  constructor({ auth, account, secret, apple = null, appleBindings, smsProvider = auth.smsProvider }) {
     if (typeof secret !== 'string' || secret.length < 32 || secret === auth.config.tokenSecret) {
       throw new Error('Cards accounts require a separate secret of at least 32 characters')
     }
@@ -26,17 +27,27 @@ export class CardsAccountService {
     this.secret = secret
     this.directory = dataDirectory
     this.account = account
+    this.apple = apple
+    this.appleBindings = appleBindings ?? new CardsAppleBindings(dataDirectory)
     this.users = auth.users
     this.codes = new VerificationCodeRepository(dataDirectory, 'cards-verification-codes.json', { pruneExpired: true })
     this.auth = new AuthService({
       ...auth.config, users: this.users, codes: this.codes,
       tokens: new TokenService(secret, proofTtlMs), accountData: auth.accountData,
-      passwordAttempts: auth.passwordAttempts, codeGenerator: auth.codeGenerator,
-      emailProvider: auth.emailProvider, smsProvider: auth.smsProvider, logger: () => {}
+      codeGenerator: auth.codeGenerator, emailProvider: auth.emailProvider, smsProvider, logger: () => {}
     })
     this.proofs = this.auth.tokens
+    this.appleChallenges = new TokenService(secret, 5 * 60 * 1000)
     this.attempts = new PasswordAttemptRepository(dataDirectory, 'cards-code-attempts.json')
     this.sessions = new JsonStore(path.join(dataDirectory, 'cards-account-sessions.json'), { sessions: [] })
+  }
+
+  capabilities() {
+    return {
+      email: typeof this.auth.emailProvider?.sendVerificationCode === 'function' && this.auth.emailProvider.available !== false,
+      phone: typeof this.auth.smsProvider?.sendVerificationCode === 'function',
+      apple: Boolean(this.apple)
+    }
   }
 
   contact(kind, input) {
@@ -102,13 +113,64 @@ export class CardsAccountService {
     })
   }
 
-  async loginWithPassword(nickname, password, clientKey, now = Date.now()) {
-    const { user } = await this.auth.loginWithPassword(nickname, password, clientKey, now)
-    return withAccountLock(user.id, async () => {
-      const current = await this.users.findById(user.id)
-      if (current?.passwordHash !== user.passwordHash) throw unauthorized()
-      return this.issue(current, now)
-    })
+  applePurpose(action, session) {
+    if (action === 'login') return 'cards-apple:login'
+    if ((action === 'bind' || action === 'delete') && session) return `cards-apple:${action}:${session.id}`
+    throw new AuthError('Apple 验证用途无效', 400, 'INVALID_APPLE_PURPOSE')
+  }
+
+  async beginApple(credential, { action }, now = Date.now()) {
+    if (!this.apple) throw new AuthError('Apple 登录暂未开通', 503, 'APPLE_NOT_CONFIGURED')
+    const begin = session => {
+      const nonce = randomBytes(32).toString('base64url')
+      const challengeToken = this.appleChallenges.create({ id: nonce, purpose: this.applePurpose(action, session) }, now)
+      return { nonce, challengeToken, expiresIn: 300 }
+    }
+    if (action === 'login') return begin()
+    return this.withSession(credential, ({ session }) => begin(session), now)
+  }
+
+  async finishApple(credential, { action, challengeToken, code, identityToken }, clientKey, now = Date.now()) {
+    if (!this.apple) throw new AuthError('Apple 登录暂未开通', 503, 'APPLE_NOT_CONFIGURED')
+    const proof = this.appleChallenges.verify(String(challengeToken ?? ''), now)
+    const exchange = async session => {
+      if (proof?.purpose !== this.applePurpose(action, session)) {
+        throw new AuthError('Apple 验证已过期，请重新开始', 400, 'APPLE_CHALLENGE_INVALID')
+      }
+      const requester = `cards-apple-client:${hash(clientKey || 'unknown')}`
+      return withAccountLock(requester, async () => {
+        const retryAfter = await this.attempts.assertAllowed(requester, now)
+        if (retryAfter) throw new AuthError('Apple 验证过于频繁，请稍后再试', 429, 'APPLE_RATE_LIMITED', { retryAfter })
+        await this.attempts.fail(requester, now)
+        const binding = await this.apple.exchange(code, identityToken, proof.sub, now)
+        await this.attempts.clear(requester)
+        return binding
+      })
+    }
+    if (action === 'login') {
+      const binding = await exchange()
+      const existing = await this.appleBindings.forSubject(binding.subject)
+      return withAccountLock(existing?.accountId, () => this.transaction(async () => {
+        const current = await this.appleBindings.forSubject(binding.subject)
+        if (existing && !current) throw unauthorized()
+        const user = current ? await this.users.findById(current.accountId) : await this.users.createCardsAccount(new Date(now))
+        if (!user || user.guest || user.mergedInto) throw unauthorized()
+        await this.appleBindings.save(user.id, binding)
+        return this.issue(user, now)
+      }))
+    }
+    return this.withSession(credential, async ({ session, user }) => {
+      const binding = await exchange(session)
+      if (action === 'delete') {
+        if (binding.subject !== (await this.appleBindings.forAccount(user.id))?.subject) {
+          throw new AuthError('请使用绑定到本账号的 Apple 账号', 403, 'APPLE_ACCOUNT_MISMATCH')
+        }
+        await this.appleBindings.save(user.id, binding)
+        return this.deletionProof(session, user, now)
+      }
+      await this.appleBindings.save(user.id, binding)
+      return this.publicUser(user)
+    }, now)
   }
 
   digest(value) {
@@ -129,12 +191,12 @@ export class CardsAccountService {
     await this.sessions.update(data => ({
       sessions: [...data.sessions.filter(item => item.expiresAt > now), session]
     }))
-    return { scope, credential, user: this.publicUser(user) }
+    return { scope, credential, user: await this.publicUser(user) }
   }
 
-  publicUser(user) {
-    const { id, nickname, phone, email } = user
-    return { id, nickname, phone, email }
+  async publicUser(user) {
+    const { id, phone, email } = user
+    return { id, phone, email, appleLinked: Boolean(await this.appleBindings.forAccount(id)) }
   }
 
   async session(credential, now) {
@@ -154,7 +216,7 @@ export class CardsAccountService {
 
   async restore(credential, now = Date.now()) {
     try {
-      return await this.withSession(credential, ({ user }) => ({ scope, user: this.publicUser(user) }), now)
+      return await this.withSession(credential, async ({ user }) => ({ scope, user: await this.publicUser(user) }), now)
     } catch (error) {
       if (error.code === 'UNAUTHORIZED') return { unauthenticated: true }
       throw error
@@ -225,16 +287,20 @@ export class CardsAccountService {
     }, now)
   }
 
+  deletionProof(session, user, now) {
+    return { deleteToken: this.proofs.create({ id: user.id, purpose: `cards-delete:${session.id}` }, now) }
+  }
+
   async verifyDeletion(credential, { kind, code }, now = Date.now()) {
     return this.withSession(credential, ({ session, user }) => this.transaction(async () => {
       await this.verifyCode(kind, this.currentContact(user, kind), code, 'delete', now)
-      return { deleteToken: this.proofs.create({ id: user.id, purpose: `cards-delete:${session.id}` }, now) }
+      return this.deletionProof(session, user, now)
     }), now)
   }
 
   async delete(credential, input, now = Date.now()) {
     if (input.scopeConfirmation !== 'all-hoooho-apps') {
-      throw new AuthError('请先确认注销对护护账号的影响', 400, 'DELETE_SCOPE_REQUIRED')
+      throw new AuthError('请先确认注销账号的范围', 400, 'DELETE_SCOPE_REQUIRED')
     }
     return this.withSession(credential, async ({ session, user }) => {
       const proof = this.proofs.verify(String(input.deleteToken ?? ''), now)

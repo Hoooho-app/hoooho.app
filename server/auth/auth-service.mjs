@@ -170,7 +170,8 @@ export class AuthService {
         phone, code, expiresIn: Math.floor(this.config.codeTtlMs / 1000),
         ...(channel.startsWith('cards:') ? { purpose: channel.split(':')[2] } : {})
       })
-    } catch {
+    } catch (error) {
+      if (error instanceof AuthError) throw error
       throw new AuthError('短信服务暂时不可用，请稍后重试', 503, 'SMS_PROVIDER_UNAVAILABLE')
     }
     await this.codes.save({

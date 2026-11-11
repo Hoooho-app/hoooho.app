@@ -1,6 +1,7 @@
 import path from 'node:path'
 import { JsonStore } from '../auth/storage/json-store.mjs'
 import { AuthError } from '../auth/auth-service.mjs'
+import { withAccountLock } from '../auth/account-lock.mjs'
 import { UserRepository } from '../auth/repositories/user-repository.mjs'
 import { AccountDataService } from './account-data-service.mjs'
 import { AVATAR_PHOTO_MAX_DATA_URL_LENGTH } from '../../shared/avatar-photo-policy.mjs'
@@ -15,6 +16,8 @@ export class AccountService {
   constructor(options) {
     this.auth = options.auth
     this.users = options.users ?? new UserRepository(options.dataDirectory)
+    this.cardsAppleBindings = options.cardsAppleBindings
+    this.revokeCardsApple = options.revokeCardsApple
     this.data = options.data ?? new AccountDataService(options)
     this.profiles = new JsonStore(path.join(options.dataDirectory, 'account-profiles.json'), { profiles: [] })
     this.tokens = options.tokens ?? new TokenService(options.tokenSecret, 10 * 60 * 1000)
@@ -158,9 +161,21 @@ export class AccountService {
   }
 
   async deleteVerifiedAccount(accountId) {
-    await this.data.deleteAccount(accountId)
-    await this.profiles.update((data) => ({ ...data, profiles: data.profiles.filter((item) => item.accountId !== accountId) }))
-    await this.users.delete(accountId)
-    return { deleted: true, idempotent: false }
+    return withAccountLock(accountId, async () => {
+      const user = await this.users.findById(accountId)
+      if (!user) return { deleted: true, idempotent: true }
+      const appleBinding = await this.cardsAppleBindings?.forAccount(accountId)
+      if (appleBinding) {
+        if (!this.revokeCardsApple) throw new AuthError('暂时无法解除 Apple 授权，请稍后重试', 503, 'APPLE_UNAVAILABLE')
+        await this.revokeCardsApple(appleBinding)
+      }
+      await this.data.deleteAccount(accountId)
+      await accountTransaction(this.auth.config.dataDirectory, async () => {
+        await this.profiles.update((data) => ({ ...data, profiles: data.profiles.filter((item) => item.accountId !== accountId) }))
+        await this.users.delete(accountId)
+        if (appleBinding) await this.cardsAppleBindings.remove(accountId)
+      })
+      return { deleted: true, idempotent: false }
+    })
   }
 }

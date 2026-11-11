@@ -38,6 +38,15 @@ export class UserRepository {
     return selectedUser
   }
 
+  async createCardsAccount(now = new Date()) {
+    let user
+    await this.#store.update(data => {
+      user = { id: randomUUID(), hooohoId: createHooohoId(data.users), createdAt: now.toISOString() }
+      return { ...data, users: [...data.users, user] }
+    })
+    return user
+  }
+
   async findById(id) {
     const data = await this.#store.read()
     return data.users.find((user) => user.id === id) ?? null

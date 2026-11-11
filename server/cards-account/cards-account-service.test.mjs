@@ -6,9 +6,10 @@ import test from 'node:test'
 import { AccountService } from '../account/account-service.mjs'
 import { AuthService } from '../auth/auth-service.mjs'
 import { cardsAccountPrefix, handleCardsAccount } from './api.mjs'
+import { CardsAppleBindings } from './apple-sign-in.mjs'
 import { CardsAccountService } from './cards-account-service.mjs'
 
-async function setup(t) {
+async function setup(t, apple = null) {
   const dataDirectory = await mkdtemp(path.join(os.tmpdir(), 'hoooho-cards-account-'))
   t.after(() => rm(dataDirectory, { recursive: true, force: true }))
   const codes = new Map()
@@ -21,9 +22,15 @@ async function setup(t) {
     smsProvider: { sendVerificationCode: ({ phone, code }) => { codes.set(phone, code) } },
     logger: () => {}
   })
-  const account = new AccountService({ dataDirectory, tokenSecret: auth.config.tokenSecret, auth })
-  const service = new CardsAccountService({ auth, account, secret: 'unit-test-cards-only-secret-not-for-production' })
-  return { dataDirectory, codes, auth, service }
+  const appleBindings = new CardsAppleBindings(dataDirectory)
+  const account = new AccountService({
+    dataDirectory, tokenSecret: auth.config.tokenSecret, auth, cardsAppleBindings: appleBindings,
+    revokeCardsApple: apple ? binding => apple.revoke(binding) : null
+  })
+  const service = new CardsAccountService({
+    auth, account, secret: 'unit-test-cards-only-secret-not-for-production', apple, appleBindings
+  })
+  return { dataDirectory, codes, auth, service, appleBindings }
 }
 
 test('Cards verifies separate codes, reuses the same identity, and issues no Records bearer', async t => {
@@ -103,6 +110,7 @@ test('endpoint defaults closed and validates route, request method and content t
   assert.equal(await handleCardsAccount(request, {}, '/api/auth/session', dependencies), false)
   await assert.rejects(handleCardsAccount(request, {}, cardsAccountPrefix + 'session', { ...dependencies, service: null }), { code: 'CARDS_ACCOUNT_DISABLED' })
   await assert.rejects(handleCardsAccount(request, {}, cardsAccountPrefix + 'health', dependencies), { code: 'NOT_FOUND' })
+  await assert.rejects(handleCardsAccount(request, {}, cardsAccountPrefix + 'login/password', dependencies), { code: 'NOT_FOUND' })
   await assert.rejects(handleCardsAccount(request, {}, cardsAccountPrefix + 'session', dependencies), { code: 'METHOD_NOT_ALLOWED' })
   await assert.rejects(handleCardsAccount(request, {}, cardsAccountPrefix + 'contacts/bind', dependencies), { code: 'JSON_REQUIRED' })
 })
@@ -123,4 +131,60 @@ test('logging out revokes only the current Cards session', async t => {
   assert.deepEqual(await service.restore(first.credential, now), { unauthenticated: true })
   assert.equal((await service.restore(second.credential, now)).user.id, first.user.id)
   assert.equal(auth.tokens.verify(webToken, now).sub, first.user.id)
+})
+
+test('Apple creates a scoped identity and binds only when the current account explicitly authorizes it', async t => {
+  const usedCodes = new Set()
+  const revoked = []
+  const apple = {
+    async exchange(code, identityToken, nonce) {
+      assert.equal(identityToken, nonce)
+      if (usedCodes.has(code)) throw Object.assign(new Error('Already exchanged'), { code: 'APPLE_AUTHORIZATION_INVALID' })
+      usedCodes.add(code)
+      return { subject: code.split(':')[0], refreshToken: 'sealed-authorization' }
+    },
+    async revoke(binding) { revoked.push(binding) }
+  }
+  const { service, auth, appleBindings, codes } = await setup(t, apple)
+  const now = Date.now()
+  assert.deepEqual(service.capabilities(), { email: true, phone: true, apple: true })
+  await assert.rejects(service.beginApple('', { action: 'bind' }, now), { code: 'UNAUTHORIZED' })
+
+  const performApple = async (credential, action, code, client = 'apple-test') => {
+    const { nonce, challengeToken } = await service.beginApple(credential, { action }, now)
+    return service.finishApple(credential, { action, code, challengeToken, identityToken: nonce }, client, now)
+  }
+  const appleUser = await performApple('', 'login', 'subject-a:first')
+  assert.equal(appleUser.user.appleLinked, true)
+  assert.equal(appleUser.user.email, undefined)
+  assert.equal(auth.tokens.verify(appleUser.credential, now), null)
+  assert.equal((await performApple('', 'login', 'subject-a:return')).user.id, appleUser.user.id)
+  await assert.rejects(performApple('', 'login', 'subject-a:return'), { code: 'APPLE_AUTHORIZATION_INVALID' })
+
+  const email = 'apple-bind@example.test'
+  await service.sendCode('email', email, 'login', 'mail-test', now)
+  const emailUser = await service.login('email', email, codes.get(email), now)
+  await assert.rejects(performApple(emailUser.credential, 'bind', 'subject-a:collision'), { code: 'APPLE_IDENTITY_IN_USE' })
+  const bound = await performApple(emailUser.credential, 'bind', 'subject-b:bind')
+  assert.equal(bound.id, emailUser.user.id)
+  assert.equal(bound.appleLinked, true)
+  assert.equal(bound.refreshToken, undefined)
+  assert.equal((await auth.users.findById(bound.id)).cardsApple, undefined)
+  const second = await performApple('', 'login', 'subject-b:sign-in')
+  assert.equal(second.user.id, bound.id)
+
+  const loginChallenge = await service.beginApple('', { action: 'login' }, now)
+  await assert.rejects(service.finishApple(second.credential, {
+    ...loginChallenge, action: 'delete', code: 'subject-b:wrong-purpose', identityToken: loginChallenge.nonce
+  }, 'apple-test', now), { code: 'APPLE_CHALLENGE_INVALID' })
+  await assert.rejects(performApple(second.credential, 'delete', 'subject-a:wrong-account'), { code: 'APPLE_ACCOUNT_MISMATCH' })
+  const { deleteToken } = await performApple(second.credential, 'delete', 'subject-b:delete')
+  await assert.rejects(service.delete(emailUser.credential, { deleteToken, scopeConfirmation: 'all-hoooho-apps' }, now),
+    { code: 'DELETE_VERIFICATION_REQUIRED' })
+  assert.equal((await service.delete(second.credential, { deleteToken, scopeConfirmation: 'all-hoooho-apps' }, now)).deleted, true)
+  assert.equal(revoked[0].subject, 'subject-b')
+  assert.equal(await appleBindings.forSubject('subject-b'), undefined)
+  assert.equal(await auth.users.findById(bound.id), null)
+  assert.deepEqual(await service.restore(emailUser.credential, now), { unauthenticated: true })
+  assert.equal((await service.restore(appleUser.credential, now)).user.id, appleUser.user.id)
 })
