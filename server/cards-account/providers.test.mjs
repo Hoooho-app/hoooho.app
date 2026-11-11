@@ -53,7 +53,11 @@ test('Apple verifies the signature, nonce, app audience, expiry, and exchanged s
   exchangedSubject = 'other-subject'
   await assert.rejects(provider.exchange('code', jwt(), 'valid-challenge', now), { code: 'APPLE_AUTHORIZATION_INVALID' })
   exchangedSubject = 'test-subject'
-  const binding = await provider.exchange('code', jwt(), 'valid-challenge', now)
+  const unverified = await provider.exchange('code', jwt({email: 'hidden@example.test', email_verified: 'false'}), 'valid-challenge', now)
+  assert.equal(unverified.emailHint, undefined)
+  const binding = await provider.exchange('code', jwt({email: 'hidden@example.test', email_verified: 'true'}), 'valid-challenge', now)
+  assert.equal(binding.emailHint, 'h•••@example.test')
+  assert(!JSON.stringify(binding).includes('hidden@example.test'))
   assert.equal(binding.subject, 'test-subject')
   assert.notEqual(binding.refreshToken, 'synthetic-refresh-token')
   await provider.revoke(binding)

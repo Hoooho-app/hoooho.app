@@ -45,7 +45,7 @@ export async function handleCardsAccount(request, response, pathname, { service,
   switch (action) {
     case 'logout': result = await service.logout(credential); break
     case 'login/send-code': result = await service.sendCode(input.kind, input.value, 'login', clientKey); break
-    case 'login/verify': result = await service.login(input.kind, input.value, input.code); break
+    case 'login/verify': result = await service.login(input.kind, input.value, input.code, Date.now(), input.intent); break
     case 'apple/challenge': result = await service.beginApple(credential, input); break
     case 'apple/verify': result = await service.finishApple(credential, input, clientKey); break
     case 'contacts/send-code': result = await service.sendBindingCode(credential, input, clientKey); break

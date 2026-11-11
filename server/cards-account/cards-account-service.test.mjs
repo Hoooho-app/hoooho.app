@@ -53,7 +53,7 @@ test('Cards verifies separate codes, reuses the same identity, and issues no Rec
   assert.equal(session.user.currentMemberId, undefined)
   assert.equal(auth.tokens.verify(session.credential, now), null)
   assert.deepEqual(await service.restore(auth.tokens.create(existing, now), now), { unauthenticated: true })
-  assert.deepEqual(await service.restore(session.credential, now), { scope: session.scope, user: session.user })
+  assert.deepEqual(await service.restore(session.credential, now), { scope: session.scope, method: 'email', user: session.user })
   assert.deepEqual(await service.restore(session.credential, now + 31 * 86_400_000), { unauthenticated: true })
   await assert.rejects(service.login('email', email, cardsCode, now), { code: 'CODE_NOT_FOUND' })
   const stored = await readFile(path.join(dataDirectory, 'cards-account-sessions.json'), 'utf8')
@@ -141,13 +141,14 @@ test('Apple creates a scoped identity and binds only when the current account ex
       assert.equal(identityToken, nonce)
       if (usedCodes.has(code)) throw Object.assign(new Error('Already exchanged'), { code: 'APPLE_AUTHORIZATION_INVALID' })
       usedCodes.add(code)
-      return { subject: code.split(':')[0], refreshToken: 'sealed-authorization' }
+      return { subject: code.split(':')[0], refreshToken: 'sealed-authorization',
+        ...(code.endsWith(':bind') ? { emailHint: 'a•••@example.test' } : {}) }
     },
     async revoke(binding) { revoked.push(binding) }
   }
   const { service, auth, appleBindings, codes } = await setup(t, apple)
   const now = Date.now()
-  assert.deepEqual(service.capabilities(), { email: true, phone: true, apple: true })
+  assert.deepEqual(service.capabilities(), { email: true, phone: true, apple: true, entryIntents: true })
   await assert.rejects(service.beginApple('', { action: 'bind' }, now), { code: 'UNAUTHORIZED' })
 
   const performApple = async (credential, action, code, client = 'apple-test') => {
@@ -155,6 +156,7 @@ test('Apple creates a scoped identity and binds only when the current account ex
     return service.finishApple(credential, { action, code, challengeToken, identityToken: nonce }, client, now)
   }
   const appleUser = await performApple('', 'login', 'subject-a:first')
+  assert.equal(appleUser.method, 'apple')
   assert.equal(appleUser.user.appleLinked, true)
   assert.equal(appleUser.user.email, undefined)
   assert.equal(auth.tokens.verify(appleUser.credential, now), null)
@@ -168,10 +170,14 @@ test('Apple creates a scoped identity and binds only when the current account ex
   const bound = await performApple(emailUser.credential, 'bind', 'subject-b:bind')
   assert.equal(bound.id, emailUser.user.id)
   assert.equal(bound.appleLinked, true)
+  assert.equal(bound.appleEmailHint, 'a•••@example.test')
+  assert.equal((await service.restore(emailUser.credential, now)).method, 'email')
   assert.equal(bound.refreshToken, undefined)
   assert.equal((await auth.users.findById(bound.id)).cardsApple, undefined)
   const second = await performApple('', 'login', 'subject-b:sign-in')
   assert.equal(second.user.id, bound.id)
+  assert.equal(second.method, 'apple')
+  assert.equal(second.user.appleEmailHint, bound.appleEmailHint)
 
   const loginChallenge = await service.beginApple('', { action: 'login' }, now)
   await assert.rejects(service.finishApple(second.credential, {
@@ -187,4 +193,93 @@ test('Apple creates a scoped identity and binds only when the current account ex
   assert.equal(await auth.users.findById(bound.id), null)
   assert.deepEqual(await service.restore(emailUser.credential, now), { unauthenticated: true })
   assert.equal((await service.restore(appleUser.credential, now)).user.id, appleUser.user.id)
+})
+
+test('explicit login and registration can switch using the verified code while keeping one account and its login method', async t => {
+  const { service, codes, auth } = await setup(t)
+  const email = 'flow@example.test'
+  const phone = '13812345678'
+  const now = Date.now()
+
+  await service.sendCode('email', email, 'login', 'first-device', now)
+  const firstCode = codes.get(email)
+  await assert.rejects(service.login('email', email, firstCode, now, 'login'), { code: 'ACCOUNT_SIGN_UP_REQUIRED' })
+  assert.equal(await auth.users.findByEmail(email), null)
+  const created = await service.login('email', email, firstCode, now, 'register')
+  assert.equal(created.method, 'email')
+  assert.equal(created.user.email, email)
+  await assert.rejects(service.login('email', email, firstCode, now, 'register'), { code: 'CODE_NOT_FOUND' })
+
+  const later = now + 61_000
+  await service.sendCode('email', email, 'login', 'second-device', later)
+  const secondCode = codes.get(email)
+  await assert.rejects(service.login('email', email, secondCode, later, 'register'), { code: 'ACCOUNT_ALREADY_REGISTERED' })
+  const signedIn = await service.login('email', email, secondCode, later, 'login')
+  assert.equal(signedIn.user.id, created.user.id)
+
+  await service.sendBindingCode(signedIn.credential, {kind: 'phone', value: phone, purpose: 'bind'}, 'second-device', later)
+  const bound = await service.bind(signedIn.credential, {kind: 'phone', value: phone, code: codes.get(phone)}, later)
+  assert.equal(bound.phone, phone)
+  const afterBinding = await service.restore(signedIn.credential, later)
+  assert.equal(afterBinding.method, 'email')
+  assert.equal(afterBinding.user.phone, phone)
+
+  const phoneTime = later + 61_000
+  await service.sendCode('phone', phone, 'login', 'third-device', phoneTime)
+  const phoneLogin = await service.login('phone', phone, codes.get(phone), phoneTime, 'login')
+  assert.equal(phoneLogin.method, 'phone')
+  assert.equal(phoneLogin.user.id, created.user.id)
+  assert.equal((await service.restore(phoneLogin.credential, phoneTime)).method, 'phone')
+})
+
+test('Apple challenges stay bound to the selected login or registration flow', async t => {
+  const { service, appleBindings } = await setup(t, {
+    async exchange(code, identityToken, nonce) {
+      assert.equal(identityToken, nonce)
+      return { subject: 'apple-flow', refreshToken: 'sealed' }
+    }
+  })
+  const now = Date.now()
+  const challenge = async intent => ({ ...await service.beginApple('', { action: 'login', intent }, now), action: 'login', intent })
+  const verify = input => service.finishApple('', { ...input, identityToken: input.nonce, code: 'synthetic-code' }, 'apple-device', now)
+  const login = await challenge('login')
+  await assert.rejects(verify({ ...login, intent: 'register' }), { code: 'APPLE_CHALLENGE_INVALID' })
+  await assert.rejects(verify(login), { code: 'ACCOUNT_SIGN_UP_REQUIRED' })
+  assert.equal(await appleBindings.forSubject('apple-flow'), undefined)
+  const registered = await verify(await challenge('register'))
+  assert.equal(registered.method, 'apple')
+  await assert.rejects(verify(await challenge('register')), { code: 'ACCOUNT_ALREADY_REGISTERED' })
+  const signedIn = await verify(await challenge('login'))
+  assert.equal(signedIn.user.id, registered.user.id)
+})
+
+test('the Cards HTTP route forwards explicit entry intent and restores the issued method', async t => {
+  const { service, codes } = await setup(t)
+  const call = async (path, body, credential) => {
+    const request = {
+      method: body ? 'POST' : 'GET',
+      headers: {
+        ...(body ? { 'content-type': 'application/json' } : {}),
+        ...(credential ? { authorization: 'Bearer ' + credential } : {})
+      }
+    }
+    let result
+    assert.equal(await handleCardsAccount(request, {}, cardsAccountPrefix + path, {
+      service,
+      readJson: async () => body,
+      sendJson: (_response, status, payload) => { result = { status, payload } }
+    }), true)
+    assert.equal(result.status, 200)
+    return result.payload
+  }
+  const value = 'entry-route@example.test'
+  assert.equal((await call('capabilities')).entryIntents, true)
+  await call('login/send-code', { kind: 'email', value })
+  const input = { kind: 'email', value, code: codes.get(value) }
+  await assert.rejects(call('login/verify', { ...input, intent: 'login' }), { code: 'ACCOUNT_SIGN_UP_REQUIRED' })
+  const session = await call('login/verify', { ...input, intent: 'register' })
+  assert.equal(session.method, 'email')
+  assert.deepEqual(await call('session', null, session.credential), {
+    scope: session.scope, method: session.method, user: session.user
+  })
 })

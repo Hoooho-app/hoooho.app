@@ -18,6 +18,22 @@ const otpChannel = (kind, purpose) => `cards:${kind}:${purpose}`
 const hash = value => createHash('sha256').update(value).digest('hex')
 const unauthorized = () => new AuthError('登录已过期，请重新登录', 401, 'UNAUTHORIZED')
 
+const entryMismatchCodes = new Set(['ACCOUNT_SIGN_UP_REQUIRED', 'ACCOUNT_ALREADY_REGISTERED'])
+
+function accountEntryIntent(intent) {
+  if (intent === undefined || intent === 'login' || intent === 'register') return intent
+  throw new AuthError('请选择登录或注册', 400, 'INVALID_ACCOUNT_INTENT')
+}
+
+function confirmEntryIntent(intent, exists) {
+  if (intent === 'login' && !exists) {
+    throw new AuthError('这个账号还未注册，请切换到注册', 409, 'ACCOUNT_SIGN_UP_REQUIRED')
+  }
+  if (intent === 'register' && exists) {
+    throw new AuthError('这个账号已注册，请切换到登录', 409, 'ACCOUNT_ALREADY_REGISTERED')
+  }
+}
+
 export class CardsAccountService {
   constructor({ auth, account, secret, apple = null, appleBindings, smsProvider = auth.smsProvider }) {
     if (typeof secret !== 'string' || secret.length < 32 || secret === auth.config.tokenSecret) {
@@ -46,7 +62,8 @@ export class CardsAccountService {
     return {
       email: typeof this.auth.emailProvider?.sendVerificationCode === 'function' && this.auth.emailProvider.available !== false,
       phone: typeof this.auth.smsProvider?.sendVerificationCode === 'function',
-      apple: Boolean(this.apple)
+      apple: Boolean(this.apple),
+      entryIntents: true
     }
   }
 
@@ -93,8 +110,8 @@ export class CardsAccountService {
     const result = await accountTransaction(this.directory, async () => {
       try { return { value: await action() } }
       catch (error) {
-        // Persist invalid-code attempts. Unexpected storage failures still roll back.
-        if (error instanceof AuthError) return { error }
+        // Count invalid guesses. A verified code stays usable when the user switches between login and registration.
+        if (error instanceof AuthError && !entryMismatchCodes.has(error.code)) return { error }
         throw error
       }
     })
@@ -102,39 +119,46 @@ export class CardsAccountService {
     return result.value
   }
 
-  async login(kind, input, code, now = Date.now()) {
+  async login(kind, input, code, now = Date.now(), intent) {
     const value = this.contact(kind, input)
+    const entry = accountEntryIntent(intent)
     return this.transaction(async () => {
       await this.verifyCode(kind, value, code, 'login', now)
+      if (entry) {
+        const existing = kind === 'email' ? await this.users.findByEmail(value) : await this.users.findByPhone(value)
+        confirmEntryIntent(entry, Boolean(existing))
+      }
       const user = kind === 'email'
         ? await this.users.findOrCreateByEmail(value, new Date(now))
         : await this.users.findOrCreateByPhone(value, new Date(now))
-      return this.issue(user, now)
+      return this.issue(user, kind, now)
     })
   }
 
-  applePurpose(action, session) {
-    if (action === 'login') return 'cards-apple:login'
+  applePurpose(action, session, intent) {
+    if (action === 'login') return intent ? `cards-apple:login:${intent}` : 'cards-apple:login'
     if ((action === 'bind' || action === 'delete') && session) return `cards-apple:${action}:${session.id}`
     throw new AuthError('Apple 验证用途无效', 400, 'INVALID_APPLE_PURPOSE')
   }
 
-  async beginApple(credential, { action }, now = Date.now()) {
+  async beginApple(credential, { action, intent }, now = Date.now()) {
     if (!this.apple) throw new AuthError('Apple 登录暂未开通', 503, 'APPLE_NOT_CONFIGURED')
+    const entry = accountEntryIntent(intent)
     const begin = session => {
       const nonce = randomBytes(32).toString('base64url')
-      const challengeToken = this.appleChallenges.create({ id: nonce, purpose: this.applePurpose(action, session) }, now)
+      const challengeToken = this.appleChallenges.create({ id: nonce, purpose: this.applePurpose(action, session, entry) }, now)
       return { nonce, challengeToken, expiresIn: 300 }
     }
     if (action === 'login') return begin()
     return this.withSession(credential, ({ session }) => begin(session), now)
   }
 
-  async finishApple(credential, { action, challengeToken, code, identityToken }, clientKey, now = Date.now()) {
+  async finishApple(credential, { action, intent, challengeToken, code, identityToken }, clientKey, now = Date.now()) {
     if (!this.apple) throw new AuthError('Apple 登录暂未开通', 503, 'APPLE_NOT_CONFIGURED')
+    const entry = accountEntryIntent(intent)
     const proof = this.appleChallenges.verify(String(challengeToken ?? ''), now)
     const exchange = async session => {
-      if (proof?.purpose !== this.applePurpose(action, session)) {
+      if (proof?.purpose !== this.applePurpose(action, session, entry)) {
         throw new AuthError('Apple 验证已过期，请重新开始', 400, 'APPLE_CHALLENGE_INVALID')
       }
       const requester = `cards-apple-client:${hash(clientKey || 'unknown')}`
@@ -153,10 +177,11 @@ export class CardsAccountService {
       return withAccountLock(existing?.accountId, () => this.transaction(async () => {
         const current = await this.appleBindings.forSubject(binding.subject)
         if (existing && !current) throw unauthorized()
+        confirmEntryIntent(entry, Boolean(current))
         const user = current ? await this.users.findById(current.accountId) : await this.users.createCardsAccount(new Date(now))
         if (!user || user.guest || user.mergedInto) throw unauthorized()
         await this.appleBindings.save(user.id, binding)
-        return this.issue(user, now)
+        return this.issue(user, 'apple', now)
       }))
     }
     return this.withSession(credential, async ({ session, user }) => {
@@ -181,22 +206,26 @@ export class CardsAccountService {
     return user.passwordHash ? this.proofs.credentialRevision(user.passwordHash) : null
   }
 
-  async issue(user, now) {
+  async issue(user, method, now) {
     if (!user || user.guest || user.mergedInto) throw unauthorized()
     const credential = randomBytes(32).toString('base64url')
     const session = {
-      id: randomUUID(), accountId: user.id, digest: this.digest(credential),
+      id: randomUUID(), accountId: user.id, method, digest: this.digest(credential),
       revision: this.credentialRevision(user), expiresAt: now + sessionTtlMs
     }
     await this.sessions.update(data => ({
       sessions: [...data.sessions.filter(item => item.expiresAt > now), session]
     }))
-    return { scope, credential, user: await this.publicUser(user) }
+    return { scope, credential, method, user: await this.publicUser(user) }
   }
 
   async publicUser(user) {
     const { id, phone, email } = user
-    return { id, phone, email, appleLinked: Boolean(await this.appleBindings.forAccount(id)) }
+    const binding = await this.appleBindings.forAccount(id)
+    return {
+      id, phone, email, appleLinked: Boolean(binding),
+      ...(binding?.emailHint ? { appleEmailHint: binding.emailHint } : {})
+    }
   }
 
   async session(credential, now) {
@@ -216,7 +245,9 @@ export class CardsAccountService {
 
   async restore(credential, now = Date.now()) {
     try {
-      return await this.withSession(credential, async ({ user }) => ({ scope, user: await this.publicUser(user) }), now)
+      return await this.withSession(credential, async ({ session, user }) => ({
+        scope, ...(session.method ? { method: session.method } : {}), user: await this.publicUser(user)
+      }), now)
     } catch (error) {
       if (error.code === 'UNAUTHORIZED') return { unauthenticated: true }
       throw error

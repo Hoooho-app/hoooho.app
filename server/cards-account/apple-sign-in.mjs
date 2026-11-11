@@ -67,7 +67,7 @@ export class CardsAppleSignIn {
     return this.keys.find(key => key.kid === keyId)
   }
 
-  async verifiedSubject(token, nonce, now) {
+  async verifiedIdentity(token, nonce, now) {
     const parts = String(token ?? '').split('.')
     if (parts.length !== 3 || !parts.every(part => /^[A-Za-z0-9_-]+$/.test(part))) throw rejected()
     const [header, payload, signature] = parts
@@ -87,7 +87,11 @@ export class CardsAppleSignIn {
         !Number.isFinite(claims.exp) || claims.exp <= seconds ||
         !Number.isFinite(claims.iat) || claims.iat > seconds + 60 ||
         typeof claims.sub !== 'string' || !claims.sub || claims.sub.length > 255) throw rejected()
-    return claims.sub
+    const email = typeof claims.email === 'string' && claims.email.length <= 254 ? claims.email : ''
+    const verified = claims.email_verified === true || claims.email_verified === 'true'
+    const partsOfEmail = verified ? /^([^\s@]+)@([A-Za-z0-9.-]+\.[A-Za-z]{2,})$/.exec(email) : null
+    const emailHint = partsOfEmail ? `${[...partsOfEmail[1]][0]}•••@${partsOfEmail[2]}` : undefined
+    return { subject: claims.sub, emailHint }
   }
 
   seal(token, subject) {
@@ -109,7 +113,7 @@ export class CardsAppleSignIn {
   async exchange(code, identityToken, nonce, now = Date.now()) {
     if (typeof code !== 'string' || !code || code.length > 2048) throw rejected()
     if (typeof identityToken !== 'string' || identityToken.length > 8192) throw rejected()
-    const subject = await this.verifiedSubject(identityToken, nonce, now)
+    const identity = await this.verifiedIdentity(identityToken, nonce, now)
     const response = await this.request('/auth/token', {
       client_id: clientId,
       client_secret: this.clientSecret(now),
@@ -119,9 +123,12 @@ export class CardsAppleSignIn {
     const result = await response.json().catch(() => null)
     if (result?.error === 'invalid_grant') throw rejected()
     if (!response.ok || !result) throw unavailable()
-    if (await this.verifiedSubject(result.id_token, null, now) !== subject) throw rejected()
+    const exchanged = await this.verifiedIdentity(result.id_token, null, now)
+    const { subject } = identity
+    if (exchanged.subject !== subject) throw rejected()
     if (typeof result.refresh_token !== 'string' || !result.refresh_token) throw unavailable()
-    return { subject, refreshToken: this.seal(result.refresh_token, subject) }
+    const emailHint = exchanged.emailHint ?? identity.emailHint
+    return { subject, refreshToken: this.seal(result.refresh_token, subject), ...(emailHint ? { emailHint } : {}) }
   }
 
   async revoke(binding) {
@@ -156,7 +163,10 @@ export class CardsAppleBindings {
       )) {
         throw new AuthError('这个 Apple 账号或当前账号已有其他绑定', 409, 'APPLE_IDENTITY_IN_USE')
       }
-      return { bindings: [...data.bindings.filter(item => item.accountId !== accountId), { ...binding, accountId }] }
+      const current = data.bindings.find(item => item.accountId === accountId)
+      const emailHint = binding.emailHint ?? current?.emailHint
+      const updated = { ...binding, accountId, ...(emailHint ? { emailHint } : {}) }
+      return { bindings: [...data.bindings.filter(item => item.accountId !== accountId), updated] }
     })
   }
 
