@@ -4,8 +4,9 @@ import { JsonStore } from '../storage/json-store.mjs'
 export class VerificationCodeRepository {
   #store
 
-  constructor(dataDirectory) {
-    this.#store = new JsonStore(path.join(dataDirectory, 'verification-codes.json'), { codes: [] })
+  constructor(dataDirectory, filename = 'verification-codes.json', { pruneExpired = false } = {}) {
+    this.pruneExpired = pruneExpired
+    this.#store = new JsonStore(path.join(dataDirectory, filename), { codes: [] })
   }
 
   async find(channel, identifier) {
@@ -28,6 +29,7 @@ export class VerificationCodeRepository {
       ...data,
       codes: [
         ...data.codes.filter((item) => {
+          if (this.pruneExpired && item.expiresAt <= entry.sentAt) return false
           const itemChannel = item.channel ?? (item.phone ? 'phone' : null)
           const itemIdentifier = item.identifier ?? item.phone
           return itemChannel !== channel || itemIdentifier !== identifier

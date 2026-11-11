@@ -26,6 +26,8 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { getCanonicalDomainRedirect } from './domain-routing.mjs'
 import { AuthError, AuthService } from './auth/auth-service.mjs'
+import { CardsAccountService } from './cards-account/cards-account-service.mjs'
+import { handleCardsAccount } from './cards-account/api.mjs'
 import { BrowserSessionService } from './auth/browser-session-service.mjs'
 import { observeSessionRequest } from './auth/session-diagnostics.mjs'
 import { registerTransactionRoot } from './auth/storage/transaction.mjs'
@@ -102,6 +104,12 @@ const familyGateway = createFamilyGateway({ upstream: process.env.FAMILY_UPSTREA
 const qingganGateway = createQingganGateway({ upstream: process.env.QINGGAN_UPSTREAM_URL })
 const browserSessions = new BrowserSessionService(auth)
 const account = new AccountService({ ...sharedOptions, auth, users: auth.users, data: auth.accountData })
+const cardsSecret = process.env.HOOOHO_CARDS_ACCOUNT_SECRET || ''
+const cardsRequested = process.env.HOOOHO_CARDS_ACCOUNT_ENABLED === 'true'
+const cardsAccount = cardsRequested && cardsSecret.length >= 32 && cardsSecret !== authConfig.tokenSecret
+  ? new CardsAccountService({ auth, account, secret: cardsSecret })
+  : null
+if (cardsRequested && !cardsAccount) console.warn('[Hoooho Cards account] Scope secret missing or invalid; service disabled.')
 const members = new FamilyMemberService(sharedOptions)
 const organizations = new HealthRecordOrganizationService(sharedOptions)
 const audioTranscription = new AudioTranscriptionService(sharedOptions)
@@ -900,6 +908,7 @@ async function handleOnlineConsultations(request, response, pathname) {
 }
 
 async function handleApi(request, response, pathname, searchParams) {
+  if (await handleCardsAccount(request, response, pathname, { service: cardsAccount, readJson, sendJson })) return true
   if (pathname === '/api/account/usage' && request.method === 'GET') {
     sendJson(response, 200, await resources.account(await readAccountId(request)))
     return

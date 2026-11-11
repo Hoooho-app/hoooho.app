@@ -120,13 +120,14 @@ export class AccountService {
       const owner = await this.users.findByPhone(phone)
       if (owner && owner.id !== accountId) throw new AuthError('该手机号已被其他账户使用', 409, 'IDENTITY_IN_USE')
       await this.auth.verifyPhoneCode(phone, String(code), now)
-      await this.users.update(accountId, { phone }, new Date(now))
+      await this.users.bindVerifiedContact(accountId, 'phone', phone, current?.phone, new Date(now))
     } else if (kind === 'email') {
       const email = this.auth.normalizeEmail(String(rawValue))
+      const current = await this.users.findById(accountId)
       const owner = await this.users.findByEmail(email)
       if (owner && owner.id !== accountId) throw new AuthError('该邮箱已被其他账户使用', 409, 'IDENTITY_IN_USE')
       await this.auth.verifyEmailCode(email, String(code), now)
-      await this.users.update(accountId, { email }, new Date(now))
+      await this.users.bindVerifiedContact(accountId, 'email', email, current?.email, new Date(now))
     } else throw new AuthError('不支持的绑定方式', 400, 'INVALID_BINDING_KIND')
     return this.get(accountId)
   }
@@ -153,6 +154,10 @@ export class AccountService {
     if (!user) return { deleted: true, idempotent: true }
     const proof = this.tokens.verify(String(input.deleteToken ?? ''), now)
     if (proof?.sub !== accountId || proof?.purpose !== 'delete-account') throw new AuthError('请先完成身份验证', 403, 'DELETE_VERIFICATION_REQUIRED')
+    return this.deleteVerifiedAccount(accountId)
+  }
+
+  async deleteVerifiedAccount(accountId) {
     await this.data.deleteAccount(accountId)
     await this.profiles.update((data) => ({ ...data, profiles: data.profiles.filter((item) => item.accountId !== accountId) }))
     await this.users.delete(accountId)
