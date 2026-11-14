@@ -1,7 +1,7 @@
 name: Unsigned add credential workflow verification
 on:
   push:
-    branches: [codex/cards-add-workflow-simulator-20261114-r4]
+    branches: [codex/cards-add-workflow-simulator-20261114-r5]
     paths: [.github/workflows/cards-simulator-check.yml]
 permissions:
   contents: read
