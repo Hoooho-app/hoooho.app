@@ -1,7 +1,7 @@
-name: Unsigned add credential workflow verification
+name: Unsigned credential review verification
 on:
   push:
-    branches: [codex/cards-add-workflow-simulator-20261114-r6]
+    branches: [codex/cards-review-simulator-20261115]
     paths: [.github/workflows/cards-simulator-check.yml]
 permissions:
   contents: read
@@ -10,7 +10,7 @@ jobs:
   preview:
     name: Run unsigned simulator checks
     runs-on: macos-15
-    timeout-minutes: 28
+    timeout-minutes: 34
     steps:
       - uses: actions/checkout@v5
         with:
@@ -80,7 +80,7 @@ jobs:
             "$work/scan-checks"
           } >"$work/report/recognition.log" 2>&1
       - name: Run the iPhone simulator form checks
-        timeout-minutes: 20
+        timeout-minutes: 24
         shell: bash
         run: |
           set -euo pipefail
