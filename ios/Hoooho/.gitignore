@@ -1,8 +1,0 @@
-HooohoRecords.xcodeproj/
-build/
-*.xcarchive
-*.ipa
-*.p12
-*.p8
-*.mobileprovision
-App/Assets.xcassets/AppIcon.appiconset/
