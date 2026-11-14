@@ -151,8 +151,12 @@ export class AuthService {
   }
 
   async sendCode(phone, now = Date.now()) {
+    return this.sendPhoneCodeForChannel('phone', phone, now)
+  }
+
+  async sendPhoneCodeForChannel(channel, phone, now) {
     this.validatePhone(phone)
-    const previous = await this.codes.findByPhone(phone)
+    const previous = await this.codes.find(channel, phone)
     if (previous && previous.sentAt + this.config.resendIntervalMs > now) {
       const retryAfter = Math.ceil((previous.sentAt + this.config.resendIntervalMs - now) / 1000)
       throw new AuthError(`请在 ${retryAfter} 秒后重新获取`, 429, 'CODE_RATE_LIMITED', { retryAfter })
@@ -162,14 +166,18 @@ export class AuthService {
     const salt = randomBytes(16).toString('hex')
     if (!this.smsProvider?.sendVerificationCode) throw new AuthError('短信验证码服务尚未配置', 503, 'SMS_PROVIDER_NOT_CONFIGURED')
     try {
-      await this.smsProvider.sendVerificationCode({ phone, code, expiresIn: Math.floor(this.config.codeTtlMs / 1000) })
-    } catch {
+      await this.smsProvider.sendVerificationCode({
+        phone, code, expiresIn: Math.floor(this.config.codeTtlMs / 1000),
+        ...(channel.startsWith('cards:') ? { purpose: channel.split(':')[2] } : {})
+      })
+    } catch (error) {
+      if (error instanceof AuthError) throw error
       throw new AuthError('短信服务暂时不可用，请稍后重试', 503, 'SMS_PROVIDER_UNAVAILABLE')
     }
     await this.codes.save({
-      channel: 'phone',
+      channel,
       identifier: phone,
-      codeHash: hashCode('phone', phone, code, salt),
+      codeHash: hashCode(channel, phone, code, salt),
       salt,
       sentAt: now,
       expiresAt: now + this.config.codeTtlMs,
@@ -185,25 +193,29 @@ export class AuthService {
   }
 
   async verifyPhoneCode(phone, code, now = Date.now()) {
+    return this.verifyPhoneCodeForChannel('phone', phone, code, now)
+  }
+
+  async verifyPhoneCodeForChannel(channel, phone, code, now) {
     this.validatePhone(phone)
     if (!/^\d{6}$/.test(code)) throw new AuthError('请输入 6 位数字验证码', 400, 'INVALID_CODE_FORMAT')
 
-    const entry = await this.codes.findByPhone(phone)
+    const entry = await this.codes.find(channel, phone)
     if (!entry) throw new AuthError('请先获取验证码', 400, 'CODE_NOT_FOUND')
     if (entry.expiresAt <= now) {
-      await this.codes.consume(phone)
+      await this.codes.consume(channel, phone)
       throw new AuthError('验证码已过期，请重新获取', 400, 'CODE_EXPIRED')
     }
 
-    const provided = Buffer.from(hashCode('phone', phone, code, entry.salt), 'hex')
+    const provided = Buffer.from(hashCode(channel, phone, code, entry.salt), 'hex')
     const expected = Buffer.from(entry.codeHash, 'hex')
     if (provided.length !== expected.length || !timingSafeEqual(provided, expected)) {
-      const failed = await this.codes.recordFailedAttempt('phone', phone, this.config.maxFailedAttempts)
+      const failed = await this.codes.recordFailedAttempt(channel, phone, this.config.maxFailedAttempts)
       if (failed.invalidated) throw new AuthError('验证码错误次数过多，请重新获取', 401, 'CODE_ATTEMPTS_EXCEEDED')
       throw new AuthError('验证码错误', 401, 'CODE_INCORRECT')
     }
 
-    await this.codes.consume(phone)
+    await this.codes.consume(channel, phone)
     return true
   }
 
@@ -242,7 +254,9 @@ export class AuthService {
     const providerStartedAt = Date.now()
     this.logger(`[Hoooho auth] verification email requested email=${maskEmail(email)}`)
     try {
-      await this.emailProvider.sendVerificationCode({ email, code, expiresIn })
+      await this.emailProvider.sendVerificationCode({
+        email, code, expiresIn, ...(channel.startsWith('cards:') ? { purpose: channel.split(':')[2] } : {})
+      })
     } catch (error) {
       const errorCode = error instanceof EmailProviderError ? error.code : 'EMAIL_PROVIDER_NETWORK_ERROR'
       this.logger(`[Hoooho auth] verification provider error email=${maskEmail(email)} code=${errorCode} providerDurationMs=${Math.max(0, Date.now() - providerStartedAt)}`)

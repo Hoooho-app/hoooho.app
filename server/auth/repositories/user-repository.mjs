@@ -38,6 +38,15 @@ export class UserRepository {
     return selectedUser
   }
 
+  async createCardsAccount(now = new Date()) {
+    let user
+    await this.#store.update(data => {
+      user = { id: randomUUID(), hooohoId: createHooohoId(data.users), createdAt: now.toISOString() }
+      return { ...data, users: [...data.users, user] }
+    })
+    return user
+  }
+
   async findById(id) {
     const data = await this.#store.read()
     return data.users.find((user) => user.id === id) ?? null
@@ -133,6 +142,24 @@ export class UserRepository {
       })
     }))
     return updated
+  }
+
+  async bindVerifiedContact(id, kind, value, expected, now = new Date()) {
+    if (kind !== 'phone' && kind !== 'email') throw new TypeError('Invalid contact kind')
+    let selectedUser
+    await this.#store.update((data) => {
+      const current = data.users.find((user) => user.id === id && !user.guest)
+      if (!current) throw Object.assign(new Error('账户不存在'), { status: 404, code: 'ACCOUNT_NOT_FOUND' })
+      if ((current[kind] ?? null) !== (expected ?? null)) {
+        throw Object.assign(new Error('绑定信息已变更，请重新验证'), { status: 409, code: 'CONTACT_CHANGED' })
+      }
+      if (data.users.some((user) => user.id !== id && user[kind] === value)) {
+        throw Object.assign(new Error('此联系方式已被其他账号使用'), { status: 409, code: 'IDENTITY_IN_USE' })
+      }
+      selectedUser = { ...current, [kind]: value, updatedAt: now.toISOString() }
+      return { ...data, users: data.users.map((user) => user.id === id ? selectedUser : user) }
+    })
+    return selectedUser
   }
 
   async delete(id) {

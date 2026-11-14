@@ -26,6 +26,10 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { getCanonicalDomainRedirect } from './domain-routing.mjs'
 import { AuthError, AuthService } from './auth/auth-service.mjs'
+import { CardsAccountService } from './cards-account/cards-account-service.mjs'
+import { CardsAppleBindings, createCardsAppleSignIn } from './cards-account/apple-sign-in.mjs'
+import { createCardsSMSProvider } from './cards-account/sms-provider.mjs'
+import { handleCardsAccount } from './cards-account/api.mjs'
 import { BrowserSessionService } from './auth/browser-session-service.mjs'
 import { observeSessionRequest } from './auth/session-diagnostics.mjs'
 import { registerTransactionRoot } from './auth/storage/transaction.mjs'
@@ -101,7 +105,23 @@ const familyMigration = createFamilyMigrationBridge({ ...sharedOptions, migratio
 const familyGateway = createFamilyGateway({ upstream: process.env.FAMILY_UPSTREAM_URL, token: process.env.FAMILY_GATEWAY_TOKEN })
 const qingganGateway = createQingganGateway({ upstream: process.env.QINGGAN_UPSTREAM_URL })
 const browserSessions = new BrowserSessionService(auth)
-const account = new AccountService({ ...sharedOptions, auth, users: auth.users, data: auth.accountData })
+const cardsSecret = process.env.HOOOHO_CARDS_ACCOUNT_SECRET || ''
+const cardsRequested = process.env.HOOOHO_CARDS_ACCOUNT_ENABLED === 'true'
+const cardsSecretIsValid = cardsSecret.length >= 32 && cardsSecret !== authConfig.tokenSecret
+const cardsApple = cardsSecretIsValid ? createCardsAppleSignIn(cardsSecret) : null
+const cardsAppleBindings = new CardsAppleBindings(authConfig.dataDirectory)
+const account = new AccountService({
+  ...sharedOptions, auth, users: auth.users, data: auth.accountData,
+  cardsAppleBindings,
+  revokeCardsApple: cardsApple ? binding => cardsApple.revoke(binding) : null
+})
+const cardsAccount = cardsRequested && cardsSecretIsValid
+  ? new CardsAccountService({
+    auth, account, secret: cardsSecret, apple: cardsApple, appleBindings: cardsAppleBindings,
+    smsProvider: createCardsSMSProvider(authConfig.dataDirectory)
+  })
+  : null
+if (cardsRequested && !cardsAccount) console.warn('[Hoooho Cards account] Scope secret missing or invalid; service disabled.')
 const members = new FamilyMemberService(sharedOptions)
 const organizations = new HealthRecordOrganizationService(sharedOptions)
 const audioTranscription = new AudioTranscriptionService(sharedOptions)
@@ -900,6 +920,7 @@ async function handleOnlineConsultations(request, response, pathname) {
 }
 
 async function handleApi(request, response, pathname, searchParams) {
+  if (await handleCardsAccount(request, response, pathname, { service: cardsAccount, readJson, sendJson })) return true
   if (pathname === '/api/account/usage' && request.method === 'GET') {
     sendJson(response, 200, await resources.account(await readAccountId(request)))
     return

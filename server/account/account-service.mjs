@@ -1,6 +1,7 @@
 import path from 'node:path'
 import { JsonStore } from '../auth/storage/json-store.mjs'
 import { AuthError } from '../auth/auth-service.mjs'
+import { withAccountLock } from '../auth/account-lock.mjs'
 import { UserRepository } from '../auth/repositories/user-repository.mjs'
 import { AccountDataService } from './account-data-service.mjs'
 import { AVATAR_PHOTO_MAX_DATA_URL_LENGTH } from '../../shared/avatar-photo-policy.mjs'
@@ -15,6 +16,8 @@ export class AccountService {
   constructor(options) {
     this.auth = options.auth
     this.users = options.users ?? new UserRepository(options.dataDirectory)
+    this.cardsAppleBindings = options.cardsAppleBindings
+    this.revokeCardsApple = options.revokeCardsApple
     this.data = options.data ?? new AccountDataService(options)
     this.profiles = new JsonStore(path.join(options.dataDirectory, 'account-profiles.json'), { profiles: [] })
     this.tokens = options.tokens ?? new TokenService(options.tokenSecret, 10 * 60 * 1000)
@@ -120,13 +123,14 @@ export class AccountService {
       const owner = await this.users.findByPhone(phone)
       if (owner && owner.id !== accountId) throw new AuthError('该手机号已被其他账户使用', 409, 'IDENTITY_IN_USE')
       await this.auth.verifyPhoneCode(phone, String(code), now)
-      await this.users.update(accountId, { phone }, new Date(now))
+      await this.users.bindVerifiedContact(accountId, 'phone', phone, current?.phone, new Date(now))
     } else if (kind === 'email') {
       const email = this.auth.normalizeEmail(String(rawValue))
+      const current = await this.users.findById(accountId)
       const owner = await this.users.findByEmail(email)
       if (owner && owner.id !== accountId) throw new AuthError('该邮箱已被其他账户使用', 409, 'IDENTITY_IN_USE')
       await this.auth.verifyEmailCode(email, String(code), now)
-      await this.users.update(accountId, { email }, new Date(now))
+      await this.users.bindVerifiedContact(accountId, 'email', email, current?.email, new Date(now))
     } else throw new AuthError('不支持的绑定方式', 400, 'INVALID_BINDING_KIND')
     return this.get(accountId)
   }
@@ -153,9 +157,25 @@ export class AccountService {
     if (!user) return { deleted: true, idempotent: true }
     const proof = this.tokens.verify(String(input.deleteToken ?? ''), now)
     if (proof?.sub !== accountId || proof?.purpose !== 'delete-account') throw new AuthError('请先完成身份验证', 403, 'DELETE_VERIFICATION_REQUIRED')
-    await this.data.deleteAccount(accountId)
-    await this.profiles.update((data) => ({ ...data, profiles: data.profiles.filter((item) => item.accountId !== accountId) }))
-    await this.users.delete(accountId)
-    return { deleted: true, idempotent: false }
+    return this.deleteVerifiedAccount(accountId)
+  }
+
+  async deleteVerifiedAccount(accountId) {
+    return withAccountLock(accountId, async () => {
+      const user = await this.users.findById(accountId)
+      if (!user) return { deleted: true, idempotent: true }
+      const appleBinding = await this.cardsAppleBindings?.forAccount(accountId)
+      if (appleBinding) {
+        if (!this.revokeCardsApple) throw new AuthError('暂时无法解除 Apple 授权，请稍后重试', 503, 'APPLE_UNAVAILABLE')
+        await this.revokeCardsApple(appleBinding)
+      }
+      await this.data.deleteAccount(accountId)
+      await accountTransaction(this.auth.config.dataDirectory, async () => {
+        await this.profiles.update((data) => ({ ...data, profiles: data.profiles.filter((item) => item.accountId !== accountId) }))
+        await this.users.delete(accountId)
+        if (appleBinding) await this.cardsAppleBindings.remove(accountId)
+      })
+      return { deleted: true, idempotent: false }
+    })
   }
 }
