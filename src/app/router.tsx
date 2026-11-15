@@ -44,6 +44,7 @@ export const router = createBrowserRouter(visibleRoutes([
         { path: '/ops/feedback', lazy: lazyPage(() => import('../pages/Ops/Feedback'), 'OpsFeedbackPage') },
         { path: '/ops/services', lazy: lazyPage(() => import('../pages/Ops/Modules'), 'OpsServicesPage') },
         { path: '/ops/resources', lazy: lazyPage(() => import('../pages/Ops/Resources'), 'OpsResourcesPage') },
+        { path: '/ops/workflow', lazy: lazyPage(() => import('../pages/Ops/Workflow'), 'OpsWorkflowPage') },
         { path: '/ops/versions', lazy: lazyPage(() => import('../pages/Ops/Modules'), 'OpsVersionsPage') },
         { path: '/ops/marketing', lazy: lazyPage(() => import('../pages/Ops/Marketing'), 'OpsMarketingPage') },
         { path: '/ops/capabilities', lazy: lazyPage(() => import('../pages/Ops/Capabilities'), 'OpsCapabilitiesPage') },

@@ -3,6 +3,9 @@ import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { CaptureWorkerClient, handleCaptureApi } from './capture-worker-client.mjs'
 import { OpsWorkspaceService } from './workspace-service.mjs'
+import { readProductionWorkflow } from './production-workflow.mjs'
+import { DELIVERY_PATH, DeliveryWorkflowService } from './delivery-workflow.mjs'
+import { EXPIRY_PATH, WorkflowExpiryService } from './workflow-expiry.mjs'
 import { createBillingCollectors } from './capture-collectors.mjs'
 import { parseJsonObject } from '../json-input.mjs'
 import { OPS_SNAPSHOT_REQUEST_MAX_LENGTH, OpsService, assertOpsAccess } from './ops-service.mjs'
@@ -35,6 +38,8 @@ export function opsApiPlugin(options = {}) {
   const capabilities = new CapabilityService({ dataDirectory: options.dataDirectory ?? authConfig.dataDirectory })
   const captureWorker = options.captureWorker ?? new CaptureWorkerClient()
   const workspace = options.workspace ?? new OpsWorkspaceService({ dataDirectory: options.dataDirectory ?? authConfig.dataDirectory, captureWorker })
+  const delivery = new DeliveryWorkflowService({ dataDirectory: options.dataDirectory ?? authConfig.dataDirectory })
+  const expiry = new WorkflowExpiryService({ dataDirectory: options.dataDirectory ?? authConfig.dataDirectory })
   const capture = createBillingCollectors({ worker: captureWorker })
   const service = options.service ?? new OpsService({ dataDirectory: options.dataDirectory ?? authConfig.dataDirectory, collectors: options.collectors ?? capture.collectors, collectorStatus: capture.status, beforeCollection: () => captureWorker.refreshMetadata(), getConnectedFields: item => Object.keys(captureWorker.profile(item.id)?.fields || {}), getReminderRules: async () => (await workspace.settings()).reminders })
   const resources = usageService({ ...authConfig, ...options })
@@ -59,6 +64,11 @@ export function opsApiPlugin(options = {}) {
       if (await handleCaptureApi({ request, response, pathname, readJson, send, vault: captureWorker, ops: service, actorId: payload.sub })) return
       if (pathname === '/api/ops/services' && request.method === 'GET') return send(response, 200, await workspace.services())
       if (pathname === '/api/ops/resources' && request.method === 'GET') return send(response, 200, await resources.overview())
+      if (pathname === '/api/ops/workflow' && request.method === 'GET') return send(response, 200, readProductionWorkflow({ captureWorker }))
+      if (pathname === DELIVERY_PATH && request.method === 'GET') return send(response, 200, await delivery.read())
+      if (pathname === DELIVERY_PATH && request.method === 'POST') return send(response, 200, await delivery.record(await readJson(request, 2048)))
+      if (pathname === EXPIRY_PATH && request.method === 'GET') return send(response, 200, await expiry.read())
+      if (pathname === EXPIRY_PATH && request.method === 'POST') return send(response, 200, await expiry.record(await readJson(request, 1024)))
       if (pathname === '/api/ops/versions' && request.method === 'GET') return send(response, 200, await workspace.versions())
       if (pathname === '/api/ops/settings' && request.method === 'GET') return send(response, 200, await workspace.settings())
       if (pathname === '/api/ops/settings' && request.method === 'PATCH') return send(response, 200, await workspace.saveSettings(await readJson(request)))
