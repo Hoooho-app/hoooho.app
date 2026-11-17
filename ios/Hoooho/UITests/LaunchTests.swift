@@ -24,6 +24,37 @@ final class LaunchTests: XCTestCase {
         XCTAssertTrue(app.webViews.staticTexts["交互已响应"].waitForExistence(timeout: 5))
     }
 
+    func testContentProcessTerminationRecoversOnceThenOffersManualRetry() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--native-fixture", "--content-process-fixture"]
+        app.launch()
+        guard waitForFixture(app) else { return }
+        let terminate = app.webViews.buttons["模拟网页进程结束"]
+        let interaction = app.webViews.buttons["测试页面交互"]
+        let response = app.webViews.staticTexts["交互已响应"]
+        let failure = app.staticTexts["暂时无法打开护护"]
+        interaction.tap()
+        XCTAssertTrue(response.waitForExistence(timeout: 5))
+        terminate.tap()
+        let reloaded = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: response)
+        XCTAssertEqual(XCTWaiter.wait(for: [reloaded], timeout: 20), .completed)
+        guard waitForFixture(app) else { return }
+        XCTAssertFalse(failure.exists)
+        interaction.tap()
+        XCTAssertTrue(response.waitForExistence(timeout: 5))
+
+        terminate.tap()
+        XCTAssertTrue(failure.waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["hoooho.startupDiagnostic"].label.contains("WebKit · 内容进程结束"))
+        app.buttons["hoooho.retry"].tap()
+        let retried = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: response)
+        XCTAssertEqual(XCTWaiter.wait(for: [retried], timeout: 20), .completed)
+        guard waitForFixture(app) else { return }
+        XCTAssertFalse(failure.exists)
+        interaction.tap()
+        XCTAssertTrue(response.waitForExistence(timeout: 5))
+    }
+
     func testManualSymptomMenuHasOnlyThreeMediaSources() {
         let app = XCUIApplication()
         app.launchArguments = ["--native-fixture"]
