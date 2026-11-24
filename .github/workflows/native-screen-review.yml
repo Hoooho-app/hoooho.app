@@ -1,7 +1,7 @@
 name: Unsigned native screen review
 on:
   push:
-    branches: [codex/unsigned-native-screen-review-20261125-26]
+    branches: [codex/unsigned-native-screen-review-20261125-merged-session]
     paths: [.github/workflows/native-screen-review.yml]
 permissions:
   contents: read
