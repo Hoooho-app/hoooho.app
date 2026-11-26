@@ -1,8 +1,0 @@
-2.7 Family Health History
-Many diseases have a genetic component. It is important to understand the risk and likelihood of a patient developing illnesses based on their family health. Ask about the health status, age, and, if applicable, cause of death of immediate blood relatives (parents, grandparents, and siblings). Questions to ask include the following:
-
-2.7 Family Health History
-Tell me about the health of your blood relatives. Does anyone have diseases like cancer, heart problems, or respiratory problems?
-
-2.7 Family Health History
-Have any of your blood relatives died? If so, do you know the cause of death? What age did they die?

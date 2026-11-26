@@ -1,1 +1,0 @@
-{"name":"hoooho-private-billing-browser","version":"1.0.0","private":true,"type":"module","scripts":{"start":"node app.mjs"},"dependencies":{"playwright-core":"1.64.1"}}
