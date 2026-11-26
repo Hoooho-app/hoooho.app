@@ -112,14 +112,14 @@ function BrandMark({ className = "" }: { className?: string }) {
   );
 }
 
-function Brand({ light = false }: { light?: boolean }) {
+function Brand({ cards = false }: { cards?: boolean }) {
   return (
-    <a className={`brand ${light ? "brand-light" : ""}`} href="/" aria-label="护护 Hoooho 首页">
+    <a className="brand" href={cards ? "/id-cards" : "/"} aria-label={cards ? "护护证件卡包产品首页" : "护护 Hoooho 首页"}>
       <BrandMark />
       <span className="brand-word">
         hoooho<span className="brand-period">.</span>
       </span>
-      <span className="brand-chinese">护护</span>
+      <span className="brand-chinese">{cards ? "证件卡包" : "护护"}</span>
     </a>
   );
 }
@@ -130,6 +130,7 @@ const productAssets = "/family-site/make-media";
 const products = [
   {
     id: "cards",
+    href: "/id-cards",
     name: "护护证件卡包",
     english: "Hoooho Cards",
     category: "家庭资料",
@@ -170,7 +171,6 @@ function WalletArt({ large = false }: { large?: boolean }) {
           <img src={`${walletAssets}/feature-family.webp`} width="320" height="695"
             alt="卡包的家庭成员视图：按人切换，在出行分类下查看护照和通行证。" />
         </div>
-        <img className="screen-companion" src={`${walletAssets}/organizer.webp`} width="288" height="288" alt="" />
       </div>
     );
   }
@@ -188,7 +188,6 @@ function WalletArt({ large = false }: { large?: boolean }) {
       <div className="wallet-body">
         <div className="wallet-stitch" />
         <span className="wallet-wordmark">护护<br />证件卡包</span>
-        <img className="wallet-companion" src={`${walletAssets}/organizer.webp`} width="288" height="288" alt="" />
         <span className="wallet-logo">hoooho.</span>
         <div className="wallet-tab"><span /></div>
       </div>
@@ -235,6 +234,9 @@ function MomentsArt() {
 
 function Header({ detail = false }: { detail?: boolean }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const navLinks = detail
+    ? [["产品介绍", "/id-cards"], ["技术支持", "/id-cards/support"], ["隐私政策", "/id-cards/privacy"]]
+    : [["旗下 App", "/#apps"], ["护护的想法", "/#about"], ["常见问题", "/#faq"]];
   const header = useRef<HTMLElement>(null);
   const toggle = useRef<HTMLButtonElement>(null);
   useEffect(() => {
@@ -260,25 +262,18 @@ function Header({ detail = false }: { detail?: boolean }) {
   return (
     <header className="site-header" ref={header}>
       <div className="header-inner container">
-        <Brand />
-        <nav className={`main-nav ${menuOpen ? "is-open" : ""}`} aria-label="主导航">
-          <a
-            href="/#apps"
-            onClick={() => setMenuOpen(false)}
-            className={!detail ? "nav-featured" : ""}
-          >
-            旗下 App
-            <span className="nav-dot" />
-          </a>
-          <a href="/#about" onClick={() => setMenuOpen(false)}>
-            护护的想法
-          </a>
-          <a href="/#faq" onClick={() => setMenuOpen(false)}>
-            常见问题
-          </a>
+        <Brand cards={detail} />
+        <nav className={`main-nav ${menuOpen ? "is-open" : ""}`} aria-label={detail ? "卡包导航" : "护护导航"}>
+          {navLinks.map(([name, href], index) => (
+            <a key={href} href={href} onClick={() => setMenuOpen(false)}
+              className={index === 0 ? "nav-featured" : undefined}
+              aria-current={detail && index === 0 ? "page" : undefined}>
+              {name}{index === 0 && <span className="nav-dot" />}
+            </a>
+          ))}
         </nav>
-        <a className="header-cta" href="/#apps">
-          发现小美好
+        <a className="header-cta" href={detail ? "/" : "/#apps"}>
+          {detail ? "护护品牌首页" : "发现小美好"}
           <Icon name="arrow" size={15} />
         </a>
         <button
@@ -291,10 +286,14 @@ function Header({ detail = false }: { detail?: boolean }) {
           <Icon name={menuOpen ? "close" : "menu"} size={24} />
         </button>
       </div>
-      {menuOpen && <nav className="header-shortcuts" aria-label="更多入口">
-        <a href="/id-cards">护护证件卡包</a>
-        <a href="/id-cards/support">技术支持</a>
-        <a href="/id-cards/privacy">隐私政策</a>
+      {menuOpen && <nav className="header-shortcuts" aria-label="更多入口" onClick={() => setMenuOpen(false)}>
+        {detail ? <>
+          <a href="#product-faq">卡包常见问题</a>
+          <a href="/">护护品牌首页</a>
+        </> : <>
+          <a href="/id-cards">护护证件卡包</a>
+          <a href="/#ecosystem">家庭产品方向</a>
+        </>}
       </nav>}
     </header>
   );
@@ -385,9 +384,7 @@ function Values() {
   );
 }
 
-type ModalKind = "health" | "moments" | "privacy" | null;
-
-function AppCollection({ onPreview }: { onPreview: (kind: ModalKind) => void }) {
+function AppCollection() {
   const [filter, setFilter] = useState("全部 App");
   const categories = ["全部 App", "家庭资料", "健康照护", "亲子陪伴"];
   const visible = filter === "全部 App" ? products : products.filter((p) => p.category === filter);
@@ -423,43 +420,24 @@ function AppCollection({ onPreview }: { onPreview: (kind: ModalKind) => void }) 
         </span>
       </div>
       <div className="app-grid" aria-live="polite">
-        {visible.map((product) => (
-          <article className={`app-card ${product.className}`} key={product.id}>
-            <a
-              className="app-art-link"
-              href={product.id === "cards" ? "/id-cards" : undefined}
-              onClick={
-                product.id !== "cards"
-                  ? (event) => {
-                      event.preventDefault();
-                      onPreview(product.id as ModalKind);
-                    }
-                  : undefined
-              }
-              role={product.id !== "cards" ? "button" : undefined}
-              tabIndex={product.id !== "cards" ? 0 : undefined}
-              onKeyDown={
-                product.id !== "cards"
-                  ? (event) => {
-                      if (event.key === "Enter" || event.key === " ") {
-                        event.preventDefault();
-                        onPreview(product.id as ModalKind);
-                      }
-                    }
-                  : undefined
-              }
-              aria-label={`了解${product.name}`}
-            >
-              <div className="app-art">
+        {visible.map((product) => {
+          const ArtFrame = product.href ? "a" : "div";
+          return (
+            <article className={`app-card ${product.className} ${product.href ? "app-available" : "app-upcoming"}`} key={product.id}>
+              <ArtFrame
+                className={product.href ? "app-art app-art-link" : "app-art"}
+                href={product.href}
+                aria-label={product.href ? `了解${product.name}` : undefined}
+              >
                 <div className="art-topline">
                   <span className="app-icon">
                     {product.image ? (
                       <img className="product-icon-image" src={product.image} alt="" width="40" height="40" />
                     ) : <Icon name={product.icon} size={22} />}
                   </span>
-                  <span className={`status-label ${product.id === "cards" ? "status-live" : ""}`}>
+                  <span className={`status-label ${product.href ? "status-live" : ""}`}>
                     <i />
-                    {product.id === "cards" ? "产品介绍" : "筹备中"}
+                    {product.href ? "产品介绍" : "筹备中"}
                   </span>
                 </div>
                 {product.id === "cards" ? (
@@ -470,35 +448,27 @@ function AppCollection({ onPreview }: { onPreview: (kind: ModalKind) => void }) 
                   <MomentsArt />
                 )}
                 <span className="art-category">{product.category}</span>
+              </ArtFrame>
+              <div className="app-card-content">
+                <div className="app-name-row">
+                  <h3>{product.name}</h3>
+                  <span>{product.english}</span>
+                </div>
+                <p>
+                  {product.description}
+                  <br />
+                  {product.detail}
+                </p>
+                {product.href && (
+                  <a className="app-text-link" href={product.href}>
+                    认识证件卡包
+                    <Icon name="arrow" size={16} />
+                  </a>
+                )}
               </div>
-            </a>
-            <div className="app-card-content">
-              <div className="app-name-row">
-                <h3>{product.name}</h3>
-                <span>{product.english}</span>
-              </div>
-              <p>
-                {product.description}
-                <br />
-                {product.detail}
-              </p>
-              {product.id === "cards" ? (
-                <a className="app-text-link" href="/id-cards">
-                  认识证件卡包
-                  <Icon name="arrow" size={16} />
-                </a>
-              ) : (
-                <button
-                  className="app-text-link"
-                  onClick={() => onPreview(product.id as ModalKind)}
-                >
-                  先认识一下
-                  <Icon name="arrow" size={16} />
-                </button>
-              )}
-            </div>
-          </article>
-        ))}
+            </article>
+          );
+        })}
       </div>
       <div className="collection-bottom">
         <span className="small-dot" />
@@ -577,9 +547,9 @@ const faqs = [
       "不需要。每个 App 都是独立的工具，各有所长。你可以先从当下最需要解决的一件小事开始，例如用证件卡包整理全家人的证件。",
   },
   {
-    question: "护护会如何对待我的隐私？",
+    question: "浏览官网需要注册吗？",
     answer:
-      "隐私是产品设计需要认真对待的一部分。本官网不要求注册，也不会收集你的证件、健康或儿童资料。各 App 的存储方式、权限及数据处理规则，请以正式发布时的产品隐私政策为准。",
+      "你可以直接浏览官网，了解护护旗下的产品。浏览时无需注册账号或填写家人的资料。",
   },
   {
     question: "在哪里可以了解新 App 的进展？",
@@ -595,12 +565,12 @@ function FAQ({ compact = false }: { compact?: boolean }) {
         {
           question: "可以整理哪些类型的证件？",
           answer:
-            "证件卡包的设计覆盖身份证、银行卡和护照等常用资料，并按家人分别整理。你可以在上方的交互演示里，切换家人和证件类型，体验整理方式。",
+            "可以按家人整理身份证、银行卡和护照等常用资料。展开「试用证件查找」，可以切换家人、筛选证件和搜索尾号。",
         },
         {
           question: "这里的证件资料是真实的吗？",
           answer:
-            "不是。此页面的姓名和号码均为虚构演示资料，不会上传或保存任何真实证件。正式 App 的功能及数据处理方式，以发布版本和产品隐私政策为准。",
+            "页面展示卡包的 iPhone 运行界面。查找示例中的姓名和号码为虚构资料，你输入的搜索内容仅用于本页筛选。",
         },
         {
           question: "在哪里下载证件卡包？",
@@ -646,32 +616,41 @@ function FAQ({ compact = false }: { compact?: boolean }) {
   );
 }
 
-function Footer({ onPrivacy }: { onPrivacy: () => void }) {
+function Footer({ cards }: { cards: boolean }) {
   return (
     <footer className="site-footer">
       <div className="container">
         <div className="footer-main">
           <div>
-            <Brand />
+            <Brand cards={cards} />
             <p>好好生活，慢慢护护。</p>
           </div>
-          <div className="footer-navigation">
-            <div>
-              <span>探索护护</span>
-              <a href="/#apps">旗下 App</a>
-              <a href="/#about">我们的想法</a>
-            </div>
-            <div>
-              <span>多一点了解</span>
-              <a href="/#faq">常见问题</a>
-              <a href="/id-cards/support">卡包技术支持</a>
-              <a href="/id-cards/privacy">卡包隐私政策</a>
-              <button onClick={onPrivacy}>
-                隐私与安全
-                <Icon name="arrow" size={12} />
-              </button>
-            </div>
-          </div>
+          <nav className="footer-navigation" aria-label={cards ? "卡包页脚导航" : "护护页脚导航"}>
+            {cards ? <>
+              <div>
+                <span>证件卡包</span>
+                <a href="/id-cards">产品介绍</a>
+                <a href="#product-faq">常见问题</a>
+              </div>
+              <div>
+                <span>卡包服务</span>
+                <a href="/id-cards/support">技术支持</a>
+                <a href="/id-cards/privacy">隐私政策</a>
+              </div>
+            </> : <>
+              <div>
+                <span>探索护护</span>
+                <a href="/#apps">旗下 App</a>
+                <a href="/#about">我们的想法</a>
+                <a href="/#faq">常见问题</a>
+              </div>
+              <div>
+                <span>旗下产品</span>
+                <a href="/id-cards">护护证件卡包</a>
+                <a href="/#ecosystem">家庭产品方向</a>
+              </div>
+            </>}
+          </nav>
           <a className="back-top" href="#main-content" aria-label="回到顶部">
             <Icon name="arrow-down" size={20} />
           </a>
@@ -712,7 +691,39 @@ const family = [
   },
 ];
 
-function CardDemo() {
+const walletScreens = [
+  {
+    tab: "证件",
+    file: "feature-family.webp",
+    alt: "证件页的出行分类中，护照和港澳通行证按两列排列，仅显示号码尾号。",
+  },
+  {
+    tab: "取用",
+    file: "feature-folder.webp",
+    alt: "取用页的「我的证件夹」中，家庭出游文件夹收有两份证件。",
+  },
+];
+
+function WalletScreenGallery() {
+  const [active, setActive] = useState(0);
+  const screen = walletScreens[active];
+  return (
+    <figure className="wallet-gallery">
+      <div className="wallet-gallery-switch" role="group" aria-label="选择卡包实机界面">
+        {walletScreens.map((item, index) => (
+          <button key={item.tab} type="button" aria-pressed={active === index}
+            onClick={() => setActive(index)}>{item.tab}</button>
+        ))}
+      </div>
+      <div className="wallet-gallery-device">
+        <img src={`${walletAssets}/${screen.file}`} width="320" height="695" alt={screen.alt} />
+      </div>
+      <figcaption aria-live="polite">iPhone 实机界面 · {screen.tab}</figcaption>
+    </figure>
+  );
+}
+
+function WalletSearchSample() {
   const [member, setMember] = useState(0);
   const [category, setCategory] = useState<keyof typeof family[number]["numbers"]>("身份证");
   const [revealed, setRevealed] = useState(false);
@@ -720,6 +731,54 @@ function CardDemo() {
   const person = family[member];
   const number = person.numbers[category];
   const matches = `${person.name} ${person.role} ${category} ${number.slice(-4)}`.includes(search.trim());
+
+  return (
+    <details className="wallet-sample">
+      <summary>试用证件查找<Icon name="plus" size={17} /></summary>
+      <div className="wallet-sample-body">
+        <div className="family-tabs" role="group" aria-label="选择家人">
+          {family.map((item, index) => (
+            <button key={item.name} type="button" aria-pressed={member === index}
+              className={member === index ? "selected" : ""}
+              onClick={() => { setMember(index); setRevealed(false); }}>
+              {item.name}
+            </button>
+          ))}
+        </div>
+        <label className="demo-search">
+          <Icon name="search" size={16} />
+          <input value={search} placeholder="搜索姓名、证件或尾号" aria-label="搜索演示证件"
+            onChange={event => { setSearch(event.target.value); setRevealed(false); }} />
+        </label>
+        <div className="document-tabs" role="group" aria-label="证件类型">
+          {(["身份证", "银行卡", "护照"] as const).map(tab => (
+            <button type="button" key={tab} aria-pressed={category === tab}
+              className={category === tab ? "selected" : ""}
+              onClick={() => { setCategory(tab); setRevealed(false); }}>{tab}</button>
+          ))}
+        </div>
+        {matches ? (
+          <div className="wallet-sample-card">
+            <strong><Icon name={category === "银行卡" ? "wallet" : "shield"} size={19} />{category}</strong>
+            <div className="wallet-sample-card-number">
+              <span className="sample-number" aria-live="polite">{revealed ? number : `•••• ${number.slice(-4)}`}</span>
+              <button type="button" className="number-toggle" aria-pressed={revealed}
+                onClick={() => setRevealed(!revealed)}>{revealed ? "遮挡号码" : "查看号码"}</button>
+            </div>
+          </div>
+        ) : (
+          <div className="demo-empty">
+            <strong>暂时没有找到这张证件</strong>
+            <button type="button" onClick={() => setSearch("")}>清空搜索</button>
+          </div>
+        )}
+        <p className="wallet-sample-note">示例中的姓名和号码均为虚构。</p>
+      </div>
+    </details>
+  );
+}
+
+function CardDemo() {
   return (
     <section className="demo-section container" id="card-demo" aria-labelledby="demo-title">
       <div className="section-heading">
@@ -727,150 +786,36 @@ function CardDemo() {
           <div className="eyebrow">A PLACE FOR EVERYTHING</div>
           <h2 id="demo-title">打开卡包，就能找到。</h2>
         </div>
-        <p className="demo-intro">
-          试着切换家人和证件类型。
-          <br />
-          点「查看号码」，可以查看虚构的演示号码。
-        </p>
+        <p className="demo-intro">切换「证件」和「取用」，看看卡包在 iPhone 上的样子。</p>
       </div>
-      <div className="demo-layout">
-        <div className="demo-window">
-          <div className="demo-window-bar">
-            <span />
-            <span />
-            <span />
-            <span className="demo-window-label">护护证件卡包 · 交互演示</span>
-            <Icon name="shield" size={15} />
+      <div className="demo-layout wallet-preview-layout">
+        <WalletScreenGallery />
+        <div className="wallet-preview-notes">
+          <div className="demo-features">
+            {[
+              {
+                title: "按家人找证件",
+                text: "选中家人，再切换身份、金融或出行分类。列表里只露出证件号码的尾号。",
+                icon: "people" as const,
+              },
+              {
+                title: "把出行资料放在一起",
+                text: "在「取用」的证件夹里，把这次出行要用的资料放在一起。",
+                icon: "wallet" as const,
+              },
+              {
+                title: "分享前，先核对副本",
+                text: "导出前选好页面，核对遮挡范围和用途水印，再把副本发出去。",
+                icon: "shield" as const,
+              },
+            ].map(item => (
+              <div className="demo-feature" key={item.title}>
+                <span className="demo-feature-icon"><Icon name={item.icon} size={23} /></span>
+                <div><h3>{item.title}</h3><p>{item.text}</p></div>
+              </div>
+            ))}
           </div>
-          <div className="demo-app">
-            <div className="demo-app-heading">
-              <div>
-                <span className="eyebrow">FAMILY WALLET</span>
-                <h3>家人的证件</h3>
-              </div>
-              <span className="demo-logo">
-                <img className="product-icon-image" src={`${walletAssets}/wallet-icon.webp`} width="40" height="40" alt="" />
-              </span>
-            </div>
-            <div className="family-tabs" aria-label="选择家人">
-              {family.map((item, index) => (
-                <button
-                  key={item.name}
-                  onClick={() => { setMember(index); setRevealed(false); }}
-                  className={member === index ? "selected" : ""}
-                  aria-pressed={member === index}
-                >
-                  <span className={`family-avatar ${item.color}`}>{item.short}</span>
-                  <span>
-                    {item.name}
-                    <small>{item.role}</small>
-                  </span>
-                  {member === index && <Icon name="check" size={14} />}
-                </button>
-              ))}
-            </div>
-            <div className="demo-controls">
-              <div className="document-tabs" aria-label="证件类型">
-                {(["身份证", "银行卡", "护照"] as const).map((tab) => (
-                  <button
-                    key={tab}
-                    className={category === tab ? "selected" : ""}
-                    onClick={() => { setCategory(tab); setRevealed(false); }}
-                    aria-pressed={category === tab}
-                  >
-                    {tab}
-                  </button>
-                ))}
-              </div>
-              <label className="demo-search">
-                <Icon name="search" size={15} />
-                <input
-                  value={search}
-                  onChange={(event) => { setSearch(event.target.value); setRevealed(false); }}
-                  placeholder="找一张证件"
-                  aria-label="搜索演示证件"
-                />
-              </label>
-            </div>
-            {matches ? (
-              <div
-                className={`demo-id-card ${category === "银行卡" ? "bank-card" : category === "护照" ? "passport-card" : ""}`}
-              >
-                <div className="demo-card-top">
-                  <span>
-                    {category === "银行卡"
-                      ? "FAMILY BANK CARD"
-                      : category === "护照"
-                        ? "FAMILY PASSPORT"
-                        : "FAMILY IDENTITY CARD"}
-                  </span>
-                  <Icon name={category === "银行卡" ? "wallet" : "shield"} size={20} />
-                </div>
-                <div className="demo-card-body">
-                  <div>
-                    <small>{category}</small>
-                    <h4>{person.name}</h4>
-                    <p className="sample-number" aria-live="polite">{revealed ? number : `••••  ••••  ${number.slice(-4)}`}</p>
-                  </div>
-                  <div className={`demo-portrait ${person.color}`}>
-                    <Icon name="people" size={44} />
-                  </div>
-                </div>
-                <div className="demo-card-bottom">
-                  <button className="number-toggle" type="button" aria-pressed={revealed} onClick={() => setRevealed(!revealed)}>
-                    {revealed ? "遮挡号码" : "查看号码"}
-                  </button>
-                  <strong>hoooho.</strong>
-                </div>
-              </div>
-            ) : (
-              <div className="demo-empty">
-                <Icon name="search" size={30} />
-                <strong>暂时没有找到这张证件</strong>
-                <p>
-                  试试搜索「{person.name}」或「{category}」。
-                </p>
-                <button onClick={() => setSearch("")}>清空搜索</button>
-              </div>
-            )}
-            <span className="demo-disclaimer">
-              <Icon name="shield" size={13} />
-              仅为交互演示，所有资料均为虚构
-            </span>
-          </div>
-        </div>
-        <div className="demo-features">
-          {[
-            {
-              n: "01",
-              title: "按家人取用证件",
-              text: "先选持有人，再选身份证、银行卡或护照。列表默认只露出号码尾号。",
-              icon: "people" as const,
-            },
-            {
-              n: "02",
-              title: "出发前，看一眼有效期",
-              text: "在 App 的「有效期」里选家人和月份，查看已填写到期日的证件。",
-              icon: "wallet" as const,
-            },
-            {
-              n: "03",
-              title: "分享前，先核对副本",
-              text: "在 App 的导出预览中选择页面，核对遮挡范围和用途水印，再分享。",
-              icon: "shield" as const,
-            },
-          ].map((item) => (
-            <div className="demo-feature" key={item.n}>
-              <span className="demo-feature-icon">
-                <Icon name={item.icon} size={23} />
-              </span>
-              <div>
-                <small>{item.n}</small>
-                <h3>{item.title}</h3>
-                <p>{item.text}</p>
-              </div>
-            </div>
-          ))}
+          <WalletSearchSample />
         </div>
       </div>
     </section>
@@ -908,7 +853,7 @@ function ProductPage() {
             </p>
             <div className="product-hero-actions">
               <a className="button button-primary" href="#card-demo">
-                打开卡包，体验一下
+                查看卡包界面
                 <Icon name="arrow" size={17} />
               </a>
               <a className="simple-link" href="#product-faq">
@@ -953,94 +898,7 @@ function ProductPage() {
   );
 }
 
-function InfoDialog({ kind, onClose }: { kind: Exclude<ModalKind, null>; onClose: () => void }) {
-  const ref = useRef<HTMLDialogElement>(null);
-  const product = products.find((p) => p.id === kind);
-  useEffect(() => {
-    const dialog = ref.current;
-    dialog?.showModal();
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      dialog?.close();
-      document.body.style.overflow = previous;
-    };
-  }, []);
-  return (
-    <dialog
-      ref={ref}
-      className={`info-dialog ${product?.className || ""}`}
-      onCancel={onClose}
-      onClick={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
-      aria-labelledby="dialog-title"
-    >
-      <button className="dialog-close icon-button" onClick={onClose} aria-label="关闭">
-        <Icon name="close" size={21} />
-      </button>
-      {kind === "privacy" ? (
-        <div className="privacy-dialog">
-          <span className="dialog-icon">
-            <Icon name="shield" size={30} />
-          </span>
-          <div className="eyebrow">YOUR TRUST MATTERS</div>
-          <h2 id="dialog-title">认真对待每一份信任。</h2>
-          <p>家庭日常很珍贵，与你有关的资料也是。</p>
-          <h3>在这个官网</h3>
-          <p>
-            你不需要注册账户，也不需要提供证件、健康或儿童资料。页面中的证件示例均为虚构，交互演示不会保存或上传你的输入。
-          </p>
-          <h3>在护护的 App 里</h3>
-          <p>
-            卡包内的证件资料在本机加密保存。关于账号关联、资料导出和删除，请查看<a href="/id-cards/privacy">护护证件卡包隐私政策</a>。
-          </p>
-          <button className="button button-primary" onClick={onClose}>
-            我知道了
-            <Icon name="check" size={17} />
-          </button>
-        </div>
-      ) : (
-        <>
-          <div className="dialog-art">
-            {kind === "health" ? <HealthArt /> : (
-              <div className="play-product-preview">
-                <img src={`${productAssets}/play-screen.webp`} width="408" height="900" alt="护护陪玩玩法详情示例：软球快递站，包含适龄提示、准备材料与玩法步骤。" />
-              </div>
-            )}
-          </div>
-          <div className="dialog-content">
-            <span className="dialog-coming">
-              <span className="small-dot" />
-              产品筹备中
-            </span>
-            <h2 id="dialog-title">{product?.name}</h2>
-            <p>
-              {product?.description}
-              <br />
-              {product?.detail}
-            </p>
-            <div className="coming-note">
-              <Icon name="leaf" size={21} />
-              <p>
-                {kind === "health"
-                  ? "一次就医可以从几个细节说起：哪天开始不舒服、当时用了什么、后来有什么变化。"
-                  : "例如「软球快递站」：家长和孩子坐在地上互相滚球，一起试试接住和送出软球。"}
-              </p>
-            </div>
-            <button className="button button-dark" onClick={onClose}>
-              返回 App 家族
-              <Icon name="heart" size={17} />
-            </button>
-          </div>
-        </>
-      )}
-    </dialog>
-  );
-}
-
 export default function App({ page }: { page: "home" | "cards" }) {
-  const [modal, setModal] = useState<ModalKind>(null);
   useEffect(() => {
     // Older shared demo URLs used a hash-based product route.
     const legacy = /^#\/apps\/cards(?:\/(card-demo|product-faq|main-content))?\/?$/.exec(location.hash);
@@ -1064,14 +922,13 @@ export default function App({ page }: { page: "home" | "cards" }) {
           <main>
             <Hero />
             <Values />
-            <AppCollection onPreview={setModal} />
+            <AppCollection />
             <About />
             <FAQ />
           </main>
         )}
       </div>
-      <Footer onPrivacy={() => setModal("privacy")} />
-      {modal && <InfoDialog kind={modal} onClose={() => setModal(null)} />}
+      <Footer cards={page === "cards"} />
     </>
   );
 }

@@ -540,9 +540,15 @@
     box-shadow 0.25s,
     transform 0.25s;
 }
-.app-card:hover {
+.app-available:hover {
   transform: translateY(-5px);
   box-shadow: 0 12px 30px #35432c09;
+}
+.app-upcoming .app-art {
+  filter: saturate(0.48) contrast(0.96);
+}
+.app-upcoming .status-label {
+  color: #656759;
 }
 .app-art-link {
   display: block;
@@ -708,7 +714,7 @@
   transform: translate(-50%, -39%) rotate(-11deg);
   transition: transform 0.45s cubic-bezier(0.2, 0.7, 0.2, 1);
 }
-.app-card:hover .wallet-art {
+.app-available:hover .wallet-art {
   transform: translate(-50%, -44%) rotate(-7deg);
 }
 .wallet-body {
@@ -902,9 +908,6 @@
   padding: 16px 17px 15px 20px;
   transition: transform 0.45s;
 }
-.app-card:hover .health-book {
-  transform: rotate(-6deg) translateY(-5px);
-}
 .book-spine {
   position: absolute;
   inset: 0 auto 0 8px;
@@ -1009,9 +1012,6 @@
 .photo-front {
   transform: rotate(-9deg);
   transition: transform 0.45s;
-}
-.app-card:hover .photo-front {
-  transform: rotate(-3deg) translateY(-5px);
 }
 .moment-picture {
   background: #e6e7d6;
