@@ -19,81 +19,44 @@
       <nav class="wallet-nav" aria-label="网站导航"><a href="/">护护首页</a><a href="/id-cards/support">技术支持</a><a href="/id-cards/privacy">隐私政策</a></nav>
     </div>
   </header>
-  <main id="main-content">
-    <section class="vault-hero" aria-labelledby="hero-heading">
-      <div class="wallet-wrap hero-layout">
-        <div class="hero-copy">
-          <p class="product-name" lang="en">Hoooho <span>/</span> ID Cards</p>
-          <h1 id="hero-heading">全家证件，<br><em>一处收好。</em></h1>
-          <p class="hero-text">把一家人的身份证、银行卡和护照按人收好。办事时找对那一张，出发前看看哪本快到期。</p>
-          <div class="hero-actions"><a class="primary-action" href="#explore">看看卡包怎么用</a><a class="text-action" href="/id-cards/support">使用帮助</a></div>
+  <main id="main-content" class="product-page">
+    <div class="wallet-wrap showcase">
+      <div class="product-intro">
+        <h1>全家人的<br><span>证件卡包。</span></h1>
+        <p>拍下证件，按家人收好。出发前查有效期，办事时分享需要的副本。</p>
+      </div>
+      <fieldset class="product-demo">
+        <legend>选择要预览的卡包功能</legend>
+        <input class="demo-choice" type="radio" name="demo" id="demo-family" checked>
+        <input class="demo-choice" type="radio" name="demo" id="demo-expiry">
+        <input class="demo-choice" type="radio" name="demo" id="demo-export">
+        <div class="feature-menu">
+          <label for="demo-family" class="family-label">按人取用</label>
+          <label for="demo-expiry" class="expiry-label">查看有效期</label>
+          <label for="demo-export" class="export-label">导出副本</label>
         </div>
-        <figure class="wallet-art" role="img" aria-label="产品插画：雾蓝与浅粉色的家庭资料卡叠放在一起，程序熊拿着打开的卡包。">
-          <div class="paper-ring ring-one"></div><div class="paper-ring ring-two"></div><div class="paper-ring ring-three"></div>
-          <div class="art-objects" aria-hidden="true">
-            <div class="back-card">
-              <div class="back-label"><span>旅行证件</span><b lang="en">TRAVEL</b></div>
-              <div class="globe"><i></i><i></i></div>
-              <span class="back-note" lang="en">Hoooho</span>
-            </div>
-            <div class="cover-card">
-              <div class="cover-heading"><span>护护证件卡包</span><b lang="en">Hoooho</b></div>
-              <div class="chip"><i></i><i></i></div>
-              <div class="bear-disc"><img src="/family-site/card-assets/organizer.webp" alt="" width="288" height="288"></div>
-              <div class="cover-bottom"><span>家庭资料卡</span><b lang="en">Family collection</b></div>
-              <div class="cover-waves"></div>
-            </div>
-          </div>
-        </figure>
-      </div>
-    </section>
-    <section class="explore wallet-wrap" id="explore" aria-labelledby="explore-heading">
-      <div class="section-head">
-        <h2 id="explore-heading">打开卡包，<br class="mobile-break">找到家人的那一张。</h2>
-        <p>从拍下第一张证件，到临时要用时取出，<br class="desktop-break">每一步都可以先核对。</p>
-      </div>
-      <div class="explore-grid">
-        <div class="preview">
-          <fieldset class="preview-controls">
-            <legend>切换卡包界面示例</legend>
-            <input class="choice" id="identity-preview" name="preview" type="radio" checked>
-            <label for="identity-preview">身份</label>
-            <input class="choice" id="finance-preview" name="preview" type="radio">
-            <label for="finance-preview">金融</label>
-            <div class="phone-window">
-              <div class="phone">
-                <img class="screen-image identity-screen" src="/family-site/card-assets/wallet-identity.webp" width="850" height="1839" alt="卡包界面示例：选择家人后，在身份分类查看已遮挡号码的证件卡。" loading="lazy">
-                <img class="screen-image finance-screen" src="/family-site/card-assets/wallet-finance.webp" width="850" height="1839" alt="卡包界面示例：金融分类以雾蓝、浅粉卡片显示银行卡，卡号只露出尾号。" loading="lazy">
-              </div>
-            </div>
-          </fieldset>
-          <p class="preview-caption">卡包界面示例</p>
+        <div class="feature-detail">
+          <p class="family-panel">切换到家人名下，直接找到出行要用的护照或通行证。</p>
+          <p class="expiry-panel">按家人、年份和月份查看到期日，提前安排换证。</p>
+          <p class="export-panel">选好需要的页面、水印和遮挡范围，先预览，再分享。</p>
         </div>
-        <div class="feature-list">
-          <section><h3><span class="feature-icon camera-icon" aria-hidden="true"></span>拍下证件，核对后归档</h3><p>拍照或导入资料后，预览识别结果，核对姓名、号码和所属人，再确认保存。</p></section>
-          <section><h3><span class="feature-icon people-icon" aria-hidden="true"></span>先选家人，再选证件</h3><p>在家人之间切换，按身份、金融等分类查看资料。即使两张卡长得很像，也能先分清是谁的。</p></section>
-          <section><h3><span class="feature-icon lock-icon" aria-hidden="true"></span>需要取用时，再查看原件</h3><p>日常浏览时，敏感字段保持遮挡。需要查看原件时，按提示完成设备验证。</p></section>
+        <div class="screen-stage">
+          <figure class="display-screen family-panel">
+            <div class="iphone-frame"><img src="/family-site/card-assets/feature-family.webp" width="320" height="695" alt="卡包证件页展示我、妈妈、女儿三个成员入口，出行分类中有护照和港澳通行证。" fetchpriority="high"></div>
+            <figcaption>证件 · 家庭成员视图</figcaption>
+          </figure>
+          <figure class="display-screen expiry-panel">
+            <div class="iphone-frame"><img src="/family-site/card-assets/feature-expiry.webp" width="777" height="1690" alt="有效期页面先选成员，再选择年和月，查看当月到期的资料列表。"></div>
+            <figcaption>有效期 · 月度视图</figcaption>
+          </figure>
+          <figure class="display-screen export-panel">
+            <div class="iphone-frame"><img src="/family-site/card-assets/feature-export.webp" width="680" height="1472" alt="卡包首次使用引导中的按需导出示例，展示带用途水印的副本。"></div>
+            <figcaption>按需导出 · App 引导示例</figcaption>
+          </figure>
+          <img class="bear" src="/family-site/card-assets/organizer.webp" width="288" height="288" alt="">
         </div>
-      </div>
-    </section>
-    <section class="calendar-feature wallet-wrap" aria-labelledby="calendar-heading">
-      <div class="calendar-copy">
-        <h2 id="calendar-heading">出发之前，<br>看一眼有效期。</h2>
-        <p>准备出游、换证或办理入学手续时，打开有效期视图。切换家人、年份和月份，就能检查已填写到期日的资料。</p>
-      </div>
-      <div class="calendar-art" role="img" aria-label="有效期示意：选中七月，可查看该月到期的护照。">
-        <div class="mini-agenda" aria-hidden="true">
-          <div class="agenda-top"><strong>有效期</strong><span>全部家人</span></div>
-          <div class="months"><span>一月</span><span>二月</span><span>三月</span><span>四月</span><span>五月</span><span>六月</span><b>七月</b><span>八月</span><span>九月</span><span>十月</span><span>十一月</span><span>十二月</span></div>
-          <div class="agenda-bottom"><i></i>护照<span>本月到期</span></div>
-        </div>
-        <img src="/family-site/card-assets/calendar.webp" width="288" height="288" loading="lazy" alt="">
-      </div>
-    </section>
-    <aside class="resources wallet-wrap" aria-label="支持与隐私">
-      <a href="/id-cards/support"><strong>技术支持</strong><span>查看操作说明和问题反馈方式</span></a>
-      <a href="/id-cards/privacy"><strong>隐私政策</strong><span>了解资料如何保存、处理和删除</span></a>
-    </aside>
+      </fieldset>
+    </div>
   </main>
   <footer class="wallet-footer"><div class="wallet-wrap"><small>Hoooho 护护 · 护护证件卡包</small><nav class="wallet-nav" aria-label="页脚导航"><a href="/">护护首页</a><a href="/id-cards/support">技术支持</a><a href="/id-cards/privacy">隐私政策</a></nav></div></footer>
 </body>
