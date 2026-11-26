@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import Ecosystem from "./Ecosystem";
+import { projectIdeas } from "./project-ideas";
 
 type IconName =
   | "arrow"
@@ -127,7 +128,20 @@ function Brand({ cards = false }: { cards?: boolean }) {
 const walletAssets = "/family-site/card-assets";
 const productAssets = "/family-site/make-media";
 
-const products = [
+type Product = {
+  id: "cards" | "health" | "moments" | number;
+  name: string;
+  category: string;
+  description: string;
+  english?: string;
+  detail?: string;
+  icon?: IconName;
+  image?: string;
+  href?: string;
+  className?: string;
+};
+
+const products: Product[] = [
   {
     id: "cards",
     href: "/id-cards",
@@ -136,7 +150,7 @@ const products = [
     category: "家庭资料",
     description: "按家人整理身份证、护照和银行卡。",
     detail: "办事时取用副本，出行前检查有效期。",
-    icon: "wallet" as const,
+    icon: "wallet",
     image: `${walletAssets}/wallet-icon.webp`,
     className: "sage",
   },
@@ -147,7 +161,7 @@ const products = [
     category: "健康照护",
     description: "记下孩子的症状、用药和后续变化。",
     detail: "就医前，把经过整理成医生能看的记录。",
-    icon: "heart" as const,
+    icon: "heart",
     image: `${productAssets}/records-icon.webp`,
     className: "peach",
   },
@@ -158,10 +172,13 @@ const products = [
     category: "亲子陪伴",
     description: "用家里现有的材料，挑一个适龄玩法。",
     detail: "跟着步骤和安全提示，一起动手玩。",
-    icon: "flower" as const,
+    icon: "flower",
     className: "butter",
   },
+  ...projectIdeas,
 ];
+const allProducts = "全部 App";
+const categories = [allProducts, ...new Set(products.map(product => product.category))];
 
 function WalletArt({ large = false }: { large?: boolean }) {
   if (large) {
@@ -385,9 +402,8 @@ function Values() {
 }
 
 function AppCollection() {
-  const [filter, setFilter] = useState("全部 App");
-  const categories = ["全部 App", "家庭资料", "健康照护", "亲子陪伴"];
-  const visible = filter === "全部 App" ? products : products.filter((p) => p.category === filter);
+  const [filter, setFilter] = useState(allProducts);
+  const visible = filter === allProducts ? products : products.filter((product) => product.category === filter);
   return (
     <section className="apps-section container" id="apps" aria-labelledby="apps-title">
       <div className="section-heading">
@@ -410,7 +426,7 @@ function AppCollection() {
               onClick={() => setFilter(category)}
             >
               {category}
-              {category === "全部 App" && <span>03</span>}
+              {category === allProducts && <span>{products.length}</span>}
             </button>
           ))}
         </div>
@@ -423,24 +439,27 @@ function AppCollection() {
         {visible.map((product) => {
           const ArtFrame = product.href ? "a" : "div";
           return (
-            <article className={`app-card ${product.className} ${product.href ? "app-available" : "app-upcoming"}`} key={product.id}>
+            <article className={`app-card ${product.className ?? "idea-card"} ${product.href ? "app-available" : "app-upcoming"}`} key={product.id}>
               <ArtFrame
                 className={product.href ? "app-art app-art-link" : "app-art"}
                 href={product.href}
                 aria-label={product.href ? `了解${product.name}` : undefined}
               >
                 <div className="art-topline">
-                  <span className="app-icon">
+                  {product.icon && <span className="app-icon">
                     {product.image ? (
                       <img className="product-icon-image" src={product.image} alt="" width="40" height="40" />
                     ) : <Icon name={product.icon} size={22} />}
-                  </span>
+                  </span>}
                   <span className={`status-label ${product.href ? "status-live" : ""}`}>
                     <i />
-                    {product.href ? "产品介绍" : "筹备中"}
+                    {product.href ? "产品介绍" : "Coming Soon"}
                   </span>
                 </div>
-                {product.id === "cards" ? (
+                {typeof product.id === "number" ? (
+                  <img className="idea-illustration" src={`/family-site/project-art/idea-${product.id}.webp`}
+                    alt="" loading="lazy" decoding="async" />
+                ) : product.id === "cards" ? (
                   <WalletArt />
                 ) : product.id === "health" ? (
                   <HealthArt />
@@ -452,12 +471,11 @@ function AppCollection() {
               <div className="app-card-content">
                 <div className="app-name-row">
                   <h3>{product.name}</h3>
-                  <span>{product.english}</span>
+                  {product.english && <span>{product.english}</span>}
                 </div>
                 <p>
                   {product.description}
-                  <br />
-                  {product.detail}
+                  {product.detail && <><br />{product.detail}</>}
                 </p>
                 {product.href && (
                   <a className="app-text-link" href={product.href}>
@@ -539,7 +557,7 @@ const faqs = [
   {
     question: "护护是一个 App，还是一个品牌？",
     answer:
-      "护护 Hoooho 是一个围绕家庭日常的 App 品牌。旗下每款 App 专注于一件事：证件整理、健康记录或亲子陪伴。你可以根据自己的需要，选择其中一款，不必安装全部。",
+      "护护 Hoooho 是一个围绕家庭日常的 App 品牌。每款产品专注于一件具体的事，从整理家人的证件、票据，到记录孩子的成长。",
   },
   {
     question: "我需要同时使用所有护护 App 吗？",
@@ -554,7 +572,7 @@ const faqs = [
   {
     question: "在哪里可以了解新 App 的进展？",
     answer:
-      "你可以在这里的「旗下 App」查看各产品的状态。证件卡包已开放产品介绍，护护记录和护护陪玩的官网进展也会在这里更新。",
+      "在「旗下 App」可以查看每个项目的状态。护护证件卡包已开放产品介绍，标有 Coming Soon 的项目还在筹备中。",
   },
 ];
 
