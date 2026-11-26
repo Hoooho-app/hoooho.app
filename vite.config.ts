@@ -6,6 +6,7 @@ import { careJourneyApiPlugin } from './server/care-journey/api.mjs'
 import { familySharingApiPlugin } from './server/family-sharing/api.mjs'
 import { careToolsApiPlugin } from './server/care-tools/api.mjs'
 import { defineConfig } from 'vite'
+import { familySitePlugin } from './server/family-site-routes.mjs'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import packageMetadata from './package.json'
@@ -47,6 +48,7 @@ export default defineConfig({
     host: true
   },
   plugins: [
+    familySitePlugin,
     analyticsInstrumentationPlugin(),
     productAnalyticsApiPlugin(),
     authApiPlugin(),
@@ -83,7 +85,8 @@ export default defineConfig({
         clientsClaim: true,
         skipWaiting: true,
         navigateFallback: 'index.html',
-        navigateFallbackDenylist: [/^\/api\//, OPS_NAVIGATION_EXCLUSION, /^\/family-ray-home-life-workspace(?:\/|$)/, /^\/qinggan-jichoushi-notebook(?:\/|$)/, /^\/_internal\//]
+        globIgnores: ['**/node_modules/**/*', '**/family-site/**/*'],
+        navigateFallbackDenylist: [/^\/(?:\?|$)/, /^\/id-cards(?:\/|\?|$)/, /^\/family-site\//, /^\/api\//, OPS_NAVIGATION_EXCLUSION, /^\/family-ray-home-life-workspace(?:\/|$)/, /^\/qinggan-jichoushi-notebook(?:\/|$)/, /^\/_internal\//]
       },
       manifest: {
         name: 'Hoooho',

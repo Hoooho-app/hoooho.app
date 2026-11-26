@@ -56,6 +56,7 @@ import { OpsOverviewService } from './ops/overview-service.mjs'
 import { HelpService } from './help/help-service.mjs'
 import { helpApi } from './help/help-api.mjs'
 import { FeedbackInterview } from './help/feedback-interview.mjs'
+import { familySiteDocument } from './family-site-routes.mjs'
 import { getStaticContentType } from './static-mime-types.mjs'
 import { validTimeZone } from './time/local-calendar.mjs'
 import { OnlineConsultationService } from './consultations/online-consultation-service.mjs'
@@ -1121,7 +1122,7 @@ function getStaticPath(pathname) {
   return filePath === staticDirectory || filePath.startsWith(`${staticDirectory}${path.sep}`) ? filePath : null
 }
 
-async function sendFile(request, response, filePath) {
+async function sendFile(request, response, filePath, revalidate = false) {
   const fileStat = await stat(filePath)
   if (!fileStat.isFile()) return false
 
@@ -1133,7 +1134,7 @@ async function sendFile(request, response, filePath) {
     'Cache-Control',
     fileName === 'index.html' || fileName === 'sw.js' || fileName.endsWith('.webmanifest')
       ? 'no-store'
-      : 'public, max-age=31536000, immutable'
+      : revalidate ? 'no-cache' : 'public, max-age=31536000, immutable'
   )
   const isVideo = path.extname(filePath).toLowerCase() === '.mp4'
   const etag = `"${fileName}-${fileStat.size}"`
@@ -1176,15 +1177,26 @@ async function handleStatic(request, response, pathname) {
     return
   }
 
+  const document = familySiteDocument(pathname)
+  if (document) {
+    await sendFile(request, response, getStaticPath(document), true)
+    return
+  }
+
+  const siteAsset = pathname.startsWith('/family-site/')
   const candidate = getStaticPath(pathname)
   if (candidate) {
     try {
-      if (await sendFile(request, response, candidate)) return
+      if (await sendFile(request, response, candidate, siteAsset)) return
     } catch (error) {
       if (error?.code !== 'ENOENT') throw error
     }
   }
 
+  if (siteAsset || pathname.startsWith('/id-cards/')) {
+    sendJson(response, 404, { error: { code: 'NOT_FOUND', message: '页面不存在' } })
+    return
+  }
   const indexPath = path.join(staticDirectory, 'index.html')
   await access(indexPath)
   await sendFile(request, response, indexPath)
