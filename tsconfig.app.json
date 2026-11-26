@@ -16,6 +16,6 @@
     "noEmit": true,
     "jsx": "react-jsx"
   },
-  "include": ["src"],
+  "include": ["src", "brand-site/src"],
   "exclude": ["src/**/*.test.ts"]
 }

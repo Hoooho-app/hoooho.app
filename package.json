@@ -10,7 +10,7 @@
     "start": "node --env-file-if-exists=.env.local ./node_modules/vite/bin/vite.js --host 0.0.0.0",
     "dev": "node --env-file-if-exists=.env.local ./node_modules/vite/bin/vite.js --host 0.0.0.0",
     "start:prod": "node server/app.mjs",
-    "build": "npm run typecheck && npm run test:icons && npm run test:body-locator-assets && npm run test:avatar-assets && npm run test:image-assets && vite build --config vite.config.ts && npm run test:viewport && npm run test:auth-build && npm run test:install-app-config",
+    "build": "npm run typecheck && npm run test:icons && npm run test:body-locator-assets && npm run test:avatar-assets && npm run test:image-assets && vite build --config vite.config.ts && node scripts/build-brand-site.mjs && npm run test:viewport && npm run test:auth-build && npm run test:install-app-config",
     "test:auth-build": "node scripts/check-auth-build.mjs",
     "preview": "vite preview --host 0.0.0.0",
     "test:auth": "node --test server/auth/auth-service.test.mjs server/auth/password-auth.test.mjs server/auth/session-diagnostics.test.mjs",

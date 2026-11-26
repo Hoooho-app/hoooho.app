@@ -44,3 +44,69 @@ a:focus-visible, button:focus-visible, summary:focus-visible, input:focus-visibl
   .wallet-header .wallet-nav { width: 100%; justify-content: space-between; }
   .wallet-header .wallet-nav a { padding-block: 4px; }
 }
+
+/* The support documents share the family site's paper, wordmark and flower. */
+.wallet-doc {
+  --paper: #f8f7f2;
+  --ink: #2d342b;
+  --text: #40483c;
+  --muted: #646c5e;
+  --line: #dcdfd3;
+  --leaf: #59674f;
+  --orange: #e56b48;
+  --link: #865037;
+  color: var(--ink);
+  background: var(--paper);
+  font-family: "DM Sans", "Noto Sans SC", -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+.wallet-doc ::selection { background: #f3c7b6; color: var(--ink); }
+.wallet-doc :focus-visible { outline: 2px solid #985938; outline-offset: 4px; }
+.doc-shell { width: min(1256px, calc(100% - 128px)); margin-inline: auto; }
+.doc-header-inner, .doc-footer-inner { display: flex; align-items: center; justify-content: space-between; gap: 28px; }
+.doc-header-inner { min-height: 88px; border-bottom: 1px solid var(--line); }
+.doc-brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; white-space: nowrap; }
+.doc-brand img { width: 33px; height: 33px; }
+.doc-wordmark { color: var(--ink); font-size: 32px; font-family: "DM Sans", Arial, sans-serif; font-weight: 750; letter-spacing: -1.9px; line-height: 1; }
+.doc-wordmark span { color: var(--orange); }
+.doc-brand-cn { font-size: 17px; font-weight: 600; letter-spacing: 1px; padding-left: 14px; margin-left: 4px; border-left: 1px solid #c9ccc0; }
+.doc-top-nav, .doc-footer-nav { display: flex; gap: 30px; align-items: center; }
+.doc-top-nav a, .doc-footer-nav a { position: relative; text-decoration: none; line-height: 1.45; white-space: nowrap; font-size: 14px; padding: 12px 0; color: #586151; }
+.doc-top-nav a:hover, .doc-footer-nav a:hover { color: var(--link); }
+.doc-top-nav [aria-current] { color: var(--ink); font-weight: 650; }
+.doc-top-nav [aria-current]::after { content: ""; position: absolute; left: calc(50% - 2px); bottom: 3px; width: 4px; height: 4px; background: var(--orange); border-radius: 50%; }
+.doc-footer { border-top: 1px solid var(--line); background: #f0f1e8; }
+.doc-footer-inner { padding: 44px 0 33px; }
+.doc-footer .doc-brand img { width: 28px; height: 28px; }
+.doc-footer .doc-wordmark { font-size: 28px; }
+.doc-footer .doc-brand-cn { font-size: 15px; }
+.doc-footer-nav { margin-left: auto; gap: 20px; flex-wrap: wrap; }
+.doc-footer-nav span { font-size: 13px; color: var(--muted); }
+.doc-footer-nav a { font-size: 13px; }
+.doc-back-top { display: grid; place-items: center; width: 42px; height: 42px; color: var(--leaf); background: transparent; border: 1px solid #bcc4af; font-size: 20px; text-decoration: none; border-radius: 50%; }
+.doc-back-top:hover { background: #e3e7d8; }
+.doc-footer-bottom { padding: 16px 0 21px; border-top: 1px solid #d6dccd; color: var(--muted); }
+.doc-footer-bottom small { font-size: 11px; }
+.doc-skip { position: absolute; z-index: 3; left: 12px; top: 8px; padding: 9px 14px; border-radius: 8px; background: var(--ink); color: var(--paper); transform: translateY(-180%); }
+.doc-skip:focus { transform: none; }
+@media (max-width: 900px) {
+  .doc-shell { width: calc(100% - 64px); }
+}
+@media (max-width: 650px) {
+  .doc-shell { width: calc(100% - 36px); }
+  .doc-header-inner { min-height: 66px; gap: 14px; flex-wrap: wrap; padding-block: 8px; }
+  .doc-brand { gap: 6px; }
+  .doc-brand img { width: 24px; height: 24px; }
+  .doc-wordmark { font-size: 24px; letter-spacing: -1.6px; }
+  .doc-brand-cn { padding-left: 7px; margin-left: 1px; font-size: 13px; }
+  .doc-top-nav { gap: 13px; }
+  .doc-top-nav a { font-size: 13px; }
+  .doc-footer-inner { display: grid; grid-template-columns: 1fr auto; align-items: start; padding: 30px 0 18px; gap: 12px; }
+  .doc-footer-nav { grid-column: 1 / -1; grid-row: 2; gap: 13px; margin-left: 0; }
+  .doc-back-top { width: 37px; height: 37px; }
+}
+@media (max-width: 365px) {
+  .doc-header-inner { justify-content: flex-start; row-gap: 3px; }
+  .doc-top-nav { justify-content: space-between; width: 100%; }
+  .doc-footer-nav span { flex-basis: 100%; }
+}
