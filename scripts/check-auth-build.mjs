@@ -5,6 +5,8 @@ const [index, sw] = await Promise.all([readFile('dist/index.html', 'utf8'), read
 assert.match(index, /assets\/index-[A-Za-z0-9_-]+\.js/)
 assert.match(sw, /skipWaiting\(\)/)
 assert.match(sw, /clientsClaim\(\)/)
+assert.match(sw, /\bdirectoryIndex["']?\s*:\s*null\b/, 'The precache route must not alias the public homepage to the health app index')
+assert.ok(sw.includes(String.raw`/^\/(?:\?|$)/`) && sw.includes(String.raw`/^\/id-cards(?:\/|\?|$)/`), 'Public brand and card pages must bypass the health app navigation fallback')
 assert.ok(sw.includes(String.raw`/^\/ops(?:\/|$)/`), 'Operations navigation must load the current server shell instead of an old offline shell')
 assert.doesNotMatch(sw, /api\/auth\/session/)
 assert.doesNotMatch(sw, /api\/auth\/(?:register|nickname\/login)/)

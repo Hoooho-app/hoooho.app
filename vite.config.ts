@@ -84,6 +84,8 @@ export default defineConfig({
         cleanupOutdatedCaches: true,
         clientsClaim: true,
         skipWaiting: true,
+        // Let the public homepage reach the server instead of matching the precached health app index.
+        directoryIndex: null,
         navigateFallback: 'index.html',
         globIgnores: ['**/node_modules/**/*', '**/family-site/**/*'],
         navigateFallbackDenylist: [/^\/(?:\?|$)/, /^\/id-cards(?:\/|\?|$)/, /^\/family-site\//, /^\/api\//, OPS_NAVIGATION_EXCLUSION, /^\/family-ray-home-life-workspace(?:\/|$)/, /^\/qinggan-jichoushi-notebook(?:\/|$)/, /^\/_internal\//]
