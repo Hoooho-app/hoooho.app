@@ -2,6 +2,7 @@ import { createRoot, hydrateRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
 import "./product-media.css";
+import "./family-dates.css";
 
 const root = document.getElementById("brand-root")!;
 const view = <App page={root.dataset.page === "cards" ? "cards" : "home"} />;
