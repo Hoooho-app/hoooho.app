@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import Ecosystem from "./Ecosystem";
+import { FamilyDates, WalletDates } from "./FamilyDates";
 import { projectIdeas } from "./project-ideas";
 
 type IconName =
@@ -902,6 +903,7 @@ function ProductPage() {
         </div>
       </section>
       <CardDemo />
+      <WalletDates />
       <section className="product-quote container">
         <BrandMark />
         <h2>
@@ -945,6 +947,7 @@ export default function App({ page }: { page: "home" | "cards" }) {
             <Hero />
             <Values />
             <AppCollection />
+            <FamilyDates />
             <About />
             <FAQ />
           </main>

@@ -1,0 +1,338 @@
+.family-dates {
+  --dates-card: #fdfcf8;
+  --dates-sage: #e8ecdf;
+  --dates-text-secondary: #656d5e;
+  padding-block: 46px 58px;
+  border-top: 1px solid var(--line);
+  scroll-margin-top: 14px;
+}
+
+.family-dates-heading {
+  margin-bottom: 25px;
+}
+
+.family-dates-label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 13px;
+  color: var(--green);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.family-dates-label .status-label {
+  color: var(--green);
+  font-size: 11px;
+  padding: 4px 9px;
+}
+
+.family-dates-heading h2 {
+  margin-top: 10px;
+  font-size: clamp(24px, 2.5vw, 34px);
+  font-weight: 550;
+  letter-spacing: -0.8px;
+  line-height: 1.42;
+}
+
+.family-dates-heading > p {
+  margin-top: 9px;
+  max-width: 42em;
+  color: var(--dates-text-secondary);
+  font-size: 14px;
+  line-height: 1.85;
+}
+
+.family-dates-sheet {
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: 17px;
+  background: var(--dates-card);
+}
+
+.family-dates-toolbar,
+.family-dates-wallet-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px 20px;
+}
+
+.family-dates-toolbar {
+  padding-bottom: 17px;
+}
+
+.family-dates-month {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  color: var(--green);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.family-dates-month strong {
+  color: var(--ink);
+  font-size: clamp(38px, 5vw, 56px);
+  font-weight: 550;
+  letter-spacing: -0.07em;
+  line-height: 1;
+}
+
+.family-dates-filters,
+.family-dates-member,
+.family-dates-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 18px;
+}
+
+.family-dates-tabs button {
+  min-height: 44px;
+  padding: 8px 15px;
+  color: var(--dates-text-secondary);
+  font-size: 13px;
+}
+
+.family-dates-tabs button.active {
+  font-weight: 650;
+}
+
+.family-dates-member {
+  gap: 8px;
+  color: var(--dates-text-secondary);
+  font-size: 12px;
+}
+
+.family-dates-member select {
+  max-width: 100%;
+  min-height: 44px;
+  padding-inline: 11px;
+  border: 1px solid #c5c9bd;
+  border-radius: 24px;
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.family-dates-list {
+  display: grid;
+  gap: 12px;
+}
+
+.family-dates-event {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.family-dates-group {
+  padding: 7px 13px;
+  border-radius: 11px 11px 0 0;
+  background: #f0f1e9;
+  color: var(--green);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.family-dates-event-button {
+  display: flex;
+  width: 100%;
+  min-height: 52px;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 13px;
+  border-radius: 0 0 11px 11px;
+  text-align: left;
+}
+
+.family-dates-event-button:hover {
+  background: #f5f5ee;
+}
+
+.family-dates-event-name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 1px 11px;
+}
+
+.family-dates-event-name strong {
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.family-dates-event-name > span,
+.family-dates-caption {
+  color: var(--dates-text-secondary);
+  font-size: 12px;
+}
+
+.family-dates-event-action {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 9px;
+  color: var(--green);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.family-dates-chevron {
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 7px;
+  height: 7px;
+  border-top: 1px solid currentColor;
+  border-right: 1px solid currentColor;
+  transform: rotate(45deg);
+}
+
+.family-dates-event-button[aria-expanded="true"] .family-dates-chevron {
+  transform: translateY(2px) rotate(-45deg);
+}
+
+.family-dates-detail {
+  margin-inline: 13px;
+  padding-block: 12px 13px;
+  border-top: 1px solid var(--line);
+}
+
+.family-dates-pair {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 28px minmax(0, 1fr);
+  align-items: stretch;
+}
+
+.family-dates-pair-card {
+  min-width: 0;
+  padding: 13px 15px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--paper);
+}
+
+.family-dates-pair-card h3 {
+  margin-block: 4px 8px;
+  font-size: 16px;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.family-dates-connector {
+  align-self: center;
+  width: 100%;
+  border-top: 1px solid #b8c4ab;
+}
+
+.family-dates-value {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 7px;
+  color: var(--dates-text-secondary);
+  font-size: 12px;
+}
+
+.family-dates-highlight {
+  padding: 3px 7px;
+  border-radius: 6px;
+  background: var(--dates-sage);
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.family-dates-note,
+.family-dates-disclosure {
+  margin-top: 10px;
+  color: var(--dates-text-secondary);
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.family-dates-empty {
+  padding: 21px 13px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  color: var(--dates-text-secondary);
+  font-size: 14px;
+}
+
+.family-dates-wallet-footer {
+  margin-top: 15px;
+}
+
+.family-dates-wallet-footer .family-dates-disclosure {
+  margin-top: 0;
+}
+
+.family-dates-links .simple-link {
+  min-height: 44px;
+  color: var(--green);
+  font-size: 13px;
+}
+
+.family-dates-links .family-dates-wallet-cta {
+  min-height: 44px;
+  padding: 10px 17px;
+  gap: 12px;
+  font-size: 13px;
+}
+
+.family-dates select:focus-visible {
+  outline: 2px solid var(--orange);
+  outline-offset: 2px;
+}
+
+@media (max-width: 620px) {
+  .family-dates {
+    padding-block: 35px 39px;
+  }
+
+  .family-dates-heading {
+    margin-bottom: 17px;
+  }
+
+  .family-dates-sheet {
+    padding: 13px;
+  }
+
+  .family-dates-toolbar,
+  .family-dates-wallet-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .family-dates-filters {
+    width: 100%;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .family-dates-tabs {
+    width: auto;
+  }
+
+  .family-dates-tabs button {
+    padding-inline: 10px;
+  }
+
+  .family-dates-event-name {
+    flex-direction: column;
+  }
+
+  .family-dates-pair {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .family-dates-connector {
+    justify-self: start;
+    width: 0;
+    height: 13px;
+    margin-left: 22px;
+    border-top: 0;
+    border-left: 1px solid #b8c4ab;
+  }
+}
