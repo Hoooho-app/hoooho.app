@@ -255,9 +255,13 @@ function Header({ detail = false }: { detail?: boolean }) {
     ? [["产品介绍", "/id-cards"], ["技术支持", "/id-cards/support"], ["隐私政策", "/id-cards/privacy"]]
     : [["旗下 App", "/#apps"], ["护护的想法", "/#about"], ["常见问题", "/#faq"]];
   const header = useRef<HTMLElement>(null);
+  const navigation = useRef<HTMLElement>(null);
   const toggle = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     if (!menuOpen) return;
+    if (window.matchMedia("(max-width: 580px)").matches && document.activeElement === toggle.current) {
+      navigation.current?.querySelector("a")?.focus();
+    }
     const clickAway = (event: PointerEvent) => {
       if (!header.current?.contains(event.target as Node)) setMenuOpen(false);
     };
@@ -280,7 +284,7 @@ function Header({ detail = false }: { detail?: boolean }) {
     <header className="site-header" ref={header}>
       <div className="header-inner container">
         <Brand cards={detail} />
-        <nav className={`main-nav ${menuOpen ? "is-open" : ""}`} aria-label={detail ? "卡包导航" : "护护导航"}>
+        <nav ref={navigation} className={`main-nav ${menuOpen ? "is-open" : ""}`} aria-label={detail ? "卡包导航" : "护护导航"}>
           {navLinks.map(([name, href], index) => (
             <a key={href} href={href} onClick={() => setMenuOpen(false)}
               className={index === 0 ? "nav-featured" : undefined}
